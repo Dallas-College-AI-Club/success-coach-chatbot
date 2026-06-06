@@ -21,7 +21,7 @@ wget -qO- https://astral.sh/uv/install.sh | sh
 
 ## Setting up the environment
 ```bash
-cd apps/backend
+cd apps/data
 uv sync
 ```
 
