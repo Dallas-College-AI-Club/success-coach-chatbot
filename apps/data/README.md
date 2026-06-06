@@ -5,7 +5,7 @@
 
 ## Installing uv
 
-** Windows: **
+**Windows:**
 ```bash
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
