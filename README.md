@@ -1,6 +1,6 @@
 # Dallas College AI Club: Success Coach Chatbot
 
-Chatbot to assist students at Dallas College acting as Success Coach in their pocket.
+Chatbot to assist students at Dallas College acting as a Success Coach in their pocket.
 
 
 ## Frontend
