@@ -10,7 +10,7 @@
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```
 
-** Mac/Linux: **
+**Mac/Linux:**
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
