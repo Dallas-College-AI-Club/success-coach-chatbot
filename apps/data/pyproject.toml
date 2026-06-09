@@ -1,7 +1,7 @@
 [project]
 name = "dallasai-club-success-coach-chatbot-data"
 version = "0.1.0"
-description = "Add your description here"
+description = "Data scraping module for the Dallas College Success Coach Chatbot"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = []

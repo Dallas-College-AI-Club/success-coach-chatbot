@@ -36,4 +36,3 @@ pnpm-debug.log*
 
 # typescript incremental compilation cache
 *.tsbuildinfo
-next-env.d.ts
