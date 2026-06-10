@@ -54,7 +54,6 @@ We evaluated database and vector storage options against our Next.js edge runtim
 * **Local Bundling in Electron/Local Storage**:
   * **Electron (Yes)**: Since it runs in-process, we can bundle LanceDB directly in an Electron desktop application by pointing it to the local user data directory (`app.getPath('userData') + '/lancedb'`).
   * **Vercel Serverless (No)**: Vercel functions are stateless and read-only. We cannot persist local database files on Vercel across invocations without using remote object storage (like AWS S3), which adds network query latency and S3 api costs.
-  * **Chromebook hardware issue**: Native pre-built LanceDB packages require AVX/AVX2 instruction sets. Our Chromebook virtualized Linux environment (Crostini/Penguin) does not expose AVX/AVX2 CPU flags, causing LanceDB to crash with `signal: illegal instruction (core dumped)` during local execution.
 
 ---
 
