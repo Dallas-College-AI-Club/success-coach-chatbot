@@ -16,11 +16,15 @@ So that I don't have to know exact course codes to get accurate degree informati
 
 **Acceptance Criteria:**
 
-Given a student types "what courses will I need to take to complete associate degree in Computer Science?"
+Given a student asks questions such as 
+- "what courses will I need to take to complete associate degree in Computer Science?", 
+- "What should I take in my first semester?"
+- "Do I need any prerequisites for this class?"
 When the chatbot processes the query
 Then it identifies the intent as degree planning
-And maps the course requirements such as COSC I, COSC II, Calculus I and II etc.
-And returns the result in context of the CS degree plan
+And maps the course requirements such as COSC I, COSC II, Calculus I and II etc. 
+And returns the result in context of the CS degree plan. The bot may also return prerequisites and sugesstions based on the user question.
+
 
 **Edge Cases:**
 - Given the student uses a broad question with no specific one, 
@@ -28,8 +32,8 @@ And returns the result in context of the CS degree plan
   Then it asks a clarifying question or useful question rather than guessing, such as bot would say, "You will need 60 semester credit hours to graduate, how would you like to plan for this semester?"
 
 **QA Verification:**
-- [ ] Bot asks for clarification when confidence score is below threshold
-- [ ] Response cites source at the bottom (catalog year + program name)
+- Bot asks for clarification when confidence score is below threshold
+- Response cites source at the bottom (catalog year + program name)
 
 ###### End ######
 
@@ -54,14 +58,17 @@ So that I don't have to enroll in the same courses I have already taken.
 
 **Acceptance Criteria:**
 
-Given a student types "Are these courses transferable? (MATH 2337, COSC 2319,
-PHYS 2234) — if they transfer, how many credit hours are remaining for my
-Mechanical Engineering degree?"
+Given a student types 
+- "Are these courses transferable? (MATH 2337, COSC 2319, PHYS 2234) — if they transfer, how many credit hours are remaining for my Mechanical Engineering degree?"
+- "Do I need to retake any of my classes?"
+- "Does my course from my old college match this course here?"
+
 When the chatbot processes the query
 Then it identifies the intent as degree_planning
 And checks if MATH 2337, COSC 2319, and PHYS 2234 are transferable —
 if so, remaps and calculates the remaining credit hours and the exact
 courses he will need to take
+And the bot will also check if the course from the previous College also match with Dallas College course.
 And returns the result in structured plain English
 
 **Edge Cases:**
@@ -73,16 +80,12 @@ And returns the result in structured plain English
   academic advisor."
 
 **QA Verification:**
-- [ ] Bot correctly identifies `degree_planning` intent when student
-      lists course codes in the query
-- [ ] Bot accurately checks if MATH 2337, COSC 2319, and PHYS 2234
+- Bot correctly identifies `degree_planning` intent when student lists course codes in the query
+- Bot accurately checks if MATH 2337, COSC 2319, and PHYS 2234
       are transferable 
-- [ ] Bot correctly calculates the remaining credit hours after confirmed
-      transfer credits are removed from the degree plan
-- [ ] Bot successsfully returns the exact list of remaining courses the student
-      will still needs to take
-- [ ] When the bot unrecognized the course code, then bot responds with
-      the advisor referral message instead of crashing or trying to guess
+- Bot correctly calculates the remaining credit hours after confirmed transfer credits are removed from the degree plan
+- Bot successsfully returns the exact list of remaining courses the student will still needs to take
+- When the bot unrecognized the course code, then bot responds with the advisor referral message instead of crashing or trying to guess
 
 ###### End ######
 
@@ -92,7 +95,7 @@ And returns the result in structured plain English
 **Priority:** P0 | **Effort:** L / 5
 
 **Persona Reference**
-Hannah is a 45 years old student who decided to take her Bussiness Administration Certificate at Dallas College. She needs help with the courses she will be taking. She is hoping to take all of her classes `online`
+Hannah is a 45 years old student who decided to take her Bussiness Administration Certificate at Dallas College. She needs help with the courses she will be taking. She is hoping to take all of her classes `online` (As far as I know, most of the lifelong learners are taking online classes)
 
 **User Story:**
 As a Lifelong Learner,
@@ -104,10 +107,14 @@ and confirm I can complete my certificate from home.
 **Acceptance Criteria:**
 
 Given Hannah asks about her Business Administration Certificate courses
-When she also asks if they are available online
-Then the chatbot returns a list of required courses
-  And clearly marks each one as Online, In-Person, or Hybrid
+When she also asks 
+- "if they are available online?"
+- "What courses do I need to complete my Business Administration certificate?"
+- "What classes should I take next semester if I work full time?"
+Then the chatbot returns a list of required courses, check if they are online, in-person, hybrid, and also plan the course for Hannah
+  And the bot clearly marks each one as Online, In-Person, or Hybrid
   And lets her know if any course is not available online
+  And the bot also suggest what courses she should take allign with her work schedule
 
 **Edge Cases:**
 - Given Hannah asks about online availability
@@ -116,8 +123,9 @@ Then it includes a disclaimer that availability may vary semester by semester
   And recommends that she verify on the Dallas College course schedule
 
 **QA Verification:**
-- [ ] Bot correctly identifies certificate program 
-- [ ] Response includes a disclaimer (this is important) that availability may vary by semester
+- Bot correctly identifies certificate program 
+- Response includes a disclaimer (this is important) that availability may vary by semester
+#The disclaimer really matters here because even when I try to enroll for classes, it some how brings me to last year class schedule which could be really confusing 
 
 ###### End ######
 
@@ -143,14 +151,12 @@ So that I can plan my schedule without accidentally violating
 my visa requirements or enrolling in a class I'm not ready for.
 
 **Acceptance Criteria:**
-
-
 Given Sean asks about requirements for class registeration and how many credits must he take in-person and how many can he take online
-When the chatbot processes his query
-Then it returns the required ESL or English courses for his program,
+Given Sean also asks "Do I really need to take TSI test, eventhough I have IELTS or TOFEL or SAT or ACT?"
+When the chatbot processes his query and confirm the student status
+Then it returns the required ESL/TSI for his program, or may be waived from those requirements
 it also returns the number of credits allowed to take online and in-person
-  And clearly states the minimum credit hours required for his visa status, clearly states that he will need to take TSI if required,
-  
+And clearly states the minimum credit hours required for his visa status
 
 **Edge Cases:**
 
@@ -160,9 +166,9 @@ Then the chatbot asks one simple clarifying question before responding
 
 **QA Verification:**
 
-- [ ] Bot returns correct ESL prerequisites for at least 3 different programs
-- [ ] Bot includes minimum credit hour info relevant to F-1 visa status
-- [ ] Bot does not guess visa requirements — if unsure, directs it to international office 
-- [ ] Bot handles informal or broken English queries without returning an error
+- Bot returns correct ESL/TSI prerequisites 
+- Bot includes minimum credit hour info relevant to F-1 visa status
+- Bot does not guess visa requirements — if unsure, directs it to international office 
+- Bot handles informal or broken English queries without returning an error
 
 ###### End ######

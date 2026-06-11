@@ -7,11 +7,11 @@
 **Persona Reference**
 Maria is a recently enrolled student, typically around 18–20 years old,
 who is not familiar with Dallas College and wants to explore more and make connections by
-participating in events on campus. However, she does not know which events would align the most with her interests. She also has no idea where, when and how to find those events. She decides to ask the Dallas College AI chatbot about her questions.
+participating in events on campus. However, she does not know which events would align the most with her interests. She also have no idea where, when and how to find those events. She decided to ask the Dallas College AI chatbot about her questions.
 
 **User Story:**
 As a first-year student,
-I want to ask the chatbot what events are happening at my campus this week, 
+I want to ask the chatbot about the events that are happening at Dallas College, 
 So that I can discover what's going on around me without always looking through multiple flyers or bulletin board,
 
 **Acceptance Criteria:**
@@ -34,6 +34,8 @@ Scenario: Student asks about a specific day rather than the full week
     Then the bot filters results to Friday only
     And returns only events occurring on that day at El Centro Campus
 
+Student may also ask, "Can you list clubs and student organizations at Richland campus?"
+
 **Edge Cases:**
 - Scenario: Almost all of the events at Dallas College are advertise through social media/flyers around the campus/ bulletin board/ word of mouth 
     Given a student asks for events flyers she saw at "Mountain View" this week, and she ask bot that she wannted to know more information about that event
@@ -42,9 +44,9 @@ Scenario: Student asks about a specific day rather than the full week
     Then the bot refers to contact student life to check what events are coming with the email address and phone number tag at the bottom
 
 **QA Verification:**
-- [ ] Bot does not initiate without verifying the campus location
-- [ ] If found, bot return each result includes all required fields such as name, date, time, location
-- [ ] If not, bot suggest to reach out student life 
+- Bot does not initiate without verifying the campus location
+- If found, bot return each result includes all required fields such as name, date, time, location
+- If not, bot suggest to reach out student life 
 
 ###### End ######
 
@@ -92,9 +94,9 @@ Scenario: Almost all of the events at Dallas College are advertise through socia
     Then the bot refers to contact student life to check what events are coming with the email address and phone number tag at the bottom
 
 **QA Verification:**
-- [ ] Bot does not initiate without verifying the campus location
-- [ ] If found, bot return each result includes all required fields such as name, date, time, location
-- [ ] If not, bot suggest to reach out to student life 
+- Bot does not initiate without verifying the campus location
+- If found, bot return each result includes all required fields such as name, date, time, location
+- If not, bot suggest to reach out to student life 
 
 ###### End ######
 
@@ -128,11 +130,18 @@ Scenario: Lifelong learner asks for weekend events
     And the results are sorted by date ascending
     And weekday events are excluded entirely
 
+Scenario: Lifelong learner asks for online events
+    Given the student asks "Are there any online events available?"
+    Then the bot returns list of online events 
+    And each result includes: event name, date, start time, details link
+
 Scenario: Lifelong learner combines time and day filters
     Given the student asks "Are there any Saturday evening events at Mountain View?"
     When the bot processes the query
     Then the bot filters results by campus ("Mountain View"), day of week (Saturday), and time (at or after 5:00 PM)
     And only events satisfying all three constraints are returned
+
+ 
 
 **Edge Cases:**
 Scenario: No evening or weekend events are scheduled during the week
@@ -148,11 +157,11 @@ Scenario: Almost all of the events at Dallas College are advertise through socia
 
 
 **QA Verification:**
-- [ ] Bot does not initiate without verifying the campus location
-- [ ] Events with no match time, date and location are excluded 
-- [ ] Bot only return the result when all the user constraints are all met
-- [ ] If found, bot return each result includes all required fields such as name, date, time, location
-- [ ] If not, bot suggest to reach out to student life 
+- Bot does not initiate without verifying the campus location
+- Events with no match time, date and location are excluded 
+- Bot only return the result when all the user constraints are all met
+- If found, bot return each result includes all required fields such as name, date, time, location
+- If not, bot suggest to reach out to student life 
 
 ###### End ######
 
@@ -204,9 +213,9 @@ Scenario: Almost all of the events at Dallas College are advertise through socia
 
 
 **QA Verification:**
-- [ ] Bot returns culturally relevant events when queried with a specific cultural group name
-- [ ] Bot only return the result when all the user constraints are all met
-- [ ] If found, bot return each result includes all required fields such as name, date, time, location
-- [ ] If not bot returns the ISS office contact and a helpful message when no community-specific events are found.
+- Bot returns culturally relevant events when queried with a specific cultural group name
+- Bot only return the result when all the user constraints are all met
+- If found, bot return each result includes all required fields such as name, date, time, location
+- If not bot returns the ISS office contact and a helpful message when no community-specific events are found.
 
 ###### End ######

@@ -16,7 +16,7 @@ who lost her belongings on campus during her class. She doesn’t have any time 
 **User Story:**
 As a traditional student who has lost an item on campus,
 I want to submit a lost item report through the chatbot by describing what I lost, when, and where,
-so that I am notified if someone turns it in without having to keep checking the office in person.
+so that I am notified if someone found and turned it in,(without having to keep checking with the office in person).
 
 **Acceptance Criteria:**
 
@@ -29,7 +29,7 @@ Scenario: Student submits a complete lost item report
     And upon confirmation, saves the report to the Lost & Found database
     And returns a unique report ID and confirmation message to the student
 
-Scenario: Student provides all details in a single message
+Scenario: If student provides all details in a single message
     Given the student sends "I lost my black North Face backpack at Richland on Tuesday"
     When the bot parses the message
     Then it extracts the item description, campus, and approximate date from the single message
@@ -37,30 +37,31 @@ Scenario: Student provides all details in a single message
 
 Scenario: Student asks about the status of a previously submitted report
     Given a student provides their report ID
-    When they ask "Any updates on my lost backpack? My report ID is LF-20240512-003"
+    When they ask "Any updates on my lost backpack? My report ID is LF-20260512-003"
     Then the bot queries the database for that report ID
     And returns the current status (e.g., "Open — no match found yet" or "Match found — see details below")
+    And it will also return instructions on how to claim that item(For example, "Your item can be claim at Richland Campus Building S 223, Student Life Center)
 
 **Edge Cases:**
 Scenario: Student abandons the report flow midway
     Given a student has started the report flow but stops responding after the second field
     When the session times out
     Then the bot does NOT save an incomplete report to the database
-    And the partial data is discarded
+    And the partial data is discarded (for saving the memory)
     And if the student returns, the bot offers to start the report again from the beginning
 
 Scenario: Student submits a duplicate report for the same item
     Given a student has already submitted a report for a lost laptop at Richland
     When they submit another report with an identical or near-identical description, date, and campus
-    Then the bot detects the likely duplicate and alerts the student before saving
+    Then the bot detects the likely duplicate and alerts the student before saving it
     And asks whether they want to submit a new report or update the existing one
 
 **QA Verification:**
-- [ ] Completed reports appear in the Lost & Found database with all required fields populated.
-- [ ] Bot extracts pre-supplied details from a single message and only prompts for missing fields.
-- [ ] Incomplete reports (abandoned sessions) are not saved to the database.
-- [ ] Each submitted report receives a unique report ID returned to the student.
-- [ ] Duplicate detection triggers when description, campus, and date match an existing open report.
+- Completed reports appear in the Lost & Found database with all required fields populated.
+- Bot extracts pre-supplied details from a single message and only prompts for missing fields.
+- Incomplete reports (abandoned sessions) are not saved to the database.
+- Each submitted report receives a unique report ID returned to the student.
+- Duplicate detection triggers when description, campus, and date match an existing open report.
 
 ###### End ######
 
@@ -87,6 +88,11 @@ Scenario: Student submits a found item report through the chatbot
     And upon confirmation, saves the report with status "Pending Admin Approval"
     And the report appears in the admin moderation queue
     And the student receives a confirmation message stating the report is under review
+
+    For this scenario, student may also initiate the conversation with
+    - "I found an ID card. What should I do?"
+    - "Can you help me report a found item?" followed by
+    - "Where should I take this item?"
 
 Scenario: Admin approves a found item report
     Given a found item report is sitting in the admin queue with status "Pending"
@@ -116,19 +122,75 @@ Scenario: Admin queue is unreviewed for more than 48 hours
     And the report remains in "Pending" status; it does NOT auto-approve or auto-reject
 
 **QA Verification:**
-- [ ] Submitted found item reports appear in the admin queue with status "Pending" immediately after submission.
-- [ ] Approved reports become visible on the public board and trigger matching notifications if applicable.
-- [ ] Rejected reports do not appear on the public board and the finder receives a rejection notification.
-- [ ] Bot blocks submission when the item description field is empty.
+- Submitted found item reports appear in the admin queue with status "Pending" immediately after submission.
+- Approved reports become visible on the public board and trigger matching notifications if applicable.
+- Rejected reports do not appear on the public board and the finder receives a rejection notification.
+- Bot blocks submission when the item description field is empty.
  A 48-hour queue alert fires correctly in a simulated test with a backdated "Pending" report.
 
 ###### End ######
 
 # Story ID LF - 03
 # Feature - Lost And found
-### The above scenarios will still apply to P3 ###
 **Persona:** Hannah — P3 — Lifelong Learners (Continuing Ed / Certification)
 **Priority:** P0 | **Effort:** L / 5
+
+**Persona Reference**
+Hannah is a life long learner who balances school, work, and personal life. Hannah has a pretty hectic schedule and most of her classes are all online. She sometimes attends campus event on the weekend at the Richland campus. After the event, she realize that she forgets her laptop charger in the event room.
+Because Hannah is busy, she cannot spend time searching around campus or going to different offices. She wants a quick and simple way to report or find her item.She prefers a process that is easy to follow, with clear steps and no extra work.
+
+**User Story:**
+As a life long learner who has lost an item on campus during events,
+I want to submit a lost item report through the chatbot by describing what I lost, when, and where,
+so that I am notified if someone found and turned it in,(without having to keep checking with the office in person).
+
+**Acceptance Criteria:**
+
+Scenario: Student submits a complete lost item report
+    Given a student started chatting with the Dallas College AI chatbot
+    When the student says "I lost my white laptop charger, what should I do?"
+    Then the bot initiates a guided report flow
+    And collects the following fields one at a time: item description, date lost, campus, and student email or phone
+    And once all fields are collected, displays a summary for the student to confirm
+    And upon confirmation, saves the report to the Lost & Found database
+    And returns a unique report ID and confirmation message to the student
+
+Scenario: If student provides all details in a single message
+    Given the student sends "I lost my white laptop charger on campus around 5:00pm in building E at Richland on Tuesday"
+    When the bot parses the message
+    Then it extracts the item description, campus, and approximate date from the single message
+    And only asks for the missing required fields (contact info) rather than repeating what was already provided
+
+Scenario: Student asks about the status of a previously submitted report
+    Given a student provides their report ID
+    When they ask "Any updates on my lost charger? My report ID is LF-20260512-029"
+    Then the bot queries the database for that report ID
+    And returns the current status (e.g., "Open — no match found yet" or "Match found — see details below")
+    And it will also return instructions on how to claim that item(For example, "Your item can be claim at Richland Campus Building S 223, Student Life Center)
+
+**Edge Cases:**
+#We can apply edge cases from traditional student as well
+
+Scenario: Student abandons the report flow midway
+    Given a student has started the report flow but stops responding after the second field
+    When the session times out
+    Then the bot does NOT save an incomplete report to the database
+    And the partial data is discarded (for saving the memory)
+    And if the student returns, the bot offers to start the report again from the beginning
+
+Scenario: Student submits a duplicate report for the same item
+    Given a student has already submitted a report for a lost laptop at Richland
+    When they submit another report with an identical or near-identical description, date, and campus
+    Then the bot detects the likely duplicate and alerts the student before saving it
+    And asks whether they want to submit a new report or update the existing one
+
+**QA Verification:**
+- Completed reports appear in the Lost & Found database with all required fields populated.
+- Bot extracts pre-supplied details from a single message and only prompts for missing fields.
+- Incomplete reports (abandoned sessions) are not saved to the database.
+- Each submitted report receives a unique report ID returned to the student.
+- Duplicate detection triggers when description, campus, and date match an existing open report.
+
 
 ###### End ######
 
@@ -148,6 +210,7 @@ so that I can recover a document that affects my visa status and legal residency
 
 
 **Acceptance Criteria:**
+
 Scenario: International student reports a lost passport or government ID
     Given an international student says "I lost my passport at Richland Campus"
     When the bot detects a high-urgency item type (passport, visa card, government ID, I-20, permanent resident card, credit/debit, driver license)
@@ -159,33 +222,38 @@ Scenario: International student reports a lost passport or government ID
 Scenario: Matching government ID found on the board
     Given the search returns a record matching the student's described document
     When the bot presents the result
-    Then it provides the item record details, claim location, office hours, and required documentation
+    Then it send an automatic email to student and provides instructions such as, claim location, office hours, and required documentation
     And reminds the student to bring their student ID and any secondary identification when claiming
 
 Scenario: Student asks what to do if their government ID is not found
     Given no matching records are found on the board for the described document
-    When the student asks "What do I do if it's not there?"
+    When the student asks "What should I do if my document is not found?"
     Then the bot provides a clear next-step checklist:
       - File a lost item report to be notified if it turns up
       - Contact the ISS office immediately
       - Contact campus security to check if it was handed in directly
-    And does NOT attempt to give legal or immigration advice beyond directing to the appropriate office
+    And does NOT attempt to give legal or immigration advice beyond directing to the appropriate offices
+
+    Student may also initiate the conversation with
+    - "Where should I go for help?"
+    - "Can you connect me to International Student Services?"
+
 
 
 **Edge Cases:**
 
-Scenario: Student does not specify which campus they lost the item at
-    Given the student says "I lost my Passport" without mentioning a campus
+Scenario: Student does not specify when and where they lost the item at
+    Given the student says "I lost my Passport" without mentioning when and where
     When the bot processes the query
-    Then it asks which campus the item was lost at before running the search
+    Then it asks when and which campus the item was lost at before running the search
     And does NOT search all campuses simultaneously without confirmation, to avoid returning confusing multi-campus results
 
 
 **QA Verification:**
-- [ ] Bot correctly detects government ID keywords (passport, I-20, visa, government ID, permanent resident card) and triggers as urgent
-- [ ] ISS office contact information is included in every response involving a lost government document, regardless of whether a board match was found.
-- [ ] Next-step checklist is returned correctly when no match is found and student asks what to do.
-- [ ] Bot asks for campus clarification before searching when no campus is specified in the query.
+- Bot correctly detects government ID keywords (passport, I-20, visa, government ID, permanent resident card) and triggers as urgent
+- ISS office contact information is included in every response involving a lost government document, regardless of whether a board match was found.
+- Next-step checklist is returned correctly when no match is found and student asks what to do.
+- Bot asks for campus clarification and the time before searching 
 
 ###### End ######
 
