@@ -1,0 +1,47 @@
+# Dallas College - Course Syllabus
+## HIST 1301: History of the United States I (3 Credit Hours)
+### Course Information
+* **Course ID**: HIST-1301-22005
+* **Term**: Fall 2026
+* **Class Location**: Liberal Arts Building, Room 104
+
+### Instructor Information
+* **Instructor**: Prof. John Smith
+* **Email**: jsmith@dallascollege.edu
+* **Office Hours**: Tuesday & Thursday, 10:00 AM - 12:00 PM
+
+### Course Description
+A survey of the social, political, economic, cultural, and intellectual history of the United States from the pre-Columbian era to the Civil War/Reconstruction period.
+
+### Required Materials
+* **Textbook**: OpenStax U.S. History. 
+* **Cost**: This is an Open Educational Resource (OER) textbook. Students can download the textbook for free as a PDF online at the OpenStax website or read it online. **No physical textbook purchase is required.**
+* **Secondary Readings**: Articles and source documents will be posted weekly on eCampus.
+
+### Grading Scale & Policy
+Grades will be calculated as follows:
+* Weekly Quizzes (10 total, lowest dropped): 50% of final grade
+* Historiography Essay (1 total, due Week 8): 20% of final grade
+* Final Examination: 30% of final grade
+
+Grading Rubric:
+* A: 90 - 100%
+* B: 80 - 89%
+* C: 70 - 79%
+* D: 60 - 69%
+* F: Below 60%
+
+### Historiography Essay Details
+Students are required to write exactly **1 essay** (1,500 - 2,000 words) analyzing a primary document of their choice from the pre-Civil War era. This constitutes the entirety of the essay requirement for this course.
+
+### Course Schedule
+* Week 1: Pre-Columbian Societies and Transatlantic Encounters
+* Week 2: Colonial America and the Atlantic World
+* Week 3: Causes of the American Revolution
+* Week 4: The Revolutionary War and the Constitution
+* Week 5: The Early Republic & Jacksonian Democracy (Midterm Quiz)
+* Week 6: Industrialization, Market Revolution, and Westward Expansion
+* Week 7: Sectional Conflict and the Compromise of 1850
+* Week 8: The Civil War (Essay Submission due by Friday)
+* Week 9: Reconstruction and its Aftermath
+* Week 10: Final Course Exam
