@@ -213,10 +213,14 @@ def seed(token: str, base_id: str, apply: bool) -> None:
     new_guid = []
     for g in GUIDANCE:
         cat = category_ids.get(g["category"])
-        if cat and (cat,) not in existing_guid:
+        if not cat:
+            plan.append(f"Student Guidance: SKIP {g['category']} (links unresolved in dry run)")
+            continue
+        if (cat,) not in existing_guid:
             new_guid.append({F["guid_category"]: [cat],
                              F["guid_prep"]: g["Prep Steps"],
                              F["guid_awareness"]: g["Awareness Message"]})
+
     if new_guid:
         plan.append(f"Student Guidance: create {len(new_guid)}")
         if apply:

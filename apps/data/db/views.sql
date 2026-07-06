@@ -297,6 +297,7 @@ UNION ALL
 SELECT 'campus', id, lower(btrim(code)), 'canonical', NULL FROM campuses
 UNION ALL
 SELECT 'campus', id, lower(btrim(name)), 'canonical', NULL FROM campuses
+WHERE lower(btrim(name)) <> lower(btrim(code))   -- e.g. 'Online': code = name; emit once
 UNION ALL
 SELECT 'resource_category', id, lower(btrim(name)), 'canonical', NULL FROM resource_categories
 UNION ALL
@@ -315,7 +316,12 @@ SELECT CASE WHEN a.academic_unit_id     IS NOT NULL THEN 'academic_unit'
                 a.help_topic_id, a.degree_plan_id),
        a.normalized_alias, 'alias', a.id
 FROM aliases a
-WHERE a.status = 'approved';
+LEFT JOIN degree_plans adp  ON adp.id = a.degree_plan_id
+LEFT JOIN catalog_editions ace ON ace.id = adp.catalog_edition_id
+WHERE a.status = 'approved'
+  -- degree-plan aliases follow the ACTIVE edition (ADR-007): a superseded
+  -- edition's plan must never resolve silently
+  AND (a.degree_plan_id IS NULL OR ace.is_active);
 
 
 -- ----------------------------------------------------------------------------

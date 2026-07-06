@@ -209,11 +209,12 @@ INSERT INTO academic_units (id, external_id, institution_id, name) VALUES
  (6, 'unit-general-all',1, 'General / All');  -- college-wide fallback — routing never dead-ends (Issue #43)
 
 INSERT INTO contacts (id, name, email, helps_with, active, last_verified_date) VALUES
- (1, 'Grant Steward (ETMS) — fictional',      NULL, 'School-managed grant funds for ETMS programs', true,  '2026-06-15'),
- (2, 'Grant Steward (Business) — fictional',  NULL, 'School-managed grant funds for Business programs', true, '2026-06-15'),
- (3, 'Scholarship Office — fictional',        NULL, 'College-wide scholarship applications', true, '2026-05-01'),
- (4, 'Student Care Coordinator — fictional',  NULL, 'Emergency aid, food pantry, housing referrals', true, '2026-04-20'),
- (5, 'Former Grant Steward — fictional',      NULL, 'Superseded contact kept for history', false, '2025-11-01');
+ -- verification dates are RELATIVE so freshness tests never rot with time
+ (1, 'Grant Steward (ETMS) — fictional',      NULL, 'School-managed grant funds for ETMS programs', true,  CURRENT_DATE - 21),
+ (2, 'Grant Steward (Business) — fictional',  NULL, 'School-managed grant funds for Business programs', true, CURRENT_DATE - 21),
+ (3, 'Scholarship Office — fictional',        NULL, 'College-wide scholarship applications', true, CURRENT_DATE - 66),
+ (4, 'Student Care Coordinator — fictional',  NULL, 'Emergency aid, food pantry, housing referrals', true, CURRENT_DATE - 77),
+ (5, 'Former Grant Steward — fictional',      NULL, 'Superseded contact kept for history', false, CURRENT_DATE - 250);
 
 INSERT INTO resource_categories (id, name, routing_model) VALUES
  (1, 'grants',          'per_school — route, don''t determine eligibility'),

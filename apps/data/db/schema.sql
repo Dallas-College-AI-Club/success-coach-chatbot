@@ -234,7 +234,8 @@ CREATE TABLE academic_units (
     id             serial PRIMARY KEY,
     external_id    varchar UNIQUE,    -- stable sync key (Issue #43)
     institution_id int     NOT NULL REFERENCES institutions (id),
-    name           varchar NOT NULL   -- school, e.g. ETMS
+    name           varchar NOT NULL,  -- school, e.g. ETMS
+    UNIQUE (institution_id, name)     -- adopt-by-name + v_vocab_resolve depend on distinct names
 );
 
 CREATE TABLE contacts (
@@ -250,7 +251,7 @@ CREATE TABLE contacts (
 CREATE TABLE resource_categories (
     id            serial PRIMARY KEY,
     external_id   varchar UNIQUE,    -- stable sync key (rename-safe)
-    name          varchar NOT NULL,  -- grants | scholarships | financial_aid | emergency_funds | student_care | tech_support
+    name          varchar NOT NULL UNIQUE,  -- grants | scholarships | financial_aid | ... (by-name sync/seed logic depends on it)
     routing_model text,              -- "route, don't determine eligibility"
     description   text,              -- 2-3 sentences in student language (bot may quote)
     clarify_label varchar            -- one-line option label for disambiguation questions
@@ -259,7 +260,7 @@ CREATE TABLE resource_categories (
 CREATE TABLE help_topics (
     id                   serial PRIMARY KEY,
     external_id          varchar UNIQUE,  -- stable sync key (rename-safe)
-    name                 varchar NOT NULL, -- trigger topics: rent, utilities, mental health, laptops...
+    name                 varchar NOT NULL UNIQUE, -- trigger topics: rent, utilities, mental health... (by-name logic depends on it)
     disambiguation_prompt text            -- asked VERBATIM when the topic maps to >1 category
 );
 
@@ -289,8 +290,10 @@ CREATE TABLE assignments (
     degree_plan_id       int,  -- FK added after Module 6 (degree_plans is created later in this file)
     degree_or_program    varchar,  -- display text during transition; prefer degree_plan_id
     criteria             text,     -- relayed VERBATIM when routing; never evaluated ("route, don't determine")
-    CHECK (applies_to_all_programs = false
-           OR (degree_plan_id IS NULL AND degree_or_program IS NULL))
+    CHECK ((applies_to_all_programs
+            AND degree_plan_id IS NULL AND degree_or_program IS NULL)
+           OR (NOT applies_to_all_programs
+            AND (degree_plan_id IS NOT NULL OR degree_or_program IS NOT NULL)))
 );
 
 CREATE TABLE assignment_topics (
@@ -301,7 +304,7 @@ CREATE TABLE assignment_topics (
 
 CREATE TABLE student_guidance (
     id                   serial PRIMARY KEY,
-    resource_category_id int NOT NULL REFERENCES resource_categories (id),
+    resource_category_id int NOT NULL UNIQUE REFERENCES resource_categories (id),  -- one guidance row per category (v_support_routing joins on it)
     prep_steps           text,  -- e.g. "FAFSA on file + declared program of study"
     awareness_msg        text   -- proactive onboarding message (DP/#46)
 );

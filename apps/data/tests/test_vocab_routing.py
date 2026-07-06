@@ -72,3 +72,37 @@ def test_support_routing_surface(q):
     assert criteria and "FAFSA" in criteria
     assert prep and awareness, "guidance rides along with every routing answer"
     assert is_stale is False
+
+
+def test_scope_check_is_two_sided(db):
+    # review C1: a "program-specific" assignment naming NO program is a dead
+    # row under additive routing — the CHECK must reject it too
+    with pytest.raises(psycopg.errors.CheckViolation):
+        with db.cursor() as cur:
+            cur.execute(
+                """INSERT INTO assignments (contact_id, academic_unit_id,
+                       resource_category_id, applies_to_all_programs)
+                   SELECT c.id, au.id, rc.id, false
+                   FROM contacts c, academic_units au, resource_categories rc
+                   WHERE au.name='ETMS' AND rc.name='grants' LIMIT 1""")
+
+
+def test_no_duplicate_resolve_rows(q):
+    # review C3: 'Online' campus has code == name — must resolve exactly once
+    rows = q("SELECT count(*) FROM v_vocab_resolve WHERE phrase = 'online'")
+    assert rows == [(1,)], "code==name campuses must not emit duplicate rows"
+    dupes = q("""SELECT phrase, count(*) FROM v_vocab_resolve
+                 GROUP BY phrase, entity_type, entity_id HAVING count(*) > 1""")
+    assert dupes == [], f"duplicate resolve rows: {dupes}"
+
+
+def test_retired_aliases_stay_retired(db, q):
+    # review C2: retiring an alias must survive the mandated seed re-run
+    from pathlib import Path
+    with db.cursor() as cur:
+        cur.execute("UPDATE aliases SET status = 'retired' WHERE normalized_alias = 'stressed'")
+    seed = (Path(__file__).resolve().parent.parent / "db" / "seed_aliases.sql")
+    db.execute(seed.read_text(encoding="utf-8"))
+    rows = q("SELECT status, count(*) FROM aliases WHERE normalized_alias = 'stressed' GROUP BY status")
+    assert rows == [("retired", 1)], f"retirement resurrected by seed re-run: {rows}"
+    assert q("SELECT count(*) FROM v_vocab_resolve WHERE phrase = 'stressed'") == [(0,)]

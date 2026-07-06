@@ -13,28 +13,28 @@
 
 -- ---- category descriptions + clarify labels (student language) -------------
 UPDATE resource_categories SET
-    description   = 'Grant money managed by your school. Grants are not loans — you do not pay them back, and they do not change your financial aid.',
-    clarify_label = 'Grant money from your school''s programs'
+    description   = COALESCE(description, 'Grant money managed by your school. Grants are not loans — you do not pay them back, and they do not change your financial aid.'),
+    clarify_label = COALESCE(clarify_label, 'Grant money from your school''s programs')
 WHERE name = 'grants' AND (description IS NULL OR clarify_label IS NULL);
 UPDATE resource_categories SET
-    description   = 'Scholarships from Dallas College. One application covers many awards.',
-    clarify_label = 'A scholarship'
+    description   = COALESCE(description, 'Scholarships from Dallas College. One application covers many awards.'),
+    clarify_label = COALESCE(clarify_label, 'A scholarship')
 WHERE name = 'scholarships' AND (description IS NULL OR clarify_label IS NULL);
 UPDATE resource_categories SET
-    description   = 'Federal and state aid, loans, and work-study, handled by the Financial Aid Office.',
-    clarify_label = 'Federal or state financial aid (FAFSA)'
+    description   = COALESCE(description, 'Federal and state aid, loans, and work-study, handled by the Financial Aid Office.'),
+    clarify_label = COALESCE(clarify_label, 'Federal or state financial aid (FAFSA)')
 WHERE name = 'financial_aid' AND (description IS NULL OR clarify_label IS NULL);
 UPDATE resource_categories SET
-    description   = 'Emergency help (up to $500 per semester) for sudden documented hardship, plus care coordinators who connect you to community resources.',
-    clarify_label = 'Emergency help right now'
+    description   = COALESCE(description, 'Emergency help (up to $500 per semester) for sudden documented hardship, plus care coordinators who connect you to community resources.'),
+    clarify_label = COALESCE(clarify_label, 'Emergency help right now')
 WHERE name = 'emergency_funds' AND (description IS NULL OR clarify_label IS NULL);
 UPDATE resource_categories SET
-    description   = 'Counseling, food, housing referrals, and ongoing support from the Student Care team.',
-    clarify_label = 'Someone to talk to / ongoing support'
+    description   = COALESCE(description, 'Counseling, food, housing referrals, and ongoing support from the Student Care team.'),
+    clarify_label = COALESCE(clarify_label, 'Someone to talk to / ongoing support')
 WHERE name = 'student_care' AND (description IS NULL OR clarify_label IS NULL);
 UPDATE resource_categories SET
-    description   = 'Free loaner laptops and technology help for classes.',
-    clarify_label = 'A laptop or technology for class'
+    description   = COALESCE(description, 'Free loaner laptops and technology help for classes.'),
+    clarify_label = COALESCE(clarify_label, 'A laptop or technology for class')
 WHERE name = 'tech_support' AND (description IS NULL OR clarify_label IS NULL);
 
 -- ---- the flagship ambiguity: tuition_gap fans out to THREE offices ----------
@@ -79,7 +79,7 @@ FROM (VALUES
     ('manufacturing school', 'School of Manufacturing and Industrial Technology', NULL)
 ) AS v(alias, unit, notes)
 JOIN academic_units au ON au.name = v.unit
-WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)) AND a.status = 'approved');
+WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)));
 
 INSERT INTO aliases (alias, campus_id, source)
 SELECT v.alias, c.id, 'seed'
@@ -90,7 +90,7 @@ FROM (VALUES
     ('Richland campus', 'RLC'), ('online classes', 'Online')
 ) AS v(alias, code)
 JOIN campuses c ON c.code = v.code
-WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)) AND a.status = 'approved');
+WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)));
 
 INSERT INTO aliases (alias, help_topic_id, source, notes)
 SELECT v.alias, ht.id, 'seed', v.notes
@@ -117,7 +117,7 @@ FROM (VALUES
     ('textbooks', 'books', NULL)
 ) AS v(alias, topic, notes)
 JOIN help_topics ht ON ht.name = v.topic
-WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)) AND a.status = 'approved');
+WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)));
 
 INSERT INTO aliases (alias, resource_category_id, source)
 SELECT v.alias, rc.id, 'seed'
@@ -128,4 +128,14 @@ FROM (VALUES
     ('laptop loaner', 'tech_support')
 ) AS v(alias, category)
 JOIN resource_categories rc ON rc.name = v.category
-WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)) AND a.status = 'approved');
+WHERE NOT EXISTS (SELECT 1 FROM aliases a WHERE a.normalized_alias = lower(btrim(v.alias)));
+
+-- Retirements belong HERE (git = the audit trail), e.g.:
+-- UPDATE aliases SET status = 'retired' WHERE normalized_alias = 'some phrase';
+
+-- Reconcile topic defaults across ALL writers (seed + sync): default = the
+-- topic routes to exactly one category. Deterministic final state.
+UPDATE topic_categories tc SET is_default = (x.cnt = 1)
+FROM (SELECT help_topic_id, count(*) AS cnt FROM topic_categories GROUP BY help_topic_id) x
+WHERE x.help_topic_id = tc.help_topic_id
+  AND tc.is_default IS DISTINCT FROM (x.cnt = 1);

@@ -101,6 +101,16 @@ def first_link(value) -> Optional[str]:
     return None
 
 
+def one_link(fields: dict, field: str, rec_id: str) -> Optional[str]:
+    """first_link + LINT when extra links are being dropped — contradictions
+    are reported, never silently interpreted."""
+    value = fields.get(field)
+    if isinstance(value, list) and len(value) > 1:
+        print(f"  LINT {rec_id}: field {field!r} has {len(value)} links; "
+              f"using the first — fix in Airtable", file=sys.stderr)
+    return first_link(value)
+
+
 # ---------------------------------------------------------------------------
 # Upsert helpers (adopt-by-name so seeded rows never duplicate)
 # ---------------------------------------------------------------------------
@@ -186,6 +196,12 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                 continue
             cur.execute("SELECT id FROM academic_units WHERE external_id = %s", (r["id"],))
             hit = cur.fetchone()
+            if hit:
+                # renames must propagate: canonical resolve + alias seeds key on name
+                cur.execute(
+                    """UPDATE academic_units SET name = %s
+                       WHERE id = %s AND name IS DISTINCT FROM %s""",
+                    (name, hit[0], name))
             if hit is None:
                 cur.execute(
                     """SELECT id FROM academic_units WHERE name = %s
@@ -245,6 +261,14 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                                (help_topic_id, resource_category_id, is_default)
                            VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
                         (tid, c, len(cat_links) == 1))
+        # reconcile defaults across ALL writers (seed rows survive topics with
+        # no Airtable links): default <=> the topic routes to exactly one category
+        cur.execute(
+            """UPDATE topic_categories tc SET is_default = (x.cnt = 1)
+               FROM (SELECT help_topic_id, count(*) AS cnt
+                     FROM topic_categories GROUP BY help_topic_id) x
+               WHERE x.help_topic_id = tc.help_topic_id
+                 AND tc.is_default IS DISTINCT FROM (x.cnt = 1)""")
 
         contact_ids: dict[str, int] = {}
         for r in tables["contacts"]:
@@ -262,9 +286,9 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
 
         for r in tables["assignments"]:
             f = r["fields"]
-            contact = contact_ids.get(first_link(f.get(F["asg_contact"])))
-            unit = unit_ids.get(first_link(f.get(F["asg_unit"])))
-            category = category_ids.get(first_link(f.get(F["asg_category"])))
+            contact = contact_ids.get(one_link(f, F["asg_contact"], r["id"]))
+            unit = unit_ids.get(one_link(f, F["asg_unit"], r["id"]))
+            category = category_ids.get(one_link(f, F["asg_category"], r["id"]))
             if not (contact and category):
                 print(f"  assignment {r['id']}: missing contact/category link; skipped",
                       file=sys.stderr)
@@ -273,6 +297,11 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
             # Sync-time LINT: contradictions are reported and normalized, never
             # silently interpreted (the DB CHECK would reject them anyway).
             scope = (f.get(F["asg_scope"]) or "").strip()
+            if scope not in ("", "Whole school/unit", "Specific program(s) only"):
+                print(f"  LINT assignment {r['id']}: unknown 'Applies to' value "
+                      f"{scope!r} — row skipped; fix the select option in Airtable",
+                      file=sys.stderr)
+                continue
             unit_wide = scope != "Specific program(s) only"
             program = f.get(F["asg_program"]) or None
             if unit_wide and program:
@@ -287,6 +316,13 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                 unit_wide = True
             cur.execute("SELECT id FROM assignments WHERE external_id = %s", (r["id"],))
             hit = cur.fetchone()
+            if hit and unit_wide:
+                # a scope flip to whole-unit must also clear the integer program
+                # ref, or the two-sided CHECK rejects the update
+                cur.execute(
+                    """UPDATE assignments SET degree_plan_id = NULL
+                       WHERE id = %s AND degree_plan_id IS NOT NULL""",
+                    (hit[0],))
             values = (contact, unit, category, unit_wide, program,
                       f.get(F["asg_criteria"]) or None)
             if hit:
@@ -319,11 +355,18 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                            VALUES (%s, %s) ON CONFLICT DO NOTHING""",
                         (assignment_id, topic_id))
 
+        seen_guidance: set[int] = set()
         for r in tables["guidance"]:
             f = r["fields"]
-            category = category_ids.get(first_link(f.get(F["guid_category"])))
+            category = category_ids.get(one_link(f, F["guid_category"], r["id"]))
             if not category:
                 continue
+            if category in seen_guidance:
+                print(f"  LINT guidance {r['id']}: duplicate row for this category "
+                      f"— keeping the first, skipping this one; fix in Airtable",
+                      file=sys.stderr)
+                continue
+            seen_guidance.add(category)
             prep = f.get(F["guid_prep"]) or None
             awareness = f.get(F["guid_awareness"]) or None
             cur.execute("SELECT id FROM student_guidance WHERE resource_category_id = %s",
