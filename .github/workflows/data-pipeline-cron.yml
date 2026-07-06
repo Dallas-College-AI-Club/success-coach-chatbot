@@ -1,0 +1,63 @@
+name: Data pipeline (scrape -> extract -> load)
+
+# Orchestration per ADR-004: GitHub Actions cron, no extra orchestrator.
+# DISABLED until the team adds repository secrets/vars — then uncomment
+# `schedule` AND set the repository variable PIPELINE_ENABLED=true.
+# Required:
+#   DATABASE_URL      (secret)   — the Neon connection string
+#   EXTRACTOR         (variable) — e.g. anthropic:claude-sonnet-4-6
+#   ANTHROPIC_API_KEY (secret)   — only when EXTRACTOR=anthropic:* runs via API
+#
+# Scrape cadence guidance: hardest around term start / add-drop (peak syllabus
+# churn), then periodic. content_hash change detection makes re-scraping
+# unchanged sources free.
+
+on:
+  workflow_dispatch:
+    inputs:
+      catoid:
+        description: "Acalog catalog id to scrape (blank = skip catalog)"
+        required: false
+        default: ""
+  # schedule:
+  #   - cron: "0 9 * * 1"   # Mondays 09:00 UTC — enable when secrets exist
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    # hard guard: never run without the connection secret configured
+    if: ${{ vars.PIPELINE_ENABLED == 'true' }}
+
+    defaults:
+      run:
+        working-directory: apps/data
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EXTRACTOR: ${{ vars.EXTRACTOR }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/data/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt anthropic
+
+      - name: Scrape syllabi (change-detected; unchanged pages are free)
+        run: python -m pipeline.scrape_syllabi --urls-from-db
+
+      - name: Scrape catalog (only when a catoid is given)
+        if: ${{ inputs.catoid != '' }}
+        run: python -m pipeline.scrape_catalog --catoid "${{ inputs.catoid }}"
+
+      - name: Extract (only raw docs lacking a current extraction)
+        run: python -m pipeline.extract --all-pending
+
+      - name: Load (idempotent — re-runs change nothing)
+        run: python -m pipeline.load_extractions

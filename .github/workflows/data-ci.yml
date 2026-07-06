@@ -1,0 +1,132 @@
+name: Data CI
+
+on:
+  push:
+    paths:
+      - "apps/data/**"
+      - ".github/workflows/data-ci.yml"
+  pull_request:
+    paths:
+      - "apps/data/**"
+      - ".github/workflows/data-ci.yml"
+
+# Connection settings use the standard libpq PG* variables everywhere — no
+# connection-string literals in this repo outside apps/data/.env.example
+# (enforced by the credential-grep job below).
+env:
+  PGHOST: localhost
+  PGPORT: "5432"
+  PGUSER: postgres
+  PGPASSWORD: postgres
+  PGDATABASE: chatbot_test
+
+jobs:
+  credential-grep:
+    name: no connection strings outside .env.example / docs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fail on Postgres connection-string literals
+        # Targets the postgres/postgresql URI schemes. Allowed locations only:
+        # apps/data/.env.example (the template) and Markdown prose. Everything
+        # else — code, workflows, tests, seeds — must use env/PG* settings via
+        # the client adapters (apps/data/db/client.py, client.ts). The pattern
+        # spells '://' as ':[/][/]' so this workflow file never matches itself.
+        run: |
+          if git grep -nE "postgres(ql)?:[/][/]" -- \
+               ':(exclude)apps/data/.env.example' ':(exclude)*.md'; then
+            echo "::error::connection-string literal found in code — use .env + apps/data/db/client.* instead"
+            exit 1
+          fi
+          echo "credential grep clean"
+
+  database:
+    name: schema + seeds + clients + acceptance tests (Postgres 17 + pgvector)
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: apps/data
+
+    services:
+      postgres:
+        # pgvector-enabled Postgres 17 so db/optional_pgvector.sql is exercised
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chatbot_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: apps/data/requirements.txt
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # Plain psql applies cleanly on fresh vanilla Postgres (ADR-004/008)
+      - name: Apply schema + views + optional pgvector module
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/schema.sql
+          psql -v ON_ERROR_STOP=1 -f db/views.sql
+          psql -v ON_ERROR_STOP=1 -f db/optional_pgvector.sql
+
+      # The executed seed prints per-table row counts into the CI log —
+      # the living version of db/SEED_PROOF.md
+      - name: Seed (field visibility, directory scaffolding, mock data)
+        run: |
+          psql -v ON_ERROR_STOP=1 -f db/seed_field_visibility.sql
+          psql -v ON_ERROR_STOP=1 -f db/seed_directory.sql
+          psql -v ON_ERROR_STOP=1 -f db/seed_mock.sql
+
+      # The Python adapter runs a live query and closes cleanly
+      - name: Python client check
+        run: |
+          python -c "
+          from db.client import get_connection, close_pool
+          with get_connection() as conn:
+              with conn.cursor() as cur:
+                  cur.execute('SELECT count(*) FROM sections')
+                  print('sections =', cur.fetchone()[0])
+          close_pool()
+          print('python client: clean close OK')
+          "
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/data/package-lock.json
+
+      - name: Install Node dependencies + typecheck
+        run: |
+          npm ci
+          npm run typecheck
+
+      # The TS adapter runs a live query and closes cleanly
+      - name: TypeScript client check
+        run: |
+          npx tsx - <<'EOF'
+          import { pool, closePool } from "./db/client.ts";
+          const { rows } = await pool.query("SELECT count(*) FROM sections");
+          console.log("sections =", rows[0].count);
+          await closePool();
+          console.log("ts client: clean close OK");
+          EOF
+
+      # Acceptance queries A–F etc. (the suite rebuilds the DB from the
+      # committed SQL files — proving rebuild-from-scratch a second time)
+      - name: Acceptance tests
+        run: python -m pytest tests/ -v
