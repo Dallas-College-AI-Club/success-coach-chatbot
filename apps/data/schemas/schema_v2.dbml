@@ -216,6 +216,7 @@ Table help_topics {
 
 Table assignments {
   id serial [pk]
+  external_id varchar [unique, note: 'stable sync key (Airtable record id)']
   contact_id int [not null, ref: > contacts.id]
   academic_unit_id int [ref: > academic_units.id]
   resource_category_id int [not null, ref: > resource_categories.id]

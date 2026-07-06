@@ -134,7 +134,7 @@
 | contacts | the humans; `last_verified_date` powers the quarterly steward check; email is public staff-directory info (team decision 2026-07-07); `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
 | resource_categories | grants / scholarships / financial_aid are *different offices* — the #47 interview's core finding; `routing_model` records "route, don't determine eligibility" |
 | help_topics + assignment_topics | trigger words (rent, utilities, mental health, laptops) → surface emergency/support resources proactively |
-| assignments | the routing table: contact × school × category × program; `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
+| assignments | the routing table: contact × school × category × program; `external_id` (nullable unique) = Airtable record id for idempotent sync; `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
 | student_guidance | `prep_steps` ("FAFSA on file + declared program of study") and `awareness_msg` (the proactive onboarding line) — content the bot says verbatim |
 | programs | legacy stub retained for directory compatibility; planning questions use Module 6 degree_plans instead |
 

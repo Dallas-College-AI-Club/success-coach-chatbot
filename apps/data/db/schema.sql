@@ -261,6 +261,7 @@ CREATE TABLE help_topics (
 -- The routing table: contact x school x category x program.
 CREATE TABLE assignments (
     id                   serial PRIMARY KEY,
+    external_id          varchar UNIQUE,   -- stable sync key (Airtable record id)
     contact_id           int NOT NULL REFERENCES contacts (id),
     academic_unit_id     int REFERENCES academic_units (id),
     resource_category_id int NOT NULL REFERENCES resource_categories (id),

@@ -141,6 +141,19 @@ Every extraction row records `extractor`, `extraction_method`,
 `prompt_version`, `schema_version` — mixed-model data coexists and is
 auditable (ADR-002).
 
+**Support-contact directory** is authored in the team's Airtable base and
+synced (one-way, idempotent) into the directory tables:
+
+```bash
+# .env: AIRTABLE_TOKEN (data.records:read scope) + AIRTABLE_BASE_ID
+python -m pipeline.load_directory --dry-run   # fetch + report counts
+python -m pipeline.load_directory             # upsert via external_id keys
+```
+
+Governed vocabularies (categories/topics) are insert-only from the sync — the
+database owns their wording; seeded rows (e.g. the `General / All` unit) are
+adopted by name on first sync, never duplicated.
+
 ## 4. Re-extract with a new model
 
 The schema never changes when the model does:
