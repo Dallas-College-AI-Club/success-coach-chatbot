@@ -72,16 +72,17 @@ WHERE rc.name = 'grants'
   );
 
 -- ----------------------------------------------------------------------------
--- TEMPLATE for stewards (run manually against the DB; do NOT commit filled-in
--- versions — emails stay out of the repo, and field_visibility marks
--- contacts.email private regardless):
+-- TEMPLATE for stewards. Directory contact info is PUBLIC (team decision
+-- 2026-07-07), so confirmed contacts MAY be committed as seeds — though the
+-- recommended authoring flow is the external tool (Airtable) synced via
+-- external_id, which keeps verification workflow (source/verified_by) intact:
 --
 -- INSERT INTO institutions (name, website)
 --     VALUES ('Dallas College', 'https://www.dallascollege.edu');
 -- INSERT INTO academic_units (institution_id, name)
 --     VALUES ((SELECT id FROM institutions WHERE name='Dallas College'), 'ETMS');
 -- INSERT INTO contacts (name, email, helps_with, active, last_verified_date)
---     VALUES ('<name>', '<email — private, from #45>', 'ETMS school grants', true, CURRENT_DATE);
+--     VALUES ('<name>', '<public email>', 'ETMS school grants', true, CURRENT_DATE);
 -- INSERT INTO assignments (contact_id, academic_unit_id, resource_category_id)
 --     VALUES (<contact_id>, <academic_unit_id>,
 --             (SELECT id FROM resource_categories WHERE name='grants'));

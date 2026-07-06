@@ -75,7 +75,7 @@ Table instructors {
   id serial [pk]
   full_name varchar [not null]
   normalized_name varchar [not null, note: 'lowercased "last, first" for dedup']
-  email varchar [note: 'PRIVATE until verified public — see field_visibility']
+  email varchar [note: 'published on public HB 2504 syllabi (team decision 2026-07-07); governed by field_visibility']
   department varchar [note: 'from syllabus header (e.g. "Physical Sciences Department"); optional FK to academic_units later']
   cv_url text [note: 'link to public vita — TX HB 2504 requires faculty vitas be posted; same repository as syllabi (hb2504.dcccd.edu). PUBLIC by law.']
 
@@ -197,7 +197,7 @@ Table contacts {
   id serial [pk]
   external_id varchar [unique, note: 'stable sync key (Issue #43) — e.g. the Airtable record id when the directory is authored externally']
   name varchar [not null]
-  email varchar [note: 'PRIVATE by default in public repo (Issue #47 privacy note)']
+  email varchar [note: 'public staff directory info (team decision 2026-07-07); governed by field_visibility']
   helps_with text
   active boolean [not null, default: true]
   last_verified_date date [note: 'quarterly steward check']
@@ -253,7 +253,7 @@ Table field_visibility {
   notes text
 
   indexes { (table_name, column_name) [pk] }
-  note: 'Simple public/private registry per user request. Seed: contacts.email=false, instructors.email=false; everything else true. Future privacy expansion hangs off this.'
+  note: 'Simple public/private registry. All current fields are public (team decision 2026-07-07: directory + instructor info is published data); the registry is the mechanism for any FUTURE private field.'
 }
 
 // ---------- MODULE 6 · CATALOG & DEGREE PLANS (v2.1 — closes DP-011/012/020 gap) ----------

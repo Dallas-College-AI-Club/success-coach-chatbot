@@ -101,7 +101,7 @@ CREATE TABLE instructors (
     id              serial PRIMARY KEY,
     full_name       varchar NOT NULL,
     normalized_name varchar NOT NULL UNIQUE,  -- lowercased "last, first" for dedup
-    email           varchar,                  -- PRIVATE until verified public — see field_visibility
+    email           varchar,                  -- published on public HB 2504 syllabi; registry: field_visibility
     department      varchar,                  -- from syllabus header; optional FK to academic_units later
     cv_url          text,                     -- TX HB 2504 public vita link — PUBLIC by law
     created_at      timestamptz NOT NULL DEFAULT now(),
@@ -241,7 +241,7 @@ CREATE TABLE contacts (
     id                 serial PRIMARY KEY,
     external_id        varchar UNIQUE,    -- stable sync key (Issue #43): e.g. Airtable record id
     name               varchar NOT NULL,
-    email              varchar,           -- PRIVATE by default in public repo (field_visibility)
+    email              varchar,           -- public staff directory info (team decision 2026-07-07); registry: field_visibility
     helps_with         text,
     active             boolean NOT NULL DEFAULT true,
     last_verified_date date               -- quarterly steward check

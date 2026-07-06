@@ -57,7 +57,7 @@
 |---|---|---|---|---|
 | full_name | varchar | loader (from **schedule rows**) | professor questions | evidence rule: syllabi barely name instructors (see GAP_ANALYSIS Q8) — the schedule CSV is authoritative; syllabus-extracted names are a cross-check only |
 | normalized_name | varchar unique | loader | dedup ("Ojeda, Carlos" = "carlos ojeda") | one professor, one row, across terms — required for teaching-history questions |
-| email | varchar NULL **PRIVATE** | staff | contact hand-offs | flagged private in field_visibility until verified publishable |
+| email | varchar NULL | staff | contact hand-offs | public info (published on HB 2504 syllabi; team decision 2026-07-07) — visibility governed by field_visibility |
 | department | varchar NULL | LLM (syllabus header) | "which department is this professor in?" | syllabus headers state it ("Physical Sciences Department"); optional FK to academic_units later |
 | cv_url | text NULL | scrape | "professor's background" (Grace, DP-060) | TX HB 2504 requires faculty vitas be posted publicly — same repository as syllabi; PUBLIC by law, so safe to link |
 
@@ -131,7 +131,7 @@
 | Table | Purpose (one line each) |
 |---|---|
 | institutions / academic_units | who owns what: grants are managed **per school** (Issue #47 finding), so academic_units is the routing key; both carry a nullable unique `external_id` (stable key for syncing from an external authoring tool, Issue #43); seeds include a **"General / All"** unit — the college-wide fallback so routing never dead-ends |
-| contacts | the humans; `last_verified_date` powers the quarterly steward check; **email is PRIVATE**; `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
+| contacts | the humans; `last_verified_date` powers the quarterly steward check; email is public staff-directory info (team decision 2026-07-07); `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
 | resource_categories | grants / scholarships / financial_aid are *different offices* — the #47 interview's core finding; `routing_model` records "route, don't determine eligibility" |
 | help_topics + assignment_topics | trigger words (rent, utilities, mental health, laptops) → surface emergency/support resources proactively |
 | assignments | the routing table: contact × school × category × program; `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
@@ -143,7 +143,7 @@
 | Field | Why |
 |---|---|
 | table_name / column_name PK | one row per governed column |
-| is_public (default true) | the user-requested simple public/private registry; seeds: contacts.email=false, instructors.email=false; the future privacy expansion hangs off this table instead of redesigning the schema |
+| is_public (default true) | the simple public/private registry; all current fields seed as public (directory + instructor info is published data, team decision 2026-07-07); any future private field is marked false here instead of redesigning the schema |
 | notes | why a field is private, who approved |
 
 ## Module 6 · Catalog & degree plans (v2.1 — the DP-011/012/020 gap closer)

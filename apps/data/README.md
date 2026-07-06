@@ -90,17 +90,17 @@ you may set the standard libpq variables (`PGHOST`, `PGPORT`, `PGUSER`,
 `PGPASSWORD`, `PGDATABASE`); CI does exactly that. Never put a connection
 string in code — CI greps for it and fails the build.
 
-**Python dependencies:** `pyproject.toml` doesn't list the runtime
-dependencies yet, so `uv sync` alone won't install them — use
-`uv pip install -r requirements.txt` (or plain
-`python -m venv .venv` + `pip install -r requirements.txt`).
+**Python dependencies:** `uv sync` installs everything (runtime deps live in
+`pyproject.toml`). Non-uv users: `python -m venv .venv` +
+`pip install -r requirements.txt` — keep the two files in step when adding
+libraries (CI installs from `requirements.txt`).
 
 ## 2. Create the database
 
 ```bash
 psql -f db/schema.sql                 # 25 tables (pipeline, serving core, directory, governance, catalog)
 psql -f db/views.sql                  # the 8 search/comparison views
-psql -f db/seed_field_visibility.sql  # privacy registry (emails private)
+psql -f db/seed_field_visibility.sql  # visibility registry (all current fields public)
 psql -f db/seed_directory.sql         # non-personal directory scaffolding
 psql -f db/optional_pgvector.sql      # OPTIONAL — needs the pgvector extension
 ```
@@ -184,8 +184,9 @@ runs scrape→extract→load on a schedule.
 Never edit `raw_documents` or hand-edit core tables (fix the prompt/loader and
 re-run); nulls mean "the source didn't say"; instructor identity comes from
 schedule rows, never syllabus text; every degree-plan answer cites its catalog
-edition; no ORMs/dbt/migration frameworks; no private contact data in the repo
-(publicly published info — e.g. instructor emails on HB 2504 syllabi — is fine;
-confirmed grant/support POC contacts stay in the access-controlled location and
-`field_visibility` marks email columns private in the DB). Full list +
-reasoning: [schemas/DESIGN_NOTES_ADR.md](schemas/DESIGN_NOTES_ADR.md).
+edition; no ORMs/dbt/migration frameworks; no genuinely private personal data
+in the repo — the support-contact directory itself is PUBLIC info (staff emails
+and office locations are published by the college; instructor emails appear on
+HB 2504 syllabi), so confirmed contacts may be seeded; `field_visibility` is
+the mechanism for any future private field. Full list + reasoning:
+[schemas/DESIGN_NOTES_ADR.md](schemas/DESIGN_NOTES_ADR.md).
