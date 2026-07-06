@@ -116,14 +116,15 @@
 | Field | Why |
 |---|---|
 | syllabus_id / chunk_ix / chunk_text | which text a vector represents; chunked so retrieval returns quotable passages |
+| contact_id | second retrieval target (Issue #43): directory rows — chunk_text composes helps_with + unit scope + help_topics so free-form statements ("I can't make rent") resolve to the right category; exactly one of syllabus_id/contact_id per row (CHECK); secondary aid only — deterministic routing stays primary |
 | embedding vector | pgvector similarity for free-text policy Q&A the SQL views can't answer |
 | embed_model | recorded per row so re-embedding with a new model is auditable, mirroring `extractions.extractor` |
 
 ## Module 4 · Support-contact directory (Issue #43–#46 design, integrated as-is)
 | Table | Purpose (one line each) |
 |---|---|
-| institutions / academic_units | who owns what: grants are managed **per school** (Issue #47 finding), so academic_units is the routing key |
-| contacts | the humans; `last_verified_date` powers the quarterly steward check; **email is PRIVATE** |
+| institutions / academic_units | who owns what: grants are managed **per school** (Issue #47 finding), so academic_units is the routing key; both carry a nullable unique `external_id` (stable key for syncing from an external authoring tool, Issue #43); seeds include a **"General / All"** unit — the college-wide fallback so routing never dead-ends |
+| contacts | the humans; `last_verified_date` powers the quarterly steward check; **email is PRIVATE**; `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
 | resource_categories | grants / scholarships / financial_aid are *different offices* — the #47 interview's core finding; `routing_model` records "route, don't determine eligibility" |
 | help_topics + assignment_topics | trigger words (rent, utilities, mental health, laptops) → surface emergency/support resources proactively |
 | assignments | the routing table: contact × school × category × program |

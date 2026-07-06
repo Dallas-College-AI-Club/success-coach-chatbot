@@ -208,20 +208,25 @@ CREATE INDEX section_materials_section_id_idx ON section_materials (section_id);
 -- ============================================================================
 
 CREATE TABLE institutions (
-    id      serial PRIMARY KEY,
-    name    varchar NOT NULL,
-    website text
+    id          serial PRIMARY KEY,
+    external_id varchar UNIQUE,   -- stable key for future sync with an external authoring tool (Issue #43)
+    name        varchar NOT NULL,
+    website     text
 );
 
 -- Grants are managed per SCHOOL (Issue #47) — academic_units is the routing key.
+-- Seeds include a "General / All" unit as the college-wide fallback so routing
+-- never dead-ends (Issue #43).
 CREATE TABLE academic_units (
     id             serial PRIMARY KEY,
+    external_id    varchar UNIQUE,    -- stable sync key (Issue #43)
     institution_id int     NOT NULL REFERENCES institutions (id),
     name           varchar NOT NULL   -- school, e.g. ETMS
 );
 
 CREATE TABLE contacts (
     id                 serial PRIMARY KEY,
+    external_id        varchar UNIQUE,    -- stable sync key (Issue #43): e.g. Airtable record id
     name               varchar NOT NULL,
     email              varchar,           -- PRIVATE by default in public repo (field_visibility)
     helps_with         text,

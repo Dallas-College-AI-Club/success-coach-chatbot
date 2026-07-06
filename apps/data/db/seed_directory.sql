@@ -8,6 +8,18 @@
 -- Idempotent-ish: guarded by NOT EXISTS on natural names.
 -- ============================================================================
 
+-- The institution + the "General / All" fallback unit (Issue #43): college-wide
+-- contacts hang off this explicit unit so routing never dead-ends.
+INSERT INTO institutions (external_id, name, website)
+SELECT 'inst-dallas-college', 'Dallas College', 'https://www.dallascollege.edu'
+WHERE NOT EXISTS (SELECT 1 FROM institutions WHERE name = 'Dallas College');
+
+INSERT INTO academic_units (external_id, institution_id, name)
+SELECT 'unit-general-all',
+       (SELECT id FROM institutions WHERE name = 'Dallas College'),
+       'General / All'
+WHERE NOT EXISTS (SELECT 1 FROM academic_units WHERE name = 'General / All');
+
 -- Resource categories: grants/scholarships/financial_aid are DIFFERENT offices
 -- (the Issue #47 interview's core finding). routing_model records the boundary.
 INSERT INTO resource_categories (name, routing_model)

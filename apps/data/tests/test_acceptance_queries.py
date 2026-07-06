@@ -236,3 +236,27 @@ def test_evening_or_online_filter(q):
     numbers = {r[0] for r in rows}
     assert {"71001", "71003", "72001", "72002", "73001", "74001", "75001"} == numbers
     assert "71002" not in numbers, "daytime in-person section must not match"
+
+
+# ---------------------------------------------------------------------------
+# Issue #43 acceptance: the "General / All" college-wide fallback unit exists
+# and college-wide resources route through it — the bot never dead-ends.
+# ---------------------------------------------------------------------------
+
+def test_general_all_fallback_unit(q):
+    rows = q(
+        """
+        SELECT au.external_id, count(a.id)
+        FROM academic_units au
+        LEFT JOIN assignments a ON a.academic_unit_id = au.id
+        WHERE au.name = 'General / All'
+        GROUP BY au.external_id
+        """
+    )
+    assert len(rows) == 1, "exactly one 'General / All' fallback unit must exist"
+    external_id, n_assignments = rows[0]
+    assert external_id, "fallback unit carries a stable external sync key (Issue #43)"
+    assert n_assignments >= 1, "college-wide contacts must route through the fallback unit"
+    # stable external keys exist on the sync-relevant tables
+    (inst_ext,) = q("SELECT external_id FROM institutions WHERE name = 'Dallas College'")[0]
+    assert inst_ext, "institutions carry a stable external sync key"

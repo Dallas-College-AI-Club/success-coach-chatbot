@@ -149,7 +149,8 @@ Table grading_components {
 
 Table embeddings {
   id bigserial [pk]
-  syllabus_id int [ref: > syllabi.id]
+  syllabus_id int [ref: > syllabi.id, note: 'retrieval target A: syllabus chunks. Exactly one of syllabus_id / contact_id is set (CHECK)']
+  contact_id int [ref: > contacts.id, note: 'retrieval target B (Issue #43): support-contact directory — chunk_text composes helps_with + unit scope + help_topics so a free-form "I can't make rent" resolves to the right category; secondary aid only, deterministic routing stays primary']
   chunk_ix int [not null]
   chunk_text text [not null]
   embedding vector [note: 'pgvector — DDL must pin the dimension to the chosen model, e.g. vector(768) for nomic-embed-text or vector(1536) for OpenRouter/OpenAI-style models; distance = cosine (vector_cosine_ops) with HNSW index. Changing models = new column/table + re-embed, recorded via embed_model. Module is OPTIONAL — core works without it.']
@@ -157,6 +158,7 @@ Table embeddings {
 
   indexes {
     (syllabus_id, chunk_ix) [unique]
+    (contact_id, chunk_ix) [unique]
   }
 }
 
@@ -164,18 +166,21 @@ Table embeddings {
 
 Table institutions {
   id serial [pk]
+  external_id varchar [unique, note: 'stable key for future sync with an external authoring tool (Issue #43)']
   name varchar [not null]
   website text
 }
 
 Table academic_units {
   id serial [pk]
+  external_id varchar [unique, note: 'stable sync key (Issue #43)']
   institution_id int [not null, ref: > institutions.id]
-  name varchar [not null, note: 'school, e.g. ETMS — grants are managed per school (Issue #47)']
+  name varchar [not null, note: 'school, e.g. ETMS — grants are managed per school (Issue #47). Seed includes a "General / All" unit as the college-wide fallback so routing never dead-ends']
 }
 
 Table contacts {
   id serial [pk]
+  external_id varchar [unique, note: 'stable sync key (Issue #43) — e.g. the Airtable record id when the directory is authored externally']
   name varchar [not null]
   email varchar [note: 'PRIVATE by default in public repo (Issue #47 privacy note)']
   helps_with text

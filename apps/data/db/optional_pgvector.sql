@@ -26,15 +26,24 @@
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
+-- Two retrieval targets, one table (exactly one FK set per row):
+--   A. syllabus chunks — free-text policy Q&A over syllabi
+--   B. support-contact directory rows (Issue #43) — chunk_text composes
+--      helps_with + academic-unit scope + help_topics, so a free-form
+--      "I can't make rent" resolves to the right category. Secondary aid only:
+--      deterministic routing (academic_unit + resource_category) stays primary.
 CREATE TABLE embeddings (
     id          bigserial PRIMARY KEY,
     syllabus_id int  REFERENCES syllabi (id),
+    contact_id  int  REFERENCES contacts (id),
     chunk_ix    int  NOT NULL,
     chunk_text  text NOT NULL,          -- chunked so retrieval returns quotable passages
     embedding   vector(768),            -- <- pinned to EMBED_MODEL (nomic-embed-text = 768); nullable per schema_v2.dbml (chunk may await embedding)
     embed_model varchar NOT NULL,       -- recorded per row, like extractions.extractor
 
-    UNIQUE (syllabus_id, chunk_ix)
+    CHECK (num_nonnulls(syllabus_id, contact_id) = 1),
+    UNIQUE (syllabus_id, chunk_ix),
+    UNIQUE (contact_id, chunk_ix)
 );
 
 -- HNSW + cosine: the metric half of the matched pair.

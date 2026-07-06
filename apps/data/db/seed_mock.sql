@@ -197,15 +197,16 @@ INSERT INTO section_materials (id, section_id, component, bookstore_url, items) 
 -- MODULE 4 · support-contact directory (fictional people, NO emails)
 -- ---------------------------------------------------------------------------
 
-INSERT INTO institutions (id, name, website) VALUES
- (1, 'Dallas College', 'https://www.dallascollege.edu');
+INSERT INTO institutions (id, external_id, name, website) VALUES
+ (1, 'inst-dallas-college', 'Dallas College', 'https://www.dallascollege.edu');
 
-INSERT INTO academic_units (id, institution_id, name) VALUES
- (1, 1, 'ETMS'),
- (2, 1, 'Business, Hospitality & Global Trade'),
- (3, 1, 'Creative Arts, Entertainment & Design'),
- (4, 1, 'Education'),
- (5, 1, 'Health Sciences');
+INSERT INTO academic_units (id, external_id, institution_id, name) VALUES
+ (1, 'unit-etms',       1, 'ETMS'),
+ (2, 'unit-business',   1, 'Business, Hospitality & Global Trade'),
+ (3, 'unit-creative',   1, 'Creative Arts, Entertainment & Design'),
+ (4, 'unit-education',  1, 'Education'),
+ (5, 'unit-health',     1, 'Health Sciences'),
+ (6, 'unit-general-all',1, 'General / All');  -- college-wide fallback — routing never dead-ends (Issue #43)
 
 INSERT INTO contacts (id, name, email, helps_with, active, last_verified_date) VALUES
  (1, 'Grant Steward (ETMS) — fictional',      NULL, 'School-managed grant funds for ETMS programs', true,  '2026-06-15'),
@@ -229,9 +230,9 @@ INSERT INTO help_topics (id, name) VALUES
 INSERT INTO assignments (id, contact_id, academic_unit_id, resource_category_id, degree_or_program) VALUES
  (1, 1, 1, 1, NULL),                          -- ETMS grants -> ETMS steward (query E)
  (2, 2, 2, 1, NULL),                          -- Business grants -> Business steward
- (3, 3, NULL, 2, NULL),                       -- scholarships: college-wide
- (4, 4, NULL, 4, NULL),                       -- emergency funds: college-wide
- (5, 4, NULL, 5, NULL);                       -- student care: college-wide
+ (3, 3, 6, 2, NULL),                          -- scholarships: college-wide via General/All
+ (4, 4, 6, 4, NULL),                          -- emergency funds: college-wide via General/All
+ (5, 4, 6, 5, NULL);                          -- student care: college-wide via General/All
 
 INSERT INTO assignment_topics (assignment_id, help_topic_id) VALUES
  (4, 1), (4, 2), (4, 3), (5, 4), (5, 5);
@@ -323,7 +324,14 @@ BEGIN
             'Lab-minimum grade gate: below 60% caps the course grade...',
             '[' || array_to_string(array_fill(0.02::float4, ARRAY[768]), ',') || ']',
             'nomic-embed-text');
-        RAISE NOTICE 'embeddings: seeded 2 mock rows (pgvector present)';
+        -- directory retrieval target (Issue #43): helps_with + scope + topics
+        EXECUTE format(
+            'INSERT INTO embeddings (contact_id, chunk_ix, chunk_text, embedding, embed_model) VALUES
+             (4, 0, %L, %L::vector, %L)',
+            'Emergency aid, food pantry, housing referrals | college-wide (General / All) | topics: rent, utilities, food, mental health, laptops',
+            '[' || array_to_string(array_fill(0.03::float4, ARRAY[768]), ',') || ']',
+            'nomic-embed-text');
+        RAISE NOTICE 'embeddings: seeded 3 mock rows incl. directory target (pgvector present)';
     ELSE
         RAISE NOTICE 'embeddings: skipped (pgvector not installed — optional module, ADR-005)';
     END IF;
