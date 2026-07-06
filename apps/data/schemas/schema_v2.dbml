@@ -105,6 +105,21 @@ Table sections {
   note: 'The fast-search spine: course x term x instructor. Loader upserts from extractions.'
 }
 
+// Reference lookup for the campus codes the schedule CSV uses (BHC, CVC,
+// EFC, ECC, MVC, NLC, RLC, Online). sections.campus stays a varchar code —
+// scrapers must never fail on a new code — this table adds name/city/URL for
+// display and commute reasoning ("your other classes are at Richland...").
+// Dallas College has SEVEN physical campuses; seeded in db/seed_directory.sql
+// from dallascollege.edu/locations.
+Table campuses {
+  id serial [pk]
+  code varchar [unique, not null, note: 'BHC | CVC | EFC | ECC | MVC | NLC | RLC | Online']
+  name varchar [not null, note: 'Brookhaven, Cedar Valley, ...']
+  city varchar [note: 'Farmers Branch, Lancaster, Mesquite, downtown Dallas, Oak Cliff, Irving, North Dallas; null for Online']
+  address varchar [note: 'street address — fill from each campus page when needed']
+  url text [note: 'official campus page — the bot links out for directions/hours']
+}
+
 Table syllabi {
   id serial [pk]
   section_id int [not null, ref: > sections.id]
@@ -204,7 +219,8 @@ Table assignments {
   contact_id int [not null, ref: > contacts.id]
   academic_unit_id int [ref: > academic_units.id]
   resource_category_id int [not null, ref: > resource_categories.id]
-  degree_or_program varchar
+  degree_or_program varchar [note: 'grants are often program-specific — a row can scope to one program']
+  criteria text [note: 'free text the bot RELAYS verbatim when routing (e.g. "FAFSA on file; declared program of study; additional program criteria may apply"). The bot never EVALUATES it — route, don't determine eligibility (Issue #47)']
 }
 
 Table assignment_topics {

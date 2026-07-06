@@ -260,3 +260,24 @@ def test_general_all_fallback_unit(q):
     # stable external keys exist on the sync-relevant tables
     (inst_ext,) = q("SELECT external_id FROM institutions WHERE name = 'Dallas College'")[0]
     assert inst_ext, "institutions carry a stable external sync key"
+
+
+# ---------------------------------------------------------------------------
+# Campuses reference data: seven physical campuses + Online, joined into the
+# search hot path; grant routing carries relay-verbatim criteria.
+# ---------------------------------------------------------------------------
+
+def test_campuses_and_grant_criteria(q):
+    (n_physical,) = q("SELECT count(*) FROM campuses WHERE city IS NOT NULL")[0]
+    assert n_physical == 7, "Dallas College has seven physical campuses"
+    rows = q("SELECT campus, campus_name, campus_city FROM v_section_search WHERE section_number = '71002'")
+    assert rows == [("RLC", "Richland", "North Dallas")], \
+        "campus code must resolve to name/city in the search view"
+    (criteria,) = q(
+        """SELECT a.criteria FROM assignments a
+           JOIN academic_units au ON au.id = a.academic_unit_id
+           JOIN resource_categories rc ON rc.id = a.resource_category_id
+           WHERE au.name = 'ETMS' AND rc.name = 'grants'"""
+    )[0]
+    assert "FAFSA" in criteria and "declared" in criteria, \
+        "grant routing must carry the relay-verbatim criteria (program + other prerequisites)"

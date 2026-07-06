@@ -130,6 +130,19 @@ CREATE TABLE sections (
 );
 CREATE INDEX sections_instructor_id_idx ON sections (instructor_id);
 
+-- Campus-code lookup (BHC/CVC/EFC/ECC/MVC/NLC/RLC/Online). sections.campus
+-- stays a plain varchar code so scrapers never fail on a new code; this table
+-- adds name/city/URL for display and commute reasoning. Dallas College has
+-- SEVEN physical campuses; seeded by db/seed_directory.sql.
+CREATE TABLE campuses (
+    id      serial PRIMARY KEY,
+    code    varchar NOT NULL UNIQUE,
+    name    varchar NOT NULL,
+    city    varchar,           -- null for Online
+    address varchar,           -- street address, fill from campus pages when needed
+    url     text               -- official campus page (bot links out for directions)
+);
+
 -- Thin projection of extractions.data — one row per section, rebuildable by
 -- the loader at any time. NOT a source of truth.
 CREATE TABLE syllabi (
@@ -251,7 +264,8 @@ CREATE TABLE assignments (
     contact_id           int NOT NULL REFERENCES contacts (id),
     academic_unit_id     int REFERENCES academic_units (id),
     resource_category_id int NOT NULL REFERENCES resource_categories (id),
-    degree_or_program    varchar
+    degree_or_program    varchar,  -- grants are often program-specific
+    criteria             text      -- relayed VERBATIM when routing; never evaluated ("route, don't determine")
 );
 
 CREATE TABLE assignment_topics (

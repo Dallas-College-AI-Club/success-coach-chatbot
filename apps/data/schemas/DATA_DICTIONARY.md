@@ -104,6 +104,13 @@
 | campus / building / room | varchar | LLM | "where do I go?" + commute sanity | |
 | *(no rows)* | — | — | online sections | absence is the signal; the extractor must emit an empty list, never invent times |
 
+### campuses — code lookup for the seven Dallas College campuses (+ Online)
+| Field | Type | Filled from | Answers / used by | Why |
+|---|---|---|---|---|
+| code | varchar unique | seed (db/seed_directory.sql) | joins from sections.campus | the schedule CSV speaks in codes (BHC, CVC, EFC, ECC, MVC, NLC, RLC, Online); sections.campus stays a plain code so scrapers never fail on a new one |
+| name / city | varchar | seed (dallascollege.edu/locations) | "where is this campus?", commute reasoning in v_section_search | Brookhaven=Farmers Branch, Cedar Valley=Lancaster, Eastfield=Mesquite, El Centro=downtown Dallas, Mountain View=Oak Cliff, North Lake=Irving, Richland=North Dallas |
+| address / url | varchar / text | seed / campus pages | directions, citations | url links the official campus page; address filled when needed |
+
 ### section_materials (v2.1)
 | Field | Type | Filled from | Answers / used by | Why |
 |---|---|---|---|---|
@@ -127,7 +134,7 @@
 | contacts | the humans; `last_verified_date` powers the quarterly steward check; **email is PRIVATE**; `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
 | resource_categories | grants / scholarships / financial_aid are *different offices* — the #47 interview's core finding; `routing_model` records "route, don't determine eligibility" |
 | help_topics + assignment_topics | trigger words (rent, utilities, mental health, laptops) → surface emergency/support resources proactively |
-| assignments | the routing table: contact × school × category × program |
+| assignments | the routing table: contact × school × category × program; `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
 | student_guidance | `prep_steps` ("FAFSA on file + declared program of study") and `awareness_msg` (the proactive onboarding line) — content the bot says verbatim |
 | programs | legacy stub retained for directory compatibility; planning questions use Module 6 degree_plans instead |
 

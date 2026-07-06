@@ -227,12 +227,16 @@ INSERT INTO help_topics (id, name) VALUES
  (1, 'rent'), (2, 'utilities'), (3, 'food'), (4, 'mental health'),
  (5, 'laptops'), (6, 'transportation'), (7, 'childcare'), (8, 'books');
 
-INSERT INTO assignments (id, contact_id, academic_unit_id, resource_category_id, degree_or_program) VALUES
- (1, 1, 1, 1, NULL),                          -- ETMS grants -> ETMS steward (query E)
- (2, 2, 2, 1, NULL),                          -- Business grants -> Business steward
- (3, 3, 6, 2, NULL),                          -- scholarships: college-wide via General/All
- (4, 4, 6, 4, NULL),                          -- emergency funds: college-wide via General/All
- (5, 4, 6, 5, NULL);                          -- student care: college-wide via General/All
+INSERT INTO assignments (id, contact_id, academic_unit_id, resource_category_id, degree_or_program, criteria) VALUES
+ -- grants depend on declared major/program + other criteria: the bot RELAYS
+ -- criteria verbatim and routes; the POC determines eligibility.
+ (1, 1, 1, 1, NULL,
+     'FAFSA on file (only needs to be on file, not processed); declared ETMS program of study; additional program-specific criteria may apply — the school''s grant contact determines eligibility'),
+ (2, 2, 2, 1, NULL,
+     'FAFSA on file; declared Business program of study; additional criteria vary by grant — contact determines eligibility'),
+ (3, 3, 6, 2, NULL, NULL),                    -- scholarships: college-wide via General/All
+ (4, 4, 6, 4, NULL, NULL),                    -- emergency funds: college-wide via General/All
+ (5, 4, 6, 5, NULL, NULL);                    -- student care: college-wide via General/All
 
 INSERT INTO assignment_topics (assignment_id, help_topic_id) VALUES
  (4, 1), (4, 2), (4, 3), (5, 4), (5, 5);

@@ -20,6 +20,23 @@ SELECT 'unit-general-all',
        'General / All'
 WHERE NOT EXISTS (SELECT 1 FROM academic_units WHERE name = 'General / All');
 
+-- The SEVEN Dallas College campuses + Online (public reference data; cities
+-- per dallascollege.edu/locations — the bot cites/links the campus page).
+-- sections.campus codes join to campuses.code for display & commute reasoning.
+INSERT INTO campuses (code, name, city, url)
+SELECT v.code, v.name, v.city, v.url
+FROM (VALUES
+    ('BHC',    'Brookhaven',    'Farmers Branch',  'https://www.dallascollege.edu/locations/brookhaven/'),
+    ('CVC',    'Cedar Valley',  'Lancaster',       'https://www.dallascollege.edu/locations/cedar-valley/'),
+    ('EFC',    'Eastfield',     'Mesquite',        'https://www.dallascollege.edu/locations/eastfield/'),
+    ('ECC',    'El Centro',     'Downtown Dallas', 'https://www.dallascollege.edu/locations/el-centro/'),
+    ('MVC',    'Mountain View', 'Oak Cliff, Dallas','https://www.dallascollege.edu/locations/mountain-view/'),
+    ('NLC',    'North Lake',    'Irving',          'https://www.dallascollege.edu/locations/north-lake/'),
+    ('RLC',    'Richland',      'North Dallas',    'https://www.dallascollege.edu/locations/richland/'),
+    ('Online', 'Online',        NULL,              'https://www.dallascollege.edu/')
+) AS v(code, name, city, url)
+WHERE NOT EXISTS (SELECT 1 FROM campuses c WHERE c.code = v.code);
+
 -- Resource categories: grants/scholarships/financial_aid are DIFFERENT offices
 -- (the Issue #47 interview's core finding). routing_model records the boundary.
 INSERT INTO resource_categories (name, routing_model)

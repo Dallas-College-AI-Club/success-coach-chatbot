@@ -26,6 +26,8 @@ SELECT
     i.full_name       AS instructor_name,
     s.modality,
     s.campus,
+    cam.name          AS campus_name,   -- lookup via campuses.code (7 campuses + Online)
+    cam.city          AS campus_city,   -- commute reasoning: "your other classes are at Richland..."
     s.start_date,
     s.end_date,
     -- fast-track detection (GAP Q13-3): HIST §51 computes to 5 weeks
@@ -35,7 +37,8 @@ SELECT
 FROM sections s
 JOIN courses c            ON c.id = s.course_id
 JOIN terms t              ON t.id = s.term_id
-LEFT JOIN instructors i   ON i.id = s.instructor_id;
+LEFT JOIN instructors i   ON i.id = s.instructor_id
+LEFT JOIN campuses cam    ON cam.code = s.campus;
 
 
 -- ----------------------------------------------------------------------------
