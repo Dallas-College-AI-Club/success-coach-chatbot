@@ -1,0 +1,25 @@
+digraph D3 {
+  rankdir=LR; bgcolor=white; pad=0.3; nodesep=0.4; ranksep=0.7;
+  node [shape=plain, fontname="Helvetica", fontsize=11];
+  edge [fontname="Helvetica", fontsize=10, color="#5f5e5a", arrowhead=crow, arrowtail=none, dir=forward];
+
+  raw [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#888780" bgcolor="#F1EFE8"><tr><td bgcolor="#D3D1C7"><b>raw_documents</b></td></tr><tr><td align="left">source_type · content_hash · raw_text</td></tr></table>>];
+  ext [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#534AB7" bgcolor="#EEEDFE"><tr><td bgcolor="#CECBF6"><b>extractions</b></td></tr><tr><td align="left">extractor · prompt_version · data (jsonb) · is_current</td></tr></table>>];
+  co  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>courses</b></td></tr><tr><td align="left">prefix · number · description (baseline)</td></tr></table>>];
+  te  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>terms</b></td></tr><tr><td align="left">code · year · season</td></tr></table>>];
+  ins [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>instructors</b></td></tr><tr><td align="left">full_name · department · cv_url · email (private)</td></tr></table>>];
+  se  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>sections</b></td></tr><tr><td align="left">section_number · modality · campus · syllabus_url</td></tr></table>>];
+  sy  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>syllabi</b></td></tr><tr><td align="left">modified_date · policies · distinctive_features</td></tr></table>>];
+  gc  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>grading_components</b></td></tr><tr><td align="left">raw_label · canonical_type · weight_pct</td></tr></table>>];
+  sm  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#0F6E56" bgcolor="#E1F5EE"><tr><td bgcolor="#9FE1CB"><b>section_meetings</b></td></tr><tr><td align="left">type · days · start/end time · room</td></tr></table>>];
+  ce  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#854F0B" bgcolor="#FAEEDA"><tr><td bgcolor="#FAC775"><b>catalog_editions</b></td></tr><tr><td align="left">catoid · year_label</td></tr></table>>];
+  dp  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#854F0B" bgcolor="#FAEEDA"><tr><td bgcolor="#FAC775"><b>degree_plans</b></td></tr><tr><td align="left">poid · name · award_type</td></tr></table>>];
+  pr  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#854F0B" bgcolor="#FAEEDA"><tr><td bgcolor="#FAC775"><b>plan_requirements</b></td></tr><tr><td align="left">group · component_area · credits</td></tr></table>>];
+  cr  [label=<<table border="1" cellborder="0" cellspacing="0" cellpadding="4" color="#854F0B" bgcolor="#FAEEDA"><tr><td bgcolor="#FAC775"><b>course_requisites</b></td></tr><tr><td align="left">kind · requisite_course · raw_text</td></tr></table>>];
+
+  raw -> ext [label="LLM extracts"];
+  ext -> sy  [label="loader projects"];
+  co -> se [label="offers"]; te -> se [label="schedules"]; ins -> se [label="teaches"];
+  se -> sy [label="has"]; sy -> gc [label="unnests"]; se -> sm [label="meets at"];
+  ce -> dp [label="contains"]; dp -> pr [label="requires"]; pr -> co [label="satisfied by"]; cr -> co [label="needs first"];
+}

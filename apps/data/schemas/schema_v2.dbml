@@ -1,0 +1,321 @@
+// ============================================================
+// Dallas College AI Chatbot — Data Schema v2 (LLM-first ELT)
+// Target: vanilla Postgres (Neon today; portable anywhere)
+// Paste into dbdiagram.io to render
+// ============================================================
+
+// ---------- MODULE 1 · PIPELINE (raw + extraction) ----------
+
+Table raw_documents {
+  id bigserial [pk]
+  source_type varchar [not null, note: 'schedule_csv | syllabus_html | syllabus_pdf | bookstore_page | catalog_page']
+  source_url text
+  term_code varchar [note: 'e.g. 2026SU — nullable for non-term sources']
+  fetched_at timestamptz [not null]
+  content_hash char(64) [not null, note: 'sha256; new row only when hash changes']
+  raw_text text [note: 'full extracted text (PDF/HTML) — keep so future models can re-extract']
+  raw_payload jsonb [note: 'structured raw (e.g. one CSV row) when applicable']
+  is_latest boolean [not null, default: true]
+
+  indexes {
+    (source_url, content_hash) [unique]
+    term_code
+  }
+  note: 'L0. Immutable, append-only. The whole database is rebuildable from this table + code.'
+}
+
+Table extractions {
+  id bigserial [pk]
+  raw_document_id bigint [not null, ref: > raw_documents.id]
+  extractor varchar [not null, note: 'model id, e.g. claude-sonnet-4-6 | qwen2.5-14b-q5']
+  extraction_method varchar [not null, note: 'api | claude_code_session | local_ollama']
+  prompt_version varchar [not null]
+  schema_version varchar [not null, note: 'version of syllabus_extraction.schema.json']
+  extracted_at timestamptz [not null]
+  status varchar [not null, default: 'ok', note: 'ok | failed | needs_review']
+  data jsonb [not null, note: 'validated against the canonical JSON Schema (enums enforce taxonomy)']
+  validation_errors jsonb
+  is_current boolean [not null, default: true, note: 'exactly one current per raw_document']
+
+  indexes {
+    (raw_document_id, is_current)
+  }
+  note: 'L1. Versioned LLM output. Swap models freely; re-extract from raw anytime.'
+}
+
+// ---------- MODULE 2 · SERVING CORE (what the chatbot queries) ----------
+
+Table terms {
+  id serial [pk]
+  code varchar [unique, not null, note: '2026SU']
+  name varchar [not null, note: 'Summer 2026']
+  year int [not null]
+  season varchar [not null, note: 'spring | summer | fall | winter']
+  start_date date
+  end_date date
+}
+
+Table courses {
+  id serial [pk]
+  subject_prefix varchar [not null, note: 'HIST']
+  course_number varchar [not null, note: '1301']
+  title varchar [not null]
+  credit_hours numeric
+  description text [note: 'shared baseline — same across sections']
+  state_outcomes text [note: 'state-defined outcomes — shared baseline']
+  requisites text
+
+  indexes {
+    (subject_prefix, course_number) [unique]
+  }
+  note: 'Course-level = the shared baseline. Anything not here is, by construction, instructor delta.'
+}
+
+Table instructors {
+  id serial [pk]
+  full_name varchar [not null]
+  normalized_name varchar [not null, note: 'lowercased "last, first" for dedup']
+  email varchar [note: 'PRIVATE until verified public — see field_visibility']
+  department varchar [note: 'from syllabus header (e.g. "Physical Sciences Department"); optional FK to academic_units later']
+  cv_url text [note: 'link to public vita — TX HB 2504 requires faculty vitas be posted; same repository as syllabi (hb2504.dcccd.edu). PUBLIC by law.']
+
+  indexes {
+    normalized_name [unique]
+  }
+}
+
+Table sections {
+  id serial [pk]
+  course_id int [not null, ref: > courses.id]
+  term_id int [not null, ref: > terms.id]
+  instructor_id int [ref: > instructors.id]
+  section_number varchar [not null]
+  modality varchar [note: 'online | in_person | hybrid — CHECK constraint']
+  campus varchar
+  meeting_info_raw text [note: 'verbatim; parsed times live in syllabus JSON if needed']
+  start_date date
+  end_date date
+  syllabus_url text
+  raw_document_id bigint [ref: > raw_documents.id, note: 'lineage back to the schedule row']
+
+  indexes {
+    (course_id, term_id, section_number) [unique]
+    instructor_id
+  }
+  note: 'The fast-search spine: course x term x instructor. Loader upserts from extractions.'
+}
+
+Table syllabi {
+  id serial [pk]
+  section_id int [not null, ref: > sections.id]
+  extraction_id bigint [not null, ref: > extractions.id]
+  modified_date date [note: 'syllabus "Modified" date — freshness signal for DP-041 staleness disclaimer']
+  withdraw_date date
+  certification_date date
+  instructor_outcomes jsonb [note: 'instructor-defined outcomes (the delta)']
+  course_schedule jsonb [note: 'week/topic/dues as extracted']
+  policies jsonb [note: '{late_work, attendance, ai_policy, extra_credit, ...} summarized text per key']
+  distinctive_features jsonb [note: 'LLM-flagged unique items, e.g. History Podcasters project']
+  full_summary text [note: 'LLM 1-paragraph summary used in chat answers']
+
+  indexes {
+    (section_id) [unique]
+  }
+  note: 'Thin projection of extractions.data. Rebuildable by the loader at any time.'
+}
+
+Table grading_components {
+  id serial [pk]
+  syllabus_id int [not null, ref: > syllabi.id]
+  raw_label varchar [not null, note: 'verbatim: "Ready for Class", "History Podcasters"']
+  canonical_type varchar [not null, note: 'CHECK IN (exam, quiz, homework, project, lab, participation, paper, presentation, final_exam, other) — enforced twice: JSON Schema enum at extraction + CHECK here']
+  weight_pct numeric [note: 'normalized to percent when syllabus uses points']
+  points numeric
+  notes text
+
+  indexes {
+    (syllabus_id, canonical_type)
+  }
+  note: 'Unnested from JSON so cross-professor comparison is a plain GROUP BY. Replaces the old assessment_types lookup + junction tables.'
+}
+
+// Comparison layer = plain SQL views, created by loader migration (no dbt):
+//   v_section_search        — sections joined to course/term/instructor (chatbot lookup)
+//   v_course_assessment_profile — per course: % of sections using each canonical_type (the baseline)
+//   v_syllabus_distinctives — components rare within their course (rarity < 0.34) (the highlight)
+//   v_section_compare       — side-by-side grading mix + policies for sections of one course/term
+
+// ---------- MODULE 3 · RETRIEVAL (optional; pgvector) ----------
+
+Table embeddings {
+  id bigserial [pk]
+  syllabus_id int [ref: > syllabi.id]
+  chunk_ix int [not null]
+  chunk_text text [not null]
+  embedding vector [note: 'pgvector — DDL must pin the dimension to the chosen model, e.g. vector(768) for nomic-embed-text or vector(1536) for OpenRouter/OpenAI-style models; distance = cosine (vector_cosine_ops) with HNSW index. Changing models = new column/table + re-embed, recorded via embed_model. Module is OPTIONAL — core works without it.']
+  embed_model varchar [not null]
+
+  indexes {
+    (syllabus_id, chunk_ix) [unique]
+  }
+}
+
+// ---------- MODULE 4 · SUPPORT-CONTACT DIRECTORY (issue #43–#46, kept as designed) ----------
+
+Table institutions {
+  id serial [pk]
+  name varchar [not null]
+  website text
+}
+
+Table academic_units {
+  id serial [pk]
+  institution_id int [not null, ref: > institutions.id]
+  name varchar [not null, note: 'school, e.g. ETMS — grants are managed per school (Issue #47)']
+}
+
+Table contacts {
+  id serial [pk]
+  name varchar [not null]
+  email varchar [note: 'PRIVATE by default in public repo (Issue #47 privacy note)']
+  helps_with text
+  active boolean [not null, default: true]
+  last_verified_date date [note: 'quarterly steward check']
+}
+
+Table resource_categories {
+  id serial [pk]
+  name varchar [not null, note: 'grants | scholarships | financial_aid | emergency_funds | student_care | tech_support']
+  routing_model text [note: '"route, don\'t determine eligibility"']
+}
+
+Table help_topics {
+  id serial [pk]
+  name varchar [not null, note: 'trigger topics: rent, utilities, mental health, laptops...']
+}
+
+Table assignments {
+  id serial [pk]
+  contact_id int [not null, ref: > contacts.id]
+  academic_unit_id int [ref: > academic_units.id]
+  resource_category_id int [not null, ref: > resource_categories.id]
+  degree_or_program varchar
+}
+
+Table assignment_topics {
+  assignment_id int [not null, ref: > assignments.id]
+  help_topic_id int [not null, ref: > help_topics.id]
+  indexes { (assignment_id, help_topic_id) [pk] }
+}
+
+Table student_guidance {
+  id serial [pk]
+  resource_category_id int [not null, ref: > resource_categories.id]
+  prep_steps text [note: 'e.g. "FAFSA on file + declared program of study"']
+  awareness_msg text [note: 'proactive onboarding message (DP/#46)']
+}
+
+Table programs {
+  id serial [pk]
+  contact_id int [ref: > contacts.id]
+  name varchar
+  deferred_detail text
+  note: 'Future stub — degree-plan detail deferred (catalog data is the DP-011/020 blocker, tracked separately)'
+}
+
+// ---------- MODULE 5 · GOVERNANCE ----------
+
+Table field_visibility {
+  table_name varchar [not null]
+  column_name varchar [not null]
+  is_public boolean [not null, default: true]
+  notes text
+
+  indexes { (table_name, column_name) [pk] }
+  note: 'Simple public/private registry per user request. Seed: contacts.email=false, instructors.email=false; everything else true. Future privacy expansion hangs off this.'
+}
+
+// ---------- MODULE 6 · CATALOG & DEGREE PLANS (v2.1 — closes DP-011/012/020 gap) ----------
+// Source: catalog.dallascollege.edu (Modern Campus/Acalog). Catalogs are versioned by
+// catoid (2026-27 = catoid 5); each program is a poid page. Scrape -> raw_documents
+// (source_type 'catalog_page') -> LLM extraction (degree_plan schema) -> these tables.
+
+Table catalog_editions {
+  id serial [pk]
+  catoid int [unique, not null, note: 'Acalog catalog id, e.g. 5']
+  year_label varchar [not null, note: '2026-2027']
+  is_active boolean [not null, default: false]
+  raw_document_id bigint [ref: > raw_documents.id]
+  note: 'Requirements CHANGE by edition; every fulfillment answer cites its edition (DP-013).'
+}
+
+Table degree_plans {
+  id serial [pk]
+  catalog_edition_id int [not null, ref: > catalog_editions.id]
+  poid int [note: 'Acalog program id']
+  name varchar [not null]
+  award_type varchar [note: 'AA | AS | AAS | certificate | core_curriculum']
+  academic_unit_id int [ref: > academic_units.id, note: 'links plan -> school -> grant POC (Issue #47)']
+  raw_document_id bigint [ref: > raw_documents.id]
+  indexes { (catalog_edition_id, poid) [unique] }
+  note: 'Replaces the old programs stub for planning purposes.'
+}
+
+Table plan_requirements {
+  id serial [pk]
+  degree_plan_id int [not null, ref: > degree_plans.id]
+  group_name varchar [not null, note: 'e.g. "American History (060)", "Major Courses"']
+  component_area_code varchar [note: 'TX core FCA code 010-090 when applicable']
+  credits_required numeric
+  rule text [note: 'free-text rule when not simply "take N credits from list"']
+}
+
+Table requirement_courses {
+  requirement_id int [not null, ref: > plan_requirements.id]
+  course_id int [not null, ref: > courses.id]
+  indexes { (requirement_id, course_id) [pk] }
+  note: '"Does HIST-1301 fulfill X in my plan?" = one join.'
+}
+
+Table course_requisites {
+  id serial [pk]
+  course_id int [not null, ref: > courses.id]
+  kind varchar [not null, note: 'CHECK IN (prerequisite, corequisite, tsi, other)']
+  requisite_course_id int [ref: > courses.id, note: 'null when non-course (e.g. TSI Reading)']
+  raw_text text [not null, note: 'verbatim requisite sentence — always kept']
+  note: 'Typed edges enable DP-012 prereq chains; PHYS-2425 -> MATH-2413 is one edge, HIST-1301 TSI stays text.'
+}
+
+// ---------- v2.1 AMENDMENTS TO SERVING CORE ----------
+
+Table section_meetings {
+  id serial [pk]
+  section_id int [not null, ref: > sections.id]
+  meeting_type varchar [not null, note: 'lecture | lab | other']
+  days varchar [note: 'MTWRFSU subset, e.g. MW']
+  start_time time
+  end_time time
+  campus varchar
+  building varchar
+  room varchar
+  note: 'LLM-parsed from meeting strings at extraction (504/3355 CSV sections embed a separate LAB block). Enables "lab time", "evening class" (Hannah), conflict checks. Online sections: zero rows.'
+}
+
+Table section_materials {
+  id serial [pk]
+  section_id int [not null, ref: > sections.id]
+  component varchar [note: 'lecture | lab']
+  bookstore_url text [not null]
+  items jsonb [note: 'post-MVP: scraped textbook titles/ISBNs for cross-section diffs']
+}
+
+// sections amendment: add column coreq_section_ref varchar
+//   (CSV shows section-pinned corequisites like DMAT-0305-33403)
+
+// v2.1 additional views (plain SQL, in db/schema.sql):
+//   v_course_offering_history — course x season -> years offered + count (backfill old term CSVs;
+//                               bot phrases as pattern + official-schedule link, never a promise)
+//   v_instructor_history      — instructor first term seen, courses taught, section counts
+//                               (names come from schedule rows; syllabus names are cross-check only)
+//   v_course_similarity       — max per-type weight spread across a course's sections
+//                               (low spread -> "sections are effectively identical")

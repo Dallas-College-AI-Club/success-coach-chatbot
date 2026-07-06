@@ -1,0 +1,23 @@
+{
+  "name": "dallas-chatbot-db",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Dallas College AI chatbot — TypeScript connection adapter (db/client.ts). Plain SQL + Python pipeline; no ORMs (ADR-004).",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/pg": "^8.11.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0"
+  }
+}

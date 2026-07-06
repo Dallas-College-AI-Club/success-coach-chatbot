@@ -1,0 +1,15 @@
+digraph D4 {
+  rankdir=TB; bgcolor=white; pad=0.3; nodesep=0.35; ranksep=0.45;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=12, margin="0.28,0.16", penwidth=1.2];
+  edge [color="#5f5e5a", penwidth=1.2];
+
+  Q  [label="Maria asks: 'Will HIST-1301 count for my\ndegree plan, and which section fits me?'", fillcolor="#FAECE7", color="#993C1D"];
+  S1 [label="degree_plans + plan_requirements + requirement_courses\n→ yes: American History (2026-27 catalog)", fillcolor="#E1F5EE", color="#0F6E56"];
+  S2 [label="course_requisites\n→ TSI Reading required (shown verbatim)", fillcolor="#E1F5EE", color="#0F6E56"];
+  S3 [label="sections × terms × instructors\n→ 3 sections this fall", fillcolor="#E1F5EE", color="#0F6E56"];
+  S4 [label="section_meetings\n→ one evening, one online,\nnone conflict with her ENGL class", fillcolor="#E1F5EE", color="#0F6E56"];
+  S5 [label="v_section_compare + distinctive_features\n→ 'most are quiz-based; Prof. Avery's\nis a 5-week podcast project'", fillcolor="#E1F5EE", color="#0F6E56"];
+  A  [label="Answer, with catalog-edition citation\n+ syllabus modified-date disclaimer", fillcolor="#EEEDFE", color="#534AB7"];
+
+  Q -> S1 -> S2 -> S3 -> S4 -> S5 -> A;
+}

@@ -1,0 +1,14 @@
+digraph D1 {
+  rankdir=LR; bgcolor=white; pad=0.3;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=13, margin="0.25,0.18", penwidth=1.2];
+  edge [fontname="Helvetica", fontsize=11, color="#5f5e5a", penwidth=1.2];
+
+  A [label="Public sources\nclass schedule, syllabi,\nbookstore, catalog", fillcolor="#F1EFE8", color="#888780"];
+  B [label="Keep the originals\nevery document saved\nas-is, forever", fillcolor="#F1EFE8", color="#888780"];
+  C [label="AI reads & organizes\nturns messy syllabi into\ntidy, comparable facts", fillcolor="#EEEDFE", color="#534AB7"];
+  D [label="The library\ncourses, sections, professors,\nschedules, degree plans", fillcolor="#E1F5EE", color="#0F6E56"];
+  E [label="The chatbot\nanswers with citations:\nfind, compare, plan", fillcolor="#FAECE7", color="#993C1D"];
+
+  A -> B -> C -> D -> E;
+  C -> C [label=" AI is swappable:\n Claude today,\n free local model later", style=dashed, color="#7F77DD", fontcolor="#534AB7"];
+}

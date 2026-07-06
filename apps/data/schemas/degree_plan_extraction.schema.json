@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "degree_plan_extraction.schema.json",
+  "schema_version": "1.0",
+  "title": "Degree-plan extraction (v1.0)",
+  "description": "Canonical output of the LLM extraction step for one Acalog catalog program (poid) page, loading Module 6 (docs/schema_v2.dbml; GAP_ANALYSIS Q1/Q2). Requirements are versioned by catalog edition (ADR-007) — every fulfillment answer cites its edition. Never invent values: if the page doesn't state a credit count or rule, use null; raw_text on requisites always keeps the verbatim sentence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["edition", "name", "requirements", "confidence"],
+  "properties": {
+    "edition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catoid", "year_label"],
+      "properties": {
+        "catoid": { "type": "integer", "description": "Acalog catalog id, e.g. 5 (= 2026-27)" },
+        "year_label": { "type": "string", "description": "e.g. 2026-2027" }
+      }
+    },
+    "poid": {
+      "type": ["integer", "null"],
+      "description": "Acalog program id from the page URL"
+    },
+    "name": { "type": "string", "description": "Program name as the catalog states it" },
+    "award_type": {
+      "type": ["string", "null"],
+      "description": "AA | AS | AAS | certificate | core_curriculum | bachelor awards (BAS/BAT) — as stated; null if unstated"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["group_name", "courses"],
+        "properties": {
+          "group_name": {
+            "type": "string",
+            "description": "Requirement group as the catalog states it, e.g. 'American History (060)', 'Major Courses'"
+          },
+          "component_area_code": {
+            "type": ["string", "null"],
+            "description": "TX core Foundational Component Area code 010–090 when applicable"
+          },
+          "credits_required": { "type": ["number", "null"] },
+          "rule": {
+            "type": ["string", "null"],
+            "description": "Free-text rule when not simply 'take N credits from list' — never force prose into numbers"
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["subject_prefix", "course_number"],
+              "properties": {
+                "subject_prefix": { "type": "string" },
+                "course_number": { "type": "string" },
+                "title": { "type": ["string", "null"] }
+              }
+            }
+          }
+        }
+      }
+    },
+    "requisites": {
+      "type": "array",
+      "description": "Typed requisite edges stated on the page (course_requisites rows)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["course", "kind", "raw_text"],
+        "properties": {
+          "course": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["subject_prefix", "course_number"],
+            "properties": {
+              "subject_prefix": { "type": "string" },
+              "course_number": { "type": "string" }
+            }
+          },
+          "kind": { "enum": ["prerequisite", "corequisite", "tsi", "other"] },
+          "requisite_course": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["subject_prefix", "course_number"],
+            "properties": {
+              "subject_prefix": { "type": "string" },
+              "course_number": { "type": "string" }
+            },
+            "description": "The course this edge points at; null when the requisite is not a course (e.g. TSI Reading)"
+          },
+          "raw_text": {
+            "type": "string",
+            "description": "Verbatim requisite sentence — ALWAYS kept; structure is added, never substituted"
+          }
+        }
+      }
+    },
+    "confidence": {
+      "enum": ["high", "medium", "low"],
+      "description": "low => extractions.status='needs_review'"
+    }
+  }
+}

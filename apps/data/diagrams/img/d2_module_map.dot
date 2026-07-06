@@ -1,0 +1,36 @@
+digraph D2 {
+  rankdir=TB; bgcolor=white; pad=0.3; compound=true; nodesep=0.3; ranksep=0.5;
+  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11, margin="0.18,0.12", fillcolor="#FFFFFF", penwidth=1];
+  edge [fontname="Helvetica", fontsize=10, color="#5f5e5a"];
+
+  subgraph cluster_m1 { label="Module 1 · Pipeline"; fontname="Helvetica"; style="rounded,filled"; fillcolor="#F1EFE8"; color="#888780";
+    RAW [label="raw_documents"]; EXT [label="extractions\n(versioned JSON)"];
+    RAW -> EXT;
+  }
+  subgraph cluster_m6 { label="Module 6 · Catalog & plans"; fontname="Helvetica"; style="rounded,filled"; fillcolor="#FAEEDA"; color="#854F0B";
+    CE [label="catalog_editions"]; DP [label="degree_plans"]; PR [label="plan_requirements"]; RC [label="requirement_courses"]; CR [label="course_requisites"];
+    CE -> DP -> PR -> RC;
+  }
+  subgraph cluster_m2 { label="Module 2 · Serving core"; fontname="Helvetica"; style="rounded,filled"; fillcolor="#E1F5EE"; color="#0F6E56";
+    CO [label="courses"]; TE [label="terms"]; IN [label="instructors"]; SE [label="sections"];
+    SY [label="syllabi"]; GC [label="grading_components"]; SM [label="section_meetings"]; MA [label="section_materials"];
+    CO -> SE; TE -> SE; IN -> SE; SE -> SY -> GC; SE -> SM; SE -> MA;
+  }
+  subgraph cluster_m4 { label="Module 4 · Directory (#43-#46)"; fontname="Helvetica"; style="rounded,filled"; fillcolor="#FBEAF0"; color="#993556";
+    AU [label="academic_units"]; AS [label="assignments"]; CT [label="contacts"]; SG [label="student_guidance"];
+    AU -> AS -> CT; AS -> SG [style=invis];
+  }
+  subgraph cluster_m3 { label="Module 3 · Optional"; fontname="Helvetica"; style="rounded,filled,dashed"; fillcolor="#EEEDFE"; color="#534AB7";
+    EM [label="embeddings (pgvector)"];
+  }
+  FV [label="Module 5 · field_visibility\n(public/private registry)", fillcolor="#F1EFE8", color="#888780", style="rounded,filled"];
+  VIEWS [label="SQL views: search · compare · distinctives ·\noffering history · conflicts", shape=box, fillcolor="#CECBF6", color="#534AB7"];
+  BOT [label="Chatbot", fillcolor="#FAECE7", color="#993C1D", fontsize=13];
+
+  EXT -> CO [lhead=cluster_m2, label="loader"];
+  EXT -> CE [lhead=cluster_m6, label="loader"];
+  RC -> CO; CR -> CO; DP -> AU [style=dashed];
+  SY -> EM [style=dashed];
+  SE -> VIEWS [ltail=cluster_m2]; VIEWS -> BOT;
+  RC -> BOT [ltail=cluster_m6]; CT -> BOT [ltail=cluster_m4];
+}
