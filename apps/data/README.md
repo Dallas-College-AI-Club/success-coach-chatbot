@@ -184,5 +184,8 @@ runs scrape→extract→load on a schedule.
 Never edit `raw_documents` or hand-edit core tables (fix the prompt/loader and
 re-run); nulls mean "the source didn't say"; instructor identity comes from
 schedule rows, never syllabus text; every degree-plan answer cites its catalog
-edition; no ORMs/dbt/migration frameworks; no emails or personal data in the
-repo, ever. Full list + reasoning: [schemas/DESIGN_NOTES_ADR.md](schemas/DESIGN_NOTES_ADR.md).
+edition; no ORMs/dbt/migration frameworks; no private contact data in the repo
+(publicly published info — e.g. instructor emails on HB 2504 syllabi — is fine;
+confirmed grant/support POC contacts stay in the access-controlled location and
+`field_visibility` marks email columns private in the DB). Full list +
+reasoning: [schemas/DESIGN_NOTES_ADR.md](schemas/DESIGN_NOTES_ADR.md).
