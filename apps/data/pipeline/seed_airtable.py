@@ -112,6 +112,9 @@ CONTACTS = [
 
 ASSIGNMENTS = [
     {"contact": "Tammy Clark", "unit": "ETMS", "category": "grants",
+     "program": "All ETMS programs — School of Engineering, Technology, Mathematics "
+                "and Sciences (Engineering, Technology incl. the BAT in Software "
+                "Development, Mathematics, Sciences; dallascollege.edu/schools/stem/)",
      "criteria": "FAFSA on file (only needs to be ON FILE, not processed — students "
                  "ineligible for traditional aid can still receive grants); declared "
                  "program of study; additional program-specific criteria may apply — "
@@ -206,9 +209,12 @@ def seed(token: str, base_id: str, apply: bool) -> None:
             continue
         if ((c,), (u,), (g,)) in existing_asg:
             continue
-        new_asg.append({F["asg_contact"]: [c], F["asg_unit"]: [u], F["asg_category"]: [g],
-                        F["asg_criteria"]: a["criteria"],
-                        F["asg_topics"]: [topic_ids[t] for t in a["topics"] if t in topic_ids]})
+        fields = {F["asg_contact"]: [c], F["asg_unit"]: [u], F["asg_category"]: [g],
+                  F["asg_criteria"]: a["criteria"],
+                  F["asg_topics"]: [topic_ids[t] for t in a["topics"] if t in topic_ids]}
+        if a.get("program"):
+            fields[F["asg_program"]] = a["program"]
+        new_asg.append(fields)
     if new_asg:
         plan.append(f"Assignments: create {len(new_asg)}")
         if apply:
