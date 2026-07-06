@@ -56,7 +56,7 @@ INSERT INTO help_topics (name)
 SELECT v.name
 FROM (VALUES
     ('rent'), ('utilities'), ('food'), ('mental health'),
-    ('laptops'), ('transportation'), ('childcare'), ('books')
+    ('laptops'), ('transportation'), ('childcare'), ('books'), ('tuition_gap')
 ) AS v(name)
 WHERE NOT EXISTS (SELECT 1 FROM help_topics ht WHERE ht.name = v.name);
 

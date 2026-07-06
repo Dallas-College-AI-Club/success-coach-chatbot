@@ -111,14 +111,17 @@ CONTACTS = [
 ]
 
 ASSIGNMENTS = [
+    # Degree or Program stays BLANK: blank = whole unit (program-narrowing
+    # convention); the ETMS-wide scope is stated in the criteria the bot relays.
     {"contact": "Tammy Clark", "unit": "ETMS", "category": "grants",
-     "program": "All ETMS programs — School of Engineering, Technology, Mathematics "
-                "and Sciences (Engineering, Technology incl. the BAT in Software "
-                "Development, Mathematics, Sciences; dallascollege.edu/schools/stem/)",
-     "criteria": "FAFSA on file (only needs to be ON FILE, not processed — students "
-                 "ineligible for traditional aid can still receive grants); declared "
-                 "program of study; additional program-specific criteria may apply — "
-                 "the school's grant contact determines eligibility.",
+     "criteria": "Covers ALL programs under the School of Engineering, Technology, "
+                 "Mathematics and Sciences — Engineering, Technology (incl. the BAT in "
+                 "Software Development), Mathematics, Sciences "
+                 "(dallascollege.edu/schools/stem/). FAFSA on file (only needs to be ON "
+                 "FILE, not processed — students ineligible for traditional aid can "
+                 "still receive grants); declared program of study; additional "
+                 "program-specific criteria may apply — the school's grant contact "
+                 "determines eligibility.",
      "topics": ["tuition_gap"]},
     {"contact": "Financial Aid Office", "unit": "General / All", "category": "financial_aid",
      "criteria": "Complete the FAFSA; the office determines aid eligibility.",

@@ -43,6 +43,7 @@ T_CATEGORIES = "Resource Categories"
 T_TOPICS = "Help Topics"
 T_ASSIGNMENTS = "Assignments"
 T_GUIDANCE = "Student Guidance"
+T_ALIASES = "Aliases"
 
 F = {
     "contact_name": "Name",
@@ -58,6 +59,15 @@ F = {
     "asg_unit": "Academic Unit",
     "asg_category": "Resource Category",
     "asg_program": "Degree or Program",
+    "asg_scope": "Applies to",
+    "cat_description": "Description",
+    "cat_clarify": "Clarify Label",
+    "topic_prompt": "Disambiguation Prompt",
+    "topic_cats": "Categories",
+    "alias_text": "Alias",
+    "alias_status": "Status",
+    "alias_source": "Source",
+    "alias_notes": "Notes",
     "asg_criteria": "Eligibility Criteria",
     "asg_topics": "Help Topics",
     "guid_category": "Resource Category",
@@ -146,7 +156,16 @@ def ensure_vocab(cur, table: str, name: str) -> int:
 # ---------------------------------------------------------------------------
 
 def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int]:
+    def _try_fetch(table):
+        try:
+            return fetch_records(table, token, base_id)
+        except Exception:
+            print(f"  note: table {table!r} not found in the base; skipping", file=sys.stderr)
+            return []
+
     tables = {
+        "aliases": _try_fetch(T_ALIASES),
+        "campuses_at": _try_fetch("Campuses"),
         "units": fetch_records(T_UNITS, token, base_id),
         "categories": fetch_records(T_CATEGORIES, token, base_id),
         "topics": fetch_records(T_TOPICS, token, base_id),
@@ -195,14 +214,47 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                     (r["id"], institution_id, name))
                 unit_ids[r["id"]] = cur.fetchone()[0]
 
-        category_ids = {r["id"]: ensure_vocab(cur, "resource_categories",
-                                              (r["fields"].get(F["category_name"]) or "").strip())
-                        for r in tables["categories"]
-                        if (r["fields"].get(F["category_name"]) or "").strip()}
-        topic_ids = {r["id"]: ensure_vocab(cur, "help_topics",
-                                           (r["fields"].get(F["topic_name"]) or "").strip())
-                     for r in tables["topics"]
-                     if (r["fields"].get(F["topic_name"]) or "").strip()}
+        category_ids = {}
+        for r in tables["categories"]:
+            name = (r["fields"].get(F["category_name"]) or "").strip()
+            if not name:
+                continue
+            cid = ensure_vocab(cur, "resource_categories", name)
+            category_ids[r["id"]] = cid
+            desc = r["fields"].get(F["cat_description"]) or None
+            clarify = r["fields"].get(F["cat_clarify"]) or None
+            if desc or clarify:
+                cur.execute(
+                    """UPDATE resource_categories
+                       SET description = COALESCE(%s, description),
+                           clarify_label = COALESCE(%s, clarify_label)
+                       WHERE id = %s AND (description, clarify_label)
+                             IS DISTINCT FROM (COALESCE(%s, description),
+                                               COALESCE(%s, clarify_label))""",
+                    (desc, clarify, cid, desc, clarify))
+        topic_ids = {}
+        for r in tables["topics"]:
+            name = (r["fields"].get(F["topic_name"]) or "").strip()
+            if not name:
+                continue
+            tid = ensure_vocab(cur, "help_topics", name)
+            topic_ids[r["id"]] = tid
+            prompt = r["fields"].get(F["topic_prompt"]) or None
+            if prompt:
+                cur.execute(
+                    """UPDATE help_topics SET disambiguation_prompt = %s
+                       WHERE id = %s AND disambiguation_prompt IS DISTINCT FROM %s""",
+                    (prompt, tid, prompt))
+            cat_links = [category_ids.get(x) for x in (r["fields"].get(F["topic_cats"]) or [])]
+            cat_links = [c for c in cat_links if c]
+            if cat_links:
+                cur.execute("DELETE FROM topic_categories WHERE help_topic_id = %s", (tid,))
+                for c in cat_links:
+                    cur.execute(
+                        """INSERT INTO topic_categories
+                               (help_topic_id, resource_category_id, is_default)
+                           VALUES (%s, %s, %s) ON CONFLICT DO NOTHING""",
+                        (tid, c, len(cat_links) == 1))
 
         contact_ids: dict[str, int] = {}
         for r in tables["contacts"]:
@@ -227,25 +279,43 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                 print(f"  assignment {r['id']}: missing contact/category link; skipped",
                       file=sys.stderr)
                 continue
+            # explicit scope: default unit-wide; program text only when specific.
+            # Sync-time LINT: contradictions are reported and normalized, never
+            # silently interpreted (the DB CHECK would reject them anyway).
+            scope = (f.get(F["asg_scope"]) or "").strip()
+            unit_wide = scope != "Specific program(s) only"
+            program = f.get(F["asg_program"]) or None
+            if unit_wide and program:
+                print(f"  LINT assignment {r['id']}: scope says whole-unit but a "
+                      f"program is set ({program!r}) — ignoring the program; fix in Airtable",
+                      file=sys.stderr)
+                program = None
+            if not unit_wide and not program:
+                print(f"  LINT assignment {r['id']}: scope says program-specific but "
+                      f"no program is set — treating as unit-wide; fix in Airtable",
+                      file=sys.stderr)
+                unit_wide = True
             cur.execute("SELECT id FROM assignments WHERE external_id = %s", (r["id"],))
             hit = cur.fetchone()
-            values = (contact, unit, category,
-                      f.get(F["asg_program"]) or None, f.get(F["asg_criteria"]) or None)
+            values = (contact, unit, category, unit_wide, program,
+                      f.get(F["asg_criteria"]) or None)
             if hit:
                 cur.execute(
                     """UPDATE assignments SET contact_id=%s, academic_unit_id=%s,
-                           resource_category_id=%s, degree_or_program=%s, criteria=%s
+                           resource_category_id=%s, applies_to_all_programs=%s,
+                           degree_or_program=%s, criteria=%s
                        WHERE id = %s AND (contact_id, academic_unit_id,
-                             resource_category_id, degree_or_program, criteria)
-                             IS DISTINCT FROM (%s, %s, %s, %s, %s)""",
+                             resource_category_id, applies_to_all_programs,
+                             degree_or_program, criteria)
+                             IS DISTINCT FROM (%s, %s, %s, %s, %s, %s)""",
                     (*values, hit[0], *values))
                 assignment_id = hit[0]
             else:
                 cur.execute(
                     """INSERT INTO assignments (external_id, contact_id,
                            academic_unit_id, resource_category_id,
-                           degree_or_program, criteria)
-                       VALUES (%s, %s, %s, %s, %s, %s) RETURNING id""",
+                           applies_to_all_programs, degree_or_program, criteria)
+                       VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id""",
                     (r["id"], *values))
                 assignment_id = cur.fetchone()[0]
             # rebuild topic links for this assignment
@@ -258,6 +328,58 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                         """INSERT INTO assignment_topics (assignment_id, help_topic_id)
                            VALUES (%s, %s) ON CONFLICT DO NOTHING""",
                         (assignment_id, topic_id))
+
+        # steward-governed aliases (upsert by external_id; collisions with the
+        # one-approved-meaning rule are LINTED and skipped, never forced)
+        cur.execute("SELECT code, id FROM campuses")
+        campus_by_code = dict(cur.fetchall())
+        campus_rec_to_id = {}
+        for rec in tables["campuses_at"]:
+            code = (rec["fields"].get("Code") or "").strip()
+            if code in campus_by_code:
+                campus_rec_to_id[rec["id"]] = campus_by_code[code]
+        status_map = {"Approved": "approved", "Proposed": "pending", "Retired": "retired"}
+        for r in tables["aliases"]:
+            f = r["fields"]
+            text = (f.get(F["alias_text"]) or "").strip()
+            if not text:
+                continue
+            targets = {
+                "academic_unit_id": unit_ids.get(first_link(f.get("Academic Unit"))),
+                "campus_id": campus_rec_to_id.get(first_link(f.get("Campus"))),
+                "resource_category_id": category_ids.get(first_link(f.get("Resource Category"))),
+                "help_topic_id": topic_ids.get(first_link(f.get("Help Topic"))),
+            }
+            set_targets = {k: v for k, v in targets.items() if v}
+            if len(set_targets) != 1:
+                print(f"  LINT alias {r['id']} ({text!r}): needs exactly one target "
+                      f"link, has {len(set_targets)} — skipped; fix in Airtable",
+                      file=sys.stderr)
+                continue
+            (col, val), = set_targets.items()
+            status = status_map.get((f.get(F["alias_status"]) or "").strip(), "pending")
+            notes = f.get(F["alias_notes"]) or None
+            try:
+                with conn.transaction():
+                    cur.execute("SELECT id FROM aliases WHERE external_id = %s", (r["id"],))
+                    hit = cur.fetchone()
+                    if hit:
+                        cur.execute(
+                            f"""UPDATE aliases SET alias=%s, academic_unit_id=NULL,
+                                   campus_id=NULL, resource_category_id=NULL,
+                                   help_topic_id=NULL, {col}=%s, status=%s, notes=%s
+                               WHERE id=%s""",
+                            (text, val, status, notes, hit[0]))
+                    else:
+                        cur.execute(
+                            f"""INSERT INTO aliases (external_id, alias, {col},
+                                   status, source, notes)
+                               VALUES (%s, %s, %s, %s, 'steward', %s)""",
+                            (r["id"], text, val, status, notes))
+            except Exception as e:
+                print(f"  LINT alias {r['id']} ({text!r}): rejected "
+                      f"({type(e).__name__} — one approved meaning per phrase?) — skipped",
+                      file=sys.stderr)
 
         for r in tables["guidance"]:
             f = r["fields"]

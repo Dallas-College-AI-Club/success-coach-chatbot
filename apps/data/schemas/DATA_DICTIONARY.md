@@ -134,8 +134,11 @@
 | contacts | the humans; `last_verified_date` powers the quarterly steward check; email is public staff-directory info (team decision 2026-07-07); `external_id` (nullable unique) holds the external authoring tool's record id for idempotent sync (Issue #43) |
 | resource_categories | grants / scholarships / financial_aid are *different offices* — the #47 interview's core finding; `routing_model` records "route, don't determine eligibility" |
 | help_topics + assignment_topics | trigger words (rent, utilities, mental health, laptops) → surface emergency/support resources proactively |
-| assignments | the routing table: contact × school × category × program; `external_id` (nullable unique) = Airtable record id for idempotent sync; `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
+| assignments | the routing table: contact × school × category × program; `external_id` (nullable unique) = Airtable record id for idempotent sync; `applies_to_all_programs` (explicit scope — no blank-means-everything; CHECK forbids unit-wide rows carrying program refs) + `degree_plan_id` (integer program grounding); `criteria` (free text) holds grant prerequisites the bot RELAYS verbatim when routing (FAFSA on file, declared program of study, program-specific rules) — never evaluated: "route, don't determine eligibility" |
 | student_guidance | `prep_steps` ("FAFSA on file + declared program of study") and `awareness_msg` (the proactive onboarding line) — content the bot says verbatim |
+| topic_categories | which office(s) a student situation routes to: ONE row = route silently, SEVERAL = ask the topic's `disambiguation_prompt` with each category's `clarify_label` — the three-office money ambiguity stored as data |
+| aliases | governed fuzzy-language grounding: one phrase -> exactly one target (unit/campus/category/topic/degree_plan, num_nonnulls CHECK); one APPROVED meaning per phrase (partial unique); `status` approved/pending/retired, `source` seed/steward/mined/llm_expansion, `match_count`/`last_matched_at` for dead-alias review; synced from the Airtable Aliases table by external_id |
+| unresolved_phrases | PII-scrubbed inbox for the vocabulary growth loop: short key-phrases the bot could not ground, occurrence-counted; steward approvals become aliases (`promoted_alias_id` closes the audit chain) |
 | programs | legacy stub retained for directory compatibility; planning questions use Module 6 degree_plans instead |
 
 ## Module 5 · Governance
@@ -190,6 +193,8 @@
 | v_course_offering_history | "is it usually offered in summer?" — course × season × years (pattern + disclaimer, never a promise) |
 | v_instructor_history | "is this professor new? what else do they teach?" — first term seen, courses, counts |
 | v_section_conflicts (helper) | "do these sections overlap?" — the OVERLAPS pattern every recommendation ends with |
+| v_vocab_resolve | THE deterministic grounding surface: canonical names/codes UNION approved aliases -> (entity_type, entity_id); the bot's first resolution step, and the closed candidate list for LLM grounding |
+| v_support_routing | THE routing answer surface: assignment × active contact × unit × category × guidance, with explicit scope, verbatim criteria, `citation_ref` (Airtable id) and `is_stale` (>90-day verification disclaimer) |
 
 ## Cross-cutting rules a new maintainer must know
 1. **Raw is sacred.** Never edit or delete raw_documents; fix data by fixing the extraction or loader and re-running.

@@ -249,14 +249,32 @@ CREATE TABLE contacts (
 
 CREATE TABLE resource_categories (
     id            serial PRIMARY KEY,
+    external_id   varchar UNIQUE,    -- stable sync key (rename-safe)
     name          varchar NOT NULL,  -- grants | scholarships | financial_aid | emergency_funds | student_care | tech_support
-    routing_model text               -- "route, don't determine eligibility"
+    routing_model text,              -- "route, don't determine eligibility"
+    description   text,              -- 2-3 sentences in student language (bot may quote)
+    clarify_label varchar            -- one-line option label for disambiguation questions
 );
 
 CREATE TABLE help_topics (
-    id   serial PRIMARY KEY,
-    name varchar NOT NULL            -- trigger topics: rent, utilities, mental health, laptops...
+    id                   serial PRIMARY KEY,
+    external_id          varchar UNIQUE,  -- stable sync key (rename-safe)
+    name                 varchar NOT NULL, -- trigger topics: rent, utilities, mental health, laptops...
+    disambiguation_prompt text            -- asked VERBATIM when the topic maps to >1 category
 );
+
+-- Which categories a student situation (topic) can route to. ONE row = route
+-- silently; SEVERAL rows = ask the topic's disambiguation_prompt with each
+-- category's clarify_label as an option. This stores the project's core
+-- finding as data: "help paying for classes" is THREE different offices.
+CREATE TABLE topic_categories (
+    help_topic_id        int NOT NULL REFERENCES help_topics (id),
+    resource_category_id int NOT NULL REFERENCES resource_categories (id),
+    is_default           boolean NOT NULL DEFAULT false,
+    PRIMARY KEY (help_topic_id, resource_category_id)
+);
+CREATE UNIQUE INDEX topic_categories_one_default_idx
+    ON topic_categories (help_topic_id) WHERE is_default;
 
 -- The routing table: contact x school x category x program.
 CREATE TABLE assignments (
@@ -265,8 +283,14 @@ CREATE TABLE assignments (
     contact_id           int NOT NULL REFERENCES contacts (id),
     academic_unit_id     int REFERENCES academic_units (id),
     resource_category_id int NOT NULL REFERENCES resource_categories (id),
-    degree_or_program    varchar,  -- grants are often program-specific
-    criteria             text      -- relayed VERBATIM when routing; never evaluated ("route, don't determine")
+    -- EXPLICIT program scope (no blank-means-everything convention):
+    -- unit-wide rows may carry no program reference; program-specific rows must.
+    applies_to_all_programs boolean NOT NULL DEFAULT true,
+    degree_plan_id       int,  -- FK added after Module 6 (degree_plans is created later in this file)
+    degree_or_program    varchar,  -- display text during transition; prefer degree_plan_id
+    criteria             text,     -- relayed VERBATIM when routing; never evaluated ("route, don't determine")
+    CHECK (applies_to_all_programs = false
+           OR (degree_plan_id IS NULL AND degree_or_program IS NULL))
 );
 
 CREATE TABLE assignment_topics (
@@ -280,6 +304,53 @@ CREATE TABLE student_guidance (
     resource_category_id int NOT NULL REFERENCES resource_categories (id),
     prep_steps           text,  -- e.g. "FAFSA on file + declared program of study"
     awareness_msg        text   -- proactive onboarding message (DP/#46)
+);
+
+-- Governed fuzzy-language grounding (one table for every alias target;
+-- exactly-one-target CHECK keeps real FK integrity — same pattern as
+-- embeddings). Canonical names are NOT duplicated here: v_vocab_resolve
+-- unions them in. One approved meaning per phrase; genuinely multi-meaning
+-- phrases are modeled as a help_topic + topic_categories, never duplicates.
+CREATE TABLE aliases (
+    id                   serial PRIMARY KEY,
+    alias                varchar NOT NULL,            -- verbatim as authored
+    normalized_alias     varchar GENERATED ALWAYS AS (lower(btrim(alias))) STORED,
+    academic_unit_id     int REFERENCES academic_units (id),
+    campus_id            int REFERENCES campuses (id),
+    resource_category_id int REFERENCES resource_categories (id),
+    help_topic_id        int REFERENCES help_topics (id),
+    degree_plan_id       int,  -- FK added after Module 6
+    status               varchar NOT NULL DEFAULT 'approved'
+                         CHECK (status IN ('approved', 'pending', 'retired')),
+    source               varchar NOT NULL DEFAULT 'steward'
+                         CHECK (source IN ('seed', 'steward', 'mined', 'llm_expansion')),
+    external_id          varchar UNIQUE,              -- Airtable record id
+    match_count          int NOT NULL DEFAULT 0,      -- bot increments on hits
+    last_matched_at      timestamptz,
+    notes                text,
+    CHECK (num_nonnulls(academic_unit_id, campus_id, resource_category_id,
+                        help_topic_id, degree_plan_id) = 1)
+);
+CREATE UNIQUE INDEX aliases_one_approved_meaning_idx
+    ON aliases (normalized_alias) WHERE status = 'approved';
+
+-- PII-scrubbed inbox for the vocabulary growth loop: short key-phrases the
+-- bot could not ground (or grounded only via soft aids), counted by
+-- occurrence. NEVER full utterances. Stewards triage; approvals become
+-- aliases (promoted_alias_id closes the audit chain).
+CREATE TABLE unresolved_phrases (
+    id                serial PRIMARY KEY,
+    phrase            varchar NOT NULL,               -- scrubbed key-phrase only
+    normalized_phrase varchar GENERATED ALWAYS AS (lower(btrim(phrase))) STORED UNIQUE,
+    guessed_target    jsonb,                          -- what the aid proposed + score
+    resolution_outcome varchar CHECK (resolution_outcome IN
+        ('missed', 'soft_matched_confirmed', 'soft_matched_rejected', 'disambiguated')),
+    occurrence_count  int NOT NULL DEFAULT 1,
+    first_seen        timestamptz NOT NULL DEFAULT now(),
+    last_seen         timestamptz NOT NULL DEFAULT now(),
+    status            varchar NOT NULL DEFAULT 'new'
+                      CHECK (status IN ('new', 'pushed', 'promoted', 'rejected', 'ignore')),
+    promoted_alias_id int REFERENCES aliases (id)
 );
 
 -- Legacy directory stub retained for compatibility; PLANNING questions use
@@ -371,3 +442,12 @@ CREATE TABLE course_requisites (
     updated_at          timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX course_requisites_course_id_idx ON course_requisites (course_id);
+
+-- Deferred FKs: Module 4 tables that ground programs to Module 6 degree plans
+-- (degree_plans is created above, after those tables).
+ALTER TABLE assignments
+    ADD CONSTRAINT assignments_degree_plan_id_fkey
+    FOREIGN KEY (degree_plan_id) REFERENCES degree_plans (id);
+ALTER TABLE aliases
+    ADD CONSTRAINT aliases_degree_plan_id_fkey
+    FOREIGN KEY (degree_plan_id) REFERENCES degree_plans (id);

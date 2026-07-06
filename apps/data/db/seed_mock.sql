@@ -225,7 +225,8 @@ INSERT INTO resource_categories (id, name, routing_model) VALUES
 
 INSERT INTO help_topics (id, name) VALUES
  (1, 'rent'), (2, 'utilities'), (3, 'food'), (4, 'mental health'),
- (5, 'laptops'), (6, 'transportation'), (7, 'childcare'), (8, 'books');
+ (5, 'laptops'), (6, 'transportation'), (7, 'childcare'), (8, 'books'),
+ (9, 'tuition_gap');
 
 INSERT INTO assignments (id, contact_id, academic_unit_id, resource_category_id, degree_or_program, criteria) VALUES
  -- grants depend on declared major/program + other criteria: the bot RELAYS

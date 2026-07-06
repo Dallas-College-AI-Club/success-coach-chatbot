@@ -25,6 +25,9 @@ SQL_FILES = [
     REPO / "db" / "seed_field_visibility.sql",
     REPO / "db" / "seed_directory.sql",   # composability: directory seed + mock seed coexist
     REPO / "db" / "seed_mock.sql",
+    # vocabulary AFTER mock: seed_mock truncates the vocab tables (CASCADE hits
+    # aliases/topic_categories), and the alias joins need the seeded rows
+    REPO / "db" / "seed_aliases.sql",
 ]
 
 

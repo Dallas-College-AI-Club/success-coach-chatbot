@@ -279,3 +279,76 @@ WHERE ma.days IS NOT NULL AND mb.days IS NOT NULL
   AND string_to_array(ma.days, NULL) && string_to_array(mb.days, NULL)
   -- and the time-of-day ranges overlap
   AND (ma.start_time, ma.end_time) OVERLAPS (mb.start_time, mb.end_time);
+
+
+-- ----------------------------------------------------------------------------
+-- v_vocab_resolve — THE deterministic grounding surface for fuzzy student
+-- language. One normalized-string lookup returning (entity_type, entity_id):
+-- canonical names/codes from the entity tables UNION approved aliases.
+-- The bot queries this FIRST; the LLM only grounds against candidates from
+-- these vocabularies (pick an existing id or 'none' — never invent), mirroring
+-- the enum-at-extraction pattern (ADR-003) at conversation time.
+-- ----------------------------------------------------------------------------
+CREATE VIEW v_vocab_resolve AS
+SELECT 'academic_unit' AS entity_type, id AS entity_id, lower(btrim(name)) AS phrase,
+       'canonical' AS match_kind, NULL::int AS alias_id
+FROM academic_units
+UNION ALL
+SELECT 'campus', id, lower(btrim(code)), 'canonical', NULL FROM campuses
+UNION ALL
+SELECT 'campus', id, lower(btrim(name)), 'canonical', NULL FROM campuses
+UNION ALL
+SELECT 'resource_category', id, lower(btrim(name)), 'canonical', NULL FROM resource_categories
+UNION ALL
+SELECT 'help_topic', id, lower(btrim(name)), 'canonical', NULL FROM help_topics
+UNION ALL
+SELECT 'degree_plan', dp.id, lower(btrim(dp.name)), 'canonical', NULL
+FROM degree_plans dp JOIN catalog_editions ce ON ce.id = dp.catalog_edition_id
+WHERE ce.is_active
+UNION ALL
+SELECT CASE WHEN a.academic_unit_id     IS NOT NULL THEN 'academic_unit'
+            WHEN a.campus_id            IS NOT NULL THEN 'campus'
+            WHEN a.resource_category_id IS NOT NULL THEN 'resource_category'
+            WHEN a.help_topic_id        IS NOT NULL THEN 'help_topic'
+            ELSE 'degree_plan' END,
+       COALESCE(a.academic_unit_id, a.campus_id, a.resource_category_id,
+                a.help_topic_id, a.degree_plan_id),
+       a.normalized_alias, 'alias', a.id
+FROM aliases a
+WHERE a.status = 'approved';
+
+
+-- ----------------------------------------------------------------------------
+-- v_support_routing — the ONE audited surface every routing answer SELECTs
+-- from (contact + scope + criteria + guidance + freshness). Semantics live
+-- here, not in app code: program narrowing is ADDITIVE (unit-wide rows always
+-- apply; program-specific rows add on a degree_plan match); inactive contacts
+-- never appear; is_stale powers the honesty disclaimer.
+-- ----------------------------------------------------------------------------
+CREATE VIEW v_support_routing AS
+SELECT
+    a.id                 AS assignment_id,
+    au.id                AS academic_unit_id,
+    au.name              AS academic_unit,
+    rc.id                AS resource_category_id,
+    rc.name              AS resource_category,
+    rc.routing_model,
+    rc.description       AS category_description,
+    a.applies_to_all_programs,
+    a.degree_plan_id,
+    a.degree_or_program,
+    a.criteria,                          -- relay VERBATIM; never evaluate
+    ct.name              AS contact_name,
+    ct.email             AS contact_email,
+    ct.helps_with,
+    ct.last_verified_date,
+    (ct.last_verified_date IS NULL
+     OR ct.last_verified_date < CURRENT_DATE - 90) AS is_stale,
+    sg.prep_steps,
+    sg.awareness_msg,
+    a.external_id        AS citation_ref -- Airtable record id: the answer's provenance
+FROM assignments a
+JOIN contacts ct            ON ct.id = a.contact_id AND ct.active
+JOIN resource_categories rc ON rc.id = a.resource_category_id
+LEFT JOIN academic_units au ON au.id = a.academic_unit_id
+LEFT JOIN student_guidance sg ON sg.resource_category_id = rc.id;
