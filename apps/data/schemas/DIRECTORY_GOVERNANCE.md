@@ -49,7 +49,9 @@ store** staff maintain. `pipeline/load_directory.py` syncs one way
 3. **One approved meaning per phrase.** Aliases link a student phrase to
    exactly ONE target (unit, campus, category, or topic). A phrase that
    legitimately means several things is not an alias — it is a **help topic**
-   that fans out (see §4). The database enforces both rules.
+   that fans out (see §4). The database enforces both rules. Aliases live
+   ONLY in Postgres (`db/seed_aliases.sql`, versioned in git) — Airtable
+   holds staff-collected data, not machine vocabulary.
 4. **Guidance is versioned content**: `Prep Steps` / `Awareness Message` per
    category, plain language, translation-ready, with Approved By/Date.
 
@@ -85,13 +87,15 @@ boundary, but only **governed rows** ever route.
 - **Capture (bot, automatic):** phrases that missed, soft-matched, or fired a
   disambiguation prompt land in `unresolved_phrases` as short, PII-scrubbed
   key-phrases with occurrence counts — never full utterances.
-- **Triage (steward, weekly, ~10 min):** frequent phrases become *Proposed*
-  rows in the Airtable **Aliases** table (approve / reject / escalate).
-  Escalation = the phrase reveals a missing topic or category — a deliberate
-  vocabulary decision, not an alias.
-- **Sync (automatic):** only **Approved** aliases resolve silently; the sync
-  refuses duplicates of an already-approved phrase (lint, skip). Aliases are
-  *Retired*, never deleted, so past citations stay explainable.
+- **Triage (data team, weekly, ~10 min):** review frequent phrases
+  (`SELECT phrase, occurrence_count FROM unresolved_phrases WHERE status='new'
+  ORDER BY occurrence_count DESC`), add approved ones to `db/seed_aliases.sql`
+  in a small PR (git review = the approval step + a permanent audit trail),
+  re-apply the seed. Escalation = the phrase reveals a missing topic or
+  category — a vocabulary decision made in Airtable (new topic/category row),
+  not an alias.
+- Aliases are retired by setting `status='retired'` (never deleted), so past
+  citations stay explainable.
 - **Quarterly:** re-verification sprint (stale view) + dead-alias review
   (`match_count`, `last_matched_at`).
 
@@ -103,7 +107,7 @@ psql -f db/seed_field_visibility.sql && psql -f db/seed_directory.sql
 python -m pipeline.load_directory        # sync the Airtable base
 psql -f db/seed_aliases.sql              # AFTER the first sync (aliases join
                                          # on unit/topic rows the sync creates;
-                                         # idempotent — safe to re-run anytime)
+                                         # idempotent — re-run after every edit)
 ```
 
 Watch the sync's `LINT ...` output: it is the authoring-error report. CI runs

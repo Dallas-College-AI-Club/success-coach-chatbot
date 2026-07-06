@@ -14,6 +14,10 @@ ids stored in the external_id columns:
   routing_model boundary text).
 - assignment_topics: rebuilt per synced assignment from the Help Topics links.
 - student_guidance: one row per resource category, updated in place.
+- ALIASES ARE NOT SYNCED: the vocabulary lives ONLY in Postgres
+  (db/seed_aliases.sql, versioned in git; growth via unresolved_phrases ->
+  reviewed additions to that file). Airtable stays the surface for
+  staff-collected data only.
 
 Directory data is staff-entered public information (team decision 2026-07-07)
 — this is NOT pipeline/raw_documents data; raw stays scraper-only.
@@ -43,7 +47,6 @@ T_CATEGORIES = "Resource Categories"
 T_TOPICS = "Help Topics"
 T_ASSIGNMENTS = "Assignments"
 T_GUIDANCE = "Student Guidance"
-T_ALIASES = "Aliases"
 
 F = {
     "contact_name": "Name",
@@ -64,10 +67,6 @@ F = {
     "cat_clarify": "Clarify Label",
     "topic_prompt": "Disambiguation Prompt",
     "topic_cats": "Categories",
-    "alias_text": "Alias",
-    "alias_status": "Status",
-    "alias_source": "Source",
-    "alias_notes": "Notes",
     "asg_criteria": "Eligibility Criteria",
     "asg_topics": "Help Topics",
     "guid_category": "Resource Category",
@@ -156,16 +155,7 @@ def ensure_vocab(cur, table: str, name: str) -> int:
 # ---------------------------------------------------------------------------
 
 def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int]:
-    def _try_fetch(table):
-        try:
-            return fetch_records(table, token, base_id)
-        except Exception:
-            print(f"  note: table {table!r} not found in the base; skipping", file=sys.stderr)
-            return []
-
     tables = {
-        "aliases": _try_fetch(T_ALIASES),
-        "campuses_at": _try_fetch("Campuses"),
         "units": fetch_records(T_UNITS, token, base_id),
         "categories": fetch_records(T_CATEGORIES, token, base_id),
         "topics": fetch_records(T_TOPICS, token, base_id),
@@ -328,58 +318,6 @@ def sync(conn, token: str, base_id: str, dry_run: bool = False) -> dict[str, int
                         """INSERT INTO assignment_topics (assignment_id, help_topic_id)
                            VALUES (%s, %s) ON CONFLICT DO NOTHING""",
                         (assignment_id, topic_id))
-
-        # steward-governed aliases (upsert by external_id; collisions with the
-        # one-approved-meaning rule are LINTED and skipped, never forced)
-        cur.execute("SELECT code, id FROM campuses")
-        campus_by_code = dict(cur.fetchall())
-        campus_rec_to_id = {}
-        for rec in tables["campuses_at"]:
-            code = (rec["fields"].get("Code") or "").strip()
-            if code in campus_by_code:
-                campus_rec_to_id[rec["id"]] = campus_by_code[code]
-        status_map = {"Approved": "approved", "Proposed": "pending", "Retired": "retired"}
-        for r in tables["aliases"]:
-            f = r["fields"]
-            text = (f.get(F["alias_text"]) or "").strip()
-            if not text:
-                continue
-            targets = {
-                "academic_unit_id": unit_ids.get(first_link(f.get("Academic Unit"))),
-                "campus_id": campus_rec_to_id.get(first_link(f.get("Campus"))),
-                "resource_category_id": category_ids.get(first_link(f.get("Resource Category"))),
-                "help_topic_id": topic_ids.get(first_link(f.get("Help Topic"))),
-            }
-            set_targets = {k: v for k, v in targets.items() if v}
-            if len(set_targets) != 1:
-                print(f"  LINT alias {r['id']} ({text!r}): needs exactly one target "
-                      f"link, has {len(set_targets)} — skipped; fix in Airtable",
-                      file=sys.stderr)
-                continue
-            (col, val), = set_targets.items()
-            status = status_map.get((f.get(F["alias_status"]) or "").strip(), "pending")
-            notes = f.get(F["alias_notes"]) or None
-            try:
-                with conn.transaction():
-                    cur.execute("SELECT id FROM aliases WHERE external_id = %s", (r["id"],))
-                    hit = cur.fetchone()
-                    if hit:
-                        cur.execute(
-                            f"""UPDATE aliases SET alias=%s, academic_unit_id=NULL,
-                                   campus_id=NULL, resource_category_id=NULL,
-                                   help_topic_id=NULL, {col}=%s, status=%s, notes=%s
-                               WHERE id=%s""",
-                            (text, val, status, notes, hit[0]))
-                    else:
-                        cur.execute(
-                            f"""INSERT INTO aliases (external_id, alias, {col},
-                                   status, source, notes)
-                               VALUES (%s, %s, %s, %s, 'steward', %s)""",
-                            (r["id"], text, val, status, notes))
-            except Exception as e:
-                print(f"  LINT alias {r['id']} ({text!r}): rejected "
-                      f"({type(e).__name__} — one approved meaning per phrase?) — skipped",
-                      file=sys.stderr)
 
         for r in tables["guidance"]:
             f = r["fields"]

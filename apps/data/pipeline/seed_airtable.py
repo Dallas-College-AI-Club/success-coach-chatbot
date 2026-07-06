@@ -5,7 +5,7 @@ team a real starting point instead of an empty base. Idempotent: existing
 records are matched by Name and never modified — staff edits in Airtable
 always win; re-running only creates what's missing.
 
-Every row below is PUBLIC information verified on dallascollege.edu on
+Campuses are NOT seeded here — they are DB reference data (db/seed_directory.sql), not staff-collected. Every row below is PUBLIC information verified on dallascollege.edu on
 2026-07-07 (locations page, schools navigation, paying-for-college pages,
 emergency-aid page) or named-for-attribution in the Issue #47 discovery
 interview. Emails are included only where published; blanks await #45
@@ -29,20 +29,7 @@ from pipeline.load_directory import (
     T_TOPICS, T_UNITS, fetch_records,
 )
 
-T_CAMPUSES = "Campuses"
-
 DC = "https://www.dallascollege.edu"
-
-CAMPUSES = [  # the SEVEN campuses + Online (dallascollege.edu/locations)
-    {"Code": "BHC", "Name": "Brookhaven", "City/Area": "Farmers Branch", "Campus Page URL": f"{DC}/locations/brookhaven/"},
-    {"Code": "CVC", "Name": "Cedar Valley", "City/Area": "Lancaster", "Campus Page URL": f"{DC}/locations/cedar-valley/"},
-    {"Code": "EFC", "Name": "Eastfield", "City/Area": "Mesquite", "Campus Page URL": f"{DC}/locations/eastfield/"},
-    {"Code": "ECC", "Name": "El Centro", "City/Area": "Downtown Dallas", "Campus Page URL": f"{DC}/locations/el-centro/"},
-    {"Code": "MVC", "Name": "Mountain View", "City/Area": "Oak Cliff, Dallas", "Campus Page URL": f"{DC}/locations/mountain-view/"},
-    {"Code": "NLC", "Name": "North Lake", "City/Area": "Irving", "Campus Page URL": f"{DC}/locations/north-lake/"},
-    {"Code": "RLC", "Name": "Richland", "City/Area": "North Dallas", "Campus Page URL": f"{DC}/locations/richland/"},
-    {"Code": "Online", "Name": "Online", "City/Area": "", "Campus Page URL": DC},
-]
 
 # Exact seeded short names first (Postgres adopts by name), then the two
 # schools our seeds lacked (official names), then the fallback.
@@ -190,8 +177,6 @@ def seed(token: str, base_id: str, apply: bool) -> None:
                 existing.update({m[key].strip(): rid for m, rid in zip(missing, new_ids)})
         return existing
 
-    campus_ids = ensure(T_CAMPUSES, CAMPUSES, key="Code") if _table_exists(
-        T_CAMPUSES, token, base_id) else {}
     unit_ids = ensure(T_UNITS, [{"Name": u} for u in UNITS])
     category_ids = ensure(T_CATEGORIES, CATEGORIES)
     topic_ids = ensure(T_TOPICS, [{"Name": t} for t in TOPICS])
@@ -244,15 +229,6 @@ def seed(token: str, base_id: str, apply: bool) -> None:
         print(header)
         for line in plan:
             print(f"  - {line}")
-
-
-def _table_exists(table: str, token: str, base_id: str) -> bool:
-    try:
-        fetch_records(table, token, base_id)
-        return True
-    except Exception:
-        print(f"  note: table {table!r} not found in the base; skipping it")
-        return False
 
 
 def main(argv: Optional[list[str]] = None) -> None:
