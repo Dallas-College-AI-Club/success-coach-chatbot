@@ -244,7 +244,7 @@ INSERT INTO assignment_topics (assignment_id, help_topic_id) VALUES
 INSERT INTO student_guidance (id, resource_category_id, prep_steps, awareness_msg) VALUES
  (1, 1, 'FAFSA on file + declared program of study', 'Your school may have grant funding — ask your school''s grant contact what''s available for your program.'),
  (2, 2, 'FAFSA on file; check deadlines each semester', 'One scholarship application covers many awards at once.'),
- (3, 4, 'Short intake form; documentation helps but isn''t required to start', 'Emergency aid exists for rent, utilities, food, and tech — ask early.');
+ (3, 4, 'Currently enrolled; 18+; documentation of the emergency; other aid and community options exhausted', 'Emergency aid (up to $500/semester) exists for documented emergencies, and care coordinators can route rent, utility or food needs to community resources — ask early.');
 
 INSERT INTO programs (id, contact_id, name, deferred_detail) VALUES
  (1, 1, 'Engineering (legacy directory stub)', 'Planning questions use Module 6 degree_plans'),
