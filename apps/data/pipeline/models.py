@@ -12,7 +12,7 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-SYLLABUS_SCHEMA_VERSION = "1.1"
+SYLLABUS_SCHEMA_VERSION = "1.2"
 DEGREE_PLAN_SCHEMA_VERSION = "1.0"
 
 DATE_RE = r"^\d{4}-\d{2}-\d{2}$"

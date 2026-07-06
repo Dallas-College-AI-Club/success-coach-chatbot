@@ -41,6 +41,16 @@ LEFT JOIN instructors i   ON i.id = s.instructor_id;
 -- ----------------------------------------------------------------------------
 -- v_course_assessment_profile — the per-course grading baseline:
 -- what share of a course's (syllabus-bearing) sections use each canonical type.
+--
+-- DELIBERATE DEVIATION from SCHEMA_HANDOVER.md §6 query C (flagged, not
+-- silent): the handover formula divides by ALL sections of the course; this
+-- view divides by sections THAT HAVE A SYLLABUS. Sections without syllabi say
+-- nothing about grading, and since the schedule CSV creates far more sections
+-- than syllabi enrich, the handover denominator would drag every share under
+-- the 0.34 threshold and flag the COMMON pattern as "distinctive". Share =
+-- "of the sections whose grading we know, how many use this type". If the
+-- team prefers the handover-verbatim formula, change the course_sections CTE
+-- to drop the syllabi join (and expect v_syllabus_distinctives to over-flag).
 -- ----------------------------------------------------------------------------
 CREATE VIEW v_course_assessment_profile AS
 WITH course_sections AS (          -- denominator: sections that have a syllabus

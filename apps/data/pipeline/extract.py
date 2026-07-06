@@ -225,19 +225,27 @@ def extract(text: str, doc_type: str, extractor_setting: Optional[str] = None) -
 # ---------------------------------------------------------------------------
 
 def insert_extraction(conn, raw_document_id: int, result: ExtractionResult) -> int:
-    """Insert an extractions row and make it the current one for its raw doc."""
+    """Insert an extractions row; promote it to current only when loadable.
+
+    A status='failed' row (transport/provider error — no usable data) must
+    never displace an existing current extraction: it is stored as evidence
+    with is_current=false, so the loader keeps working from the last good
+    output, and --all-pending's NOT EXISTS(is_current) check retries documents
+    that never had a good extraction."""
+    make_current = result.status in ("ok", "needs_review")
     with conn.cursor() as cur:
-        cur.execute(
-            "UPDATE extractions SET is_current = false WHERE raw_document_id = %s",
-            (raw_document_id,),
-        )
+        if make_current:
+            cur.execute(
+                "UPDATE extractions SET is_current = false WHERE raw_document_id = %s",
+                (raw_document_id,),
+            )
         cur.execute(
             """
             INSERT INTO extractions
                 (raw_document_id, extractor, extraction_method, prompt_version,
                  schema_version, extracted_at, status, data, validation_errors,
                  is_current)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, true)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
             (
@@ -250,6 +258,7 @@ def insert_extraction(conn, raw_document_id: int, result: ExtractionResult) -> i
                 result.status,
                 json.dumps(result.data) if result.data is not None else json.dumps({}),
                 json.dumps(result.validation_errors) if result.validation_errors else None,
+                make_current,
             ),
         )
         return cur.fetchone()[0]

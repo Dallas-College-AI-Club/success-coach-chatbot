@@ -44,13 +44,28 @@ def store_raw_document(
 
     with conn.cursor() as cur:
         cur.execute(
-            """SELECT id FROM raw_documents
+            """SELECT id, is_latest FROM raw_documents
                WHERE source_url = %s AND content_hash = %s""",
             (source_url, content_hash),
         )
         row = cur.fetchone()
         if row:
-            return row[0], False
+            doc_id, is_latest = row
+            if not is_latest:
+                # Content REVERTED to a previously seen version (A -> B -> A):
+                # re-promote the matched snapshot so is_latest tracks what is
+                # actually live. Still append-only — no content is edited,
+                # only the is_latest flag moves.
+                cur.execute(
+                    """UPDATE raw_documents SET is_latest = false
+                       WHERE source_url = %s AND is_latest""",
+                    (source_url,),
+                )
+                cur.execute(
+                    "UPDATE raw_documents SET is_latest = true WHERE id = %s",
+                    (doc_id,),
+                )
+            return doc_id, False
 
         # content changed (or first fetch): demote older snapshots, append new
         cur.execute(

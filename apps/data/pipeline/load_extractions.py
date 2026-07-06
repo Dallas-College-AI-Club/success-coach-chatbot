@@ -28,6 +28,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from datetime import date, datetime
 from typing import Any, Optional
 
@@ -59,14 +60,21 @@ def term_code_from_label(label: str) -> str:
 
 
 def parse_date(value: Optional[str]) -> Optional[date]:
-    """Accepts ISO 'YYYY-MM-DD' or CSV-style 'May 13, 2022'."""
-    if not value:
+    """Accepts ISO 'YYYY-MM-DD', 'May 13, 2022', and Excel-resave '13-May-22'.
+
+    A non-empty value matching NO format is loudly warned about instead of
+    silently becoming NULL — silent date loss bit us once already (the schedule
+    CSV was resaved in D-Mon-YY form and every section date loaded as NULL)."""
+    if not value or not value.strip():
         return None
-    for fmt in ("%Y-%m-%d", "%b %d, %Y", "%B %d, %Y"):
+    for fmt in ("%Y-%m-%d", "%b %d, %Y", "%B %d, %Y",
+                "%d-%b-%y", "%d-%B-%Y", "%m/%d/%Y"):
         try:
             return datetime.strptime(value.strip(), fmt).date()
         except ValueError:
             continue
+    print(f"WARNING: unparseable date {value!r} -> NULL (add its format to parse_date)",
+          file=sys.stderr)
     return None
 
 
@@ -145,7 +153,9 @@ def update_course_baseline(cur, course_id: int, fields: dict,
         (course_id,),
     )
     newest_loaded = cur.fetchone()[0]
-    newer = modified_date is not None and (newest_loaded is None or modified_date >= newest_loaded)
+    # strictly newer: an EQUAL modified_date must not overwrite another
+    # syllabus's non-empty values (only-if-empty still applies below)
+    newer = modified_date is not None and (newest_loaded is None or modified_date > newest_loaded)
 
     for col in ("description", "state_outcomes", "requisites"):
         val = fields.get(col)
@@ -400,6 +410,7 @@ def load_syllabus_extractions(conn) -> int:
                FROM extractions e
                JOIN raw_documents rd ON rd.id = e.raw_document_id
                WHERE e.is_current AND e.status = 'ok'
+                 AND rd.is_latest
                  AND rd.source_type IN ('syllabus_html', 'syllabus_pdf')
                ORDER BY e.id"""
         )
@@ -445,6 +456,7 @@ def load_degree_plan_extractions(conn) -> int:
                FROM extractions e
                JOIN raw_documents rd ON rd.id = e.raw_document_id
                WHERE e.is_current AND e.status = 'ok'
+                 AND rd.is_latest
                  AND rd.source_type = 'catalog_page'
                ORDER BY e.id"""
         )
@@ -468,27 +480,35 @@ def load_degree_plan_extractions(conn) -> int:
                         (edition["catoid"],))
             edition_id = cur.fetchone()[0]
 
+            # NULL-poid-safe upsert: ON CONFLICT (edition, poid) never fires
+            # for NULL poid (unique indexes treat NULLs as distinct), which
+            # would duplicate the plan on every load — so SELECT-then-write
+            # keyed with IS NOT DISTINCT FROM. Extraction confidence rules
+            # allow poid to be null when the page URL wasn't captured.
             cur.execute(
-                """
-                INSERT INTO degree_plans (catalog_edition_id, poid, name,
-                                          award_type, raw_document_id)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (catalog_edition_id, poid) DO UPDATE SET
-                    name        = EXCLUDED.name,
-                    award_type  = EXCLUDED.award_type,
-                    updated_at  = now()
-                WHERE (degree_plans.name, degree_plans.award_type)
-                      IS DISTINCT FROM (EXCLUDED.name, EXCLUDED.award_type)
-                """,
-                (edition_id, data.get("poid"), data["name"],
-                 data.get("award_type"), raw_document_id),
-            )
-            cur.execute(
-                """SELECT id FROM degree_plans
+                """SELECT id, name, award_type FROM degree_plans
                    WHERE catalog_edition_id = %s AND poid IS NOT DISTINCT FROM %s""",
                 (edition_id, data.get("poid")),
             )
-            plan_id = cur.fetchone()[0]
+            row = cur.fetchone()
+            if row:
+                plan_id = row[0]
+                if (row[1], row[2]) != (data["name"], data.get("award_type")):
+                    cur.execute(
+                        """UPDATE degree_plans
+                           SET name = %s, award_type = %s, updated_at = now()
+                           WHERE id = %s""",
+                        (data["name"], data.get("award_type"), plan_id),
+                    )
+            else:
+                cur.execute(
+                    """INSERT INTO degree_plans (catalog_edition_id, poid, name,
+                                                 award_type, raw_document_id)
+                       VALUES (%s, %s, %s, %s, %s) RETURNING id""",
+                    (edition_id, data.get("poid"), data["name"],
+                     data.get("award_type"), raw_document_id),
+                )
+                plan_id = cur.fetchone()[0]
 
             # REPLACE requirements (+ their course links) for this plan
             cur.execute(

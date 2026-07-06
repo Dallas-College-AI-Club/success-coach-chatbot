@@ -1,12 +1,29 @@
 [project]
 name = "dallasai-club-success-coach-chatbot-data"
 version = "0.1.0"
-description = "Data scraping module for the Dallas College Success Coach Chatbot"
+description = "Data layer for the Dallas College Success Coach Chatbot: schema, SQL views, scrape/extract/load pipeline, RAG PoC"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    # database pipeline (db/, pipeline/, tests/) — mirrors requirements.txt
+    "psycopg[binary]>=3.2",   # the one Postgres driver (db/client.py)
+    "psycopg-pool>=3.2",      # connection pool for db/client.py
+    "pydantic>=2.7",          # extraction validation (pipeline/models.py)
+    "jsonschema>=4.21",       # meta-validation of schemas/*.schema.json in tests
+    "python-dotenv>=1.0",     # .env loading (db/client.py, dallasai/)
+    "requests>=2.31",         # scrapers + ollama provider
+    "pypdf>=4.0",             # syllabus PDF text extraction
+    # RAG proof-of-concept (dallasai/)
+    "openai>=1.40",           # OpenRouter-compatible client (dallasai/rag_*.py)
+    "chromadb>=0.5",          # local vector store for the PoC
+]
 
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
 ]
+
+# Optional extras:
+#   anthropic>=0.34  — only when EXTRACTOR=anthropic:* runs via the API
+#   (keep requirements.txt in sync when editing dependencies — CI installs
+#    from requirements.txt)

@@ -1,43 +1,138 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "syllabus_extraction.schema.json",
-  "schema_version": "1.1",
-  "title": "Syllabus extraction (v1.1)",
-  "description": "Canonical output of the LLM extraction step for one syllabus (SCHEMA_HANDOVER.md §4, plus v1.1 additions: meetings[] and materials_links[] per GAP_ANALYSIS Q4/Q7). Rules the extractor must follow: never invent values — null/empty means 'the source does not say'; points-based grading gets weight_pct computed from total points; canonical_type must come from the enum; full_summary is grounded only in the document; online sections emit meetings: [].",
+  "schema_version": "1.2",
+  "title": "Syllabus extraction (v1.2)",
+  "description": "Canonical output of the LLM extraction step for one syllabus (SCHEMA_HANDOVER.md §4, plus v1.1 additions: meetings[] and materials_links[] per GAP_ANALYSIS Q4/Q7; v1.2 aligns nullability with the Pydantic validator — identity-ish fields accept null when the document truly doesn't state them (nulls are correct, never invented)). Rules the extractor must follow: never invent values — null/empty means 'the source does not say'; points-based grading gets weight_pct computed from total points; canonical_type must come from the enum; full_summary is grounded only in the document; online sections emit meetings: [].",
   "type": "object",
   "additionalProperties": false,
-  "required": ["course", "section", "grading", "confidence"],
+  "required": [
+    "course",
+    "section",
+    "grading",
+    "confidence"
+  ],
   "properties": {
     "course": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "subject_prefix": { "type": "string" },
-        "course_number": { "type": "string" },
-        "title": { "type": "string" },
-        "credit_hours": { "type": ["number", "null"] },
-        "description": { "type": ["string", "null"] },
-        "state_outcomes": { "type": ["string", "null"] },
-        "requisites": { "type": ["string", "null"] }
+        "subject_prefix": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "course_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "title": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "credit_hours": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "state_outcomes": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "requisites": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "section": {
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "term_code": { "type": "string" },
-        "section_number": { "type": "string" },
+        "term_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "section_number": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "instructor_name": {
-          "type": ["string", "null"],
+          "type": [
+            "string",
+            "null"
+          ],
           "description": "Cross-check ONLY — instructor identity always comes from schedule rows (GAP_ANALYSIS Q8)"
         },
-        "modality": { "enum": ["online", "in_person", "hybrid", null] },
-        "campus": { "type": ["string", "null"] },
-        "start_date": { "type": ["string", "null"], "format": "date" },
-        "end_date": { "type": ["string", "null"], "format": "date" },
-        "modified_date": { "type": ["string", "null"], "format": "date" },
-        "withdraw_date": { "type": ["string", "null"], "format": "date" },
-        "certification_date": { "type": ["string", "null"], "format": "date" }
+        "modality": {
+          "enum": [
+            "online",
+            "in_person",
+            "hybrid",
+            null
+          ]
+        },
+        "campus": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "start_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "end_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "modified_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "withdraw_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        },
+        "certification_date": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date"
+        }
       }
     },
     "grading": {
@@ -45,15 +140,46 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["raw_label", "canonical_type"],
+        "required": [
+          "raw_label",
+          "canonical_type"
+        ],
         "properties": {
-          "raw_label": { "type": "string" },
-          "canonical_type": {
-            "enum": ["exam", "quiz", "homework", "project", "lab", "participation", "paper", "presentation", "final_exam", "other"]
+          "raw_label": {
+            "type": "string"
           },
-          "weight_pct": { "type": ["number", "null"] },
-          "points": { "type": ["number", "null"] },
-          "notes": { "type": ["string", "null"] }
+          "canonical_type": {
+            "enum": [
+              "exam",
+              "quiz",
+              "homework",
+              "project",
+              "lab",
+              "participation",
+              "paper",
+              "presentation",
+              "final_exam",
+              "other"
+            ]
+          },
+          "weight_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "points": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
@@ -63,19 +189,59 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["meeting_type"],
+        "required": [
+          "meeting_type"
+        ],
         "properties": {
-          "meeting_type": { "enum": ["lecture", "lab", "other"] },
+          "meeting_type": {
+            "enum": [
+              "lecture",
+              "lab",
+              "other"
+            ]
+          },
           "days": {
-            "type": ["string", "null"],
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^[MTWRFSU]*$",
             "description": "Subset of MTWRFSU, e.g. MW"
           },
-          "start_time": { "type": ["string", "null"], "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "description": "24h HH:MM" },
-          "end_time": { "type": ["string", "null"], "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$", "description": "24h HH:MM" },
-          "campus": { "type": ["string", "null"] },
-          "building": { "type": ["string", "null"] },
-          "room": { "type": ["string", "null"] }
+          "start_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "description": "24h HH:MM"
+          },
+          "end_time": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "description": "24h HH:MM"
+          },
+          "campus": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "building": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
@@ -85,16 +251,28 @@
       "items": {
         "type": "object",
         "additionalProperties": false,
-        "required": ["url"],
+        "required": [
+          "url"
+        ],
         "properties": {
-          "component": { "enum": ["lecture", "lab", null] },
-          "url": { "type": "string" }
+          "component": {
+            "enum": [
+              "lecture",
+              "lab",
+              null
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
         }
       }
     },
     "instructor_outcomes": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "course_schedule": {
       "type": "array",
@@ -102,9 +280,24 @@
         "type": "object",
         "additionalProperties": false,
         "properties": {
-          "when": { "type": "string" },
-          "topic": { "type": "string" },
-          "notes": { "type": ["string", "null"] }
+          "when": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "topic": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
         }
       }
     },
@@ -112,24 +305,58 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "late_work": { "type": ["string", "null"] },
-        "attendance": { "type": ["string", "null"] },
-        "makeup": { "type": ["string", "null"] },
-        "ai_plagiarism": { "type": ["string", "null"] },
-        "extra_credit": { "type": ["string", "null"] }
+        "late_work": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attendance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "makeup": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ai_plagiarism": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extra_credit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
       }
     },
     "distinctive_features": {
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "description": "Items unusual for this course type, e.g. 'scaffolded 5-week podcast project'"
     },
     "full_summary": {
-      "type": "string",
+      "type": [
+        "string",
+        "null"
+      ],
       "description": "≤120-word neutral summary for chat answers, grounded only in the document"
     },
     "confidence": {
-      "enum": ["high", "medium", "low"],
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ],
       "description": "low => extractions.status='needs_review'"
     }
   }
