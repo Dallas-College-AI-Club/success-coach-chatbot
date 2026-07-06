@@ -90,6 +90,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f db/seed_field_visibility.sql
           psql -v ON_ERROR_STOP=1 -f db/seed_directory.sql
           psql -v ON_ERROR_STOP=1 -f db/seed_mock.sql
+          psql -v ON_ERROR_STOP=1 -f db/seed_aliases.sql
 
       # The Python adapter runs a live query and closes cleanly
       - name: Python client check

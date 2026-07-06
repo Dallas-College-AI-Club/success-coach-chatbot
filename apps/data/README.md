@@ -119,6 +119,13 @@ file; dimension, metric, and model are a matched set recorded per row in
 psql -f db/seed_mock.sql
 ```
 
+**Vocabulary** (aliases + topic routing — how fuzzy student phrases ground
+to governed rows; see [schemas/DIRECTORY_GOVERNANCE.md](schemas/DIRECTORY_GOVERNANCE.md)):
+
+```bash
+psql -f db/seed_aliases.sql    # run AFTER the first directory sync (idempotent)
+```
+
 Captured proof of a successful run: [db/SEED_PROOF.md](db/SEED_PROOF.md).
 CI re-executes all of the above on every push touching `apps/data/`.
 
