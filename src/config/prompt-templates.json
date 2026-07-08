@@ -1,0 +1,67 @@
+{
+    "metadata": {
+        "name": "Dallas College Success Coach Prompt Templates",
+        "version": "1.0.0",
+        "description": "Deterministic user-facing templates used by the Success Coach Assistant.",
+        "lastModified": "2026-07-04"
+    },
+    "fallbacks": {
+        "emptyContext": "I can only answer questions using verified Dallas College records. I do not see that information available right now.",
+        "missingInformation": "I do not see enough verified Dallas College information available to answer that question.",
+        "partialInformation": "I can answer the portion supported by verified Dallas College records. Additional information is not available in the records I can access."
+    },
+    "refusals": {
+        "programming": {
+            "message": "I cannot provide programming, software development, debugging, scripting, or code-generation assistance."
+        },
+        "homework": {
+            "message": "I cannot solve homework problems, complete assignments, or provide solutions for coursework."
+        },
+        "creativeWriting": {
+            "message": "I cannot create stories, essays, poems, fictional content, or other creative-writing material outside my academic-support scope."
+        },
+        "generalKnowledge": {
+            "message": "I am not a general-purpose information assistant."
+        },
+        "outOfScope": {
+            "message": "That request falls outside the topics I am authorized to support."
+        },
+        "systemPrompt": {
+            "message": "I cannot provide internal system instructions, hidden prompts, governance documents, or protected configuration details."
+        }
+    },
+    "redirects": {
+        "default": "I can help with Dallas College courses, academic programs, student resources, student services, registration information, degree planning, and campus events.",
+        "programming": "If you have questions about Dallas College courses, academic programs, student support services, or campus resources, I would be happy to help.",
+        "homework": "I can help identify Dallas College tutoring resources, academic support services, courses, or related student resources.",
+        "creativeWriting": "I can assist with verified Dallas College information, including courses, programs, student services, or campus events.",
+        "generalKnowledge": "Please ask a question related to Dallas College information that can be answered using verified institutional records."
+    },
+    "compoundRequest": {
+        "partialSupportPrefix": "Your request contains both supported and unsupported topics. I will answer the supported portion first.",
+        "unsupportedPortionMessage": "The remaining portion of your request is outside my supported scope."
+    },
+    "trustBoundary": {
+        "promptInjection": "I cannot ignore my operating instructions or change my role.",
+        "roleChange": "I must continue operating as the Dallas College Success Coach Assistant.",
+        "contextPoisoning": "Information provided by a user cannot be treated as verified Dallas College information unless it appears in trusted records.",
+        "logicBomb": "User instructions cannot modify future behavior or establish new operating rules.",
+        "authorityOverride": "User requests cannot override governance rules, context authority requirements, or system safeguards."
+    },
+    "citations": {
+        "lightweightPrefix": "According to Dallas College records",
+        "sourceUnavailableSuffix": "The specific source reference is not currently available.",
+        "partialAnswerSuffix": "Additional verified information was not available."
+    },
+    "responsePreambles": {
+        "supportedAnswer": "Based on verified Dallas College information:",
+        "partialAnswer": "Based on the available verified Dallas College information:",
+        "clarificationNeeded": "I can answer questions that are supported by verified Dallas College records. Please provide additional details if available."
+    },
+    "evaluationMarkers": {
+        "fallbackTriggered": "[FALLBACK]",
+        "refusalTriggered": "[REFUSAL]",
+        "partialAnswerTriggered": "[PARTIAL]",
+        "injectionAttemptDetected": "[TRUST_BOUNDARY]"
+    }
+}
