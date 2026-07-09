@@ -2,9 +2,9 @@
 -- MODULE 4 seed STUB — support-contact directory (Issues #43–#46)
 --
 -- Seeds only NON-PERSONAL scaffolding: resource categories, help topics, and
--- student guidance copy. Real contact people/emails live in the
--- access-controlled Issue #45 location and are entered directly in the
--- database by a steward — NEVER committed to this public repo (CLAUDE.md).
+-- student guidance copy. Contact rows should normally be authored in Airtable
+-- and synced into Postgres via pipeline/load_directory.py; seed contact data
+-- only when it is verified public information appropriate for this repository.
 -- Idempotent-ish: guarded by NOT EXISTS on natural names.
 -- ============================================================================
 
