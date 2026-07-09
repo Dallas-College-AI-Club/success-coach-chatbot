@@ -30,7 +30,7 @@ import json
 import re
 import sys
 from datetime import date, datetime
-from typing import Any, Optional
+from typing import Optional
 
 SEASON_BY_CODE = {"SP": "spring", "SU": "summer", "FA": "fall", "WI": "winter"}
 CODE_BY_SEASON = {v: k for k, v in SEASON_BY_CODE.items()}
