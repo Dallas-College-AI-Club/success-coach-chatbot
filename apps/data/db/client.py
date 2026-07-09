@@ -29,6 +29,7 @@ from __future__ import annotations
 import atexit
 import os
 import signal
+import sys
 import threading
 from contextlib import contextmanager
 from typing import Iterator, Optional
@@ -93,7 +94,7 @@ atexit.register(close_pool)
 
 def _signal_close(signum, frame):  # pragma: no cover - signal path
     close_pool()
-    signal.default_int_handler(signum, frame) if signum == signal.SIGINT else exit(128 + signum)
+    signal.default_int_handler(signum, frame) if signum == signal.SIGINT else sys.exit(128 + signum)
 
 
 for _sig in (signal.SIGINT, signal.SIGTERM):
