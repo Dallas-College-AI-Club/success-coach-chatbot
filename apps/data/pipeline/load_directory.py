@@ -35,7 +35,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
-from typing import Any, Iterator, Optional
+from typing import Any, Optional
 
 API_BASE = "https://api.airtable.com/v0"
 
