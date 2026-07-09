@@ -34,7 +34,7 @@ class _Strict(BaseModel):
 
 
 # --------------------------------------------------------------------------
-# Syllabus extraction (v1.1)
+# Syllabus extraction (v1.2)
 # --------------------------------------------------------------------------
 
 class CourseFields(_Strict):
