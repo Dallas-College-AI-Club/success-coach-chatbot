@@ -98,8 +98,9 @@ CONTACTS = [
 ]
 
 ASSIGNMENTS = [
-    # Degree or Program stays BLANK: blank = whole unit (program-narrowing
-    # convention); the ETMS-wide scope is stated in the criteria the bot relays.
+    # Seeds unit-wide assignments by default (Applies to = "Whole school/unit").
+    # Degree or Program stays blank unless the scope is program-specific.
+
     {"contact": "Tammy Clark", "unit": "ETMS", "category": "grants",
      "criteria": "Covers ALL programs under the School of Engineering, Technology, "
                  "Mathematics and Sciences — Engineering, Technology (incl. the BAT in "
