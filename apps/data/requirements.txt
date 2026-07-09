@@ -8,7 +8,9 @@ jsonschema>=4.21         # meta-validation of schemas/*.schema.json in tests
 python-dotenv>=1.0       # .env loading (db/client.py)
 requests>=2.31           # scrapers + ollama provider
 pypdf>=4.0               # syllabus PDF text extraction
-pytest>=8.0              # acceptance tests
+openai>=1.40             # OpenRouter-compatible client (dallasai/rag_*.py)
+chromadb>=0.5            # local vector store for the PoC
+pytest>=9.0.3            # acceptance tests
 
 # Optional — only when EXTRACTOR=anthropic:* runs via API:
 # anthropic>=0.34
