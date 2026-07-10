@@ -34,7 +34,7 @@ Three question classes, three query shapes, all against one table:
 |---|---|---|---|
 | `course` | course × catalog year | code, title, credits, description, state outcomes, prerequisites/corequisites (with "one-of" groups **and** the verbatim requisite text) | catalog year |
 | `program_map` | degree plan × catalog year | award type, total credits, requirement groups (name, TX core component-area code, credits, course lists, free-text rules). The program-independent TX Core Curriculum ingests as its own row (`CORE-42`) so undeclared students get structured answers | catalog year |
-| `section` | scheduled class section | section number, instructor, modality, campus, start/end dates, meeting blocks (empty array = online — absence is the signal, never invented times), materials links | year + semester |
+| `section` | scheduled class section | section number, instructor, modality, campus, start/end dates, meeting blocks (a required field: `[]` means online — times are never invented), materials links | year + semester |
 | `syllabus` | section's syllabus | grading components (verbatim label + canonical type + weight), policies, instructor outcomes, schedule, distinctive features, ≤120-word summary, modified date | year + semester |
 | `cv` | instructor | name, department, CV link, courses taught | timeless |
 | `contact` | support-office routing entry | office, school/unit, category, topics, eligibility criteria (relayed verbatim — the bot routes, it never determines eligibility), prep steps, verification provenance | timeless |

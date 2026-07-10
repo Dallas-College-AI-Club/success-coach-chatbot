@@ -54,7 +54,7 @@
     },
     "meetings": {
       "type": "array",
-      "$comment": "empty array = online; absence is the signal, never invent times",
+      "$comment": "required field: [] means online (unambiguous - the field can never be absent); never invent times",
       "items": {
         "type": "object",
         "additionalProperties": false,
