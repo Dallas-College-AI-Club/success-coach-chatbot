@@ -188,7 +188,7 @@ Add a CI test asserting the models, the registry, and the schemas agree (e.g., t
 - [ ] `chat_session.id` has no server default — it is client-generated.
 - [ ] **No foreign keys anywhere** — cross-row references go through `course_code` / `instructor_slug` / `catalog_year`; integrity is the pipeline's job.
 - [ ] The embedding provider decision (architecture doc §9) must be confirmed before this issue merges — it freezes `HALFVEC(768)`.
-- [ ] Driver: pick one and pin it — recommended `psycopg` (v3, `postgresql+psycopg://` URL scheme) with a **synchronous** engine; `pgvector-python` supports it directly, and the ingest workload is batch, not concurrent. (The issue text mentions `psycopg2-binary`; it also works — just don't mix the two.)
+- [ ] Driver: pick one and pin it — recommended `psycopg` (v3, `postgresql+psycopg://` URL scheme) with a **synchronous** engine; `pgvector-python` supports it directly, and the ingest workload is batch, not concurrent. (The issue text mentions `psycopg2-binary`; it also works — just don't mix the two.) Keep the **plain** `postgresql://` string in `.env` — `psql` reads the same variable and can't parse the `+psycopg` scheme — and rewrite it in code instead: `url = url.replace("postgresql://", "postgresql+psycopg://", 1)` before `create_engine(...)`. Without this, SQLAlchemy defaults the plain scheme to psycopg2 and fails with `ModuleNotFoundError: psycopg2`.
 - [ ] Connection strings only from env vars; see README §Database for how to obtain them from Neon.
 
 ## 7. What this issue does NOT include
