@@ -4,7 +4,13 @@ version = "0.1.0"
 description = "Data scraping module for the Dallas College Success Coach Chatbot"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "alembic>=1.18.5",
+    "pgvector>=0.5.0",
+    "psycopg>=3.3.4",
+    "python-dotenv>=1.2.2",
+    "sqlalchemy>=2.0.51",
+]
 
 [dependency-groups]
 dev = [
