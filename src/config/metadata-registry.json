@@ -175,12 +175,14 @@
     },
     "dayparts": {
       "type": "array",
-      "enum": [
-        "morning",
-        "afternoon",
-        "evening",
-        "weekend"
-      ],
+      "items": {
+        "enum": [
+          "morning",
+          "afternoon",
+          "evening",
+          "weekend"
+        ]
+      },
       "note": "derived from meeting start times at ingest: morning < 12:00 <= afternoon < 17:00 <= evening; weekend added independently for Sat/Sun - a Saturday 09:00 class is [morning, weekend]"
     },
     "category": {

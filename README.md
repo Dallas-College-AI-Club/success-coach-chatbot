@@ -58,6 +58,10 @@ uv run --with psycopg python -c "import os, psycopg; print(psycopg.connect(os.en
 ```ts
 // TypeScript (from apps/frontend, after `npm install @neondatabase/serverless`)
 import { neon } from "@neondatabase/serverless";
+
 const sql = neon(process.env.DATABASE_URL!);
-console.log(await sql`SELECT count(*) FROM knowledge_entry`);
+
+(async () => {
+  console.log(await sql`SELECT count(*) FROM knowledge_entry`);
+})();
 ```

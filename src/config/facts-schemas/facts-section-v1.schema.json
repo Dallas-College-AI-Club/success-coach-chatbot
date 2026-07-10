@@ -6,6 +6,8 @@
   "additionalProperties": false,
   "required": [
     "section_number",
+    "meetings",
+    "materials_links",
     "confidence"
   ],
   "properties": {

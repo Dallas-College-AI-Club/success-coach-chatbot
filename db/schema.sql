@@ -57,8 +57,9 @@ CREATE TABLE knowledge_entry (
         -- citation), or a pseudo-URI for rows without a public page:
         --   seed://…                        hand-seeded rows
         --   <url>#facts                     the fact row extracted from a page
-        --   <url>#<catalog_year>            catalog rows, year-namespaced (§4 of
-        --   <url>#<catalog_year>#facts      the architecture doc)
+        --   <url>#<catalog_year>            catalog rows, year-namespaced
+        --                                   (§4 of the architecture doc)
+        --   <url>#<catalog_year>#facts      catalog facts row (same year scoping)
         --   <url>#<row-fragment>            one row of a structured source,
         --                                   e.g. <schedule_csv>#BIOL-1406-72002
     chunk_index   integer     NOT NULL DEFAULT 0,   -- ordinal within its document
