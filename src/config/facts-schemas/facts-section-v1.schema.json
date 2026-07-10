@@ -1,0 +1,146 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-section-v1",
+  "title": "facts-section-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "section_number",
+    "confidence"
+  ],
+  "properties": {
+    "section_number": {
+      "type": "string"
+    },
+    "instructor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "instructor_slug": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "modality": {
+      "enum": [
+        "online",
+        "in_person",
+        "hybrid",
+        null
+      ]
+    },
+    "campus": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "start_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "end_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "meetings": {
+      "type": "array",
+      "$comment": "empty array = online; absence is the signal, never invent times",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "days",
+          "start_time",
+          "end_time"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "lecture",
+              "lab",
+              "other"
+            ]
+          },
+          "days": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "building": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "meeting_info_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "coreq_section_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "materials_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "component": {
+            "enum": [
+              "lecture",
+              "lab",
+              null
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "inclusive_access": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

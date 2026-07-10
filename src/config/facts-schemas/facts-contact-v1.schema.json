@@ -1,0 +1,128 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-contact-v1",
+  "title": "facts-contact-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "office",
+    "unit",
+    "category",
+    "active",
+    "confidence"
+  ],
+  "properties": {
+    "office": {
+      "type": "string"
+    },
+    "unit": {
+      "type": "string"
+    },
+    "campus": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "category": {
+      "type": "string"
+    },
+    "topics": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "helps_with": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scope": {
+      "enum": [
+        "all_programs",
+        "specific_programs"
+      ]
+    },
+    "program_codes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      }
+    },
+    "criteria": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "relayed VERBATIM - the bot routes, it never determines eligibility"
+    },
+    "prep_steps": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "awareness_msg": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "email": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "active": {
+      "type": "boolean"
+    },
+    "verification": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "verified_by": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_verified_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "$comment": "human confirmation chain; distinct from scraped_at (pipeline verification)"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

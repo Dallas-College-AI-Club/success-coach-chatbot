@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-program-map-v1",
+  "title": "facts-program-map-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "program_code",
+    "name",
+    "confidence"
+  ],
+  "properties": {
+    "program_code": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "award_type": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "school": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "total_credits": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "catalog_year": {
+      "type": "string"
+    },
+    "groups": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "courses"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "component_area_code": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "credits_required": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "rule": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

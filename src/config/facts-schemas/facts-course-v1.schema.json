@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-course-v1",
+  "title": "facts-course-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "course_code",
+    "title",
+    "confidence"
+  ],
+  "properties": {
+    "course_code": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "credit_hours": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state_outcomes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "one_of",
+          "raw_text"
+        ],
+        "properties": {
+          "one_of": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "corequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "one_of",
+          "raw_text"
+        ],
+        "properties": {
+          "one_of": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requisites_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}
