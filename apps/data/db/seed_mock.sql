@@ -2,9 +2,9 @@
 -- Success Coach Chatbot — Mock Seed Data
 --
 -- Realistic sample rows showing how every kind of content lives in the
--- two-table schema (apply db/schema.sql first):
+-- two-table schema (apply apps/data/db/schema.sql first):
 --
---   psql "$DATABASE_URL_UNPOOLED" -f db/seed_mock.sql
+--   psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/seed_mock.sql
 --
 -- Idempotent: safe to run repeatedly (ON CONFLICT DO NOTHING).
 -- All data below is FAKE and for local/dev testing only.

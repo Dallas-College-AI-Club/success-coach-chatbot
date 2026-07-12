@@ -5,7 +5,7 @@
 > mirror is a separate later issue.
 >
 > **Read first:** [`docs/DATABASE_ARCHITECTURE.md`](../DATABASE_ARCHITECTURE.md)
-> (the design) and [`db/schema.sql`](../../db/schema.sql) (the exact target DDL —
+> (the design) and [`apps/data/db/schema.sql`](../../apps/data/db/schema.sql) (the exact target DDL —
 > **that file wins any disagreement**).
 
 ---
@@ -38,7 +38,7 @@ The scrapers and the extraction/compose stages already exist
 (`apps/data/pipeline/`) and are producing the rows this schema will hold — #51 is
 the last piece between them and a live Neon database.
 
-## 2. Where the branch stands (verified against `db/schema.sql`)
+## 2. Where the branch stands (verified against `apps/data/db/schema.sql`)
 
 The current `51-backend-database-models` branch already delivers the models — and
 they were audited column-for-column against the target DDL:
@@ -60,8 +60,8 @@ same flat convention (`dallasai/repository.py`).
 
 ### 3a. Branch base — do this first
 
-The branch is based on `main`, which does **not** contain `db/schema.sql`,
-`db/seed_mock.sql`, or the `src/config/` contract files — they live on
+The branch is based on `main`, which does **not** contain `apps/data/db/schema.sql`,
+`apps/data/db/seed_mock.sql`, or the `src/config/` contract files — they live on
 `feature/36-database-architecture-design-initialization` (PR #59). Until that
 merges (or you rebase onto it), the seed test and the contract-sync CI test have
 nothing to run against. Coordinate the merge order before writing the migration.
@@ -69,11 +69,11 @@ nothing to run against. Coordinate the merge order before writing the migration.
 ### 3b. The initial migration (the core deliverable)
 
 `alembic/versions/` is currently empty. Ship **one** migration that produces
-exactly the state of `db/schema.sql`, in order:
+exactly the state of `apps/data/db/schema.sql`, in order:
 
 1. `op.execute("CREATE EXTENSION IF NOT EXISTS vector")`
 2. Create both tables. Autogenerate from the models, then **hand-verify against
-   `db/schema.sql`** — autogenerate renders `Computed` expressions and
+   `apps/data/db/schema.sql`** — autogenerate renders `Computed` expressions and
    hnsw/gin index options imperfectly, and needs `import pgvector.sqlalchemy`
    in `env.py` (or a `render_item`) to render `HALFVEC`.
 3. Set the database-level GUC for filtered vector search:
@@ -112,13 +112,13 @@ on the context directly.
    `facts_schema` has its schema file; registry `profile_keys` matches the
    `ck_cs_profile_allowlist` CHECK.
 2. **Migration + seed pytest** — apply the migration to a fresh database, run
-   `db/seed_mock.sql`, assert its smoke queries return the expected shapes, and
+   `apps/data/db/seed_mock.sql`, assert its smoke queries return the expected shapes, and
    assert running the seed twice changes nothing.
 
 ### Definition of done
 
 - [ ] `alembic upgrade head` succeeds on a fresh Neon branch **and** local Postgres 16+.
-- [ ] `psql -f db/seed_mock.sql` inserts all rows; every smoke query at the bottom of that file returns the expected shape; running it twice changes nothing.
+- [ ] `psql -f apps/data/db/seed_mock.sql` inserts all rows; every smoke query at the bottom of that file returns the expected shape; running it twice changes nothing.
 - [ ] `SELECT` through a SQLAlchemy session works over `DATABASE_URL_UNPOOLED`; a plain `@neondatabase/serverless` query works over `DATABASE_URL` (both languages proven).
 - [ ] `git grep` finds no credentials; `.env` is git-ignored.
 

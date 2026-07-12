@@ -2,7 +2,7 @@
 
 > **Issue**: #36 — Database Architecture Design & Initialization
 > **Database**: [Neon](https://neon.com) serverless PostgreSQL (free tier) with the `pgvector` extension
-> **Schema DDL**: [`db/schema.sql`](../db/schema.sql) · **Sample data**: [`db/seed_mock.sql`](../db/seed_mock.sql) · **Setup**: [README §Database](../README.md#database)
+> **Schema DDL**: [`apps/data/db/schema.sql`](../apps/data/db/schema.sql) · **Sample data**: [`apps/data/db/seed_mock.sql`](../apps/data/db/seed_mock.sql) · **Setup**: [README §Database](../README.md#database)
 > **Next steps**: [`docs/handoff/ISSUE_51_HANDOFF.md`](handoff/ISSUE_51_HANDOFF.md) converts this design to SQLAlchemy models + Alembic migrations (issue #51); a TypeScript (Drizzle) mirror follows in a later issue.
 
 ---
@@ -46,7 +46,7 @@ Three question classes, three query shapes, all against one table:
 
 Long documents also produce plain **prose chunks** (markdown sections with `facts = NULL`) that serve semantic search; a document's structured extraction lives on a single facts row — a `#facts` pseudo-URI row when the document also has prose chunks, or the document's only row when a source yields one row per entity (e.g., each schedule-CSV section). Both kinds are embedded, so everything is reachable by vector search *and* fact rows are reachable by point-read.
 
-**ERD** (full column detail and rationale comments in [`db/schema.sql`](../db/schema.sql)):
+**ERD** (full column detail and rationale comments in [`apps/data/db/schema.sql`](../apps/data/db/schema.sql)):
 
 ```mermaid
 erDiagram
@@ -107,7 +107,7 @@ Write-time validation backstops bad stamps: `CHECK` constraints reject a missing
 - **Column**: `embedding halfvec(768) NOT NULL` — half-precision floats halve storage with negligible recall loss.
 - **Distance metric**: **cosine**, via an HNSW index (`halfvec_cosine_ops`, `m=16`, `ef_construction=64`).
 - **Dimension**: **768**, frozen project-wide. The binding constraint: **the same embedding model must serve both ingest (Python pipeline) and query time (Next.js API route)**, and OpenRouter's free tier serves no embedding models, so the provider is a deliberate team decision (§9). Candidate free options: a hosted free-tier API reachable from both runtimes (e.g. Google `gemini-embedding-001` at `output_dimensionality: 768`, with `RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY` task types), or a local 768-dim model served through LM Studio/Ollama (e.g. `nomic-embed-text`) — noting a purely local server covers ingestion, while query-time embedding on Vercel then needs the *same model* behind a reachable endpoint. ⚠️ Confirm before issue #51 freezes the column.
-- **Filtered search**: `hnsw.iterative_scan = 'relaxed_order'` is set database-wide (see `db/schema.sql`) so vector scans keep iterating until enough rows satisfy the `WHERE` filters — required because metadata pre-filtering (by course, term, doc_type) is the core retrieval pattern.
+- **Filtered search**: `hnsw.iterative_scan = 'relaxed_order'` is set database-wide (see `apps/data/db/schema.sql`) so vector scans keep iterating until enough rows satisfy the `WHERE` filters — required because metadata pre-filtering (by course, term, doc_type) is the core retrieval pattern.
 - **Hybrid search**: a generated `tsvector` column + GIN index provides the keyword leg; the canonical retrieval query fuses both legs with Reciprocal Rank Fusion (§5, query B). No extra infrastructure.
 - **Re-embedding path** (model/dimension change): add `embedding_v2 halfvec(N)`, backfill from Python over the direct connection, build the new HNSW index, flip the query column, drop the old — both generations fit the storage budget during transition (§7).
 
@@ -396,6 +396,6 @@ The Next.js app is full-stack: its API routes own the database connection (there
 
 ## 9. Decisions to confirm before implementation
 
-1. **Embedding provider** (blocks issue #51; team decision): must serve both Python ingest and the Vercel runtime with identical 768-dim cosine-space vectors. Candidates in §3 — a hosted free-tier API (e.g. Gemini embeddings) or an LM Studio/Ollama-served local model with a query-time-reachable endpoint. If the chosen model's native dimension differs, update `halfvec(N)` here and in `db/schema.sql` before the first migration.
+1. **Embedding provider** (blocks issue #51; team decision): must serve both Python ingest and the Vercel runtime with identical 768-dim cosine-space vectors. Candidates in §3 — a hosted free-tier API (e.g. Gemini embeddings) or an LM Studio/Ollama-served local model with a query-time-reachable endpoint. If the chosen model's native dimension differs, update `halfvec(N)` here and in `apps/data/db/schema.sql` before the first migration.
 2. **Catalog retention window**: 3 years proposed (§4); confirm against the college's catalog-rights policy.
 3. **User-submitted content (moderated events and Lost & Found)**: read-only guidance and officially-scraped events ship in `knowledge_entry`; **interactive intake** — club event submissions and lost/found reports with moderation states (`pending/approved/rejected`, `pending/active/claimed`), moderator roles, submitter contact info, and photos (stored externally per the free-tier plan, URLs only in the DB) — is transactional and PII-bearing and is deliberately **out of scope for this schema**. When either feature is greenlit, it arrives as a dedicated intake/moderation table plus an auth/roles decision; **approved submissions then publish into `knowledge_entry` as normal `event`/`knowledge_article` rows**, so the read path never changes.

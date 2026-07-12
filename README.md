@@ -21,7 +21,7 @@ Chatbot to assist students at Dallas College acting as a Success Coach in their 
 Neon serverless PostgreSQL with the `pgvector` extension. Two tables hold everything: `knowledge_entry` (the vector-searchable knowledge base) and `chat_session` (anonymous student profiles + chat telemetry).
 
 - **Design & rationale**: [`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md)
-- **Schema DDL**: [`db/schema.sql`](db/schema.sql) · **Sample data**: [`db/seed_mock.sql`](db/seed_mock.sql)
+- **Schema DDL**: [`apps/data/db/schema.sql`](apps/data/db/schema.sql) · **Sample data**: [`apps/data/db/seed_mock.sql`](apps/data/db/seed_mock.sql)
 - **Implementing the ORM models (issue #51)**: [`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)
 
 ### Set up a database on Neon
@@ -35,8 +35,8 @@ Neon serverless PostgreSQL with the `pgvector` extension. Two tables hold everyt
 ### Initialize and seed
 
 ```bash
-psql "$DATABASE_URL_UNPOOLED" -f db/schema.sql
-psql "$DATABASE_URL_UNPOOLED" -f db/seed_mock.sql   # sample rows + smoke-test queries
+psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/schema.sql
+psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/seed_mock.sql   # sample rows + smoke-test queries
 ```
 
 The seed script prints smoke-test results (fact lookups, enumeration, event listing, contact routing, a vector similarity query) proving the core query patterns work. `psql` ships with PostgreSQL (`winget install PostgreSQL.PostgreSQL` / `scoop install postgresql` / `brew install libpq`); alternatively, paste both files into the Neon console's **SQL Editor**.
@@ -80,7 +80,7 @@ code that consumes them:
   ([`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)); it reads
   `DATABASE_URL_UNPOOLED` exactly as documented above.
 
-**Verifying the seed.** `db/seed_mock.sql` is idempotent and ends with smoke-test queries
+**Verifying the seed.** `apps/data/db/seed_mock.sql` is idempotent and ends with smoke-test queries
 (row counts by `doc_type`, a fact lookup, an enumeration, event/contact routing, and a
 vector-similarity query). Running it against a `pgvector`-enabled instance (a Neon project,
 or local Postgres with the extension) exercises the whole schema including the HNSW vector

@@ -37,7 +37,7 @@ record per file: `source_url`, `raw_path`, `sha256`, course/section/professor/te
 ## 1. The production target (read this first)
 
 Everything loads into **one Postgres table, `knowledge_entry`**
-([`db/schema.sql`](../../db/schema.sql)) — one row per retrievable unit, two kinds:
+([`apps/data/db/schema.sql`](../../apps/data/db/schema.sql)) — one row per retrievable unit, two kinds:
 
 - **Prose chunks** (`facts = NULL`) — markdown sections found by hybrid
   vector + keyword search. *This is the surface #35 produces.*

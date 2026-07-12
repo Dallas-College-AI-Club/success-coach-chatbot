@@ -2,15 +2,15 @@
 -- Success Coach Chatbot — Database Schema (Neon Postgres + pgvector)
 --
 -- Design reference : docs/DATABASE_ARCHITECTURE.md
--- Seed data        : db/seed_mock.sql
+-- Seed data        : apps/data/db/seed_mock.sql
 --
 -- This file is the documented target state of the database. Issue #51
 -- converts it to SQLAlchemy 2.0 models + an Alembic migration (Python is the
 -- schema source of truth; TypeScript mirrors it with Drizzle in a later
 -- issue). Until then, this file can be applied directly to a fresh database:
 --
---   psql "$DATABASE_URL_UNPOOLED" -f db/schema.sql
---   psql "$DATABASE_URL_UNPOOLED" -f db/seed_mock.sql
+--   psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/schema.sql
+--   psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/seed_mock.sql
 --
 -- Two tables. No foreign keys. Data integrity is enforced by the ingest
 -- pipeline against repo-committed contracts (see DATABASE_ARCHITECTURE.md §6).

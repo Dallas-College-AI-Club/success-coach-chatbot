@@ -298,12 +298,12 @@ success-coach-chatbot/
 ├─ docs/
 │   ├─ DATA_PIPELINE.md              ← this file
 │   └─ DATABASE_ARCHITECTURE.md      the knowledge_entry table in full detail
-├─ db/schema.sql                     the database definition
 ├─ src/config/
 │   ├─ metadata-registry.json        the governed tag vocabulary
 │   └─ facts-schemas/                the fact-shape contracts (course, program_map,
 │                                    section, syllabus, cv, …)
 └─ apps/data/
+    ├─ db/                           schema.sql (the database definition) + seed_mock.sql
     ├─ pipeline/                     the scripts (acquire, extract, embed, load)
     └─ raw/                          the archived source files (shared drive, not in git)
         ├─ schedule/  cv/  syllabi/<term>/  catalog/<year>/  manifests/
