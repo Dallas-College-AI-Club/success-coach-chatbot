@@ -65,3 +65,21 @@ const sql = neon(process.env.DATABASE_URL!);
   console.log(await sql`SELECT count(*) FROM knowledge_entry`);
 })();
 ```
+
+### What lives where
+
+This layer defines the **schema, the sample data, and the connection contract** (which
+string to use, from which runtime, and why). The reusable application connection code is
+owned by the code that consumes it:
+
+- **Python** — the pooled SQLAlchemy engine + session/teardown lands with the ORM models
+  ([`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)); it reads
+  `DATABASE_URL_UNPOOLED` exactly as documented above.
+- **TypeScript** — the Next.js app's shared Neon client (and its Drizzle mirror) lands with
+  the frontend data layer; it reads the pooled `DATABASE_URL`.
+
+**Verifying the seed.** `db/seed_mock.sql` is idempotent and ends with smoke-test queries
+(row counts by `doc_type`, a fact lookup, an enumeration, event/contact routing, and a
+vector-similarity query). Running it against a `pgvector`-enabled instance (a Neon project,
+or local Postgres with the extension) exercises the whole schema including the HNSW vector
+index; the vector path is confirmed as part of the first Neon run.
