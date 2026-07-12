@@ -30,7 +30,8 @@
     "syllabus": {
       "scope": "term",
       "default_module": "degree_planning",
-      "facts_schema": "facts-syllabus-v1"
+      "facts_schema": null,
+      "$comment": "PROSE CHUNKS ONLY (searchable sections of the syllabus document). The structured syllabus facts do NOT get their own row: they are embedded in the offering's representative section row as facts.syllabus (a facts-syllabus-v1 object - the schema file remains the extractor's output contract). One offering = one row; siblings point via facts.syllabus_ref."
     },
     "academic_calendar": {
       "scope": "term",
@@ -143,13 +144,21 @@
     },
     "instructor_slug": {
       "type": "string",
-      "note": "slugify() of the HB 2504 profile-URL path; department qualifier appended only on collision (maria-chen-biology); unresolvable instructor (Staff/TBA, no page) => omit the key (NULL column), professor still stamped"
+      "note": "slugify() of the instructor display name, normalized to one canonical first-last direction (NFKD ASCII-fold, lowercase, hyphenate - see the shared pipeline _slug helper). COMPUTED DETERMINISTICALLY BY THE PIPELINE and stamped by the SAME shared helper on the cv row AND every section row so the cv<->section join key matches byte-for-byte; the LLM extractor must NEVER emit it. Both sides derive from the same `professor` display string (section rows carry no HB 2504 profile URL). Unresolvable instructor (Staff/TBA) => omit the key (NULL column), professor still stamped. KNOWN LIMITATION (MVP): no collision qualifier is implemented, so two distinct same-named professors currently merge to one slug; add a department qualifier (maria-chen-biology) in the shared helper when this is addressed."
     },
     "department": {
       "type": "string"
     },
     "section": {
       "type": "string"
+    },
+    "credit_hours": {
+      "type": "number",
+      "note": "semester credit hours; from the schedule CSV on section rows, from the catalog on course rows. Needed for F-1 full-time-load counting and multi-course credit budgeting."
+    },
+    "session": {
+      "type": "string",
+      "note": "sub-term within a semester: winter | flex_dec | flex_jan | flex_feb | flex_mar | flex_apr | flex_may | flex_jun | flex_jul | flex_aug | 8wk1 | 8wk2 | may | summer1 | summer2 | full. Derived from class_features/dates at ingest; distinct from `semester`. Drives the compressed-term staleness fallback (prefer the same session a year back)."
     },
     "campus": {
       "type": "string",

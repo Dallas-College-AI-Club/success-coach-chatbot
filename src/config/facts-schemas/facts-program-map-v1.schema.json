@@ -68,8 +68,49 @@
               "null"
             ]
           },
+          "slot_kind": {
+            "enum": [
+              "fixed",
+              "choose",
+              "elective",
+              "placeholder",
+              null
+            ],
+            "$comment": "fixed = take EVERY course in courses[]; choose = pick from courses[] up to credits_required; elective = any course (optionally constrained by rule); placeholder = a 'SUBJ XXXX - choose one' wildcard kept verbatim in courses[]; null = source did not say. Without this the bot cannot tell a required set from an alternatives set."
+          },
+          "options_exhaustive": {
+            "type": [
+              "boolean",
+              "null"
+            ],
+            "$comment": "false when the catalog says 'Other options exist to meet this requirement' (courses[] is then a PARTIAL list -> confirm-with-advisor disclaimer, route-don't-determine); null = not stated"
+          },
+          "exclusions": {
+            "type": "array",
+            "$comment": "mutually-exclusive course sets ('cannot use BIOL 1406 AND BIOL 1408'); [] when none",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "courses",
+                "raw_text"
+              ],
+              "properties": {
+                "courses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "raw_text": {
+                  "type": "string"
+                }
+              }
+            }
+          },
           "courses": {
             "type": "array",
+            "$comment": "course codes; wildcard/placeholder slots ('MATH XXXX', 'AS General Elective') are stored verbatim with slot_kind=placeholder|elective",
             "items": {
               "type": "string"
             }

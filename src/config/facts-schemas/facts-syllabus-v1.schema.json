@@ -141,6 +141,72 @@
         "null"
       ]
     },
+    "required_materials": {
+      "type": "array",
+      "$comment": "textbooks/materials the syllabus NAMES; empty [] when the syllabus only links the bookstore (title/cost not stated - never invent them)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "raw_text"
+        ],
+        "properties": {
+          "raw_text": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isbn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "edition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "office_hours": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "verbatim office-hours text (days/times/location/virtual link); null if the syllabus doesn't state them - stalest fact, always disclaim"
+    },
+    "instructor_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "instructor email/phone as printed on the syllabus; null if absent"
+    },
     "confidence": {
       "enum": [
         "high",
