@@ -98,10 +98,12 @@ class CatalogFetcher:
             try:
                 closer and closer.close()
             except Exception:
+                # best-effort teardown: ignore close() errors so cleanup continues
                 pass
         try:
             self._pw and self._pw.stop()
         except Exception:
+            # best-effort teardown: ignore Playwright stop() errors during shutdown
             pass
 
     # -- fetching -------------------------------------------------------------
@@ -116,6 +118,8 @@ class CatalogFetcher:
             try:
                 self.page.wait_for_load_state("networkidle", timeout=15000)
             except Exception:
+                # networkidle can time out behind the JS challenge; the
+                # content-length retry loop below handles readiness instead.
                 pass
             html = self.page.content()
             if len(html) >= MIN_REAL_BYTES:

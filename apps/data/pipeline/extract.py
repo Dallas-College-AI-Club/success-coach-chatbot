@@ -31,7 +31,7 @@ import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
+from typing import Optional
 
 REPO = Path(__file__).resolve().parents[3]           # …/success-coach-chatbot
 SCHEMAS_DIR = REPO / "src" / "config" / "facts-schemas"

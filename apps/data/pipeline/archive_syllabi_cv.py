@@ -50,7 +50,7 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Optional
 
 import requests
 
@@ -408,11 +408,9 @@ def main(argv: Optional[list[str]] = None) -> None:
     if args.kind == "cv":
         targets = plan_cv(rows)
         endpoint = "view_cv_information_for_course"
-        sub = "cv"
     else:
         targets = plan_syllabus(rows, representatives=not args.all_sections)
         endpoint = "view_syllabus"
-        sub = "syllabi"
 
     if args.limit:
         targets = targets[:args.limit]

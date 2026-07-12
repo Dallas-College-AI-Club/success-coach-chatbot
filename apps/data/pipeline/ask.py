@@ -90,6 +90,7 @@ def retrieve(con: sqlite3.Connection, question: str, list_mode: bool = False) ->
                 "FROM ke_fts f JOIN knowledge_entry ke ON ke.id=f.rowid "
                 "WHERE ke_fts MATCH ? ORDER BY rank LIMIT 6", [terms]))
         except sqlite3.OperationalError:
+            # FTS table (ke_fts) may be absent; the semantic fallback is non-fatal.
             pass
     # de-dup by source_url
     seen, uniq = set(), []
