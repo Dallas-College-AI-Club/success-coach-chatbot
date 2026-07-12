@@ -69,14 +69,16 @@ const sql = neon(process.env.DATABASE_URL!);
 ### What lives where
 
 This layer defines the **schema, the sample data, and the connection contract** (which
-string to use, from which runtime, and why). The reusable application connection code is
-owned by the code that consumes it:
+string to use, from which runtime, and why). The reusable connection clients live with the
+code that consumes them:
 
+- **TypeScript** — [`apps/frontend/lib/db.ts`](apps/frontend/lib/db.ts) is the Next.js
+  app's shared Neon client: a pooled HTTP `sql` client for one-shot queries, plus a
+  `getPool()` / `closePool()` connection pool with a safe-disconnect hook for transactions.
+  It reads the pooled `DATABASE_URL`. (Its Drizzle mirror lands with a later issue.)
 - **Python** — the pooled SQLAlchemy engine + session/teardown lands with the ORM models
   ([`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)); it reads
   `DATABASE_URL_UNPOOLED` exactly as documented above.
-- **TypeScript** — the Next.js app's shared Neon client (and its Drizzle mirror) lands with
-  the frontend data layer; it reads the pooled `DATABASE_URL`.
 
 **Verifying the seed.** `db/seed_mock.sql` is idempotent and ends with smoke-test queries
 (row counts by `doc_type`, a fact lookup, an enumeration, event/contact routing, and a
