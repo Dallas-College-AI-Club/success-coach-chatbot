@@ -22,8 +22,6 @@ import {
   directionOptions,
   followUpsFor,
   goalQuestion,
-  interestQuestion,
-  oneoffPurposeQuestion,
   programFor,
   scheduleQuestion,
   schoolOptions,
