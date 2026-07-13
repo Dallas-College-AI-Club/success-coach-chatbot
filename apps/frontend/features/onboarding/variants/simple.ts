@@ -24,7 +24,7 @@ export const simple: Mode = {
     primaryBtn:
       "h-11 bg-[#2E2555] px-6 font-medium text-white hover:bg-[#241C46] motion-safe:active:scale-[0.98]",
     ghostBtn: "h-11 px-3 text-[#2E2555]",
-    link: "text-[#2E2555]/70 underline underline-offset-4",
+    link: "inline-flex items-center text-[#2E2555]/70 underline underline-offset-4 pointer-coarse:min-h-11",
     picker: "rounded-xl border border-[#2E2555]/20 bg-white",
   },
   copy: {

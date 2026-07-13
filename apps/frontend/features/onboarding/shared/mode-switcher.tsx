@@ -19,7 +19,7 @@ export const ModeSwitcher = ({
     <div
       role="group"
       aria-label="Choose a style"
-      className="flex items-center gap-1 rounded-full border border-current/15 p-1 text-xs"
+      className="flex items-center gap-1 rounded-full border border-current/15 p-1 text-xs pointer-coarse:gap-1.5"
     >
       {modes.map((m) => {
         const active = m.id === current.id;
@@ -29,7 +29,7 @@ export const ModeSwitcher = ({
             type="button"
             aria-pressed={active}
             onClick={() => onSwitch(m)}
-            className={`rounded-full px-3 py-1 transition-colors ${
+            className={`inline-flex items-center justify-center rounded-full px-3 py-1 transition-colors pointer-coarse:min-h-11 ${
               active
                 ? "bg-current/15 font-semibold"
                 : "opacity-60 hover:opacity-100"

@@ -22,7 +22,7 @@ export const FocusShell = ({ api, skin, copy, done, onRestart }: WizardProps) =>
   ).padStart(2, "0")}`;
 
   return (
-    <div className="flex min-h-[460px] w-full flex-col-reverse gap-4 sm:h-[min(720px,82dvh)] sm:min-h-0 sm:flex-row sm:items-stretch sm:gap-8">
+    <div className="flex min-h-[460px] w-full flex-col-reverse gap-4 sm:h-[min(720px,calc(100dvh_-_8.5rem))] sm:min-h-0 sm:flex-row sm:items-stretch sm:gap-8">
       {/* the mountain — mounted once; at the summit once the climb is done */}
       <div className="h-48 shrink-0 sm:h-auto sm:w-[34%]">
         <FocusMountain stepIdx={api.stepIdx} total={api.total} done={!!done} />

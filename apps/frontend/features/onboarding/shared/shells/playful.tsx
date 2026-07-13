@@ -81,7 +81,7 @@ export const PlayfulShell = ({
       {/* the note — a stable-height card so the frame never resizes between
           steps; the content is tuned to fit, so it never scrolls either. */}
       <div className="relative z-20 flex flex-col justify-start p-4 sm:items-end sm:p-6">
-        <div className="flex h-[min(720px,82dvh)] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
+        <div className="flex h-[min(720px,calc(100dvh_-_11.5rem))] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
           {/* Above both branches so it carries into the recap and fills to 100%. */}
           <ProgressBar
             pct={done ? 100 : progress}

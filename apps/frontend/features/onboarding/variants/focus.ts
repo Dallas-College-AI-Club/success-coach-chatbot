@@ -26,7 +26,7 @@ export const focus: Mode = {
     primaryBtn:
       "h-11 rounded-full bg-[#2B3A4A] px-6 font-medium text-white hover:bg-[#212d3a] motion-safe:active:scale-[0.98]",
     ghostBtn: "h-11 rounded-full px-3 text-[#2B3A4A]/75",
-    link: "text-[#2B3A4A]/60 underline underline-offset-4 hover:text-[#2B3A4A]",
+    link: "inline-flex items-center text-[#2B3A4A]/60 underline underline-offset-4 hover:text-[#2B3A4A] pointer-coarse:min-h-11",
     picker: "rounded-xl border border-[#2B3A4A]/20 bg-white/85",
   },
   copy: {

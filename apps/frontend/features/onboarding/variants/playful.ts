@@ -26,7 +26,7 @@ export const playful: Mode = {
     primaryBtn:
       "h-12 rounded-full bg-[#003385] px-7 font-bold text-white hover:bg-[#00276a] motion-safe:active:scale-[0.97]",
     ghostBtn: "h-11 rounded-full px-4 text-[#1E2A3A]",
-    link: "font-medium text-[#003385] underline underline-offset-4",
+    link: "inline-flex items-center font-medium text-[#003385] underline underline-offset-4 pointer-coarse:min-h-11",
     picker: "rounded-2xl border-2 border-[#003385]/20 bg-white",
   },
   copy: {

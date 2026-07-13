@@ -66,7 +66,7 @@ export function Welcome({
   const canPick = modes.length > 1;
 
   return (
-    <main className="relative flex min-h-dvh w-full flex-col items-center justify-center gap-7 bg-[#ECECEC] p-6 text-[#1E2A3A]">
+    <main className="relative flex min-h-dvh w-full flex-col items-center justify-center gap-7 bg-[#ECECEC] p-6 pt-20 text-[#1E2A3A] sm:pt-6">
       <AiClubLogo className="absolute top-5 left-5 text-[#1E2A3A]" />
 
       <div className="flex w-full max-w-md flex-col items-center gap-6 text-center motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 motion-safe:duration-500">

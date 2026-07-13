@@ -52,7 +52,7 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
   }, [api.stepIdx, done]);
 
   return (
-    <div className="flex h-[min(720px,86dvh)] w-full flex-col gap-3 rounded-3xl border border-[#2E2555]/10 bg-white p-3 shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)] sm:p-4">
+    <div className="flex h-[min(720px,calc(100dvh_-_8.5rem))] w-full flex-col gap-3 rounded-3xl border border-[#2E2555]/10 bg-white p-3 shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)] sm:p-4">
       <div
         ref={scrollRef}
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-1"
