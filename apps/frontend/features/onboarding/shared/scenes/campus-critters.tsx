@@ -1,10 +1,12 @@
 // The Dallas College campus mascots (vectors from public/mascots/), brought to
-// life beside the note card. They stay in the VISIBLE left band — clear of the
-// chat card — so they're always on screen instead of strolling behind it. Ground
-// mascots hop in place with a squash-and-stretch bounce and a shadow that shifts
-// with the hop; sky mascots drift and sway. Small original flourishes (a lightning
-// spark, sun sparkles) are drawn beside the logos. All motion is transform/opacity
-// only, desynced per instance, and gated behind motion-safe.
+// life beside the note card. They live in the VISIBLE left band — clear of the
+// chat card — which on desktop is a narrow but tall strip. So instead of a bottom
+// row (which would crowd and overlap in the narrow width), they're scattered down
+// the strip at distinct heights in a gentle left-right zigzag: each mascot sits at
+// its own height, so they never pile up, and each drifts and sways on its own beat.
+// Small original flourishes (a lightning spark on the Thunderduck, sparkles by the
+// Sun) are drawn beside the logos. All motion is transform/opacity only, desynced
+// per instance, and gated behind motion-safe.
 import { type CSSProperties, type ReactNode } from "react";
 
 const Badge = ({ src, alt }: { src: string; alt: string }) => (
@@ -17,43 +19,7 @@ const Badge = ({ src, alt }: { src: string; alt: string }) => (
   />
 );
 
-// A ground mascot that hops in place (squash & stretch) with a contact shadow
-// that widens on the squash and shrinks when airborne, so the bounce has weight.
-const Hopper = ({
-  src,
-  alt,
-  className,
-  delay,
-  hop = 3.2,
-  flourish,
-}: {
-  src: string;
-  alt: string;
-  className: string;
-  delay: number;
-  hop?: number;
-  flourish?: ReactNode;
-}) => {
-  const hopVars = { "--h": `${hop}s`, animationDelay: `${delay}s` } as CSSProperties;
-  return (
-    <div className={`absolute h-14 sm:h-16 ${className}`}>
-      <div
-        className="h-full origin-bottom motion-safe:animate-[hop_var(--h)_cubic-bezier(.34,.62,.4,1)_infinite]"
-        style={hopVars}
-      >
-        <Badge src={src} alt={alt} />
-      </div>
-      <div
-        aria-hidden
-        className="absolute -bottom-0.5 left-1/2 h-1.5 w-10 -translate-x-1/2 rounded-[50%] bg-[#1e2a3a] opacity-25 blur-[1.5px] motion-safe:animate-[land-shadow_var(--h)_cubic-bezier(.34,.62,.4,1)_infinite]"
-        style={hopVars}
-      />
-      {flourish}
-    </div>
-  );
-};
-
-// A sky mascot that hovers in place — a gentle vertical drift plus a soft sway.
+// A mascot that hovers in place — a gentle vertical drift plus a soft sway.
 const Floater = ({
   src,
   alt,
@@ -120,18 +86,18 @@ const Sparkles = ({ delay }: { delay: number }) => (
 
 // The cast lives in the left band (clear of the card on sm+), so the mascots are
 // always visible. On mobile the card is full-width, so the band spans the frame
-// and the mascots read behind the translucent scene.
+// and the mascots read behind the translucent scene. Each sits at its own height
+// down the strip, alternating left and right, so they stay spread out.
 export function CampusCritters() {
   return (
     <div
       aria-label="Dallas College campus mascots"
       className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 overflow-hidden sm:right-[500px]"
     >
-      {/* sky — the three that fly */}
       <Floater
         src="/mascots/sun.svg"
         alt="Cedar Valley Suns"
-        className="top-2 left-[3%]"
+        className="top-[2%] left-[7%]"
         drift={4.5}
         sway={5}
         flourish={<Sparkles delay={0} />}
@@ -139,47 +105,45 @@ export function CampusCritters() {
       <Floater
         src="/mascots/eagle.svg"
         alt="El Centro Eagles"
-        className="top-[4%] left-[45%]"
+        className="top-[16%] right-[3%]"
         drift={6}
         sway={4.5}
       />
       <Floater
         src="/mascots/bee.svg"
         alt="Eastfield Harvester Bees"
-        className="top-[20%] right-[4%]"
+        className="top-[30%] left-[9%]"
         drift={5.5}
         sway={4}
       />
-
-      {/* ground — the four that walk, a cheering huddle along the bottom */}
-      <Hopper
+      <Floater
         src="/mascots/duck.svg"
         alt="Richland Thunderducks"
-        className="bottom-2 left-[1%]"
-        delay={-0.2}
-        hop={2.9}
+        className="top-[44%] right-[5%]"
+        drift={5}
+        sway={4.5}
         flourish={<Lightning delay={-0.4} />}
       />
-      <Hopper
+      <Floater
         src="/mascots/lion.svg"
         alt="Mountain View Lions"
-        className="bottom-2 left-[27%]"
-        delay={-0.9}
-        hop={3.1}
+        className="top-[58%] left-[6%]"
+        drift={5.2}
+        sway={4.2}
       />
-      <Hopper
+      <Floater
         src="/mascots/bear.svg"
         alt="Brookhaven Bears"
-        className="bottom-2 left-[53%]"
-        delay={-0.5}
-        hop={3.4}
+        className="top-[72%] right-[7%]"
+        drift={4.8}
+        sway={5}
       />
-      <Hopper
+      <Floater
         src="/mascots/blazer.svg"
         alt="North Lake Blazers"
-        className="bottom-2 right-[2%]"
-        delay={-1.3}
-        hop={2.7}
+        className="bottom-[3%] left-[11%]"
+        drift={5.4}
+        sway={4}
       />
     </div>
   );
