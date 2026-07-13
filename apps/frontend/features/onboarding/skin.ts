@@ -2,8 +2,12 @@ import type { ComponentType } from "react";
 import type { OnboardingApi } from "@/features/onboarding/use-onboarding";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 
-/** Set once the flow finishes, so a shell can show the recap in its own scene. */
-export type DoneState = { payload: OnboardingPayload; summary: string[] } | null;
+/** Set once the flow finishes, so a shell can show the recap in its own scene.
+ *  `resumed` marks a returning student who jumped straight here from a saved
+ *  session — there is no live transcript, so a shell must recap from `summary`. */
+export type DoneState =
+  | { payload: OnboardingPayload; summary: string[]; resumed?: boolean }
+  | null;
 
 export interface WizardProps {
   api: OnboardingApi;

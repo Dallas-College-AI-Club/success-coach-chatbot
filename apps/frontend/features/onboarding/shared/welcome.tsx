@@ -1,6 +1,10 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import {
+  useSavedSession,
+  type SavedSession,
+} from "@/features/onboarding/onboarding-store";
 import { AiClubLogo, SuccessCoachCover } from "@/features/onboarding/shared/brand";
 import type { Mode } from "@/features/onboarding/skin";
 import { useEffect, useRef, useState } from "react";
@@ -43,11 +47,18 @@ const BotAvatar = () => (
 export function Welcome({
   modes,
   onStart,
+  onResume,
 }: {
   modes: Mode[];
   onStart: (m: Mode) => void;
+  onResume: (session: SavedSession) => void;
 }) {
   const [picked, setPicked] = useState<Mode>(modes[0]);
+  // A saved session (from a previous visit) turns this into the returning-user
+  // view. Read SSR-safely: null on the server and during hydration, then the
+  // stored value on the client — so the "Welcome back" option appears without a
+  // hydration mismatch.
+  const returning = useSavedSession();
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
     headingRef.current?.focus({ preventScroll: true });
@@ -76,6 +87,34 @@ export function Welcome({
               : "Hey there — I'll ask a few quick questions to point you the right way."}
           </p>
         </div>
+
+        {returning && (
+          <>
+            <button
+              type="button"
+              onClick={() => onResume(returning)}
+              className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#003385] bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-[#003385]/[0.04] focus-visible:ring-2 focus-visible:ring-[#003385] focus-visible:ring-offset-2 motion-safe:active:scale-[0.99]"
+            >
+              <span className="text-2xl" aria-hidden>
+                👋
+              </span>
+              <span className="flex flex-col">
+                <span className="font-semibold text-[#003385]">Welcome back!</span>
+                <span className="text-sm text-[#1E2A3A]/60">
+                  Pick up where you left off — jump to your summary.
+                </span>
+              </span>
+              <span aria-hidden className="ml-auto text-lg text-[#003385]">
+                →
+              </span>
+            </button>
+            {canPick && (
+              <p className="-mb-1 text-xs font-medium tracking-wide text-[#1E2A3A]/40 uppercase">
+                Or start fresh
+              </p>
+            )}
+          </>
+        )}
 
         {canPick && (
           <div
@@ -127,7 +166,7 @@ export function Welcome({
         </Button>
 
         <p className="text-xs text-[#1E2A3A]/45">
-          Nothing here is saved to your record.
+          Your answers are saved only in this browser — never to your student record.
         </p>
       </div>
     </main>

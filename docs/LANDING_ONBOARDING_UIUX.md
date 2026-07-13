@@ -19,13 +19,14 @@ Onboarding is the first of three stages. It gathers context; it does not answer.
 2. **Planning chat** — the OpenRouter chat integration (#37) over the RAG pipeline (#35) and the #36 catalog data, in the register system defined by the agent-personalities work (#41), inside the scope the guardrails enforce (#39). It navigates options and drafts a plan, every claim traceable to verified Dallas College records.
 3. **Human Success Coach** — verifies the drafted plan and makes it official.
 
-The seam between stage 1 and the rest is a single console-logged payload whose keys match the #36 profile allowlist — ready for the client store and anonymous analytics (#50) and the backend models (#51). Onboarding asserts no academic outcome: requirements, transferability, and graduation are the chat's to answer on cited data, and the coach's to confirm. This is the entry design's own principle — onboarding stays optional and a student can begin without answering anything — extended to a live flow.
+The seam between stage 1 and the rest is a single console-logged payload whose keys match the #36 profile allowlist — ready for the client store and anonymous analytics (#50) and the backend models (#51). Onboarding asserts no academic outcome: requirements, transferability, and graduation are the chat's to answer on cited data, and the coach's to confirm. This is the entry design's own principle — onboarding stays optional and a student can begin without answering anything — carried into a live flow that keeps to the fewest questions the first answer needs. Campus, for instance, is left out: a student may take classes across campuses or online, requirements are campus-independent, and it matters only later, as a section filter inside the chat.
 
 ---
 
 ## 2. The screen
 
 - **Welcome.** The *Success Coach* brand cover (`public/title.png`, coded fallback), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions. A returning student — one whose answers are saved in this browser — instead sees a **"Welcome back — pick up where you left off"** button that opens their saved summary directly, skipping the questions. Detection is client-side and SSR-safe (`useSavedSession`), so the return option appears without a hydration flash. The saved value is the same console payload (`onboarding-store.ts`), which is the seam the anonymous client store (#50) replaces.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -72,7 +73,9 @@ A visiting student taking one class is never asked which Dallas program they wan
 
 ```mermaid
 flowchart TD
-    W([Welcome · pick a look · Start]) --> Q{"What brings you here today?"}
+    S([Student opens the app]) --> F{First-time or returning?}
+    F -->|"returning · saved in this browser"| R[["Welcome back —<br/>opens your saved summary"]] --> E
+    F -->|first-time| W([Pick a look · Start]) --> Q{"What brings you here today?"}
 
     Q -->|Plan my first semester| A1[Program]
     Q -->|See what I still need to graduate| A2[Program]
@@ -97,6 +100,7 @@ flowchart TD
     AU -->|Parent or guardian| E
 
     E([Recap of your answers]) --> H["Start planning chat →"]
+    E -. "quick actions · register · aid · tutoring · events · coach" .-> C
     H --> C[["Planning chat<br/>drafts a plan on verified Dallas College catalog data"]]
     C --> V[["Success Coach<br/>reviews the plan and makes it official"]]
 ```
@@ -157,8 +161,9 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
 - **The close, on every path:** *"A Success Coach reviews your plan before it's official."*
 - **The entry point:** a **Start planning chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
+- **A few quick actions.** Beneath the entry point, a quiet row of shortcuts — *Register for classes*, *Academic calendar*, *Financial aid*, *Tutoring*, *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable rather than a wall of options. Each opens the planning chat, which answers the topic or routes to the office that owns it; as those surfaces ship, a shortcut can point at its real destination.
 
-The hand-off copy is the pure module [`next-steps.ts`](../apps/frontend/features/onboarding/next-steps.ts), rendered by [`chat-handoff.tsx`](../apps/frontend/features/onboarding/shared/chat-handoff.tsx). The chat it opens into carries the answers so the conversation starts already scoped.
+The hand-off copy is the pure module [`next-steps.ts`](../apps/frontend/features/onboarding/next-steps.ts), rendered by [`chat-handoff.tsx`](../apps/frontend/features/onboarding/shared/chat-handoff.tsx); the shortcuts are [`quick-actions.tsx`](../apps/frontend/features/onboarding/shared/quick-actions.tsx). The chat it opens into carries the answers so the conversation starts already scoped.
 
 ---
 
@@ -178,6 +183,8 @@ Completion logs one object to the console — the placeholder for the global-sta
 | `onboardingVersion` / `completedAt` | Version stamp and timestamp |
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
+
+The same object is also kept in this browser ([`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts)) so a returning student can reopen their summary without re-answering — the local stand-in for the anonymous client store #50 will own, and the single seam to replace when it lands. It never leaves the browser and never reaches a student record; the welcome footer says exactly that. The read is `useSavedSession`, an SSR-safe `useSyncExternalStore` hook that returns `null` on the server and the stored value on the client, so the returning view resolves without a hydration mismatch, and a corrupt or shape-changed value parses back to `null` (first-time), never a throw.
 
 ---
 
@@ -217,11 +224,12 @@ features/onboarding/
   programs.ts                    Dallas College programs of study (picker)
   build-payload.ts               answers → payload; derives skippedSteps
   next-steps.ts                  the personalized chat hand-off (pure, UI-free)
+  onboarding-store.ts            browser persistence + useSavedSession (returning-user seam, #50)
   shipped-intents.ts             single source for staged capability
   telemetry.ts                   console instrumentation
   skin.ts                        Skin / Copy / Mode contracts
   shared/                        flow, welcome, brand, switcher, recap, transfer step,
-                                 chat hand-off, capability dialog, step transition
+                                 chat hand-off, quick actions, capability dialog, step transition
   shared/shells/                 one wizard shell per mode (simple, playful, focus)
   shared/scenes/                 the per-mode scenery
   variants/                      one data file per mode + registry + fonts
@@ -229,7 +237,7 @@ features/onboarding/
 
 The picker is populated from the 2026–2027 catalog's programs of study; each entry's `code` is the catalog program id. Interactive elements use ShadCN — `ToggleGroup` for single choice, `Command` for the searchable picker, `Dialog` for the capability directory — and avoid dropdowns so options stay visible on mobile.
 
-**Instrumentation.** The funnel logs to the console with names matching the #50 telemetry vocabulary — `page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `question_skipped`, `onboarding_skipped`, `onboarding_completed`, `audience_link_tap`, `capability_opened` — so an anonymous analytics transport is a drop-in.
+**Instrumentation.** The funnel logs to the console with names matching the #50 telemetry vocabulary — `page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `question_skipped`, `onboarding_skipped`, `onboarding_completed`, `onboarding_resumed`, `audience_link_tap`, `capability_opened` — so an anonymous analytics transport is a drop-in.
 
 ---
 
@@ -251,7 +259,7 @@ High-fidelity match to the Canva theme is met in structure and brand; the flow e
 
 ## 12. Scope and planned enhancements
 
-**In this page.** The landing, the style switcher, the conditional flow, all local state, the console payload, instrumentation, and the chat hand-off. **Elsewhere:** payload persistence and analytics (#50), backend models (#51), and the chat surface the payload feeds (#37).
+**In this page.** The landing with its first-time/returning fork, the style switcher, the conditional flow, all local state, the console payload, instrumentation, the chat hand-off, and the closing quick actions. A returning student's summary is restored from a small browser store — the local stand-in for #50. **Elsewhere:** durable persistence and analytics as an anonymous client store (#50), backend models (#51), and the chat surface the payload feeds (#37).
 
 Planned enhancements, sequenced with the surrounding work:
 

@@ -13,6 +13,7 @@ export type OnboardingEvent =
   | "question_skipped"
   | "onboarding_skipped" // Skip-all
   | "onboarding_completed"
+  | "onboarding_resumed" // returning student jumped to their saved summary
   | "audience_link_tap"
   | "capability_opened";
 

@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  saveSession,
+  type SavedSession,
+} from "@/features/onboarding/onboarding-store";
 import type { DoneState, Mode } from "@/features/onboarding/skin";
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
 import { ModeSwitcher } from "@/features/onboarding/shared/mode-switcher";
@@ -60,6 +64,19 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   const complete = (payload: OnboardingPayload, summary: string[]) => {
     console.log("onboarding payload", payload);
     setDone({ payload, summary });
+    // Persist locally so a return visit can jump straight to this summary.
+    saveSession({ payload, summary, modeId: mode.id });
+  };
+
+  // Returning student: skip the questions and open their saved summary directly,
+  // in the look they used last.
+  const resume = (session: SavedSession) => {
+    setMode(modes.find((m) => m.id === session.modeId) ?? modes[0]);
+    // `resumed` tells the shell to recap from the saved summary — the fresh wizard
+    // that mounts underneath has no transcript to rebuild the answers from.
+    setDone({ payload: session.payload, summary: session.summary, resumed: true });
+    setStarted(true);
+    emit("onboarding_resumed");
   };
 
   const switchMode = (m: Mode) => {
@@ -81,7 +98,7 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   };
 
   if (!started) {
-    return <Welcome modes={modes} onStart={start} />;
+    return <Welcome modes={modes} onStart={start} onResume={resume} />;
   }
 
   return (

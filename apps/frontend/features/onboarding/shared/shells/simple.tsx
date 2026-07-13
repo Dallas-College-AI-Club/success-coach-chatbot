@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button";
 import type { WizardProps } from "@/features/onboarding/skin";
 import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
+import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import { StepTransition } from "@/features/onboarding/shared/step-transition";
 import {
   QuestionBody,
@@ -39,7 +40,10 @@ const BotBubble = ({ children }: { children: ReactNode }) => (
 export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) => {
   const headingRef = useHeadingFocus(done ? "done" : api.stepIdx);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const convo = done ? api.steps : api.steps.slice(0, api.stepIdx);
+  // Normal finish: the whole transcript above IS the recap. Resumed (a returning
+  // student jumped straight here): the wizard beneath is fresh, so there is no
+  // transcript — the completion bubble recaps from the saved summary instead.
+  const convo = done && !done.resumed ? api.steps : api.steps.slice(0, api.stepIdx);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
@@ -83,8 +87,31 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
                 >
                   {copy.completionHeadline}
                 </h2>
+                {done.resumed && done.summary.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-[13px] font-semibold text-[#2E2555]/55">
+                      Here&apos;s what you told me last time
+                    </p>
+                    <ul className="mt-1.5 flex flex-col gap-1">
+                      {done.summary.map((line, i) => (
+                        <li
+                          key={`${line}-${i}`}
+                          className="flex items-start gap-2 text-[15px] leading-snug"
+                        >
+                          <span aria-hidden className="mt-0.5 text-[#6C5CE7]">
+                            ✓
+                          </span>
+                          <span>{line}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
                 <div className="mt-2">
                   <ChatHandoff payload={done.payload} skin={skin} />
+                </div>
+                <div className="mt-3">
+                  <QuickActions skin={skin} />
                 </div>
               </div>
             </div>

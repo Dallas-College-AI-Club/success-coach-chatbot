@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
+import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import type { Copy, Skin } from "@/features/onboarding/skin";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useEffect, useRef } from "react";
@@ -55,6 +56,8 @@ export function RecapPanel({
       )}
 
       <ChatHandoff payload={payload} skin={skin} />
+
+      <QuickActions skin={skin} />
 
       <div className="mt-auto">
         <Button variant="ghost" className={skin.ghostBtn} onClick={onRestart}>
