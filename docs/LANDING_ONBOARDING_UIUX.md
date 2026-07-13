@@ -209,7 +209,8 @@ A green run prints `✓ all invariants held across every path`.
 - **Colour roles.** A dark colour carries text and primary actions; a bright colour marks progress, the selected-choice ring, and the finish mark. The split is an accessibility requirement — the bright colour never fills a text button. Each mode carries its own palette on a light background.
 - **Progress.** Shown in each mode's own terms. Because the flow is adaptive, the count seeds at the shortest possible flow and only grows as the path reveals more questions — it never snaps downward.
 - **Motion.** Short fades and slides, one continuous scene motion per mode, one finish mark. Everything non-essential uses `motion-safe:` and stops under `prefers-reduced-motion`.
-- **Accessibility.** Full keyboard path; focus moves to each step's heading; choice groups are labelled radio groups; tap targets ≥44px; selection shows border, ring, and check, so colour is never the only signal; no horizontal scroll from 375px up.
+- **Accessibility.** Full keyboard path; focus moves to each step's heading; choice groups are labelled radio groups; selection shows border, ring, and check, so colour is never the only signal.
+- **Devices.** The layout is fluid from a 375px phone through tablet and desktop, in portrait or landscape — no horizontal scroll, and each screen sizes to the space under the header so a short screen scrolls once rather than in nested layers. On touch devices every control (including the style switcher, the program picker rows, and the quiet text links) carries a comfortable ≥44px hit area, while mouse pointers keep the compact look.
 
 ---
 
@@ -278,4 +279,5 @@ Planned enhancements, sequenced with the surrounding work:
 - [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) — source of the question set
 - [`DEGREE_PLANNING_STORIES.md`](user-stories/DEGREE_PLANNING_STORIES.md) — intents and sprint order
 - [`onboarding-flow-stress.ts`](onboarding-flow-stress.ts) — the flow verification harness
+- [`handoff/CHAT_UI_HANDOFF.md`](handoff/CHAT_UI_HANDOFF.md) — what the planning-chat build (#37) inherits from onboarding
 - Issues [#36](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/36) (schema) · [#37](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/37) (chat) · [#41](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/41) (personalities) · [#50](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/50) (persistence & analytics) · [#51](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/51) (backend models)
