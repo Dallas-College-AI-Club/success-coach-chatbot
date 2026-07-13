@@ -68,6 +68,44 @@ The flow honors one rule:
 
 A visiting student taking one class is never asked which Dallas program they want; an already-enrolled student is asked which program they are *in*, not what they *want* to study.
 
+### Diagram
+
+```mermaid
+flowchart TD
+    W([Welcome · pick a look · Start]) --> Q{"What brings you here today?"}
+
+    Q -->|Plan my first semester| A1[Program]
+    Q -->|See what I still need to graduate| A2[Program]
+    Q -->|See how my credits transfer| D{"Which sounds like you?"}
+    Q -->|Fit classes around my schedule| SC[When can you take classes?]
+    Q -->|Help me figure out what to study| IN[Interest area]
+    Q -->|Not working toward a degree here| ON["What do you need?<br/>prerequisite · job/license · interest"]
+    Q -. "dual credit / parent link" .-> AU{Audience}
+
+    A1 -->|a program| A1s[When can you take classes?] --> E
+    A1 -->|still figuring it out| A1i[Interest area] --> E
+    A2 --> E
+    SC --> SCp[Program] --> E
+    IN --> E
+    ON --> E
+
+    D -->|"Dallas student · transferring out"| Do[Which school?] --> Dop[Program] --> E
+    D -->|"another college · one class here"| Db[Which college do you attend?] --> E
+    D -->|"already earned credit elsewhere"| Di[Program] --> E
+
+    AU -->|Dual credit| AUp[Program] --> E
+    AU -->|Parent or guardian| E
+
+    E([Recap of your answers]) --> H["Start planning chat →"]
+    H --> C[["Planning chat<br/>drafts a plan on verified Dallas College catalog data"]]
+    C --> V[["Success Coach<br/>reviews the plan and makes it official"]]
+```
+
+Every **Program** step offers *"I'm still figuring it out,"* which reroutes to
+**Interest** (drawn on the first-semester path; the same reroute applies wherever a
+Program step appears). The visiting-student transfer path never asks a program. No
+path exceeds four questions before the hand-off.
+
 ### Every path
 
 "→ Interest" appears only when a student selects *"I'm still figuring it out"* at the program step.
