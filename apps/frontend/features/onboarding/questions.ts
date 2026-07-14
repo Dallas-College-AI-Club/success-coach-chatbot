@@ -131,7 +131,7 @@ export const oneoffPurposeQuestion: OnboardingQuestion = {
 // college…" puts the discriminator in the first three words.
 export const directionOptions: QuestionOption[] = [
   { id: "dir_outbound", label: "I'm a Dallas College student, planning to transfer later", contribs: { transfer_direction: "outbound" } },
-  { id: "dir_back", label: "I go to another college — just taking one class here", contribs: { transfer_direction: "transfer_back" } },
+  { id: "dir_back", label: "I go to another college, just taking one class here", contribs: { transfer_direction: "transfer_back" } },
   { id: "dir_inbound", label: "I already earned college credit somewhere else (another college, the military, or exams like AP, IB, or CLEP)", contribs: { transfer_direction: "inbound" } },
 ];
 

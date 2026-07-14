@@ -8,7 +8,7 @@ const sans = Manrope({ subsets: ["latin"], variable: "--font-sans" });
 export const metadata: Metadata = {
   title: "Success Coach | Dallas College AI Club",
   description:
-    "Plan your Dallas College classes in about a minute — requirements, prerequisites, and transfer credits, linked to the official catalog.",
+    "Plan your Dallas College classes in about a minute. Koa lines up requirements, prerequisites, and transfer credits from the official catalog.",
 };
 
 // No forced colour-scheme: the browser/user preference is respected. The look is

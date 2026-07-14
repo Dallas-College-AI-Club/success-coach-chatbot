@@ -165,7 +165,7 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
           aria-hidden
           className="flex items-center gap-2 rounded-full border border-[#2E2555]/20 bg-white py-1.5 pr-1.5 pl-4 text-sm text-[#2E2555]/45 shadow-[0_1px_2px_rgba(15,61,54,.05)]"
         >
-          <span className="flex-1">Chat is coming soon — tap an answer above</span>
+          <span className="flex-1">Chat is coming soon. Tap an answer above.</span>
           <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6C5CE7] text-base text-white">
             ➤
           </span>

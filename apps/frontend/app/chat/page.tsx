@@ -31,11 +31,11 @@ export default function ChatPage() {
               Hey, I&apos;m Koa 👋
             </p>
             <p className="mt-1.5 text-[#1E2A3A]/70">
-              Your Dallas College planning companion — an AI that helps you plan
-              and get ready, all grounded in the official catalog. I can look up
-              degree requirements, check prerequisites, map transfer credits, and
-              sketch a semester plan; your answers carry over, so we pick up where
-              you left off. A Success Coach reviews and makes any plan official.
+              Your Dallas College planning companion. I&apos;m an AI, here to help
+              you get a plan together from the official catalog: degree
+              requirements, prerequisites, transfer credits, a first-semester map.
+              Your answers carry over, so we pick up right where you left off. A
+              Success Coach reviews everything and makes your plan official.
             </p>
           </div>
         </div>

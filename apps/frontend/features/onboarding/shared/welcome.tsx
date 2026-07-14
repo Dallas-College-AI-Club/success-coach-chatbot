@@ -70,8 +70,8 @@ export function Welcome({
           <BotAvatar />
           <p className="max-w-xs text-sm text-[#1E2A3A]/70">
             {canPick
-              ? "Hey — I'm Koa. Pick a look and I'll ask a few quick questions to point you the right way."
-              : "Hey — I'm Koa. I'll ask a few quick questions to point you the right way."}
+              ? "Hi, I'm Koa! Pick a look, then I'll ask a few quick questions to get you started."
+              : "Hi, I'm Koa! I'll ask a few quick questions to get you started."}
           </p>
         </div>
 
@@ -88,7 +88,7 @@ export function Welcome({
               <span className="flex flex-col">
                 <span className="font-semibold text-[#003385]">Welcome back!</span>
                 <span className="text-sm text-[#1E2A3A]/60">
-                  Pick up where you left off — jump to your summary.
+                  Pick up right where you left off.
                 </span>
               </span>
               <span aria-hidden className="ml-auto text-lg text-[#003385]">
@@ -153,7 +153,7 @@ export function Welcome({
         </Button>
 
         <p className="text-xs text-[#1E2A3A]/45">
-          Your answers are saved only in this browser — never to your student record.
+          Your answers are saved only in this browser, never to your student record.
         </p>
       </div>
     </main>

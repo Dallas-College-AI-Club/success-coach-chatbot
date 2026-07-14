@@ -111,7 +111,7 @@ export const TransferStep = ({
         }}
         className={skin.link}
       >
-        {SHORT[direction]} — change
+        {SHORT[direction]} · change
       </button>
       <p ref={schoolPromptRef} tabIndex={-1} className="font-medium outline-none">
         {schoolPrompt}
