@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-academic-calendar-v1",
+  "title": "facts-academic-calendar-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "term_label",
+    "deadlines",
+    "confidence"
+  ],
+  "properties": {
+    "term_label": {
+      "type": "string"
+    },
+    "deadlines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "label",
+          "date"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "date": {
+            "type": "string"
+          },
+          "applies_to": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

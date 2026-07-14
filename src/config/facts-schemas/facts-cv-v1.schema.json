@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-cv-v1",
+  "title": "facts-cv-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "confidence"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "department": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "email": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cv_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "courses_taught": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "$comment": "informational; the authoritative course-instructor tie is instructor_slug on section rows"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

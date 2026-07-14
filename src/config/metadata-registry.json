@@ -1,0 +1,359 @@
+{
+  "$comment": "Metadata key registry - the governed vocabulary for knowledge_entry.metadata stamps (docs/DATABASE_ARCHITECTURE.md 6.1). Starter file from issue #36; issue #51 finalizes it and adds the CI test pinning it against the models, the facts schemas, and the tool-layer allowlists. The pipeline validates every stamp against this file BEFORE writing.",
+  "version": 1,
+  "doc_types": {
+    "course": {
+      "scope": "catalog",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-course-v1"
+    },
+    "program_map": {
+      "scope": "catalog",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-program-map-v1"
+    },
+    "catalog": {
+      "scope": "catalog",
+      "default_module": "degree_planning",
+      "facts_schema": null
+    },
+    "transfer_guide": {
+      "scope": "catalog",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-transfer-guide-v1"
+    },
+    "section": {
+      "scope": "term",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-section-v1"
+    },
+    "syllabus": {
+      "scope": "term",
+      "default_module": "degree_planning",
+      "facts_schema": null,
+      "$comment": "PROSE CHUNKS ONLY (searchable sections of the syllabus document). The structured syllabus facts do NOT get their own row: they are embedded in the offering's representative section row as facts.syllabus (a facts-syllabus-v1 object - the schema file remains the extractor's output contract). One offering = one row; siblings point via facts.syllabus_ref."
+    },
+    "academic_calendar": {
+      "scope": "term",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-academic-calendar-v1"
+    },
+    "event": {
+      "scope": "term",
+      "default_module": "events",
+      "facts_schema": "facts-event-v1",
+      "$comment": "freshness exception: reconcile removes events the source no longer lists"
+    },
+    "cv": {
+      "scope": "timeless",
+      "default_module": "degree_planning",
+      "facts_schema": "facts-cv-v1"
+    },
+    "contact": {
+      "scope": "timeless",
+      "default_module": "contacts",
+      "facts_schema": "facts-contact-v1"
+    },
+    "knowledge_article": {
+      "scope": "timeless",
+      "default_module": "general",
+      "facts_schema": null
+    }
+  },
+  "scoping_rules": {
+    "term": {
+      "require": [
+        "year",
+        "semester"
+      ],
+      "forbid": [
+        "catalog_year"
+      ]
+    },
+    "catalog": {
+      "require": [
+        "catalog_year"
+      ],
+      "forbid": [
+        "year",
+        "semester"
+      ]
+    },
+    "timeless": {
+      "require": [],
+      "forbid": [
+        "year",
+        "semester",
+        "catalog_year"
+      ]
+    }
+  },
+  "modules": [
+    "degree_planning",
+    "events",
+    "contacts",
+    "international",
+    "lost_found",
+    "general"
+  ],
+  "keys": {
+    "doc_type": {
+      "type": "string",
+      "required": true,
+      "vocabulary": "doc_types"
+    },
+    "module": {
+      "type": "string",
+      "required": true,
+      "vocabulary": "modules"
+    },
+    "course_code": {
+      "type": "string",
+      "note": "any separator/case form; the DB column normalizes to 'SUBJ NNNN'; the pipeline applies the same normalization before stamping arrays. Legacy alias 'course_id' accepted by the validator with a warning."
+    },
+    "subject": {
+      "type": "string",
+      "note": "the prefix alone (ENGL); REQUIRED whenever course_code is stamped - mechanically derivable"
+    },
+    "program_code": {
+      "type": "string"
+    },
+    "year": {
+      "type": "integer",
+      "min": 2020,
+      "max": 2035
+    },
+    "semester": {
+      "type": "string",
+      "enum": [
+        "fall",
+        "spring",
+        "summer",
+        "winter",
+        "may"
+      ],
+      "note": "wintermester is stamped to the year of its December start"
+    },
+    "catalog_year": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{4}$"
+    },
+    "professor": {
+      "type": "string",
+      "note": "display only - NEVER a join key"
+    },
+    "instructor_slug": {
+      "type": "string",
+      "note": "slugify() of the instructor display name, normalized to one canonical first-last direction (NFKD ASCII-fold, lowercase, hyphenate - see the shared pipeline _slug helper). COMPUTED DETERMINISTICALLY BY THE PIPELINE and stamped by the SAME shared helper on the cv row AND every section row so the cv<->section join key matches byte-for-byte; the LLM extractor must NEVER emit it. Both sides derive from the same `professor` display string (section rows carry no HB 2504 profile URL). Unresolvable instructor (Staff/TBA) => omit the key (NULL column), professor still stamped. KNOWN LIMITATION (MVP): no collision qualifier is implemented, so two distinct same-named professors currently merge to one slug; add a department qualifier (maria-chen-biology) in the shared helper when this is addressed."
+    },
+    "department": {
+      "type": "string"
+    },
+    "section": {
+      "type": "string"
+    },
+    "credit_hours": {
+      "type": "number",
+      "note": "semester credit hours; from the schedule CSV on section rows, from the catalog on course rows. Needed for F-1 full-time-load counting and multi-course credit budgeting."
+    },
+    "session": {
+      "type": "string",
+      "note": "sub-term within a semester: winter | flex_dec | flex_jan | flex_feb | flex_mar | flex_apr | flex_may | flex_jun | flex_jul | flex_aug | 8wk1 | 8wk2 | may | summer1 | summer2 | full. Derived from class_features/dates at ingest; distinct from `semester`. Drives the compressed-term staleness fallback (prefer the same session a year back)."
+    },
+    "campus": {
+      "type": "string",
+      "open_codes": [
+        "BHC",
+        "CVC",
+        "EFC",
+        "ECC",
+        "MVC",
+        "NLC",
+        "RLC",
+        "Online"
+      ],
+      "note": "open list - scrapers never fail on a new code; a display-name map is added with the tool layer (issues #37/#38)"
+    },
+    "modality": {
+      "type": "string",
+      "enum": [
+        "online",
+        "in_person",
+        "hybrid"
+      ]
+    },
+    "dayparts": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "morning",
+          "afternoon",
+          "evening",
+          "weekend"
+        ]
+      },
+      "note": "derived from meeting start times at ingest: morning < 12:00 <= afternoon < 17:00 <= evening; weekend added independently for Sat/Sun - a Saturday 09:00 class is [morning, weekend]"
+    },
+    "category": {
+      "type": "string",
+      "per_doc_type": {
+        "event": [
+          "social",
+          "academic",
+          "career",
+          "financial",
+          "international",
+          "arts",
+          "sports",
+          "food"
+        ],
+        "contact": [
+          "grants",
+          "scholarships",
+          "financial_aid",
+          "emergency_aid",
+          "tutoring",
+          "counseling",
+          "technology",
+          "general"
+        ]
+      }
+    },
+    "unit": {
+      "type": "string",
+      "note": "school/academic unit for contact routing; 'General / All' is the never-dead-end fallback"
+    },
+    "topics": {
+      "type": "array",
+      "note": "contact trigger topics (tuition_gap, rent, mental_health, ...); topic->category fan-outs live in a topics config added with the tool layer (issues #37/#38)"
+    },
+    "target_institution": {
+      "type": "string",
+      "note": "metadata carries the short code (UNT); the facts document carries the display name (University of North Texas)"
+    },
+    "institution": {
+      "type": "string",
+      "default": "dallas-college"
+    },
+    "lang": {
+      "type": "string",
+      "default": "en"
+    },
+    "header_path": {
+      "type": "string"
+    },
+    "modified_date": {
+      "type": "string",
+      "note": "syllabus 'Modified' stamp - staleness disclaimer"
+    },
+    "event_start_epoch": {
+      "type": "integer",
+      "note": "UTC epoch seconds; display timezone is runtime.json DISPLAY_TIMEZONE"
+    },
+    "event_end_epoch": {
+      "type": "integer"
+    },
+    "extracted_date": {
+      "type": "string",
+      "note": "informational provenance ONLY - scraped_at must be the DB-write run's start timestamp, never this value"
+    },
+    "source": {
+      "type": "string"
+    },
+    "raw_hash": {
+      "type": "string",
+      "note": "document-level sha256 of raw response bytes - links a row to its raw-archive entry"
+    },
+    "extractor": {
+      "type": "string"
+    },
+    "extraction_method": {
+      "type": "string",
+      "enum": [
+        "api",
+        "local_ollama",
+        "local_lmstudio",
+        "claude_code_session",
+        "seed"
+      ]
+    },
+    "prompt_version": {
+      "type": "string"
+    },
+    "schema_version": {
+      "type": "string"
+    },
+    "embed_model": {
+      "type": "string"
+    },
+    "acalog_catoid": {
+      "type": "string"
+    },
+    "acalog_poid": {
+      "type": "string"
+    },
+    "acalog_coid": {
+      "type": "string"
+    }
+  },
+  "set_semantic_arrays": {
+    "$comment": "sorted before content hashing so feed-order jitter never flips content_hash; all other arrays are order-preserving (meetings, grading, prerequisites[].one_of, deadlines). Ship ONE shared canonical_hash() helper used by every writer.",
+    "keys": [
+      "topics",
+      "courses_taught",
+      "program_codes",
+      "dayparts"
+    ]
+  },
+  "telemetry_vocabularies": {
+    "$comment": "governed here so intent-grouped analytics never fragment; extend by PR",
+    "event_state": [
+      "answered",
+      "clarifying",
+      "fallback_empty_context",
+      "blocked_injection",
+      "declined_classification",
+      "handoff",
+      "onboarding_started",
+      "onboarding_completed",
+      "onboarding_skipped"
+    ],
+    "intent": [
+      "prereq_lookup",
+      "course_search",
+      "program_requirements",
+      "section_search",
+      "instructor_background",
+      "syllabus_question",
+      "deadline_question",
+      "transfer_question",
+      "event_search",
+      "support_routing",
+      "visa_question",
+      "lost_found",
+      "smalltalk",
+      "out_of_scope"
+    ],
+    "guardrail_classification": [
+      "in_scope",
+      "out_of_scope",
+      "high_risk_visa",
+      "high_risk_transfer",
+      "prompt_injection",
+      "pii_disclosure"
+    ],
+    "grounding_match_kind": [
+      "exact",
+      "alias",
+      "llm_closed_world"
+    ]
+  },
+  "profile_keys": {
+    "$comment": "chat_session.profile allowlist - mirrors the onboarding question set; adding a question extends the DB CHECK in the same PR; values come only from closed option lists (major holds a program_code)",
+    "keys": [
+      "campus",
+      "major",
+      "student_type"
+    ]
+  }
+}

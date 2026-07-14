@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-event-v1",
+  "title": "facts-event-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "title",
+    "event_start_epoch",
+    "confidence"
+  ],
+  "properties": {
+    "title": {
+      "type": "string"
+    },
+    "campus": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "location": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "category": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "event_start_epoch": {
+      "type": "integer"
+    },
+    "event_end_epoch": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "registration_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}
