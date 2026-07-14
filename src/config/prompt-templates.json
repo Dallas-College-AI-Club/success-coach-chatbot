@@ -63,5 +63,15 @@
         "refusalTriggered": "[REFUSAL]",
         "partialAnswerTriggered": "[PARTIAL]",
         "injectionAttemptDetected": "[TRUST_BOUNDARY]"
+    },
+    "officialDeterminationRequired": {
+        "financialAid": "Official financial aid determinations must come from Dallas College Financial Aid services.",
+        "transferCredit": "Transfer credit decisions require official evaluation by Dallas College.",
+        "graduation": "Graduation eligibility must be verified through official advising and academic review processes.",
+        "admissions": "Admissions decisions must come through official Dallas College admissions processes.",
+        "programAcceptance": "Acceptance into selective or restricted programs requires official review by the program and college.",
+        "scholarships": "Scholarship decisions must come from the official scholarship review process.",
+        "employment": "Employment opportunities, job placement, and salary outcomes cannot be guaranteed.",
+        "studentRecords": "Sensitive student information should only be handled through approved Dallas College systems."
     }
 }

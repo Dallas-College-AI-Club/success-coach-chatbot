@@ -1,0 +1,183 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-section-v1",
+  "title": "facts-section-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "section_number",
+    "meetings",
+    "materials_links",
+    "confidence"
+  ],
+  "properties": {
+    "section_number": {
+      "type": "string"
+    },
+    "instructor": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "instructor_slug": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "modality": {
+      "enum": [
+        "online",
+        "in_person",
+        "hybrid",
+        null
+      ]
+    },
+    "campus": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "start_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "end_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "meetings": {
+      "type": "array",
+      "$comment": "required field: [] means online (unambiguous - the field can never be absent); never invent times",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "type",
+          "days",
+          "start_time",
+          "end_time"
+        ],
+        "properties": {
+          "type": {
+            "enum": [
+              "lecture",
+              "lab",
+              "other"
+            ]
+          },
+          "days": {
+            "type": "string"
+          },
+          "start_time": {
+            "type": "string"
+          },
+          "end_time": {
+            "type": "string"
+          },
+          "building": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "room": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "meeting_info_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "coreq_section_ref": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "credit_hours": {
+      "type": [
+        "number",
+        "null"
+      ],
+      "$comment": "semester credit hours from the schedule CSV (needed for F-1 full-time load and multi-course credit budgeting)"
+    },
+    "session": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "sub-term within the semester: winter | flex_dec..flex_aug | 8wk1 | 8wk2 | may | summer1 | summer2 | full. Derived from class_features/dates; drives compressed-term staleness fallback. null when the source has no session label."
+    },
+    "materials_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "url"
+        ],
+        "properties": {
+          "component": {
+            "enum": [
+              "lecture",
+              "lab",
+              null
+            ]
+          },
+          "url": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "inclusive_access": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "syllabus": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "$comment": "the offering's syllabus facts (a full facts-syllabus-v1 object), EMBEDDED here so a section and its syllabus are ONE row. Present only on the offering's REPRESENTATIVE section (the one whose syllabus was fetched); sibling sections of the same professor+course+modality carry syllabus_ref instead. Exactly one of syllabus / syllabus_ref is non-null once a syllabus exists; both null = no syllabus fetched yet (staleness fallback fires)."
+    },
+    "syllabus_source_url": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "the Concourse view_syllabus URL the embedded syllabus came from - REQUIRED for DP-013 citations, since this row's own source_url is the schedule CSV. Non-null whenever syllabus is non-null."
+    },
+    "syllabus_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "source_url of the sibling section row that carries facts.syllabus for this offering (one point-read away). Serving a sibling's syllabus always renders the DP-041 provenance label ('based on the syllabus for section N')."
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

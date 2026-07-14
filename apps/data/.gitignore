@@ -205,3 +205,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Scraped raw HTML corpus (syllabi, CVs) + manifests - OneDrive-shared, not committed
+raw/
+
