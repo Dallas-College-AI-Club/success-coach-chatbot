@@ -25,7 +25,8 @@ export interface Skin {
   page: string;
   /** Centred content column. */
   shell: string;
-  progressLabel: string;
+  /** Small meta/section label — the progress folio, and the recap + quick-action headings. */
+  sectionLabel: string;
   heading: string;
   helper: string;
   option: string;

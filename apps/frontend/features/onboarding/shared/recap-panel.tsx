@@ -38,7 +38,7 @@ export function RecapPanel({
 
       {summary.length > 0 && (
         <div>
-          <p className={`mb-1.5 ${skin.progressLabel}`}>What you told me</p>
+          <p className={`mb-1.5 ${skin.sectionLabel}`}>What you told me</p>
           <ul className="flex flex-col gap-1.5">
             {summary.map((line, i) => (
               <li key={`${line}-${i}`} className="flex items-center gap-2 text-sm">

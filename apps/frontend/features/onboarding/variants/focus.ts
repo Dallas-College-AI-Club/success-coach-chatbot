@@ -16,7 +16,7 @@ export const focus: Mode = {
   skin: {
     page: "flex min-h-dvh w-full flex-col items-center justify-center gap-5 bg-[#EDF2F7] p-4 text-[#2B3A4A] md:p-8 [--ring:#ec5f56]",
     shell: "mx-auto flex w-full max-w-3xl flex-col items-stretch gap-4",
-    progressLabel: "font-mono text-sm tabular-nums tracking-wide text-[#5E7690]",
+    sectionLabel: "font-mono text-sm tabular-nums tracking-wide text-[#5E7690]",
     heading: "text-3xl font-semibold text-[#2B3A4A] outline-none md:text-4xl",
     helper: "text-sm text-[#2B3A4A]/55",
     option:

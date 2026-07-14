@@ -7,13 +7,31 @@
 // Small original flourishes (a lightning spark on the Thunderduck, sparkles by the
 // Sun) are drawn beside the logos. All motion is transform/opacity only, desynced
 // per instance, and gated behind motion-safe.
+import Image from "next/image";
 import { type CSSProperties, type ReactNode } from "react";
 
-const Badge = ({ src, alt }: { src: string; alt: string }) => (
-  // eslint-disable-next-line @next/next/no-img-element
-  <img
+// `w`/`h` are the SVG viewBox dimensions, so Next's Image holds the aspect ratio.
+// Mascots are vector art, so `unoptimized` skips the raster optimizer (which also
+// declines SVGs by default) — Image still gives us the standard component and
+// caching in place of a raw <img>.
+const Badge = ({
+  src,
+  alt,
+  w,
+  h,
+}: {
+  src: string;
+  alt: string;
+  w: number;
+  h: number;
+}) => (
+  <Image
     src={src}
     alt={alt}
+    width={w}
+    height={h}
+    unoptimized
+    loading="eager"
     draggable={false}
     className="h-full w-auto object-contain drop-shadow-[0_3px_5px_rgba(30,42,58,.22)]"
   />
@@ -23,6 +41,8 @@ const Badge = ({ src, alt }: { src: string; alt: string }) => (
 const Floater = ({
   src,
   alt,
+  w,
+  h,
   className,
   drift,
   sway,
@@ -30,6 +50,8 @@ const Floater = ({
 }: {
   src: string;
   alt: string;
+  w: number;
+  h: number;
   className: string;
   drift: number;
   sway: number;
@@ -43,7 +65,7 @@ const Floater = ({
       className="relative h-full motion-safe:animate-[sway_var(--sw)_ease-in-out_infinite]"
       style={{ "--sw": `${sway}s` } as CSSProperties}
     >
-      <Badge src={src} alt={alt} />
+      <Badge src={src} alt={alt} w={w} h={h} />
       {flourish}
     </div>
   </div>
@@ -97,6 +119,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/sun.svg"
         alt="Cedar Valley Suns"
+        w={143}
+        h={143}
         className="top-[2%] left-[7%]"
         drift={4.5}
         sway={5}
@@ -105,6 +129,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/eagle.svg"
         alt="El Centro Eagles"
+        w={297}
+        h={161}
         className="top-[16%] right-[3%]"
         drift={6}
         sway={4.5}
@@ -112,6 +138,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/bee.svg"
         alt="Eastfield Harvester Bees"
+        w={189}
+        h={183}
         className="top-[30%] left-[9%]"
         drift={5.5}
         sway={4}
@@ -119,6 +147,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/duck.svg"
         alt="Richland Thunderducks"
+        w={182}
+        h={209}
         className="top-[44%] right-[5%]"
         drift={5}
         sway={4.5}
@@ -127,6 +157,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/lion.svg"
         alt="Mountain View Lions"
+        w={190}
+        h={148}
         className="top-[58%] left-[6%]"
         drift={5.2}
         sway={4.2}
@@ -134,6 +166,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/bear.svg"
         alt="Brookhaven Bears"
+        w={183}
+        h={224}
         className="top-[72%] right-[7%]"
         drift={4.8}
         sway={5}
@@ -141,6 +175,8 @@ export function CampusCritters() {
       <Floater
         src="/mascots/blazer.svg"
         alt="North Lake Blazers"
+        w={223}
+        h={174}
         className="bottom-[3%] left-[11%]"
         drift={5.4}
         sway={4}

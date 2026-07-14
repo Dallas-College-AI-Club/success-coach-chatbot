@@ -24,12 +24,12 @@ export const goalQuestion: OnboardingQuestion = {
   kind: "buttons",
   shipped: true,
   options: [
-    { id: "goal_first_semester", label: "Plan my first semester (I know what I want to study)", contribs: { goal: "first_semester_plan" } },
+    { id: "goal_first_semester", label: "Plan my upcoming semester (I know what I want to study)", contribs: { goal: "first_semester_plan" } },
     { id: "goal_graduation", label: "See what I still need to graduate", contribs: { goal: "graduation_check" } },
-    { id: "goal_transfer", label: "See how my credits transfer", contribs: { goal: "transfer_check" } },
+    { id: "goal_transfer", label: "See how credits transfer (in or out of Dallas College)", contribs: { goal: "transfer_check" } },
     { id: "goal_schedule", label: "Fit classes around my schedule", contribs: { goal: "schedule_fit" } },
     { id: "goal_major", label: "Help me figure out what to study (I'm not sure yet)", contribs: { goal: "figure_out_major" } },
-    { id: "goal_oneoff", label: "Not working toward a degree here (one class, a certificate, or license prep)", contribs: { goal: "nondegree_oneoff" } },
+    { id: "goal_oneoff", label: "Not working toward a degree or certificate here (just one class, or license prep)", contribs: { goal: "nondegree_oneoff" } },
   ],
 };
 
@@ -39,7 +39,7 @@ export const programOptions: QuestionOption[] = [
   { id: "program_unsure", label: "I'm still figuring it out", contribs: { major: null } },
 ];
 
-export const programQuestion: OnboardingQuestion = {
+const programQuestion: OnboardingQuestion = {
   id: "major",
   prompt: "What do you want to study?",
   kind: "picker",
@@ -83,7 +83,7 @@ export const scheduleQuestion: OnboardingQuestion = {
   kind: "buttons",
   shipped: true,
   options: [
-    { id: "sched_anytime", label: "Anytime", contribs: { modality_pref: null, dayparts_pref: null } },
+    { id: "sched_anytime", label: "Weekdays or anytime", contribs: { modality_pref: null, dayparts_pref: null } },
     { id: "sched_evenings", label: "Evenings", contribs: { dayparts_pref: ["evening"] } },
     { id: "sched_weekends", label: "Weekends", contribs: { dayparts_pref: ["weekend"] } },
     { id: "sched_online", label: "Online only", contribs: { modality_pref: "online" } },
@@ -91,7 +91,7 @@ export const scheduleQuestion: OnboardingQuestion = {
 };
 
 // --- figure-out-major: interest area --------------------------------------
-export const interestQuestion: OnboardingQuestion = {
+const interestQuestion: OnboardingQuestion = {
   id: "interest",
   prompt: "Which area interests you most?",
   kind: "buttons",
@@ -116,7 +116,7 @@ export const interestQuestion: OnboardingQuestion = {
 // transfer question's "I go to another college — just taking one class here"
 // option, which also captures their home school. Keeping it in both places
 // captured different data for the same student depending on an arbitrary tap.
-export const oneoffPurposeQuestion: OnboardingQuestion = {
+const oneoffPurposeQuestion: OnboardingQuestion = {
   id: "oneoff_purpose",
   prompt: "What do you need?",
   kind: "buttons",
@@ -138,11 +138,11 @@ export const oneoffPurposeQuestion: OnboardingQuestion = {
 export const directionOptions: QuestionOption[] = [
   { id: "dir_outbound", label: "I'm a Dallas College student, planning to transfer later", contribs: { transfer_direction: "outbound" } },
   { id: "dir_back", label: "I go to another college, just taking one class here", contribs: { transfer_direction: "transfer_back" } },
-  { id: "dir_inbound", label: "I already earned college credit somewhere else (another college, the military, or exams like AP, IB, or CLEP)", contribs: { transfer_direction: "inbound" } },
+  { id: "dir_inbound", label: "I have credit or credentials that could count toward my Dallas College degree (another college, the military, exams like AP, IB, or CLEP, or a skills credential)", contribs: { transfer_direction: "inbound" } },
 ];
 
-export type SchoolShowFor = "both" | "outbound";
-export interface SchoolOption extends QuestionOption {
+type SchoolShowFor = "both" | "outbound";
+interface SchoolOption extends QuestionOption {
   showFor: SchoolShowFor;
 }
 
@@ -161,7 +161,7 @@ export const schoolOptions: SchoolOption[] = [
   { id: "sch_unsure", label: "Not sure yet", contribs: { target_institution: null }, showFor: "outbound" },
 ];
 
-export const transferOriginQuestion: OnboardingQuestion = {
+const transferOriginQuestion: OnboardingQuestion = {
   id: "transfer_origin",
   prompt: "Which of these sounds like you?",
   kind: "transferOrigin",
@@ -260,7 +260,7 @@ export const MIN_STEPS = 2;
 export const AUDIENCE_OPTIONS = [
   {
     id: "aud_dual",
-    label: "a dual-credit student or parent",
+    label: "a high schooler (dual credit) or parent",
     studentType: "dual_credit" as const,
   },
   {
@@ -314,7 +314,7 @@ export function intlGoalOptions(status: IntlStatus): QuestionOption[] {
   return [...base, settleInOption];
 }
 
-export const intlGoalQuestion: OnboardingQuestion = {
+const intlGoalQuestion: OnboardingQuestion = {
   id: "goal",
   prompt: "What would you like help with?",
   kind: "intlGoal",

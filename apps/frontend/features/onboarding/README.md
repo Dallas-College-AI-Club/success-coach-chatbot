@@ -31,7 +31,7 @@ and per-mode details in [`variants/README.md`](./variants/README.md).
 - [`shared/wizard-parts.tsx`](./shared/wizard-parts.tsx) — the shared building blocks every shell arranges: `QuestionBody` (the interactive field), `QuestionHeading`, `AnswerChips`, `WizardControls`.
 - [`shared/shells/`](./shared/shells/) — one shell per mode (`simple`, `playful`, `focus`): pure arrangement of the shared parts around a persistent scene.
 - [`shared/scenes/`](./shared/scenes/) — the per-mode backdrops (Playful campus + critters, Focus mountain).
-- Other `shared/*` — `recap-panel`, `chat-handoff`, `quick-actions`, `transfer-step`, `skinned-option`, `capability-dialog`, `mode-switcher`, `step-transition`, `brand`, `success-coach-bot`, and the `use-heading-focus` hook.
+- Other `shared/*` — `recap-panel`, `chat-handoff`, `quick-actions`, `transfer-step`, `intl-goal-step`, `skinned-option`, `capability-dialog`, `mode-switcher`, `step-transition`, `brand`, `success-coach-bot`, and the `use-heading-focus` hook.
 - [`variants/`](./variants/) — one `Mode` object per look + the registry (`index.ts`) and fonts.
 
 Primitives (ShadCN) live in `components/ui/`; routes in `app/` (`page.tsx` → the flow, `chat/page.tsx` → the planning-chat placeholder).

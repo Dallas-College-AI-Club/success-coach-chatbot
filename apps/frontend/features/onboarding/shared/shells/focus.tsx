@@ -40,7 +40,7 @@ export const FocusShell = ({ api, skin, copy, done, onRestart }: WizardProps) =>
           />
         ) : (
           <>
-            <p className={skin.progressLabel}>{folio}</p>
+            <p className={skin.sectionLabel}>{folio}</p>
             <StepTransition
               stepIdx={api.stepIdx}
               dir={api.dir}

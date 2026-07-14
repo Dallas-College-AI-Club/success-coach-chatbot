@@ -101,14 +101,14 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
           taken — international swaps the step to its own picker, dual-credit
           jumps away, so the row would be redundant afterward. */}
       {api.stepIdx === 0 && !api.studentType && (
-        <div className="flex flex-wrap items-center gap-2 pt-1 text-sm opacity-80">
-          <span>{copy.audienceLead}</span>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <span className="text-sm opacity-70">{copy.audienceLead}</span>
           {AUDIENCE_OPTIONS.map((aud) => (
             <button
               key={aud.id}
               type="button"
               onClick={() => api.chooseAudience(aud)}
-              className={skin.link}
+              className="rounded-full border border-current/25 px-3 py-1 text-xs opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] pointer-coarse:min-h-9"
             >
               {aud.label}
             </button>

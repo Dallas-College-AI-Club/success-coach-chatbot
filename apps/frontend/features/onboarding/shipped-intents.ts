@@ -17,13 +17,18 @@ export interface ShippedIntent {
 // `shipped` is the staging switch: an intent appears only when `shipped` is
 // true. While the answering layer is built every intent is marked shipped, so
 // the full list shows; setting `shipped: false` hides an intent until it ships.
+// Phrased as honest, high-value things a student can actually get from Koa:
+// catalog-grounded facts (requirements, sequence, schedule) and routing (transfer
+// confirmation, the coach, help paying). Deliberately excludes anything only a
+// human or the institution can decide — Koa never promises transfer, aid, or a
+// timeline, and never "figures out your major" for you.
 export const INTENTS: ShippedIntent[] = [
-  { id: "program_requirements", example: "What classes do I need for my major?", shipped: true },
-  { id: "figure_out_major", example: "Help me figure out my major", shipped: true },
-  { id: "prereq_lookup", example: "What are the prerequisites for a class?", shipped: true },
-  { id: "first_semester_plan", example: "Plan my first semester", shipped: true },
-  { id: "transfer_question", example: "Will my credits transfer?", shipped: true },
-  { id: "section_search", example: "Which classes can I take online?", shipped: true },
+  { id: "degree_requirements", example: "What does my degree or certificate require?", shipped: true },
+  { id: "fastest_sequence", example: "What's the smartest order to take my classes so I finish sooner?", shipped: true },
+  { id: "schedule_fit", example: "Which of my required classes are online, at night, or on weekends?", shipped: true },
+  { id: "transfer_planning", example: "Which credits usually transfer, and how do I get an official answer?", shipped: true },
+  { id: "coach_prep", example: "How do I get ready for my Success Coach meeting?", shipped: true },
+  { id: "paying_for_degree", example: "Who can help me pay for my degree (grants, aid, Student Care Network)?", shipped: true },
 ];
 
 export const shippedIntents = (): ShippedIntent[] => INTENTS.filter((i) => i.shipped);

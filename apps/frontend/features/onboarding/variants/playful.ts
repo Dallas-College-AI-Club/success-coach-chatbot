@@ -16,7 +16,7 @@ export const playful: Mode = {
   skin: {
     page: "flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F2EFE6] p-4 text-[#1E2A3A] md:p-8 [--ring:#E52626]",
     shell: "mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3",
-    progressLabel: "text-sm font-semibold text-[#E52626]",
+    sectionLabel: "text-sm font-semibold text-[#E52626]",
     heading: "text-2xl font-bold text-[#003385] outline-none",
     helper: "text-sm text-[#1E2A3A]/60",
     option:

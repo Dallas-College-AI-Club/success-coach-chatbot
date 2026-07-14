@@ -63,7 +63,7 @@ export function ChatHandoff({
         className={`${skin.primaryBtn} mt-1 self-start`}
         onClick={() => router.push("/chat")}
       >
-        Start planning chat →
+        Start chat →
       </Button>
     </div>
   );

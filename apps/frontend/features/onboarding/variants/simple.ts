@@ -3,7 +3,8 @@ import { SimpleShell } from "@/features/onboarding/shared/shells/simple";
 
 // Simple — the clean/basic look: a calm chat on soft lavender, deep-violet text,
 // and filled lavender answer chips. Bright indigo-violet is the accent (ring,
-// progress, check); dark violet carries text and primary buttons. Jakarta Sans.
+// progress, check); dark violet carries text and primary buttons. Manrope (the
+// app default).
 export const simple: Mode = {
   id: "simple",
   name: "Simple",
@@ -14,7 +15,7 @@ export const simple: Mode = {
   skin: {
     page: "flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F6F5FF] p-4 text-[#2E2555] md:p-8 [--ring:#6C5CE7]",
     shell: "mx-auto flex w-full max-w-lg flex-col items-center gap-3",
-    progressLabel: "text-sm font-medium text-[#2E2555]/60",
+    sectionLabel: "text-sm font-medium text-[#2E2555]/60",
     heading: "text-xl font-semibold text-[#2E2555] outline-none md:text-2xl",
     helper: "text-sm text-[#2E2555]/60",
     option:

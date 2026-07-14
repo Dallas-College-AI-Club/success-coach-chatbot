@@ -48,14 +48,14 @@ One goal question routes everything after it. Follow-ups are conditional — com
 
 | Goal | Follow-ups |
 |---|---|
-| Plan my first semester (I know what I want to study) | Program → Schedule |
+| Plan my upcoming semester (I know what I want to study) | Program → Schedule |
 | See what I still need to graduate | Program |
-| See how my credits transfer | Direction + school → Program (degree-here directions only) |
+| See how credits transfer | Direction + school → Program (degree-here directions only) |
 | Fit classes around my schedule | Schedule → Program |
 | Help me figure out what to study (I'm not sure yet) | Interest area |
-| Not working toward a degree here (one class, a certificate, or license prep) | Purpose |
+| Not working toward a degree or certificate here (just one class, or license prep) | Purpose |
 
-Two secondary links under the goals route audiences the goal list does not fit. **A dual-credit student or parent** takes one-off classes, not a Dallas program, so the link is a shortcut: it asks only when they can take classes, then finishes (the dedicated dual-credit program handles the full plan). **An international student** links to the same goal question, refined for them: a small *new to Dallas College / already studying here* toggle sits above the shared goals, which drop the non-degree door — an international student always has a degree plan — and, for someone just arriving, add *help me get ready to move to Dallas*. Because the toggle rides on the goal step rather than adding one, the international flow stays the same length as everyone else's. The goal set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
+Two secondary links under the goals route audiences the goal list does not fit. **A high schooler (dual credit) or parent** takes one-off classes, not a Dallas program, so the link is a shortcut: it asks only when they can take classes, then finishes (the dedicated dual-credit program handles the full plan). **An international student** links to the same goal question, refined for them: a small *new to Dallas College / already studying here* toggle sits above the shared goals, which drop the non-degree door — an international student always has a degree plan — and, for someone just arriving, add *help me get ready to move to Dallas*. Because the toggle rides on the goal step rather than adding one, the international flow stays the same length as everyone else's. The goal set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
 
 **Staging.** Goal options and the capability directory both read from one shipped-intents file. An option renders as a routing signal while the answering layer is built, and the same flag hides it once — and only once — its backing intent ships, so the entry never points at an answer the pipeline cannot yet give. This tracks the sprint order in the [degree-planning user stories](user-stories/DEGREE_PLANNING_STORIES.md).
 
@@ -77,12 +77,12 @@ flowchart TD
     F -->|"returning · saved in this browser"| R[["Welcome back —<br/>opens your saved summary"]] --> E
     F -->|first-time| W([Pick a look · Start]) --> Q{"What brings you here today?"}
 
-    Q -->|Plan my first semester| A1[Program]
+    Q -->|Plan my upcoming semester| A1[Program]
     Q -->|See what I still need to graduate| A2[Program]
-    Q -->|See how my credits transfer| D{"Which sounds like you?"}
+    Q -->|See how credits transfer| D{"Which sounds like you?"}
     Q -->|Fit classes around my schedule| SC[When can you take classes?]
     Q -->|Help me figure out what to study| IN[Interest area]
-    Q -->|Not working toward a degree here| ON["What do you need?<br/>prerequisite · job/license · interest"]
+    Q -->|Not working toward a degree or certificate here| ON["What do you need?<br/>prerequisite · job/license · interest"]
     Q -. "dual credit · international links" .-> AU{Audience}
 
     A1 -->|a program| A1s[When can you take classes?] --> E
@@ -101,7 +101,7 @@ flowchart TD
     IG -->|"Help me move to Dallas · new only"| E
     IG -. "any planning goal · same follow-ups" .-> Q
 
-    E([Recap of your answers]) --> H["Start planning chat →"]
+    E([Recap of your answers]) --> H["Start chat →"]
     E -. "quick actions · register · aid · tutoring · events · coach" .-> C
     H --> C[["Planning chat<br/>drafts a plan on verified Dallas College catalog data"]]
     C --> V[["Success Coach<br/>reviews the plan and makes it official"]]
@@ -118,14 +118,14 @@ path exceeds four questions before the hand-off.
 
 | Goal | Path | Questions | Asks program? |
 |---|---|---|---|
-| Plan my first semester | Program → Schedule *(→ Interest if unsure)* | 3 | Yes |
+| Plan my upcoming semester | Program → Schedule *(→ Interest if unsure)* | 3 | Yes |
 | See what I still need to graduate | Program *(→ Interest if unsure)* | 2–3 | Yes |
-| See how my credits transfer — *transferring out* | Direction + school → Program *(→ Interest if unsure)* | 3–4 | Yes |
-| See how my credits transfer — *visiting (one class here)* | Direction + home school | 2 | **No** |
-| See how my credits transfer — *bringing credits in* | Direction → Program *(→ Interest if unsure)* | 3–4 | Yes |
+| See how credits transfer — *transferring out* | Direction + school → Program *(→ Interest if unsure)* | 3–4 | Yes |
+| See how credits transfer — *visiting (one class here)* | Direction + home school | 2 | **No** |
+| See how credits transfer — *bringing credits in* | Direction → Program *(→ Interest if unsure)* | 3–4 | Yes |
 | Fit classes around my schedule | Schedule → Program *(→ Interest if unsure)* | 3–4 | Yes |
 | Help me figure out what to study | Interest | 2 | No |
-| Not working toward a degree here | Purpose | 2 | No |
+| Not working toward a degree or certificate here | Purpose | 2 | No |
 | Dual credit or parent *(audience)* | Schedule | 2 | **No** |
 | International — *help me move to Dallas (new only)* | Goal step only | 1 | **No** |
 | International — *any other goal* | Same as that goal's row above (status toggle rides on the goal step) | 2–4 | Matches the goal |
@@ -150,7 +150,7 @@ The rules are pure functions in [`questions.ts`](../apps/frontend/features/onboa
 
 - *I'm a Dallas College student, planning to transfer later* → asks the destination, then the program.
 - *I go to another college — just taking one class here* → asks the home school; no program.
-- *I already earned college credit somewhere else (another college, the military, or exams like AP, IB, or CLEP)* → asks the program; routes to Admissions for evaluation.
+- *I have credit or credentials that could count toward my Dallas College degree (another college, the military, exams like AP, IB, or CLEP, or a skills credential)* → asks the program; routes to Admissions for evaluation.
 
 The school picker is tiered by what the catalog can ground an answer in. **UT Dallas** and **UNT** are named — Dallas College's coordinated articulation with them is in the catalog — so the chat can be school-specific. The rest are buckets — *Another Texas school*, *Out of state*, *International*, and *Not sure yet* — that route to the correct process and the receiving school's own verification, in line with the credit-portability principle that the receiving institution decides. The prompt reads *"Where are you hoping to transfer?"* for the outbound student and *"Which college do you normally attend?"* for the visiting student.
 
@@ -164,8 +164,8 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 - **A preview of the chat, drawn from the answers.** The starter prompts are chosen to fit the student's goal and sub-answers — a student taking a class for a job or license sees *"Who confirms this class counts?"*, not "classes for my major." A destination name appears only for the two named transfer partners; every other school reads as a plain phrase.
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
 - **The close, on every path:** *"Koa helps you plan; a Success Coach makes it official."*
-- **The entry point:** a **Start planning chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
-- **A few quick actions.** Beneath the entry point, a quiet row of shortcuts — *Register for classes*, *Academic calendar*, *Financial aid*, *Tutoring*, *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable rather than a wall of options. Each opens the planning chat, which answers the topic or routes to the office that owns it; as those surfaces ship, a shortcut can point at its real destination.
+- **The entry point:** a **Start chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
+- **Dallas College resources.** Beneath the entry point, a quiet row of links — *See all credit classes*, *Academic calendar*, *Tutoring*, *Aid & essentials* (the Student Care Network: tuition help, emergency aid, basic needs, childcare, laptops), *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable. Each opens the real Dallas College page in a new tab, so a student who wants a specific office can jump straight there.
 
 The hand-off copy is the pure module [`handoff-copy.ts`](../apps/frontend/features/onboarding/handoff-copy.ts), rendered by [`chat-handoff.tsx`](../apps/frontend/features/onboarding/shared/chat-handoff.tsx); the shortcuts are [`quick-actions.tsx`](../apps/frontend/features/onboarding/shared/quick-actions.tsx). The chat it opens into carries the answers so the conversation starts already scoped.
 

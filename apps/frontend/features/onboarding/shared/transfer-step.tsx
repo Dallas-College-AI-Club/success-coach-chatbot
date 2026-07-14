@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from "react";
 const SHORT: Record<TransferDirection, string> = {
   outbound: "Transferring to a university",
   transfer_back: "Taking one class here",
-  inbound: "Bringing in past credits",
+  inbound: "Bringing in past credit or credentials",
 };
 
 // Direction chip + school picker on one step (keeps the transfer branch within

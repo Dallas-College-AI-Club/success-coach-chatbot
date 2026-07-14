@@ -10,8 +10,10 @@ import type { Mode } from "@/features/onboarding/skin";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import { useState } from "react";
 
-// The Success Coach mascot — a friendly rounded robot: blue-grey head, mint face
-// screen with two bright eyes and a little smile, an orange antenna and side ears.
+// The welcome greeter — Koa, a friendly rounded robot in its own warm palette
+// (blue-grey head, mint face screen, orange antenna and side ears). Deliberately
+// its own mascot, distinct from the Dallas-branded SuccessCoachBot used in the
+// chat — keep it separate rather than swapping that component in here.
 const BotAvatar = () => (
   <svg viewBox="0 0 64 64" className="size-14 shrink-0" role="img" aria-hidden>
     {/* antenna */}
@@ -60,7 +62,7 @@ export function Welcome({
         <h1
           ref={headingRef}
           tabIndex={-1}
-          aria-label="Success Coach — Dallas College AI Club chat bot"
+          aria-label="Success Coach, the Dallas College AI Club chatbot"
           className="outline-none"
         >
           <SuccessCoachCover />
@@ -153,7 +155,7 @@ export function Welcome({
         </Button>
 
         <p className="text-xs text-[#1E2A3A]/45">
-          Your answers are saved only in this browser, never to your student record.
+          Your answers are saved just for you in this browser, not to your student record.
         </p>
       </div>
     </main>

@@ -17,18 +17,16 @@ import {
 // steps further along. The scene stays put at the finish; the recap just replaces
 // the note, so it never cuts to a new page.
 
-// The progress bar. Fills 15% → 90% across the questions, then completes to 100%
-// on the recap. Rendered once, above both card states, so the fill animates
-// smoothly into the finish — the "reached the end" payoff, like planting the flag
-// at the summit in Focus.
+// The progress bar. Fills proportionally to the step position (step of total),
+// then completes to 100% on the recap. No numeric percentage is shown — with only
+// a few short steps a precise % reads as a false claim; the "Step X of Y" label
+// carries the honest progress. Rendered once, above both card states, so the fill
+// animates smoothly into the finish — the "reached the end" payoff.
 const ProgressBar = ({ pct, label }: { pct: number; label: string }) => (
   <div className="flex flex-col gap-1.5">
     <div className="flex items-baseline justify-between">
       <span className="text-xs font-extrabold tracking-wide text-[#E52626] uppercase">
         {label}
-      </span>
-      <span className="text-xs font-bold text-[#003385]/45" aria-hidden>
-        {Math.round(pct)}%
       </span>
     </div>
     <div
@@ -55,9 +53,10 @@ export const PlayfulShell = ({
   onRestart,
 }: WizardProps) => {
   const stop = Math.min(api.stepIdx, 2); // panorama has three stops
-  // Fill runs 15% → 90% across the questions; the final 10% is "finishing", so the
-  // bar never reads 100% while a question is still open — it fills up at the recap.
-  const progress = api.total > 1 ? 15 + (api.stepIdx / (api.total - 1)) * 75 : 50;
+  // Fill tracks the step position (step of total), counting the recap as the final
+  // fraction, so the bar rises evenly and only reaches 100% at the recap — never a
+  // dramatic jump on a short flow, and never full while a question is still open.
+  const progress = ((api.stepIdx + 1) / (api.total + 1)) * 100;
 
   return (
     <div className="relative w-full overflow-hidden rounded-[28px] shadow-[0_18px_50px_rgba(51,65,92,.16)]">

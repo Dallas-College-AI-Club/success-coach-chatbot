@@ -29,7 +29,7 @@ export default function ChatPage() {
             <p className="mt-1.5 text-[#1E2A3A]/70">
               Your Dallas College planning companion. I&apos;m an AI, here to help
               you get a plan together from the official catalog: degree
-              requirements, prerequisites, transfer credits, a first-semester map.
+              requirements, prerequisites, transfer planning, a first-semester map.
               Your answers carry over, so we pick up right where you left off. A
               Success Coach reviews everything and makes your plan official.
             </p>

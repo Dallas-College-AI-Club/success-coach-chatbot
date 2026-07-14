@@ -8,7 +8,7 @@ For whoever picks up the **planning chat** (issue [#37](https://github.com/Dalla
 
 The chat lives at **`/chat`** ([`app/chat/page.tsx`](../../apps/frontend/app/chat/page.tsx)). Today that route is a styled placeholder — replace it with the real chat. Everything already points here:
 
-- The onboarding hand-off's **Start planning chat** button routes to `/chat`.
+- The onboarding hand-off's **Start chat** button routes to `/chat`.
 - The end-of-flow **quick actions** (register, academic calendar, financial aid, tutoring, campus events, talk to a coach) also route to `/chat`. As their real destinations ship, point each shortcut at the office/surface that owns it (see [`quick-actions.tsx`](../../apps/frontend/features/onboarding/shared/quick-actions.tsx)).
 
 Keep the route stable so the hand-off keeps working while you build.

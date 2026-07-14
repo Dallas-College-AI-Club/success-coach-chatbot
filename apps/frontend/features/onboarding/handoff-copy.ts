@@ -64,12 +64,12 @@ function fill(text: string, p: OnboardingPayload): string {
 // exact major, so they stay short and scannable.
 const SETS: Record<string, HandoffSet> = {
   first_major: {
-    intro: "Next, we'll plan your first semester. You could ask:",
-    prompts: ["What do I take first?", "Which classes are online?", "What will it cost?"],
+    intro: "Next, we'll plan your upcoming semester. You could ask:",
+    prompts: ["What do I take first?", "Which classes are online?", "How do I find help paying?"],
   },
   first_undecided: {
     intro: "Next, we'll find good first classes. You could ask:",
-    prompts: ["What do I take before I pick a major?", "What counts toward most degrees?", "Certificate or degree?"],
+    prompts: ["What do I take before I pick a major?", "What counts toward most degrees?", "How do certificates and degrees differ?"],
   },
   grad_major: {
     intro: "Next, we'll see what's left to finish. You could ask:",
@@ -77,7 +77,7 @@ const SETS: Record<string, HandoffSet> = {
   },
   transfer_out_partner: {
     intro: "Next, we'll plan your transfer to {school}. You could ask:",
-    prompts: ["Which classes transfer to {school}?", "What should I take first?", "What might not transfer?"],
+    prompts: ["Which classes usually transfer to {school}?", "What should I take first?", "What might not transfer?"],
   },
   transfer_out_texas: {
     intro: "Next, we'll plan your Texas transfer. You could ask:",
@@ -85,19 +85,19 @@ const SETS: Record<string, HandoffSet> = {
   },
   transfer_out_other: {
     intro: "Next, we'll plan a transfer-friendly path. You could ask:",
-    prompts: ["Which classes transfer widely?", "What core classes are safe?", "How do I check what they accept?"],
+    prompts: ["Which classes transfer widely?", "Which core classes usually transfer?", "How do I check what a school will accept?"],
   },
   transfer_back: {
     intro: "Next, we'll find a class that counts back home. You could ask:",
-    prompts: ["Which class matches what I need?", "Is it online?", "What does it cost?"],
+    prompts: ["Which class matches what I need?", "Is it online?", "What's the tuition per class?"],
   },
   transfer_inbound: {
-    intro: "Next, we'll see where your past credits fit. You could ask:",
-    prompts: ["What does my program require?", "How do I get credits reviewed?", "What should I take here?"],
+    intro: "Next, we'll see what could count toward your degree. You could ask:",
+    prompts: ["What might already count?", "How do I get it reviewed?", "What should I take here?"],
   },
   transfer_unknown: {
     intro: "Next, we'll keep your transfer options open. You could ask:",
-    prompts: ["Which classes transfer widely?", "What should I take first?", "How do I check what they accept?"],
+    prompts: ["Which classes transfer widely?", "What should I take first?", "How do I check what a school will accept?"],
   },
   sched_online_evening: {
     intro: "Next, we'll fit classes to your time. You could ask:",
@@ -113,7 +113,7 @@ const SETS: Record<string, HandoffSet> = {
   },
   sched_default: {
     intro: "Next, we'll build a schedule that fits. You could ask:",
-    prompts: ["Which classes are online?", "Which are evening or weekend?", "What fits a full-time job?"],
+    prompts: ["Which classes are online?", "Which are evening or weekend?", "What fits around work?"],
   },
   major_interest: {
     intro: "Next, we'll explore {interest} programs. You could ask:",
@@ -121,23 +121,23 @@ const SETS: Record<string, HandoffSet> = {
   },
   major_undecided: {
     intro: "Next, we'll explore your options. You could ask:",
-    prompts: ["What programs are there?", "What should I take first?", "Certificate or degree?"],
+    prompts: ["What programs are there?", "What should I take first?", "How do certificates and degrees differ?"],
   },
   oneoff_job: {
     intro: "Next, we'll find the class you need. You could ask:",
-    prompts: ["Which class do I need?", "What does it cost?", "Who confirms it counts?"],
+    prompts: ["Which class do I need?", "What's the tuition per class?", "Who confirms it counts?"],
   },
   oneoff_prereq: {
     intro: "Next, we'll find your prerequisite class. You could ask:",
-    prompts: ["Which class covers it?", "Is it online?", "What does it cost?"],
+    prompts: ["Which class covers it?", "Is it online?", "What's the tuition per class?"],
   },
   oneoff_enrich: {
     intro: "Next, we'll find a class you'll enjoy. You could ask:",
-    prompts: ["What can I take for fun?", "Any prerequisites?", "What does it cost?"],
+    prompts: ["What can I take for fun?", "Any prerequisites?", "What's the tuition per class?"],
   },
   dual_credit: {
     intro: "Next, we'll look at your dual-credit path. You could ask:",
-    prompts: ["How do my classes count?", "Will they transfer?", "Which finish a degree?"],
+    prompts: ["How do my classes count?", "How do I check if they'll transfer?", "Which finish a degree?"],
   },
   // Incoming international student getting set up to move — resource-style, like
   // the quick-actions row, not course planning.
@@ -217,7 +217,7 @@ export function authorityNotes(p: OnboardingPayload): string[] {
     return [`Only ${schoolLabel(p)} can confirm what counts. We'll help you ask.`];
   }
   if (p.transfer_direction === "inbound") {
-    return ["Admissions evaluates past credits. We'll point you there."];
+    return ["Admissions decides what counts. We'll point you there."];
   }
   return [];
 }
