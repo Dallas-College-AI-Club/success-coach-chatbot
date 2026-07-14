@@ -39,10 +39,10 @@ Primitives (ShadCN) live in `components/ui/`; routes in `app/` (`page.tsx` → t
 ## How one question flows
 
 ```
-questions.ts (data)  →  followUpsFor()  →  stepsFor() (goal + shipped follow-ups)
+questions.ts (data)  →  goalStepFor() + followUpsFor()  →  stepsFor() (goal + shipped follow-ups)
    → useOnboarding exposes current = steps[stepIdx]
    → the active Shell renders it and drops in <QuestionBody>
-   → QuestionBody switches on current.kind (buttons / picker / transferOrigin)
+   → QuestionBody switches on current.kind (buttons / picker / transferOrigin / intlGoal)
    → a tap calls api.answerOption → commit(): steps recompute, advance or finish
    → finishWith → buildPayload → onComplete → the recap / hand-off
 ```

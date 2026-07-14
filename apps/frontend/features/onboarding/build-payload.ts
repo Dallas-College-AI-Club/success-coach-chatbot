@@ -6,6 +6,21 @@ import type {
 } from "@/features/onboarding/types";
 
 /**
+ * Whether a step counts as answered. The goal step is special: tapping an
+ * audience link ("an international student") fills `answers["goal"]` with a
+ * placeholder whose `goal` is still null, so a present-but-null goal is a skip,
+ * not a pick. One source of truth, shared with the wizard's `answered`
+ * derivation, so "skipped" and "can advance" never disagree.
+ */
+export function isStepAnswered(
+  id: string,
+  answers: Record<string, StepAnswer>,
+): boolean {
+  if (id === "goal") return answers["goal"]?.contribs.goal != null;
+  return Boolean(answers[id]);
+}
+
+/**
  * Assemble the console payload from the answers of the *resolved* branch.
  *
  * A step present in `answers` is answered (even when its value is null, e.g.
@@ -16,7 +31,6 @@ import type {
 export function buildPayload(
   answers: Record<string, StepAnswer>,
   branch: OnboardingQuestion[],
-  international = false,
 ): OnboardingPayload {
   const payload: OnboardingPayload = {
     goal: null,
@@ -28,10 +42,10 @@ export function buildPayload(
     transfer_direction: null,
     interest_area: null,
     oneoff_purpose: null,
+    intl_status: null,
     skippedSteps: [],
     onboardingVersion: ONBOARDING_VERSION,
     completedAt: new Date().toISOString(),
-    international,
   };
 
   for (const step of branch) {
@@ -41,7 +55,7 @@ export function buildPayload(
 
   payload.skippedSteps = branch
     .map((step) => step.id)
-    .filter((id) => !answers[id]);
+    .filter((id) => !isStepAnswered(id, answers));
 
   return payload;
 }

@@ -58,7 +58,7 @@ function fill(text: string, p: OnboardingPayload): string {
 }
 
 // --- the personalized sets --------------------------------------------------
-// Kept short on purpose: the intro is one line ending in "— you could ask:" that
+// Kept short on purpose: the intro is one line ending in ". You could ask:" that
 // leads straight into 2–3 terse chips. The program name is NOT repeated here (it's
 // already in the recap above); the chips fit the student's situation, not their
 // exact major, so they stay short and scannable.
@@ -135,19 +135,20 @@ const SETS: Record<string, HandoffSet> = {
     intro: "Next, we'll find a class you'll enjoy. You could ask:",
     prompts: ["What can I take for fun?", "Any prerequisites?", "What does it cost?"],
   },
-  parent: {
-    intro: "Next, explore your student's options. You could ask:",
-    prompts: ["What programs are offered?", "How does dual credit work?", "How do we meet a coach?"],
-  },
   dual_credit: {
     intro: "Next, we'll look at your dual-credit path. You could ask:",
     prompts: ["How do my classes count?", "Will they transfer?", "Which finish a degree?"],
+  },
+  // Incoming international student getting set up to move — resource-style, like
+  // the quick-actions row, not course planning.
+  settle_in: {
+    intro: "Next, we'll help you get set up in Dallas. You could ask:",
+    prompts: ["How do I find housing?", "How do I get around?", "When is orientation?"],
   },
 };
 
 // Pick the set that matches the student's answers.
 function selectSet(p: OnboardingPayload): HandoffSet {
-  if (p.student_type === "parent_guardian") return SETS.parent;
   if (p.student_type === "dual_credit") return SETS.dual_credit;
 
   switch (p.goal) {
@@ -182,6 +183,9 @@ function selectSet(p: OnboardingPayload): HandoffSet {
 
     case "figure_out_major":
       return p.interest_area ? SETS.major_interest : SETS.major_undecided;
+
+    case "settle_in":
+      return SETS.settle_in;
 
     case "nondegree_oneoff":
       if (p.oneoff_purpose === "job_licensure") return SETS.oneoff_job;
@@ -218,21 +222,12 @@ export function authorityNotes(p: OnboardingPayload): string[] {
   return [];
 }
 
-// New to the U.S.: point international students to the International Student Center
-// to get settled. (The real contact/link is wired with the chat backend.) Returns
-// 0 or 1 line, and is kept separate from authorityNotes (which is transfer-only).
-export function internationalNote(p: OnboardingPayload): string[] {
-  if (!p.international) return [];
-  return [
-    "New to the U.S. or Dallas? Koa can connect you with the International Student Center to help you get settled.",
-  ];
-}
-
 // Stage 3: the human Success Coach verifies the plan the chat drafts. Every path
 // ends here — the one promise this tool can honestly make.
 export function coachVerifyLine(p: OnboardingPayload): string {
-  if (p.student_type === "parent_guardian") {
-    return "Koa helps you and your student plan. A Success Coach makes it official.";
+  // Settling in isn't a plan to approve — the coach is who they meet on arrival.
+  if (p.goal === "settle_in") {
+    return "Koa helps you get ready to arrive. Your Success Coach takes it from there.";
   }
   return "Koa helps you plan. A Success Coach makes it official.";
 }

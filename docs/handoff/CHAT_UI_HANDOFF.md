@@ -22,7 +22,8 @@ Onboarding produces one **payload** — the student's answers, keyed to the #36 
 | `goal` | the Q1 selection (what they came to do) |
 | `major` | a catalog program id, or `null` for "still figuring it out" |
 | `target_institution` | transfer destination / home-school code, or a category (`TX_OTHER`, `US_OTHER`, `INTL`) |
-| `student_type` | set via the audience link (e.g. dual-credit, parent) |
+| `student_type` | set via the audience link — `dual_credit` (parents route here too) or `international` |
+| `intl_status` | `incoming` or `current`, set with the goal on the international goal step (else `null`) |
 | `modality_pref` / `dayparts_pref` | class-format and time preferences |
 | `transfer_direction` / `interest_area` / `oneoff_purpose` | path-specific context |
 | `skippedSteps` | steps left blank — a skip is distinct from a "no preference" answer |

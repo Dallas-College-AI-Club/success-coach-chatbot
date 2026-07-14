@@ -10,7 +10,7 @@
  *   cd apps/frontend && npx tsx ../../docs/onboarding-flow-stress.ts
  *   FULL=1 …  # expand the 306-program picker and full school list (5,293 paths)
  */
-import { buildPayload } from "@/features/onboarding/build-payload";
+import { buildPayload, isStepAnswered } from "@/features/onboarding/build-payload";
 import {
   authorityNotes,
   coachVerifyLine,
@@ -22,6 +22,9 @@ import {
   directionOptions,
   followUpsFor,
   goalQuestion,
+  goalStepFor,
+  INTL_STATUSES,
+  intlGoalOptions,
   programFor,
   scheduleQuestion,
   schoolOptions,
@@ -35,7 +38,7 @@ type Answers = Record<string, StepAnswer>;
 
 // ---- mirror of use-onboarding's derivation + commit reducer ----------------
 const stepsFor = (answers: Answers): OnboardingQuestion[] => [
-  goalQuestion,
+  goalStepFor(answers),
   ...followUpsFor(answers).filter((q) => q.shipped),
 ];
 
@@ -66,6 +69,28 @@ function movesFor(step: OnboardingQuestion): Move[] {
       display: o.label,
       answer: { contribs: o.contribs, display: o.label, optionIds: { main: o.id } },
     }));
+  }
+  if (step.kind === "intlGoal") {
+    // Exactly what IntlGoalStep commits: each status × the goals it exposes,
+    // folding student_type + intl_status into the goal answer.
+    const moves: Move[] = [];
+    for (const st of INTL_STATUSES) {
+      for (const o of intlGoalOptions(st.value)) {
+        moves.push({
+          display: `${st.label} · ${o.label}`,
+          answer: {
+            contribs: {
+              ...o.contribs,
+              student_type: "international",
+              intl_status: st.value,
+            },
+            display: o.label,
+            optionIds: { main: o.id, status: st.id },
+          },
+        });
+      }
+    }
+    return moves;
   }
   if (step.kind === "transferOrigin") {
     const moves: Move[] = [];
@@ -156,8 +181,8 @@ function record(answers: Answers, branch: OnboardingQuestion[], trail: string[])
   const noProgramExpected =
     payload.goal === "figure_out_major" ||
     payload.goal === "nondegree_oneoff" ||
+    payload.goal === "settle_in" ||
     payload.transfer_direction === "transfer_back" ||
-    payload.student_type === "parent_guardian" ||
     payload.student_type === "dual_credit";
   if (noProgramExpected) {
     check(
@@ -207,11 +232,12 @@ function record(answers: Answers, branch: OnboardingQuestion[], trail: string[])
     check(!bad, `${tag} one-off prompt mentions degree/transfer: "${bad ?? ""}"`);
   }
 
-  // 6. Program prompt tense matches enrolment.
+  // 8. Program prompt tense matches enrolment.
   if (branchIds.includes("major")) {
     const prompt = prompts[branchIds.indexOf("major")];
     const enrolled =
       payload.student_type !== "dual_credit" &&
+      payload.intl_status !== "incoming" &&
       (payload.goal === "graduation_check" ||
         (payload.goal === "transfer_check" &&
           payload.transfer_direction === "outbound"));
@@ -224,11 +250,14 @@ function record(answers: Answers, branch: OnboardingQuestion[], trail: string[])
     );
   }
 
-  // 7. Summary lists exactly the answered steps.
-  const answered = branch.filter((s) => answers[s.id]).length;
+  // 9. Skip accounting is exact and disjoint: every branch step is either
+  //    answered or skipped, never both, so the recap and skippedSteps agree with
+  //    the same isStepAnswered rule the wizard advances on.
+  const answeredIds = branchIds.filter((id) => isStepAnswered(id, answers));
   check(
-    answered === branch.filter((s) => answers[s.id]).length,
-    `${tag} summary/answer mismatch`,
+    answeredIds.length + payload.skippedSteps.length === branch.length &&
+      answeredIds.every((id) => !payload.skippedSteps.includes(id)),
+    `${tag} skip accounting mismatch: answered=[${answeredIds.join(",")}] skipped=[${payload.skippedSteps.join(",")}]`,
   );
 }
 
@@ -255,7 +284,10 @@ function walk(answers: Answers, stepIdx: number, trail: string[], depth: number)
 // Forward entry via each goal button.
 walk({}, 0, [], 0);
 
-// Forward entry via the audience link (dual credit / parent → schedule → done).
+// Forward entry via each audience link. Dual-credit is a shortcut (its goal step
+// is already answered by the tap → walk from the follow-up). International refines
+// the goal step in place, so the tap leaves it UNanswered (goal still null) →
+// walk from step 0, where movesFor expands the status × goal picker.
 for (const aud of AUDIENCE_OPTIONS) {
   const answer: StepAnswer = {
     contribs: { goal: null, student_type: aud.studentType },
@@ -263,6 +295,10 @@ for (const aud of AUDIENCE_OPTIONS) {
     optionIds: { main: aud.id },
   };
   const next: Answers = { goal: answer };
+  if (aud.studentType === "international") {
+    walk(next, 0, [`audience:${aud.label}`], 1);
+    continue;
+  }
   const ns = stepsFor(next);
   if (ns.length <= 1) record(next, ns, [`audience:${aud.label}`]);
   else walk(next, 1, [`audience:${aud.label}`], 1);
@@ -393,6 +429,7 @@ for (const t of terminals) {
   const p = t.payload;
   const facts = [
     p.goal && `goal=${p.goal}`,
+    p.intl_status && `intl=${p.intl_status}`,
     p.transfer_direction && `dir=${p.transfer_direction}`,
     p.oneoff_purpose && `oneoff=${p.oneoff_purpose}`,
     p.major ? `major=${p.major}` : p.major === null && asked(t).includes("major") ? "major=unsure" : null,
@@ -409,7 +446,10 @@ for (const t of terminals) {
 // Coverage summary by goal.
 const byGoal: Record<string, number> = {};
 for (const t of terminals) {
-  const g = t.payload.student_type ?? t.payload.goal ?? "none";
+  const g =
+    t.payload.student_type === "international"
+      ? `intl:${t.payload.goal ?? "none"}`
+      : (t.payload.student_type ?? t.payload.goal ?? "none");
   byGoal[g] = (byGoal[g] ?? 0) + 1;
 }
 console.log(`\n=== COVERAGE BY GOAL ===`);

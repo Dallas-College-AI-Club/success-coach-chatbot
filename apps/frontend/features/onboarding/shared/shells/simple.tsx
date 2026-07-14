@@ -38,7 +38,9 @@ const BotBubble = ({ children }: { children: ReactNode }) => (
 // conversation. When finished, the recap arrives as one more bot message, so the
 // chat simply continues instead of cutting to a new page.
 export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) => {
-  const headingRef = useHeadingFocus(done ? "done" : api.stepIdx);
+  const headingRef = useHeadingFocus(
+    done ? "done" : `${api.stepIdx}:${api.current.kind}`,
+  );
   const scrollRef = useRef<HTMLDivElement>(null);
   // Normal finish: the transcript above IS the recap, so show only the steps the
   // student actually answered — a skip-all can finish with unanswered steps still

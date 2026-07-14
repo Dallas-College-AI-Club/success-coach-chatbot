@@ -9,9 +9,18 @@ export type GoalValue =
   | "transfer_check"
   | "schedule_fit"
   | "figure_out_major"
-  | "nondegree_oneoff";
+  | "nondegree_oneoff"
+  // Incoming international students only: getting set up to move to Dallas.
+  | "settle_in";
 
-export type StudentType = "dual_credit" | "parent_guardian";
+// "a dual-credit student or parent" routes both to dual_credit — a parent is
+// asking on their student's behalf, same path. (No separate parent type: nothing
+// sets it.)
+export type StudentType = "dual_credit" | "international";
+
+/** Where an international student is in their journey — set alongside the goal on
+ *  the international goal step, so it never needs its own question. */
+export type IntlStatus = "incoming" | "current";
 
 export type TransferDirection = "outbound" | "transfer_back" | "inbound";
 
@@ -38,6 +47,7 @@ export type PayloadContribs = Partial<{
   transfer_direction: TransferDirection | null;
   interest_area: InterestArea | null;
   oneoff_purpose: OneoffPurpose | null;
+  intl_status: IntlStatus | null;
 }>;
 
 export interface QuestionOption {
@@ -46,7 +56,7 @@ export interface QuestionOption {
   contribs: PayloadContribs;
 }
 
-export type QuestionKind = "buttons" | "picker" | "transferOrigin";
+export type QuestionKind = "buttons" | "picker" | "transferOrigin" | "intlGoal";
 
 export interface OnboardingQuestion {
   id: string;
@@ -58,8 +68,9 @@ export interface OnboardingQuestion {
 }
 
 /** The render slots a step can fill: most questions use "main"; the transfer
- *  step fills "direction" and "school". */
-export type RenderSlot = "main" | "direction" | "school";
+ *  step fills "direction" and "school"; the international goal step fills "main"
+ *  (the goal) and "status" (new vs. already studying). */
+export type RenderSlot = "main" | "direction" | "school" | "status";
 
 /** What the wizard stores per answered step. */
 export interface StepAnswer {
@@ -79,6 +90,4 @@ export type OnboardingPayload = Required<PayloadContribs> & {
   skippedSteps: string[];
   onboardingVersion: string;
   completedAt: string;
-  /** Set when the student flags themselves as international (new to the U.S.). */
-  international: boolean;
 };

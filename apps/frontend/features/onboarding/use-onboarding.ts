@@ -1,10 +1,10 @@
 "use client";
 
-import { buildPayload } from "@/features/onboarding/build-payload";
+import { buildPayload, isStepAnswered } from "@/features/onboarding/build-payload";
 import {
   AUDIENCE_OPTIONS,
   followUpsFor,
-  goalQuestion,
+  goalStepFor,
   MIN_STEPS,
 } from "@/features/onboarding/questions";
 import { emit } from "@/features/onboarding/telemetry";
@@ -16,7 +16,7 @@ import type {
 import { useRef, useState } from "react";
 
 const stepsFor = (answers: Record<string, StepAnswer>): OnboardingQuestion[] => [
-  goalQuestion,
+  goalStepFor(answers),
   ...followUpsFor(answers).filter((q) => q.shipped),
 ];
 
@@ -32,16 +32,14 @@ export function useOnboarding(
   const [stepIdx, setStepIdx] = useState(0);
   // Which way the last move went, so the step transition can slide accordingly.
   const [dir, setDir] = useState<1 | -1>(1);
-  // Orthogonal to the goal: the student can flag themselves international at any
-  // point and still pick any goal. Kept out of the goal answer so switching goals
-  // never clears it.
-  const [international, setInternational] = useState(false);
   const submitted = useRef(false);
 
   const steps = stepsFor(answers);
   const current = steps[stepIdx];
   const isLast = stepIdx >= steps.length - 1;
-  const answered = Boolean(answers[current.id]);
+  // Shared with buildPayload's skip accounting: on the goal step the audience
+  // placeholder (student_type set, goal still null) is not a real answer yet.
+  const answered = isStepAnswered(current.id, answers);
   const studentType = answers["goal"]?.contribs.student_type ?? null;
   // Before a goal is chosen the branch is unknown, so seed the count with the
   // shortest possible flow; once a goal is picked it becomes the real length.
@@ -73,7 +71,7 @@ export function useOnboarding(
   ) => {
     if (submitted.current) return;
     submitted.current = true;
-    const payload = buildPayload(finalAnswers, branch, international);
+    const payload = buildPayload(finalAnswers, branch);
     // The exact labels the student chose, in order — so every answer (including
     // the last one, and "Anytime"/"Undecided") is shown back, not re-derived.
     const summary = branch
@@ -134,12 +132,35 @@ export function useOnboarding(
     emit("audience_link_tap", { student_type: aud.studentType });
     const next = { goal: answer };
     setAnswers(next);
+    setDir(1);
+    // International refines the goal step in place (a new/returning toggle + the
+    // same goals), so stay on step 0 as it re-renders. Dual-credit is a shortcut
+    // straight to the one question it needs.
+    if (aud.studentType === "international") {
+      setStepIdx(0);
+      return;
+    }
     const nextSteps = stepsFor(next);
     if (nextSteps.length <= 1) finishWith(next, nextSteps, "completed");
-    else {
-      setDir(1);
-      setStepIdx(1);
-    }
+    else setStepIdx(1);
+  };
+
+  // Drop a committed international goal back to the just-tapped placeholder
+  // (student_type kept, goal cleared), staying on step 0. Used when the
+  // new/returning toggle flips so a stale goal never ships under the wrong
+  // status. Reuses the exact placeholder chooseAudience creates.
+  const clearIntlGoal = () => {
+    const intl = AUDIENCE_OPTIONS.find((a) => a.studentType === "international");
+    if (!intl) return;
+    setAnswers({
+      goal: {
+        contribs: { goal: null, student_type: "international" },
+        display: intl.label,
+        optionIds: { main: intl.id },
+      },
+    });
+    setDir(1);
+    setStepIdx(0);
   };
 
   return {
@@ -152,14 +173,13 @@ export function useOnboarding(
     isLast,
     answered,
     studentType,
-    international,
     answeredChips,
     selectedId,
     answerOption,
     commit,
     clearAnswer,
     chooseAudience,
-    toggleInternational: () => setInternational((v) => !v),
+    clearIntlGoal,
     goNext: () => {
       if (isLast) return finishWith(answers, steps, "completed");
       setDir(1);

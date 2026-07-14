@@ -1,5 +1,6 @@
 import { PROGRAMS } from "@/features/onboarding/programs";
 import type {
+  IntlStatus,
   OnboardingQuestion,
   QuestionOption,
   StepAnswer,
@@ -57,9 +58,14 @@ export function programFor(
 ): OnboardingQuestion {
   const goal = answers["goal"]?.contribs.goal ?? null;
   const studentType = answers["goal"]?.contribs.student_type ?? null;
+  const intlStatus = answers["goal"]?.contribs.intl_status ?? null;
   const dir = answers["transfer_origin"]?.contribs.transfer_direction ?? null;
+  // "Working toward" only fits someone already in a Dallas program — not a
+  // dual-credit student, and not an incoming international student who hasn't
+  // started here yet. Everyone else is choosing a program, not naming one.
   const enrolled =
     studentType !== "dual_credit" &&
+    intlStatus !== "incoming" &&
     (goal === "graduation_check" ||
       (goal === "transfer_check" && dir === "outbound"));
   return {
@@ -176,10 +182,10 @@ export function followUpsFor(
 ): OnboardingQuestion[] {
   const goal = answers["goal"]?.contribs.goal ?? null;
   const studentType = answers["goal"]?.contribs.student_type ?? null;
-  // Dual-credit / high-school students (and their parents) take one-off classes,
-  // not a Dallas program (the dedicated dual-credit program handles the full plan),
-  // so we only ask when they can take classes, then finish.
-  if (studentType === "dual_credit" || studentType === "parent_guardian") {
+  // Dual-credit / high-school students (and the parents asking for them) take
+  // one-off classes, not a Dallas program (the dedicated dual-credit program
+  // handles the full plan), so we only ask when they can take classes, then finish.
+  if (studentType === "dual_credit") {
     return [scheduleQuestion];
   }
   const program = programFor(answers);
@@ -228,6 +234,11 @@ export function followUpsFor(
     case "nondegree_oneoff":
       return [oneoffPurposeQuestion];
 
+    // Incoming international "help me settle in" — no course planning to do yet;
+    // the hand-off points to arrival resources. Terminal, so the flow is one step.
+    case "settle_in":
+      return [];
+
     default:
       return [];
   }
@@ -252,4 +263,70 @@ export const AUDIENCE_OPTIONS = [
     label: "a dual-credit student or parent",
     studentType: "dual_credit" as const,
   },
+  {
+    id: "aud_intl",
+    label: "an international student",
+    studentType: "international" as const,
+  },
 ];
+
+// --- international goal step -----------------------------------------------
+// Tapping "an international student" doesn't add a step — it refines the SAME
+// goal question (id "goal"), so the flow stays the same length as everyone
+// else's. The refined step (kind "intlGoal", rendered by IntlGoalStep) pairs a
+// small new/returning toggle with the shared goals, and commits the goal AND the
+// international status together. `goalStepFor` swaps in this step once the student
+// has flagged themselves international; `followUpsFor`/`programFor` need no
+// special case because the real goal lands in the same `answers["goal"]` slot.
+
+// New vs. already-studying decides which doors make sense. Kept as a toggle on
+// the goal page (not its own question) to hold the four-question budget.
+export const INTL_STATUSES: {
+  id: string;
+  label: string;
+  value: IntlStatus;
+}[] = [
+  { id: "intl_incoming", label: "New to Dallas College", value: "incoming" },
+  { id: "intl_current", label: "Already studying here", value: "current" },
+];
+
+// Incoming-only door: getting set up to move to Dallas (housing, culture,
+// getting around, orientation). No course planning — the hand-off routes to
+// arrival resources.
+export const settleInOption: QuestionOption = {
+  id: "goal_settle",
+  label:
+    "Help me get ready to move to Dallas (housing, culture, getting around, orientation)",
+  contribs: { goal: "settle_in" },
+};
+
+// The goals an international student sees, filtered by where they are:
+// international students always have a degree plan, so the non-degree one-off
+// door never applies; "plan my first semester" and "settle in" only fit someone
+// who hasn't started here yet.
+export function intlGoalOptions(status: IntlStatus): QuestionOption[] {
+  const base = goalQuestion.options!.filter(
+    (o) => o.contribs.goal !== "nondegree_oneoff",
+  );
+  if (status === "current") {
+    return base.filter((o) => o.contribs.goal !== "first_semester_plan");
+  }
+  return [...base, settleInOption];
+}
+
+export const intlGoalQuestion: OnboardingQuestion = {
+  id: "goal",
+  prompt: "What would you like help with?",
+  kind: "intlGoal",
+  shipped: true,
+};
+
+// Step 0 is the goal question — the international variant once the student taps
+// "an international student", the standard one otherwise.
+export function goalStepFor(
+  answers: Record<string, StepAnswer>,
+): OnboardingQuestion {
+  return answers["goal"]?.contribs.student_type === "international"
+    ? intlGoalQuestion
+    : goalQuestion;
+}

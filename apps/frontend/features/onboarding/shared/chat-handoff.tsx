@@ -5,7 +5,6 @@ import {
   authorityNotes,
   coachVerifyLine,
   handoffIntro,
-  internationalNote,
   starterPromptsFor,
 } from "@/features/onboarding/handoff-copy";
 import type { Skin } from "@/features/onboarding/skin";
@@ -25,7 +24,7 @@ export function ChatHandoff({
   skin: Skin;
 }) {
   const router = useRouter();
-  const notes = [...authorityNotes(payload), ...internationalNote(payload)];
+  const notes = authorityNotes(payload);
   const prompts = starterPromptsFor(payload);
 
   return (

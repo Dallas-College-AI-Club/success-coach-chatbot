@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { AUDIENCE_OPTIONS } from "@/features/onboarding/questions";
 import { CapabilityDialog } from "@/features/onboarding/shared/capability-dialog";
+import { IntlGoalStep } from "@/features/onboarding/shared/intl-goal-step";
 import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import { TransferStep } from "@/features/onboarding/shared/transfer-step";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
@@ -75,6 +76,16 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
             skin={skin}
           />
         );
+      case "intlGoal":
+        return (
+          <IntlGoalStep
+            existing={api.answers[current.id]}
+            onAnswer={(a) => api.commit(current.id, a)}
+            onClear={api.clearIntlGoal}
+            onExit={() => api.clearAnswer(current.id)}
+            skin={skin}
+          />
+        );
       default: {
         const _exhaustive: never = current.kind;
         return _exhaustive;
@@ -86,7 +97,10 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
     <div className="flex flex-col gap-4">
       {field()}
 
-      {api.stepIdx === 0 && (
+      {/* Audience shortcuts sit under the goal question, and only until one is
+          taken — international swaps the step to its own picker, dual-credit
+          jumps away, so the row would be redundant afterward. */}
+      {api.stepIdx === 0 && !api.studentType && (
         <div className="flex flex-wrap items-center gap-2 pt-1 text-sm opacity-80">
           <span>{copy.audienceLead}</span>
           {AUDIENCE_OPTIONS.map((aud) => (
@@ -99,14 +113,6 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
               {aud.label}
             </button>
           ))}
-          <button
-            type="button"
-            aria-pressed={api.international}
-            onClick={api.toggleInternational}
-            className={`${skin.link}${api.international ? " font-semibold" : ""}`}
-          >
-            an international student{api.international ? " ✓" : ""}
-          </button>
         </div>
       )}
     </div>
@@ -122,7 +128,10 @@ export const QuestionHeading = ({
   copy,
   className = "gap-2",
 }: Parts & { className?: string }) => {
-  const headingRef = useHeadingFocus(api.stepIdx);
+  // Key on step identity, not just index: tapping "an international student"
+  // swaps the goal question's kind in place at the same index, and that heading
+  // change must still be announced.
+  const headingRef = useHeadingFocus(`${api.stepIdx}:${api.current.kind}`);
   return (
     <div className={`flex flex-col ${className}`}>
       <h1 ref={headingRef} tabIndex={-1} className={skin.heading}>

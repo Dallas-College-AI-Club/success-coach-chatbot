@@ -55,7 +55,7 @@ One goal question routes everything after it. Follow-ups are conditional — com
 | Help me figure out what to study (I'm not sure yet) | Interest area |
 | Not working toward a degree here (one class, a certificate, or license prep) | Purpose |
 
-A secondary link under the goals routes an audience the goal list does not fit: **a dual-credit student or parent** (one-off classes, not a Dallas program, so it asks only when they can take classes, then finishes — the dedicated dual-credit program handles the full plan). Beside it, **an international student** is a toggle rather than a shortcut: it flags the student (so the record knows they're international) but keeps the normal goal flow, and adds a note at the hand-off pointing them to the International Student Center to get settled. The set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
+Two secondary links under the goals route audiences the goal list does not fit. **A dual-credit student or parent** takes one-off classes, not a Dallas program, so the link is a shortcut: it asks only when they can take classes, then finishes (the dedicated dual-credit program handles the full plan). **An international student** links to the same goal question, refined for them: a small *new to Dallas College / already studying here* toggle sits above the shared goals, which drop the non-degree door — an international student always has a degree plan — and, for someone just arriving, add *help me get ready to move to Dallas*. Because the toggle rides on the goal step rather than adding one, the international flow stays the same length as everyone else's. The goal set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
 
 **Staging.** Goal options and the capability directory both read from one shipped-intents file. An option renders as a routing signal while the answering layer is built, and the same flag hides it once — and only once — its backing intent ships, so the entry never points at an answer the pipeline cannot yet give. This tracks the sprint order in the [degree-planning user stories](user-stories/DEGREE_PLANNING_STORIES.md).
 
@@ -83,7 +83,7 @@ flowchart TD
     Q -->|Fit classes around my schedule| SC[When can you take classes?]
     Q -->|Help me figure out what to study| IN[Interest area]
     Q -->|Not working toward a degree here| ON["What do you need?<br/>prerequisite · job/license · interest"]
-    Q -. "dual credit / parent link" .-> AU{Audience}
+    Q -. "dual credit · international links" .-> AU{Audience}
 
     A1 -->|a program| A1s[When can you take classes?] --> E
     A1 -->|still figuring it out| A1i[Interest area] --> E
@@ -97,6 +97,9 @@ flowchart TD
     D -->|"already earned credit elsewhere"| Di[Program] --> E
 
     AU -->|Dual credit or parent| AUs[When can you take classes?] --> E
+    AU -->|International| IG{"What would you like help with?<br/>new to Dallas · already studying"}
+    IG -->|"Help me move to Dallas · new only"| E
+    IG -. "any planning goal · same follow-ups" .-> Q
 
     E([Recap of your answers]) --> H["Start planning chat →"]
     E -. "quick actions · register · aid · tutoring · events · coach" .-> C
@@ -124,17 +127,20 @@ path exceeds four questions before the hand-off.
 | Help me figure out what to study | Interest | 2 | No |
 | Not working toward a degree here | Purpose | 2 | No |
 | Dual credit or parent *(audience)* | Schedule | 2 | **No** |
+| International — *help me move to Dallas (new only)* | Goal step only | 1 | **No** |
+| International — *any other goal* | Same as that goal's row above (status toggle rides on the goal step) | 2–4 | Matches the goal |
 
 ### The rules
 
 1. **The goal picks the follow-ups** — a default chain of one or two questions.
 2. **Transfer depends on whose school is home.** The program question is added for the Dallas student (transferring out) and the inbound student; it is omitted for the visiting student, who is not pursuing a Dallas program.
 3. **"I'm still figuring it out" reroutes to Interest** on every path, so the flow helps find a direction instead of pressing for specifics the student does not have.
-4. **The program question adapts its wording.** An enrolled student — checking graduation, or transferring Dallas credits out — is asked *"What degree or certificate are you working toward?"*; everyone else, *"What do you want to study?"*
+4. **The program question adapts its wording.** A student already in a Dallas program — checking graduation, or transferring Dallas credits out — is asked *"What degree or certificate are you working toward?"*; everyone else, including an incoming international student, is choosing one and is asked *"What do you want to study?"*
 5. **One intent, one door.** Taking a class to count toward a degree elsewhere is the visiting-student transfer option, which also captures the home school.
 6. **The budget is four.** No path exceeds the goal plus three follow-ups.
+7. **International rides on the goal step.** Tapping *an international student* refines the goal question in place — a new/returning toggle plus the shared goals — so the flow never grows a step; an incoming student also gets a *settle in* door that hands off to arrival resources instead of course planning.
 
-The rules are one pure function, `followUpsFor(answers)`, in [`questions.ts`](../apps/frontend/features/onboarding/questions.ts); the program wording is `programFor(answers)` in the same file.
+The rules are pure functions in [`questions.ts`](../apps/frontend/features/onboarding/questions.ts): `followUpsFor(answers)` builds the follow-up chain, `goalStepFor(answers)` swaps in the international goal step, and `programFor(answers)` sets the program wording.
 
 ---
 
@@ -174,8 +180,8 @@ Completion logs one object to the console — the placeholder for the global-sta
 | `goal` | The Q1 selection |
 | `major` | A catalog program id, or `null` for "I'm still figuring it out" |
 | `target_institution` | Destination/home school code, or a category (`TX_OTHER`, `US_OTHER`, `INTL`) |
-| `student_type` | Set via the audience link |
-| `international` | Set when the student toggles "an international student" |
+| `student_type` | Set via the audience link (`dual_credit` — parents route here too — or `international`) |
+| `intl_status` | `incoming` or `current`, set with the goal on the international goal step |
 | `modality_pref` / `dayparts_pref` | Class-format and time preferences |
 | `transfer_direction` / `interest_area` / `oneoff_purpose` | Path-specific context |
 | `skippedSteps` | Steps left blank — separates a skip from a "no preference" answer |
