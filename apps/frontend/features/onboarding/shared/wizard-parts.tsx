@@ -9,86 +9,82 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { AUDIENCE_OPTIONS } from "@/features/onboarding/questions";
 import { CapabilityDialog } from "@/features/onboarding/shared/capability-dialog";
+import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import { TransferStep } from "@/features/onboarding/shared/transfer-step";
+import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Copy, Skin } from "@/features/onboarding/skin";
 import type { OnboardingApi } from "@/features/onboarding/use-onboarding";
-import { useEffect, useRef } from "react";
-
-// Focus the current question's heading whenever the step changes.
-export function useHeadingFocus(dep: unknown) {
-  const ref = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    ref.current?.focus({ preventScroll: true });
-  }, [dep]);
-  return ref;
-}
-
 type Parts = { api: OnboardingApi; skin: Skin; copy: Copy };
 
 // The interactive body of the current question — identical logic across every
-// mode; the shells arrange everything around it differently.
+// mode; the shells arrange everything around it differently. The `switch` on the
+// question kind is exhaustive: a new QuestionKind won't compile until it's handled.
 export const QuestionBody = ({ api, skin, copy }: Parts) => {
   const { current } = api;
-  const option = (o: { id: string; label: string }) => (
-    <ToggleGroupItem key={o.id} value={o.id} className={skin.option}>
-      <span>{o.label}</span>
-      <span aria-hidden className={skin.optionCheck}>
-        ✓
-      </span>
-    </ToggleGroupItem>
-  );
+
+  const field = () => {
+    switch (current.kind) {
+      case "buttons":
+        return (
+          <ToggleGroup
+            type="single"
+            aria-label={current.prompt}
+            value={api.selectedId(current)}
+            onValueChange={(id: string) => id && api.answerOption(current, id)}
+            spacing={2}
+            orientation="vertical"
+            className="w-full items-stretch"
+          >
+            {current.options?.map((o) => (
+              <SkinnedOption key={o.id} option={o} skin={skin} />
+            ))}
+          </ToggleGroup>
+        );
+      case "picker":
+        return (
+          <Command className={skin.picker}>
+            <CommandInput
+              placeholder={copy.pickerPlaceholder}
+              aria-label={current.prompt}
+            />
+            <CommandList>
+              <CommandEmpty>{copy.pickerEmpty}</CommandEmpty>
+              <CommandGroup>
+                {current.options?.map((o) => (
+                  <CommandItem
+                    key={o.id}
+                    value={o.label}
+                    onSelect={() => api.answerOption(current, o.id)}
+                  >
+                    {o.label}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        );
+      case "transferOrigin":
+        return (
+          <TransferStep
+            existing={api.answers[current.id]}
+            onAnswer={(a) => api.commit(current.id, a)}
+            onClear={() => api.clearAnswer(current.id)}
+            skin={skin}
+          />
+        );
+      default: {
+        const _exhaustive: never = current.kind;
+        return _exhaustive;
+      }
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
-      {current.kind === "buttons" && (
-        <ToggleGroup
-          role="radiogroup"
-          type="single"
-          aria-label={current.prompt}
-          value={api.selectedId(current)}
-          onValueChange={(id: string) => id && api.answerOption(current, id)}
-          spacing={2}
-          orientation="vertical"
-          className="w-full items-stretch"
-        >
-          {current.options?.map(option)}
-        </ToggleGroup>
-      )}
-
-      {current.kind === "picker" && (
-        <Command className={skin.picker}>
-          <CommandInput
-            placeholder={copy.pickerPlaceholder}
-            aria-label={current.prompt}
-          />
-          <CommandList>
-            <CommandEmpty>{copy.pickerEmpty}</CommandEmpty>
-            <CommandGroup>
-              {current.options?.map((o) => (
-                <CommandItem
-                  key={o.id}
-                  value={o.label}
-                  onSelect={() => api.answerOption(current, o.id)}
-                >
-                  {o.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      )}
-
-      {current.kind === "transferOrigin" && (
-        <TransferStep
-          existing={api.answers[current.id]}
-          onAnswer={(a) => api.commit(current.id, a)}
-          onClear={() => api.clearAnswer(current.id)}
-          skin={skin}
-        />
-      )}
+      {field()}
 
       {api.stepIdx === 0 && (
         <div className="flex flex-wrap items-center gap-2 pt-1 text-sm opacity-80">
@@ -105,6 +101,26 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
           ))}
         </div>
       )}
+    </div>
+  );
+};
+
+// The question prompt heading + first-step reassurance, shared by the Focus and
+// Playful shells (Simple shows its prompt inside a chat bubble instead). Owns the
+// heading focus so the right heading is announced as each step changes.
+export const QuestionHeading = ({
+  api,
+  skin,
+  copy,
+  className = "gap-2",
+}: Parts & { className?: string }) => {
+  const headingRef = useHeadingFocus(api.stepIdx);
+  return (
+    <div className={`flex flex-col ${className}`}>
+      <h1 ref={headingRef} tabIndex={-1} className={skin.heading}>
+        {api.current.prompt}
+      </h1>
+      {api.stepIdx === 0 && <p className={skin.helper}>{copy.reassurance}</p>}
     </div>
   );
 };

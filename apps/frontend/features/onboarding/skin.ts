@@ -64,6 +64,9 @@ export interface Mode {
   id: string;
   /** Short name shown in the switcher. */
   name: string;
+  /** Emoji + one-line blurb shown on the welcome page's pick-a-look card. */
+  icon: string;
+  blurb: string;
   /** next/font className applied while this mode is active. */
   fontClass: string;
   skin: Skin;

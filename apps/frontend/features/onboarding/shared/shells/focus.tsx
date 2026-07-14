@@ -7,7 +7,7 @@ import { StepTransition } from "@/features/onboarding/shared/step-transition";
 import {
   AnswerChips,
   QuestionBody,
-  useHeadingFocus,
+  QuestionHeading,
   WizardControls,
 } from "@/features/onboarding/shared/wizard-parts";
 
@@ -16,7 +16,6 @@ import {
 // step. The mountain stays mounted through the finish, so the recap slides in
 // beside the summit rather than cutting to a new page.
 export const FocusShell = ({ api, skin, copy, done, onRestart }: WizardProps) => {
-  const headingRef = useHeadingFocus(api.stepIdx);
   const folio = `${String(api.stepIdx + 1).padStart(2, "0")} / ${String(
     api.total,
   ).padStart(2, "0")}`;
@@ -48,14 +47,7 @@ export const FocusShell = ({ api, skin, copy, done, onRestart }: WizardProps) =>
               className="flex flex-col gap-6"
             >
               <AnswerChips api={api} skin={skin} />
-              <div className="flex flex-col gap-2">
-                <h1 ref={headingRef} tabIndex={-1} className={skin.heading}>
-                  {api.current.prompt}
-                </h1>
-                {api.stepIdx === 0 && (
-                  <p className={skin.helper}>{copy.reassurance}</p>
-                )}
-              </div>
+              <QuestionHeading api={api} skin={skin} copy={copy} />
               <QuestionBody api={api} skin={skin} copy={copy} />
             </StepTransition>
             <div className="mt-auto">

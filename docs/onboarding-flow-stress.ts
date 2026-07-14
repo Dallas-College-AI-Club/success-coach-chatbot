@@ -16,7 +16,7 @@ import {
   coachVerifyLine,
   handoffIntro,
   starterPromptsFor,
-} from "@/features/onboarding/next-steps";
+} from "@/features/onboarding/handoff-copy";
 import {
   AUDIENCE_OPTIONS,
   directionOptions,

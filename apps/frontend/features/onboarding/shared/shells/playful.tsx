@@ -8,7 +8,7 @@ import { StepTransition } from "@/features/onboarding/shared/step-transition";
 import {
   AnswerChips,
   QuestionBody,
-  useHeadingFocus,
+  QuestionHeading,
   WizardControls,
 } from "@/features/onboarding/shared/wizard-parts";
 
@@ -54,7 +54,6 @@ export const PlayfulShell = ({
   done,
   onRestart,
 }: WizardProps) => {
-  const headingRef = useHeadingFocus(api.stepIdx);
   const stop = Math.min(api.stepIdx, 2); // panorama has three stops
   // Fill runs 15% → 90% across the questions; the final 10% is "finishing", so the
   // bar never reads 100% while a question is still open — it fills up at the recap.
@@ -79,7 +78,7 @@ export const PlayfulShell = ({
       <CampusCritters />
 
       {/* the note — a stable-height card so the frame never resizes between
-          steps; the content is tuned to fit, so it never scrolls either. */}
+          steps; long content scrolls within the card. */}
       <div className="relative z-20 flex flex-col justify-start p-4 sm:items-end sm:p-6">
         <div className="flex h-[min(720px,calc(100dvh_-_11.5rem))] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
           {/* Above both branches so it carries into the recap and fills to 100%. */}
@@ -104,14 +103,12 @@ export const PlayfulShell = ({
                 dir={api.dir}
                 className="flex flex-col gap-4"
               >
-                <div className="flex flex-col gap-1">
-                  <h1 ref={headingRef} tabIndex={-1} className={skin.heading}>
-                    {api.current.prompt}
-                  </h1>
-                  {api.stepIdx === 0 && (
-                    <p className={skin.helper}>{copy.reassurance}</p>
-                  )}
-                </div>
+                <QuestionHeading
+                  api={api}
+                  skin={skin}
+                  copy={copy}
+                  className="gap-1"
+                />
                 <QuestionBody api={api} skin={skin} copy={copy} />
               </StepTransition>
 

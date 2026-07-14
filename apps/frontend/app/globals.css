@@ -151,123 +151,7 @@
   }
 }
 
-/* Playful campus critters. All transform/opacity; instances desync via inline
-   animation-delay/duration. A ground walker strolls fully across and loops; the
-   overflow-hidden scene clips it off both edges. */
-@keyframes stroll {
-  from {
-    transform: translateX(-70px);
-  }
-  to {
-    transform: translateX(100vw);
-  }
-}
-@keyframes bob {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-5px);
-  }
-}
-@keyframes glide {
-  0% {
-    transform: translate(-80px, 0);
-  }
-  50% {
-    transform: translate(50vw, -12px);
-  }
-  100% {
-    transform: translate(100vw, 0);
-  }
-}
-@keyframes buzz {
-  0%,
-  100% {
-    transform: translate(0, 0);
-  }
-  25% {
-    transform: translate(22px, -12px);
-  }
-  50% {
-    transform: translate(44px, 2px);
-  }
-  75% {
-    transform: translate(20px, 12px);
-  }
-}
-
-/* Character "juice": a squash-and-stretch hop with anticipation, a launch
-   stretch, a weighty landing squash and a short settle/rest — reads as a lively
-   bounce rather than a sliding image. transform-origin is set to bottom on the
-   element so the squash plants on the ground. */
-@keyframes hop {
-  0%,
-  12% {
-    transform: translateY(0) scale(1, 1) rotate(0deg);
-  }
-  22% {
-    transform: translateY(0) scale(1.12, 0.88) rotate(0deg);
-  }
-  40% {
-    transform: translateY(-40px) scale(0.92, 1.12) rotate(-4deg);
-  }
-  52% {
-    transform: translateY(-46px) scale(1, 1) rotate(-2deg);
-  }
-  66% {
-    transform: translateY(0) scale(1.14, 0.86) rotate(3deg);
-  }
-  75% {
-    transform: translateY(0) scale(0.97, 1.04) rotate(1deg);
-  }
-  84%,
-  100% {
-    transform: translateY(0) scale(1, 1) rotate(0deg);
-  }
-}
-/* A ground shadow that widens on squash and shrinks/fades when airborne, in
-   sync with `hop`, so the bounce reads as weight lifting off the grass. */
-@keyframes land-shadow {
-  0%,
-  12% {
-    transform: translateX(-50%) scale(1);
-    opacity: 0.28;
-  }
-  22% {
-    transform: translateX(-50%) scale(1.18);
-    opacity: 0.3;
-  }
-  40% {
-    transform: translateX(-50%) scale(0.55);
-    opacity: 0.14;
-  }
-  52% {
-    transform: translateX(-50%) scale(0.5);
-    opacity: 0.12;
-  }
-  66% {
-    transform: translateX(-50%) scale(1.2);
-    opacity: 0.3;
-  }
-  84%,
-  100% {
-    transform: translateX(-50%) scale(1);
-    opacity: 0.28;
-  }
-}
-/* Sky mascots tip into their motion: a banking roll for the eagle, a softer
-   sway for the sun and bee. */
-@keyframes bank {
-  0%,
-  100% {
-    transform: rotate(-6deg);
-  }
-  50% {
-    transform: rotate(6deg);
-  }
-}
+/* The roaming campus mascots sway gently in place beside their drift. */
 @keyframes sway {
   0%,
   100% {
@@ -278,7 +162,7 @@
   }
 }
 /* Decorative flourishes — original shapes drawn beside the logos (never over the
-   artwork): a lightning spark, sun sparkles, rising blazer embers. */
+   artwork): a lightning spark and sun sparkles. */
 @keyframes zap {
   0%,
   56%,
@@ -306,54 +190,8 @@
     transform: scale(1);
   }
 }
-@keyframes ember {
-  0% {
-    opacity: 0;
-    transform: translateY(0) scale(0.6);
-  }
-  25% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    transform: translateY(-24px) scale(0);
-  }
-}
 
-/* Playful "dopamine gradient" scene: colour blobs drift, stars twinkle. */
-@keyframes float1 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  33% {
-    transform: translate(28px, -22px) scale(1.06);
-  }
-  66% {
-    transform: translate(-16px, 14px) scale(0.97);
-  }
-}
-@keyframes float2 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  50% {
-    transform: translate(-26px, 20px) scale(1.08);
-  }
-}
-@keyframes float3 {
-  0%,
-  100% {
-    transform: translate(0, 0) scale(1);
-  }
-  40% {
-    transform: translate(20px, 24px) scale(0.95);
-  }
-  75% {
-    transform: translate(-22px, -14px) scale(1.05);
-  }
-}
+/* Playful "dopamine gradient" scene: stars twinkle over the drifting colour blobs. */
 @keyframes twinkle {
   0%,
   100% {
@@ -378,44 +216,3 @@
   }
 }
 
-@theme {
-  --animate-fade-in: fade-in 1s ease-in-out;
-
-  @keyframes fade-in {
-    0% {
-      opacity: 0;
-    }
-    100% {
-      opacity: 1;
-    }
-  }
-
-  --animate-fade-out: fade-out 1s ease-in-out;
-
-  @keyframes fade-out {
-    0% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-    }
-  }
-}
-progress {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 100%;
-  height: 20px;
-}
-
-progress::-webkit-progress-bar {
-  @apply rounded-md bg-amber-800;
-}
-
-progress::-webkit-progress-value {
-  @apply rounded-md bg-amber-700;
-}
-
-progress::-moz-progress-bar {
-  @apply rounded-md bg-amber-800;
-}

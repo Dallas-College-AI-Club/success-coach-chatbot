@@ -21,7 +21,6 @@ export const goalQuestion: OnboardingQuestion = {
   id: "goal",
   prompt: "What brings you here today?",
   kind: "buttons",
-  skippable: true,
   shipped: true,
   options: [
     { id: "goal_first_semester", label: "Plan my first semester (I know what I want to study)", contribs: { goal: "first_semester_plan" } },
@@ -43,7 +42,6 @@ export const programQuestion: OnboardingQuestion = {
   id: "major",
   prompt: "What do you want to study?",
   kind: "picker",
-  skippable: true,
   shipped: true,
   options: programOptions,
 };
@@ -77,7 +75,6 @@ export const scheduleQuestion: OnboardingQuestion = {
   id: "schedule",
   prompt: "When can you take classes?",
   kind: "buttons",
-  skippable: true,
   shipped: true,
   options: [
     { id: "sched_anytime", label: "Anytime", contribs: { modality_pref: null, dayparts_pref: null } },
@@ -92,7 +89,6 @@ export const interestQuestion: OnboardingQuestion = {
   id: "interest",
   prompt: "Which area interests you most?",
   kind: "buttons",
-  skippable: true,
   shipped: true,
   options: [
     { id: "int_health", label: "Health & medical", contribs: { interest_area: "health" } },
@@ -118,7 +114,6 @@ export const oneoffPurposeQuestion: OnboardingQuestion = {
   id: "oneoff_purpose",
   prompt: "What do you need?",
   kind: "buttons",
-  skippable: true,
   shipped: true,
   options: [
     { id: "oneoff_prereq", label: "A class I need before I can apply to a program (like science before nursing)", contribs: { oneoff_purpose: "prerequisite" } },
@@ -164,7 +159,6 @@ export const transferOriginQuestion: OnboardingQuestion = {
   id: "transfer_origin",
   prompt: "Which of these sounds like you?",
   kind: "transferOrigin",
-  skippable: true,
   shipped: true,
 };
 

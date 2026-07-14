@@ -1,10 +1,12 @@
 # Onboarding modes
 
 Each file here is one **mode** — a look and interaction the student can switch to
-at any time. A mode is data: a `Skin` (class strings), a `Copy` (strings), a font,
-and a **wizard shell** (the component that lays out the questions). Every mode uses
-the same logic (`../use-onboarding.ts`) and the same question body
-(`../shared/wizard-parts.tsx`); only the shells differ.
+at any time. A mode is data: an `id`, a `name`/`icon`/`blurb` for its pick-a-look
+card, a `Skin` (class strings), a `Copy` (strings), a font, and a **wizard shell**
+(the component that lays out the questions). Every mode uses the same logic
+(`../use-onboarding.ts`) and the same question body (`../shared/wizard-parts.tsx`);
+only the shells differ. TypeScript enforces the full `Mode` shape, so a new mode
+can't compile without all of it — see the feature [`README`](../README.md).
 
 | File | Mode | Interaction | Font |
 |---|---|---|---|
@@ -26,12 +28,11 @@ versions otherwise — the club logo is `public/logo.png` (links to the club sit
 and the cover is `public/title.png`.
 
 The roaming mascots live in `../shared/scenes/campus-critters.tsx` — all seven
-campus mascots (SVGs in `public/mascots/`): the Suns, Eagles, and Bees drift
-overhead, the Thunderducks, Lions, Bears, and Blazers hop along the ground (motion
-keyframes in `globals.css`). `campus-mascots.tsx` (a static badge band of the same
-mascots) is kept available if the group ever wants that layout instead. After
-starting, the header wordmark returns to the welcome page and the switcher changes
-the look at any time, keeping the answers.
+campus mascots (SVGs in `public/mascots/`: the Suns, Eagles, Bees, Thunderducks,
+Lions, Bears, and Blazers) float in a side band at staggered heights, each with a
+gentle drift and sway (motion keyframes in `globals.css`). After starting, the
+header wordmark returns to the welcome page and the switcher changes the look at
+any time, keeping the answers.
 
 ## Lock to a single UX
 

@@ -6,7 +6,7 @@ import {
   coachVerifyLine,
   handoffIntro,
   starterPromptsFor,
-} from "@/features/onboarding/next-steps";
+} from "@/features/onboarding/handoff-copy";
 import type { Skin } from "@/features/onboarding/skin";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useRouter } from "next/navigation";

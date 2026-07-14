@@ -1,7 +1,8 @@
 "use client";
 
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleGroup } from "@/components/ui/toggle-group";
 import { directionOptions, schoolOptions } from "@/features/onboarding/questions";
+import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import type { Skin } from "@/features/onboarding/skin";
 import type { StepAnswer, TransferDirection } from "@/features/onboarding/types";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +27,7 @@ export const TransferStep = ({
   onClear: () => void;
   skin: Skin;
 }) => {
-  const restoredDir = existing?.optionIds.direction as string | undefined;
+  const restoredDir = existing?.optionIds.direction;
   const [dirId, setDirId] = useState<string | undefined>(restoredDir);
 
   const dir = directionOptions.find((d) => d.id === dirId);
@@ -69,21 +70,11 @@ export const TransferStep = ({
     });
   };
 
-  const item = (o: { id: string; label: string }) => (
-    <ToggleGroupItem key={o.id} value={o.id} className={skin.option}>
-      <span>{o.label}</span>
-      <span aria-hidden className={skin.optionCheck}>
-        ✓
-      </span>
-    </ToggleGroupItem>
-  );
-
   if (!dir || !direction || direction === "inbound") {
     return (
       <ToggleGroup
         ref={dirGroupRef}
         tabIndex={-1}
-        role="radiogroup"
         type="single"
         aria-label="Which of these sounds like you?"
         value={dirId ?? ""}
@@ -92,7 +83,9 @@ export const TransferStep = ({
         orientation="vertical"
         className="w-full items-stretch outline-none"
       >
-        {directionOptions.map(item)}
+        {directionOptions.map((o) => (
+          <SkinnedOption key={o.id} option={o} skin={skin} />
+        ))}
       </ToggleGroup>
     );
   }
@@ -124,15 +117,16 @@ export const TransferStep = ({
         {schoolPrompt}
       </p>
       <ToggleGroup
-        role="radiogroup"
         type="single"
         aria-label={schoolPrompt}
-        value={(existing?.optionIds.school as string | undefined) ?? ""}
+        value={existing?.optionIds.school ?? ""}
         onValueChange={chooseSchool}
         spacing={2}
         className="flex flex-wrap justify-start"
       >
-        {visibleSchools.map(item)}
+        {visibleSchools.map((o) => (
+          <SkinnedOption key={o.id} option={o} skin={skin} />
+        ))}
       </ToggleGroup>
     </div>
   );

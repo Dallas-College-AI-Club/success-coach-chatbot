@@ -15,6 +15,12 @@ export type StudentType = "dual_credit" | "parent_guardian";
 
 export type TransferDirection = "outbound" | "transfer_back" | "inbound";
 
+export type TargetInstitution = "UTD" | "UNT" | "TX_OTHER" | "US_OTHER" | "INTL";
+
+export type InterestArea = "health" | "tech" | "business" | "arts" | "trades";
+
+export type OneoffPurpose = "prerequisite" | "job_licensure" | "enrichment";
+
 /**
  * A step contributes one or more fields to the final payload. Every value comes
  * from a closed option list; `null` means "answered, no preference" (distinct
@@ -24,14 +30,14 @@ export type TransferDirection = "outbound" | "transfer_back" | "inbound";
 export type PayloadContribs = Partial<{
   goal: GoalValue | null;
   major: string | null;
-  target_institution: string | null;
+  target_institution: TargetInstitution | null;
   modality_pref: "online" | null;
   dayparts_pref: string[] | null;
   student_type: StudentType | null;
   // Client-only until the profile allowlist is extended (see the design doc).
   transfer_direction: TransferDirection | null;
-  interest_area: string | null;
-  oneoff_purpose: string | null;
+  interest_area: InterestArea | null;
+  oneoff_purpose: OneoffPurpose | null;
 }>;
 
 export interface QuestionOption {
@@ -47,18 +53,21 @@ export interface OnboardingQuestion {
   prompt: string;
   kind: QuestionKind;
   options?: QuestionOption[];
-  skippable: boolean;
   /** Staging gate: an option/step whose backing intent has not shipped is hidden. */
   shipped: boolean;
 }
+
+/** The render slots a step can fill: most questions use "main"; the transfer
+ *  step fills "direction" and "school". */
+export type RenderSlot = "main" | "direction" | "school";
 
 /** What the wizard stores per answered step. */
 export interface StepAnswer {
   contribs: PayloadContribs;
   /** Acknowledgment label shown back to the student ("Biology, A.S."). */
   display: string;
-  /** Maps a render slot ("main", or "direction"/"school") to the chosen option id. */
-  optionIds: Record<string, string>;
+  /** The chosen option id per render slot. */
+  optionIds: Partial<Record<RenderSlot, string>>;
 }
 
 /**

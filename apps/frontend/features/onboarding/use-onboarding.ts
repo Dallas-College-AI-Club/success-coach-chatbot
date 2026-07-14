@@ -54,6 +54,9 @@ export function useOnboarding(
 
   const selectedId = (q: OnboardingQuestion): string => {
     if (q.id === "goal") {
+      // Audience links (dual-credit/parent) set a goal contrib but aren't one of
+      // the six goal buttons — don't highlight a button the student never tapped.
+      if (!answers["goal"]?.optionIds.main?.startsWith("goal_")) return "";
       const g = answers["goal"]?.contribs.goal ?? null;
       return q.options?.find((o) => o.contribs.goal === g)?.id ?? "";
     }

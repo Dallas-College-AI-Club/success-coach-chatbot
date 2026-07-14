@@ -7,6 +7,8 @@ import { SimpleShell } from "@/features/onboarding/shared/shells/simple";
 export const simple: Mode = {
   id: "simple",
   name: "Simple",
+  icon: "💬",
+  blurb: "A clean chat — quick and familiar.",
   fontClass: "",
   Wizard: SimpleShell,
   skin: {

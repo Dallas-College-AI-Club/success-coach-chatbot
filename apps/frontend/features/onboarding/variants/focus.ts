@@ -9,6 +9,8 @@ import { spaceGrotesk } from "@/features/onboarding/variants/fonts";
 export const focus: Mode = {
   id: "focus",
   name: "Focus",
+  icon: "⛰️",
+  blurb: "Calm and steady; climb toward the summit.",
   fontClass: spaceGrotesk.className,
   Wizard: FocusShell,
   skin: {

@@ -7,18 +7,8 @@ import {
 } from "@/features/onboarding/onboarding-store";
 import { AiClubLogo, SuccessCoachCover } from "@/features/onboarding/shared/brand";
 import type { Mode } from "@/features/onboarding/skin";
-import { useEffect, useRef, useState } from "react";
-
-const BLURB: Record<string, string> = {
-  simple: "A clean chat — quick and familiar.",
-  playful: "A bright, colourful world with the mascots.",
-  focus: "Calm and steady; climb toward the summit.",
-};
-const ICON: Record<string, string> = {
-  simple: "💬",
-  playful: "🐾",
-  focus: "⛰️",
-};
+import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
+import { useState } from "react";
 
 // The Success Coach mascot — a friendly rounded robot: blue-grey head, mint face
 // screen with two bright eyes and a little smile, an orange antenna and side ears.
@@ -59,10 +49,7 @@ export function Welcome({
   // stored value on the client — so the "Welcome back" option appears without a
   // hydration mismatch.
   const returning = useSavedSession();
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
+  const headingRef = useHeadingFocus(null);
   const canPick = modes.length > 1;
 
   return (
@@ -138,11 +125,11 @@ export function Welcome({
                   }`}
                 >
                   <span className="text-2xl" aria-hidden>
-                    {ICON[m.id]}
+                    {m.icon}
                   </span>
                   <span className="flex flex-col">
                     <span className="font-semibold text-[#003385]">{m.name}</span>
-                    <span className="text-sm text-[#1E2A3A]/60">{BLURB[m.id]}</span>
+                    <span className="text-sm text-[#1E2A3A]/60">{m.blurb}</span>
                   </span>
                   <span
                     aria-hidden

@@ -163,7 +163,7 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 - **The entry point:** a **Start planning chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
 - **A few quick actions.** Beneath the entry point, a quiet row of shortcuts — *Register for classes*, *Academic calendar*, *Financial aid*, *Tutoring*, *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable rather than a wall of options. Each opens the planning chat, which answers the topic or routes to the office that owns it; as those surfaces ship, a shortcut can point at its real destination.
 
-The hand-off copy is the pure module [`next-steps.ts`](../apps/frontend/features/onboarding/next-steps.ts), rendered by [`chat-handoff.tsx`](../apps/frontend/features/onboarding/shared/chat-handoff.tsx); the shortcuts are [`quick-actions.tsx`](../apps/frontend/features/onboarding/shared/quick-actions.tsx). The chat it opens into carries the answers so the conversation starts already scoped.
+The hand-off copy is the pure module [`handoff-copy.ts`](../apps/frontend/features/onboarding/handoff-copy.ts), rendered by [`chat-handoff.tsx`](../apps/frontend/features/onboarding/shared/chat-handoff.tsx); the shortcuts are [`quick-actions.tsx`](../apps/frontend/features/onboarding/shared/quick-actions.tsx). The chat it opens into carries the answers so the conversation starts already scoped.
 
 ---
 
@@ -224,7 +224,7 @@ features/onboarding/
   questions.ts                   goal question, branch rules, program wording, school options
   programs.ts                    Dallas College programs of study (picker)
   build-payload.ts               answers → payload; derives skippedSteps
-  next-steps.ts                  the personalized chat hand-off (pure, UI-free)
+  handoff-copy.ts                the personalized chat hand-off copy (pure, UI-free)
   onboarding-store.ts            browser persistence + useSavedSession (returning-user seam, #50)
   shipped-intents.ts             single source for staged capability
   telemetry.ts                   console instrumentation

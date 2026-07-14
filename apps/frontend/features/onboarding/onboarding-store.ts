@@ -49,18 +49,6 @@ export function saveSession(session: SavedSession): void {
   }
 }
 
-export function loadSession(): SavedSession | null {
-  return parse(readRaw());
-}
-
-export function clearSession(): void {
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* ignore */
-  }
-}
-
 // Stable snapshot for useSyncExternalStore: re-parse only when the stored string
 // actually changes, so the hook doesn't loop on a fresh object every render.
 let cachedRaw: string | null = null;

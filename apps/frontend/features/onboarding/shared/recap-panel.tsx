@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
 import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import type { Copy, Skin } from "@/features/onboarding/skin";
+import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { OnboardingPayload } from "@/features/onboarding/types";
-import { useEffect, useRef } from "react";
 
 // The end-of-flow panel. It is a HAND-OFF, not a finish line: a brief recap of
 // what the student told me, then the opening of the planning chat (ChatHandoff),
@@ -26,10 +26,7 @@ export function RecapPanel({
   copy: Copy;
   className?: string;
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null);
-  useEffect(() => {
-    headingRef.current?.focus({ preventScroll: true });
-  }, []);
+  const headingRef = useHeadingFocus(null);
 
   return (
     <div

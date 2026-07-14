@@ -10,7 +10,6 @@ export type OnboardingEvent =
   | "cta_tap"
   | "onboarding_started" // fired when the wizard opens ("shown")
   | "question_answered"
-  | "question_skipped"
   | "onboarding_skipped" // Skip-all
   | "onboarding_completed"
   | "onboarding_resumed" // returning student jumped to their saved summary

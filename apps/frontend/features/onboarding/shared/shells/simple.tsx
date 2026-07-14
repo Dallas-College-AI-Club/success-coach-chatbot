@@ -5,9 +5,9 @@ import type { WizardProps } from "@/features/onboarding/skin";
 import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
 import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import { StepTransition } from "@/features/onboarding/shared/step-transition";
+import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import {
   QuestionBody,
-  useHeadingFocus,
   WizardControls,
 } from "@/features/onboarding/shared/wizard-parts";
 import { useEffect, useRef, type ReactNode } from "react";
@@ -40,10 +40,13 @@ const BotBubble = ({ children }: { children: ReactNode }) => (
 export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) => {
   const headingRef = useHeadingFocus(done ? "done" : api.stepIdx);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // Normal finish: the whole transcript above IS the recap. Resumed (a returning
-  // student jumped straight here): the wizard beneath is fresh, so there is no
-  // transcript — the completion bubble recaps from the saved summary instead.
-  const convo = done && !done.resumed ? api.steps : api.steps.slice(0, api.stepIdx);
+  // Normal finish: the transcript above IS the recap, so show only the steps the
+  // student actually answered — a skip-all can finish with unanswered steps still
+  // in the branch. Resumed (a returning student jumped straight here): the wizard
+  // beneath is fresh, so the completion bubble recaps from the saved summary.
+  const convo = (
+    done && !done.resumed ? api.steps : api.steps.slice(0, api.stepIdx)
+  ).filter((s) => api.answers[s.id]?.display);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {

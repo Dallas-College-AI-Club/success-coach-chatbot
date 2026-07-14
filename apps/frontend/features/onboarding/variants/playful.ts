@@ -9,6 +9,8 @@ import { nunito } from "@/features/onboarding/variants/fonts";
 export const playful: Mode = {
   id: "playful",
   name: "Playful",
+  icon: "🐾",
+  blurb: "A bright, colourful world with the mascots.",
   fontClass: nunito.className,
   Wizard: PlayfulShell,
   skin: {
