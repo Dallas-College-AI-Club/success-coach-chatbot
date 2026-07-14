@@ -113,7 +113,7 @@ const Sparkles = ({ delay }: { delay: number }) => (
 export function CampusCritters() {
   return (
     <div
-      aria-label="Dallas College campus mascots"
+      aria-hidden
       className="pointer-events-none absolute inset-y-0 left-0 right-0 z-10 overflow-hidden sm:right-[500px]"
     >
       <Floater

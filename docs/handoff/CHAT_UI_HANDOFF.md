@@ -1,6 +1,6 @@
 # Handoff — building the planning chat UI
 
-For whoever picks up the **planning chat** (issue [#37](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/37), wireframed in #3). Onboarding (#52) is done and hands the student to the chat with their answers already gathered; this note covers what the chat inherits, what to reuse, and the patterns that keep it working on every device. Companion reading: [`LANDING_ONBOARDING_UIUX.md`](../LANDING_ONBOARDING_UIUX.md).
+For **@netflix2023**, who owns the **planning chat** (issue [#37](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/37), wireframed in #3). Onboarding (#52) is done and hands the student to the chat with their answers already gathered; this note covers what the chat inherits, what to reuse, and the patterns that keep it working on every device. Companion reading: [`LANDING_ONBOARDING_UIUX.md`](../LANDING_ONBOARDING_UIUX.md).
 
 ---
 

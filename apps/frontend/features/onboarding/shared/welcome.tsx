@@ -10,6 +10,12 @@ import type { Mode } from "@/features/onboarding/skin";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import { useState } from "react";
 
+// Returning-student entry point. Real session persistence is issue #50 (landing
+// in a few days), so `useSavedSession` returns null for now — this flag keeps the
+// resume button VISIBLE as a disabled placeholder, so we know exactly where to
+// wire the link. Once #50 ships, delete this and rely on `returning` alone.
+const RESUME_ENTRY_PLACEHOLDER = true;
+
 // The welcome greeter — Koa, a friendly rounded robot in its own warm palette
 // (blue-grey head, mint face screen, orange antenna and side ears). Deliberately
 // its own mascot, distinct from the Dallas-branded SuccessCoachBot used in the
@@ -77,12 +83,13 @@ export function Welcome({
           </p>
         </div>
 
-        {returning && (
+        {(returning || RESUME_ENTRY_PLACEHOLDER) && (
           <>
             <button
               type="button"
-              onClick={() => onResume(returning)}
-              className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#003385] bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-[#003385]/[0.04] focus-visible:ring-2 focus-visible:ring-[#003385] focus-visible:ring-offset-2 motion-safe:active:scale-[0.99]"
+              disabled={!returning}
+              onClick={() => returning && onResume(returning)}
+              className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#003385] bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-[#003385]/[0.04] focus-visible:ring-2 focus-visible:ring-[#003385] focus-visible:ring-offset-2 motion-safe:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none disabled:hover:bg-white"
             >
               <span className="text-2xl" aria-hidden>
                 👋
@@ -90,7 +97,9 @@ export function Welcome({
               <span className="flex flex-col">
                 <span className="font-semibold text-[#003385]">Welcome back!</span>
                 <span className="text-sm text-[#1E2A3A]/60">
-                  Pick up right where you left off.
+                  {returning
+                    ? "Pick up right where you left off."
+                    : "Your saved plan will show up here next time."}
                 </span>
               </span>
               <span aria-hidden className="ml-auto text-lg text-[#003385]">

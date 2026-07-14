@@ -34,7 +34,7 @@ export const goalQuestion: OnboardingQuestion = {
 };
 
 // --- Q2: program picker ---------------------------------------------------
-export const programOptions: QuestionOption[] = [
+const programOptions: QuestionOption[] = [
   ...PROGRAMS.map((p) => ({ id: p.code, label: p.label, contribs: { major: p.code } })),
   { id: "program_unsure", label: "I'm still figuring it out", contribs: { major: null } },
 ];

@@ -27,7 +27,7 @@ export const CapabilityDialog = ({
           <DialogTitle>{copy.capabilityTitle}</DialogTitle>
           <DialogDescription>{copy.capabilityDesc}</DialogDescription>
         </DialogHeader>
-        <ul className="flex flex-col gap-2">
+        <ul className="flex max-h-[60vh] flex-col gap-2 overflow-y-auto">
           {shippedIntents().map((intent) => (
             <li
               key={intent.id}

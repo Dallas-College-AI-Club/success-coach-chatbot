@@ -80,7 +80,7 @@ export const IntlGoalStep = ({
           <ToggleGroupItem
             key={s.id}
             value={s.id}
-            className="min-h-9 flex-1 rounded-lg border border-current/20 px-2 py-1.5 text-center text-sm font-medium whitespace-normal text-current/70 transition-colors hover:border-current/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] data-[state=on]:border-current data-[state=on]:bg-current/[0.07] data-[state=on]:font-semibold data-[state=on]:text-current pointer-coarse:min-h-11"
+            className="h-auto! min-h-9 flex-1 rounded-lg border border-current/20 px-2 py-1.5 text-center text-sm font-medium whitespace-normal text-current/70 transition-colors hover:border-current/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] data-[state=on]:border-current data-[state=on]:bg-current/[0.07] data-[state=on]:font-semibold data-[state=on]:text-current pointer-coarse:min-h-11"
           >
             {s.label}
           </ToggleGroupItem>

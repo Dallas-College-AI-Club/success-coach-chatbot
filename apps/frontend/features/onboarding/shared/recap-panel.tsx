@@ -41,8 +41,8 @@ export function RecapPanel({
           <p className={`mb-1.5 ${skin.sectionLabel}`}>What you told me</p>
           <ul className="flex flex-col gap-1.5">
             {summary.map((line, i) => (
-              <li key={`${line}-${i}`} className="flex items-center gap-2 text-sm">
-                <span aria-hidden className={skin.chipCheck}>
+              <li key={`${line}-${i}`} className="flex items-start gap-2 text-sm">
+                <span aria-hidden className={`${skin.chipCheck} mt-0.5`}>
                   ✓
                 </span>
                 {line}

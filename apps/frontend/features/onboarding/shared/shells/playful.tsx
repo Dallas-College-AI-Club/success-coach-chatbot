@@ -24,11 +24,9 @@ import {
 // animates smoothly into the finish — the "reached the end" payoff.
 const ProgressBar = ({ pct, label }: { pct: number; label: string }) => (
   <div className="flex flex-col gap-1.5">
-    <div className="flex items-baseline justify-between">
-      <span className="text-xs font-extrabold tracking-wide text-[#E52626] uppercase">
-        {label}
-      </span>
-    </div>
+    <span className="text-xs font-extrabold tracking-wide text-[#E52626] uppercase">
+      {label}
+    </span>
     <div
       className="h-3 w-full overflow-hidden rounded-full bg-[#003385]/12 shadow-[inset_0_1px_2px_rgba(0,51,133,.12)]"
       role="progressbar"

@@ -37,7 +37,7 @@ export function QuickActions({ skin }: { skin: Skin }) {
             href={href}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-full border border-current/15 px-3 py-1 text-xs opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+            className="inline-flex items-center gap-1 rounded-full border border-current/15 px-3 py-1 text-xs opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] pointer-coarse:min-h-9"
           >
             {label}
             <span aria-hidden className="opacity-55">

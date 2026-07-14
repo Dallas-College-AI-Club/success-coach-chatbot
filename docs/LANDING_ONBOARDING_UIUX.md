@@ -25,8 +25,8 @@ The seam between stage 1 and the rest is a single console-logged payload whose k
 
 ## 2. The screen
 
-- **Welcome.** The *Success Coach* brand cover (`public/title.png`, coded fallback), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
-- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions. A returning student — one whose answers are saved in this browser — instead sees a **"Welcome back — pick up where you left off"** button that opens their saved summary directly, skipping the questions. Detection is client-side and SSR-safe (`useSavedSession`), so the return option appears without a hydration flash. The saved value is the same console payload (`onboarding-store.ts`), which is the seam the anonymous client store (#50) replaces.
+- **Welcome.** The *Success Coach* brand cover (`public/title.png`, served through `next/image`), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Saving a session belongs to the anonymous client store (#50), so for now the welcome screen shows the **"Welcome back"** entry as a visible, disabled placeholder that marks where #50 wires the resume link. `onboarding-store.ts` keeps the `useSavedSession` / `saveSession` seam as no-ops, so the call sites stay in place and #50 drops in the real store; [`handoff/CLIENT_STATE_HANDOFF.md`](handoff/CLIENT_STATE_HANDOFF.md) hands over the removed implementation and a gap analysis.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -102,7 +102,7 @@ flowchart TD
     IG -. "any planning goal · same follow-ups" .-> Q
 
     E([Recap of your answers]) --> H["Start chat →"]
-    E -. "quick actions · register · aid · tutoring · events · coach" .-> C
+    E -. "Dallas College links · classes · calendar · tutoring · aid · events · coach" .-> C
     H --> C[["Planning chat<br/>drafts a plan on verified Dallas College catalog data"]]
     C --> V[["Success Coach<br/>reviews the plan and makes it official"]]
 ```
@@ -189,7 +189,7 @@ Completion logs one object to the console — the placeholder for the global-sta
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
 
-The same object is also kept in this browser ([`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts)) so a returning student can reopen their summary without re-answering — the local stand-in for the anonymous client store #50 will own, and the single seam to replace when it lands. It never leaves the browser and never reaches a student record; the welcome footer says exactly that. The read is `useSavedSession`, an SSR-safe `useSyncExternalStore` hook that returns `null` on the server and the stored value on the client, so the returning view resolves without a hydration mismatch, and a corrupt or shape-changed value parses back to `null` (first-time), never a throw.
+Persisting this object so a returning student can resume is the anonymous client store's job (#50), so [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) currently keeps only the interface as no-ops: nothing is written and `useSavedSession` returns `null`, so every visit is first-time and the welcome screen shows the returning-student entry as a disabled placeholder. When #50 lands it owns the store; [`handoff/CLIENT_STATE_HANDOFF.md`](handoff/CLIENT_STATE_HANDOFF.md) hands over the removed implementation and how it maps to #50. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
 
 ---
 
@@ -197,7 +197,7 @@ The same object is also kept in this browser ([`onboarding-store.ts`](../apps/fr
 
 State lives in one shared hook, [`use-onboarding.ts`](../apps/frontend/features/onboarding/use-onboarding.ts): each step stores the selected option id and the payload reads the value back from that option, so the record always matches what was shown; re-answering the goal clears the prior branch's answers; every exit runs through one guarded function, so the payload logs exactly once.
 
-The decision logic is exercised by [`onboarding-flow-stress.ts`](onboarding-flow-stress.ts), which drives the real functions through every reachable path (85 structural, ~5,000 with the full program picker) and adversarial back-navigation, asserting: no path exceeds four questions; the program picker never appears for a student not pursuing a Dallas program, and always appears for one who is; the program wording matches enrolment; the hand-off never asserts an outcome and always closes on the coach step; and no unfilled placeholder ever reaches a student.
+The decision logic is exercised by [`onboarding-flow-stress.ts`](onboarding-flow-stress.ts), which drives the real functions through every reachable path (220 structural, thousands with the full program picker and school list) and adversarial back-navigation, asserting: no path exceeds four questions; the program picker never appears for a student not pursuing a Dallas program, and always appears for one who is; the program wording matches enrolment; the hand-off never asserts an outcome and always closes on the coach step; and no unfilled placeholder ever reaches a student.
 
 ```bash
 cd apps/frontend
@@ -230,7 +230,7 @@ features/onboarding/
   programs.ts                    Dallas College programs of study (picker)
   build-payload.ts               answers → payload; derives skippedSteps
   handoff-copy.ts                the personalized chat hand-off copy (pure, UI-free)
-  onboarding-store.ts            browser persistence + useSavedSession (returning-user seam, #50)
+  onboarding-store.ts            returning-user seam (no-op interface; persistence is #50)
   shipped-intents.ts             single source for staged capability
   telemetry.ts                   console instrumentation
   skin.ts                        Skin / Copy / Mode contracts
@@ -265,7 +265,7 @@ High-fidelity match to the Canva theme is met in structure and brand; the flow e
 
 ## 12. Scope and planned enhancements
 
-**In this page.** The landing with its first-time/returning fork, the style switcher, the conditional flow, all local state, the console payload, instrumentation, the chat hand-off, and the closing quick actions. A returning student's summary is restored from a small browser store — the local stand-in for #50. **Elsewhere:** durable persistence and analytics as an anonymous client store (#50), backend models (#51), and the chat surface the payload feeds (#37).
+**In this page.** The landing with its first-time/returning fork, the style switcher, the conditional flow, all local state, the console payload, instrumentation, the chat hand-off, and the closing quick actions. The returning-student entry is present as a disabled placeholder; persisting and restoring a session is the anonymous client store's job. **Elsewhere:** durable persistence and analytics as an anonymous client store (#50), backend models (#51), and the chat surface the payload feeds (#37).
 
 Planned enhancements, sequenced with the surrounding work:
 
