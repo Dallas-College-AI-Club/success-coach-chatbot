@@ -10,7 +10,7 @@ The design supports both first-time and returning users by keeping onboarding op
 
 ## Conversation Flow Diagram
 
-![Conversation Entry Flow](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/40-design-conversational-entry-flow-for-student-chatbot/conversation-entry-flow.png)
+![Conversation Entry Flow](conversation-entry-flow.png)
 
 ---
 
