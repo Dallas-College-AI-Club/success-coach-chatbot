@@ -32,7 +32,7 @@ export const simple: Mode = {
   copy: {
     reassurance: "No wrong answers. You can change anything later.",
     later: "Skip to chat →",
-    audienceLead: "A dual-credit student or parent?",
+    audienceLead: "Or are you…",
     next: "Next",
     done: "Done",
     back: "← Back",

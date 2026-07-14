@@ -175,6 +175,13 @@ export function followUpsFor(
   answers: Record<string, StepAnswer>,
 ): OnboardingQuestion[] {
   const goal = answers["goal"]?.contribs.goal ?? null;
+  const studentType = answers["goal"]?.contribs.student_type ?? null;
+  // Dual-credit / high-school students (and their parents) take one-off classes,
+  // not a Dallas program (the dedicated dual-credit program handles the full plan),
+  // so we only ask when they can take classes, then finish.
+  if (studentType === "dual_credit" || studentType === "parent_guardian") {
+    return [scheduleQuestion];
+  }
   const program = programFor(answers);
   switch (goal) {
     case "graduation_check":
@@ -240,6 +247,9 @@ export const MIN_STEPS = 2;
 // they are not duplicated here. (A dedicated top-level "Visiting from another
 // college" link is a recommended addition — see the UIUX doc's open questions.)
 export const AUDIENCE_OPTIONS = [
-  { id: "aud_dual", label: "Dual credit", studentType: "dual_credit" as const },
-  { id: "aud_parent", label: "Parent or guardian", studentType: "parent_guardian" as const },
+  {
+    id: "aud_dual",
+    label: "a dual-credit student or parent",
+    studentType: "dual_credit" as const,
+  },
 ];

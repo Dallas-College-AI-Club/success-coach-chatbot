@@ -34,7 +34,7 @@ export const focus: Mode = {
   copy: {
     reassurance: "No wrong answers. Change anything later.",
     later: "I'll do this later",
-    audienceLead: "A dual-credit student or parent?",
+    audienceLead: "Or are you…",
     next: "Next",
     done: "Done",
     back: "← Back",

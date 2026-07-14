@@ -55,7 +55,7 @@ One goal question routes everything after it. Follow-ups are conditional — com
 | Help me figure out what to study (I'm not sure yet) | Interest area |
 | Not working toward a degree here (one class, a certificate, or license prep) | Purpose |
 
-A secondary link under the goals routes the audiences the goal list does not fit: **Dual credit · Parent or guardian**. The set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
+A secondary link under the goals routes an audience the goal list does not fit: **a dual-credit student or parent** (one-off classes, not a Dallas program, so it asks only when they can take classes, then finishes — the dedicated dual-credit program handles the full plan). The set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
 
 **Staging.** Goal options and the capability directory both read from one shipped-intents file. An option renders as a routing signal while the answering layer is built, and the same flag hides it once — and only once — its backing intent ships, so the entry never points at an answer the pipeline cannot yet give. This tracks the sprint order in the [degree-planning user stories](user-stories/DEGREE_PLANNING_STORIES.md).
 
@@ -96,8 +96,7 @@ flowchart TD
     D -->|"another college · one class here"| Db[Which college do you attend?] --> E
     D -->|"already earned credit elsewhere"| Di[Program] --> E
 
-    AU -->|Dual credit| AUp[Program] --> E
-    AU -->|Parent or guardian| E
+    AU -->|Dual credit or parent| AUs[When can you take classes?] --> E
 
     E([Recap of your answers]) --> H["Start planning chat →"]
     E -. "quick actions · register · aid · tutoring · events · coach" .-> C
@@ -124,8 +123,7 @@ path exceeds four questions before the hand-off.
 | Fit classes around my schedule | Schedule → Program *(→ Interest if unsure)* | 3–4 | Yes |
 | Help me figure out what to study | Interest | 2 | No |
 | Not working toward a degree here | Purpose | 2 | No |
-| Dual credit *(audience)* | Program | 2 | Yes |
-| Parent or guardian *(audience)* | *(completes at once)* | 1 | No |
+| Dual credit or parent *(audience)* | Schedule | 2 | **No** |
 
 ### The rules
 
@@ -206,10 +204,10 @@ A green run prints `✓ all invariants held across every path`.
 
 ## 9. Look, motion, accessibility
 
-- **Colour roles.** A dark colour carries text and primary actions; a bright colour marks progress, the selected-choice ring, and the finish mark. The split is an accessibility requirement — the bright colour never fills a text button. Each mode carries its own palette on a light background.
+- **Color roles.** A dark color carries text and primary actions; a bright color marks progress, the selected-choice ring, and the finish mark. The split is an accessibility requirement — the bright color never fills a text button. Each mode carries its own palette on a light background.
 - **Progress.** Shown in each mode's own terms. Because the flow is adaptive, the count seeds at the shortest possible flow and only grows as the path reveals more questions — it never snaps downward.
 - **Motion.** Short fades and slides, one continuous scene motion per mode, one finish mark. Everything non-essential uses `motion-safe:` and stops under `prefers-reduced-motion`.
-- **Accessibility.** Full keyboard path; focus moves to each step's heading; choice groups are labelled radio groups; selection shows border, ring, and check, so colour is never the only signal.
+- **Accessibility.** Full keyboard path; focus moves to each step's heading; choice groups are labeled radio groups; selection shows border, ring, and check, so color is never the only signal.
 - **Devices.** The layout is fluid from a 375px phone through tablet and desktop, in portrait or landscape — no horizontal scroll, and each screen sizes to the space under the header so a short screen scrolls once rather than in nested layers. On touch devices every control (including the style switcher, the program picker rows, and the quiet text links) carries a comfortable ≥44px hit area, while mouse pointers keep the compact look.
 
 ---

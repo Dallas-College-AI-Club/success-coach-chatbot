@@ -9,7 +9,6 @@ import {
 } from "@/features/onboarding/questions";
 import { emit } from "@/features/onboarding/telemetry";
 import type {
-  GoalValue,
   OnboardingPayload,
   OnboardingQuestion,
   StepAnswer,
@@ -123,10 +122,8 @@ export function useOnboarding(
   };
 
   const chooseAudience = (aud: (typeof AUDIENCE_OPTIONS)[number]) => {
-    const goal: GoalValue | null =
-      aud.studentType === "dual_credit" ? "graduation_check" : null;
     const answer: StepAnswer = {
-      contribs: { goal, student_type: aud.studentType },
+      contribs: { goal: null, student_type: aud.studentType },
       display: aud.label,
       optionIds: { main: aud.id },
     };

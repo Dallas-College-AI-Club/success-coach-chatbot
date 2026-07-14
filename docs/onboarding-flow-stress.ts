@@ -157,7 +157,8 @@ function record(answers: Answers, branch: OnboardingQuestion[], trail: string[])
     payload.goal === "figure_out_major" ||
     payload.goal === "nondegree_oneoff" ||
     payload.transfer_direction === "transfer_back" ||
-    payload.student_type === "parent_guardian";
+    payload.student_type === "parent_guardian" ||
+    payload.student_type === "dual_credit";
   if (noProgramExpected) {
     check(
       !branchIds.includes("major"),
@@ -254,11 +255,10 @@ function walk(answers: Answers, stepIdx: number, trail: string[], depth: number)
 // Forward entry via each goal button.
 walk({}, 0, [], 0);
 
-// Forward entry via the audience links (dual credit, parent/guardian).
+// Forward entry via the audience link (dual credit / parent → schedule → done).
 for (const aud of AUDIENCE_OPTIONS) {
-  const goal = aud.studentType === "dual_credit" ? "graduation_check" : null;
   const answer: StepAnswer = {
-    contribs: { goal: goal as never, student_type: aud.studentType },
+    contribs: { goal: null, student_type: aud.studentType },
     display: aud.label,
     optionIds: { main: aud.id },
   };
@@ -409,7 +409,7 @@ for (const t of terminals) {
 // Coverage summary by goal.
 const byGoal: Record<string, number> = {};
 for (const t of terminals) {
-  const g = t.payload.student_type === "parent_guardian" ? "parent_guardian" : t.payload.goal ?? "none";
+  const g = t.payload.student_type ?? t.payload.goal ?? "none";
   byGoal[g] = (byGoal[g] ?? 0) + 1;
 }
 console.log(`\n=== COVERAGE BY GOAL ===`);

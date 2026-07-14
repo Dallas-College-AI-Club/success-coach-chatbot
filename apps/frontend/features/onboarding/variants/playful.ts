@@ -34,7 +34,7 @@ export const playful: Mode = {
   copy: {
     reassurance: "No wrong answers. Tweak anything later 👍",
     later: "Finish this later",
-    audienceLead: "A dual-credit student or parent?",
+    audienceLead: "Or are you…",
     next: "Next →",
     done: "Finish 🎉",
     back: "← Back",
