@@ -270,15 +270,21 @@ Planned enhancements, sequenced with the surrounding work:
 - **A signposted visiting-student route** and a workforce / continuing-education door, as their backing intents ship.
 - **SSO prefill** — with the client store (#50), the program and returning-student steps collapse toward a single confirmation.
 
-### The name — working placeholder: "Koa"
+### The name (working placeholder: "Koa")
 
-Students meet the AI as **Koa**, a working placeholder while the governed assistant name is settled (the strategy's §13.1 already leaves room for a shorter student-facing display name). Koa is *not* the human role — a **Success Coach** is a person; Koa is the AI **planning companion** that helps a student plan and get ready, and the copy says so throughout.
+Students meet the AI as **Koa**, an AI **planning companion** that helps them plan and get ready. It is not the human role: a **Success Coach** is a person who makes plans official. "Koa" is a working placeholder in the front-end copy only. The governed assistant name is unchanged (strategy §13.1).
 
-- **Meaning.** Hawaiian for *brave / warrior* (and the koa tree — strength, endurance); Māori for *glad, cheerful*. Together: courage + encouragement, fitting for a companion cheering a student toward their goals.
-- **Gen-Z fit.** Short, soft, easy to say ("KOH-ah"), gender-neutral — squarely in the current wave of soft-ending names (Luca, Ezra, Micah). Reads as a friendly peer, not a corporate bot.
-- **Trade-offs.** No tie to Dallas/Texas (unlike, say, the city's own Pegasus); a meaningful Hawaiian word used out of place can feel arbitrary; and other brands use "Koa" (e.g., Koa Health), so it isn't distinctive — a trademark/clearance check would be needed before it's official.
+Handily, "Koa" reads well across the languages Dallas College students speak:
 
-Because the assistant name is governed (a persona-config change with a version bump + evaluation per GP-0006), "Koa" lives only in this front-end copy for now; the config and RFCs still carry the canonical *Dallas College Success Coach Assistant*.
+| In | "Koa" reads as |
+|---|---|
+| Hawaiian | *brave / warrior*, and the strong koa tree: strength and moving forward |
+| Vietnamese | a near-homophone of *Khoa*: science, intellect, academics (a quiet win for a planning tool, and familiar to many students) |
+| Japanese | コア = *core* (a nod to core classes and prerequisites) |
+| Māori | *joy, happiness* |
+| Spanish | nothing, so no awkward slang; reads as a clean, trendy name |
+
+**Gen-Z fit:** short, soft, gender-neutral, easy to say ("KOH-ah"). A friendly peer, not a corporate bot. **Watch-out:** no direct Dallas/Texas tie, and other brands use "Koa" (e.g. Koa Health), so clear the trademark before it goes official.
 
 ---
 
