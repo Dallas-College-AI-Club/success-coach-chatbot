@@ -99,6 +99,14 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
               {aud.label}
             </button>
           ))}
+          <button
+            type="button"
+            aria-pressed={api.international}
+            onClick={api.toggleInternational}
+            className={`${skin.link}${api.international ? " font-semibold" : ""}`}
+          >
+            an international student{api.international ? " ✓" : ""}
+          </button>
         </div>
       )}
     </div>

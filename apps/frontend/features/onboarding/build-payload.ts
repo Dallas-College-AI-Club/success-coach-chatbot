@@ -16,6 +16,7 @@ import type {
 export function buildPayload(
   answers: Record<string, StepAnswer>,
   branch: OnboardingQuestion[],
+  international = false,
 ): OnboardingPayload {
   const payload: OnboardingPayload = {
     goal: null,
@@ -30,6 +31,7 @@ export function buildPayload(
     skippedSteps: [],
     onboardingVersion: ONBOARDING_VERSION,
     completedAt: new Date().toISOString(),
+    international,
   };
 
   for (const step of branch) {

@@ -55,7 +55,7 @@ One goal question routes everything after it. Follow-ups are conditional — com
 | Help me figure out what to study (I'm not sure yet) | Interest area |
 | Not working toward a degree here (one class, a certificate, or license prep) | Purpose |
 
-A secondary link under the goals routes an audience the goal list does not fit: **a dual-credit student or parent** (one-off classes, not a Dallas program, so it asks only when they can take classes, then finishes — the dedicated dual-credit program handles the full plan). The set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
+A secondary link under the goals routes an audience the goal list does not fit: **a dual-credit student or parent** (one-off classes, not a Dallas program, so it asks only when they can take classes, then finishes — the dedicated dual-credit program handles the full plan). Beside it, **an international student** is a toggle rather than a shortcut: it flags the student (so the record knows they're international) but keeps the normal goal flow, and adds a note at the hand-off pointing them to the International Student Center to get settled. The set covers what the #42 interview named — program, transfer intent, target school, full- or part-time, class format, scheduling constraints. Topics that suit a live conversation — transcript status, prior-learning credit, holds, questions for a coach — are deferred to the chat.
 
 **Staging.** Goal options and the capability directory both read from one shipped-intents file. An option renders as a routing signal while the answering layer is built, and the same flag hides it once — and only once — its backing intent ships, so the entry never points at an answer the pipeline cannot yet give. This tracks the sprint order in the [degree-planning user stories](user-stories/DEGREE_PLANNING_STORIES.md).
 
@@ -175,6 +175,7 @@ Completion logs one object to the console — the placeholder for the global-sta
 | `major` | A catalog program id, or `null` for "I'm still figuring it out" |
 | `target_institution` | Destination/home school code, or a category (`TX_OTHER`, `US_OTHER`, `INTL`) |
 | `student_type` | Set via the audience link |
+| `international` | Set when the student toggles "an international student" |
 | `modality_pref` / `dayparts_pref` | Class-format and time preferences |
 | `transfer_direction` / `interest_area` / `oneoff_purpose` | Path-specific context |
 | `skippedSteps` | Steps left blank — separates a skip from a "no preference" answer |

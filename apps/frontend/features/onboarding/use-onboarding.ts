@@ -32,6 +32,10 @@ export function useOnboarding(
   const [stepIdx, setStepIdx] = useState(0);
   // Which way the last move went, so the step transition can slide accordingly.
   const [dir, setDir] = useState<1 | -1>(1);
+  // Orthogonal to the goal: the student can flag themselves international at any
+  // point and still pick any goal. Kept out of the goal answer so switching goals
+  // never clears it.
+  const [international, setInternational] = useState(false);
   const submitted = useRef(false);
 
   const steps = stepsFor(answers);
@@ -69,7 +73,7 @@ export function useOnboarding(
   ) => {
     if (submitted.current) return;
     submitted.current = true;
-    const payload = buildPayload(finalAnswers, branch);
+    const payload = buildPayload(finalAnswers, branch, international);
     // The exact labels the student chose, in order — so every answer (including
     // the last one, and "Anytime"/"Undecided") is shown back, not re-derived.
     const summary = branch
@@ -148,12 +152,14 @@ export function useOnboarding(
     isLast,
     answered,
     studentType,
+    international,
     answeredChips,
     selectedId,
     answerOption,
     commit,
     clearAnswer,
     chooseAudience,
+    toggleInternational: () => setInternational((v) => !v),
     goNext: () => {
       if (isLast) return finishWith(answers, steps, "completed");
       setDir(1);

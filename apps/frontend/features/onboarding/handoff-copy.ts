@@ -218,6 +218,16 @@ export function authorityNotes(p: OnboardingPayload): string[] {
   return [];
 }
 
+// New to the U.S.: point international students to the International Student Center
+// to get settled. (The real contact/link is wired with the chat backend.) Returns
+// 0 or 1 line, and is kept separate from authorityNotes (which is transfer-only).
+export function internationalNote(p: OnboardingPayload): string[] {
+  if (!p.international) return [];
+  return [
+    "New to the U.S. or Dallas? Koa can connect you with the International Student Center to help you get settled.",
+  ];
+}
+
 // Stage 3: the human Success Coach verifies the plan the chat drafts. Every path
 // ends here — the one promise this tool can honestly make.
 export function coachVerifyLine(p: OnboardingPayload): string {

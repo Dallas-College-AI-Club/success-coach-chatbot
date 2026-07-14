@@ -79,4 +79,6 @@ export type OnboardingPayload = Required<PayloadContribs> & {
   skippedSteps: string[];
   onboardingVersion: string;
   completedAt: string;
+  /** Set when the student flags themselves as international (new to the U.S.). */
+  international: boolean;
 };
