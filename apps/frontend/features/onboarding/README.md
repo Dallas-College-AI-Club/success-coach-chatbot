@@ -19,7 +19,7 @@ and per-mode details in [`variants/README.md`](./variants/README.md).
 | [`handoff-copy.ts`](./handoff-copy.ts) | The personalized chat hand-off copy (intro line, starter prompts, authority notes, coach-verify line). States no academic outcome. |
 | [`shipped-intents.ts`](./shipped-intents.ts) | The capability list behind the "what can this help with" dialog; staging mirror of the question `shipped` flag. |
 | [`telemetry.ts`](./telemetry.ts) | `emit(event, detail)` console stub + the `OnboardingEvent` vocabulary. |
-| [`onboarding-store.ts`](./onboarding-store.ts) | Browser persistence: `saveSession` + the SSR-safe `useSavedSession` hook. The **#50 seam** (swap this one file for the real client store). |
+| [`onboarding-store.ts`](./onboarding-store.ts) | The **#50 persistence seam**: the `saveSession` / `useSavedSession` signatures kept as no-ops (nothing is persisted yet) so call sites compile; swap this one file for the real client store. |
 
 **2. The state machine** — [`use-onboarding.ts`](./use-onboarding.ts). `useOnboarding(onComplete)` is the single brain: it holds the answers, derives the step list (`stepsFor` = goal + shipped follow-ups), and exposes the `OnboardingApi` every shell consumes. Every exit runs through one guarded function, so the payload is emitted exactly once.
 
@@ -58,8 +58,8 @@ they live in the hook, not the shell.
 
 ## Key seams
 
-- **Client store (#50):** `onboarding-store.ts` — the localStorage stand-in. One file to replace with the real anonymous client store.
-- **Chat hand-off (#37):** `ChatHandoff` / `QuickActions` route to `/chat`; `handoff-copy.ts` owns the personalized copy; `app/chat/page.tsx` is the placeholder the RAG chat replaces.
+- **Client store (#50):** `onboarding-store.ts` — a no-op persistence seam (nothing is persisted until #50 lands). One file to replace with the real anonymous client store.
+- **Chat hand-off (#37):** `ChatHandoff` routes to `/chat` (`QuickActions` is the separate row of external Dallas College resource links, not a `/chat` route); `handoff-copy.ts` owns the personalized copy; `app/chat/page.tsx` is the placeholder the RAG chat replaces.
 - **Telemetry:** `emit()` is a console stub carrying the final event names — swap the body for the real transport.
 - **Shipped gate:** the `shipped` flag on questions (and on intents) keeps the flow from advertising unbuilt paths.
 

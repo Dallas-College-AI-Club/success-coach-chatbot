@@ -8,7 +8,7 @@ import type { OnboardingPayload } from "@/features/onboarding/types";
 //
 // Until #50 lands nothing is persisted, so every visit is first-time (no resume).
 // The removed implementation and how it maps to #50 are in
-// docs/handoff/CLIENT_STATE_HANDOFF.md.
+// docs/handoff/ISSUE_50_HANDOFF.md.
 
 export interface SavedSession {
   payload: OnboardingPayload;

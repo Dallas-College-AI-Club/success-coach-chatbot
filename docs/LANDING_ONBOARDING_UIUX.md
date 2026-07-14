@@ -26,7 +26,7 @@ The seam between stage 1 and the rest is a single console-logged payload whose k
 ## 2. The screen
 
 - **Welcome.** The *Success Coach* brand cover (`public/title.png`, served through `next/image`), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
-- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Saving a session belongs to the anonymous client store (#50), so for now the welcome screen shows the **"Welcome back"** entry as a visible, disabled placeholder that marks where #50 wires the resume link. `onboarding-store.ts` keeps the `useSavedSession` / `saveSession` seam as no-ops, so the call sites stay in place and #50 drops in the real store; [`handoff/CLIENT_STATE_HANDOFF.md`](handoff/CLIENT_STATE_HANDOFF.md) hands over the removed implementation and a gap analysis.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Saving a session belongs to the anonymous client store (#50), so for now the welcome screen shows the **"Welcome back"** entry as a visible, disabled placeholder that marks where #50 wires the resume link. `onboarding-store.ts` keeps the `useSavedSession` / `saveSession` seam as no-ops, so the call sites stay in place and #50 drops in the real store; [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) hands over the removed implementation and a gap analysis.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -189,7 +189,7 @@ Completion logs one object to the console — the placeholder for the global-sta
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
 
-Persisting this object so a returning student can resume is the anonymous client store's job (#50), so [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) currently keeps only the interface as no-ops: nothing is written and `useSavedSession` returns `null`, so every visit is first-time and the welcome screen shows the returning-student entry as a disabled placeholder. When #50 lands it owns the store; [`handoff/CLIENT_STATE_HANDOFF.md`](handoff/CLIENT_STATE_HANDOFF.md) hands over the removed implementation and how it maps to #50. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
+Persisting this object so a returning student can resume is the anonymous client store's job (#50), so [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) currently keeps only the interface as no-ops: nothing is written and `useSavedSession` returns `null`, so every visit is first-time and the welcome screen shows the returning-student entry as a disabled placeholder. When #50 lands it owns the store; [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) hands over the removed implementation and how it maps to #50. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
 
 ---
 
@@ -243,7 +243,7 @@ features/onboarding/
 
 The picker is populated from the 2026–2027 catalog's programs of study; each entry's `code` is the catalog program id. Interactive elements use ShadCN — `ToggleGroup` for single choice, `Command` for the searchable picker, `Dialog` for the capability directory — and avoid dropdowns so options stay visible on mobile.
 
-**Instrumentation.** The funnel logs to the console with names matching the #50 telemetry vocabulary — `page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `question_skipped`, `onboarding_skipped`, `onboarding_completed`, `onboarding_resumed`, `audience_link_tap`, `capability_opened` — so an anonymous analytics transport is a drop-in.
+**Instrumentation.** The funnel logs to the console with names matching the #50 telemetry vocabulary — `page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `onboarding_skipped`, `onboarding_completed`, `onboarding_resumed`, `audience_link_tap`, `capability_opened` — so an anonymous analytics transport is a drop-in.
 
 ---
 

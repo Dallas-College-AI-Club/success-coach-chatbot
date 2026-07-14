@@ -6,10 +6,10 @@ For **@netflix2023**, who owns the **planning chat** (issue [#37](https://github
 
 ## 1. Where the chat plugs in
 
-The chat lives at **`/chat`** ([`app/chat/page.tsx`](../../apps/frontend/app/chat/page.tsx)). Today that route is a styled placeholder — replace it with the real chat. Everything already points here:
+The chat lives at **`/chat`** ([`app/chat/page.tsx`](../../apps/frontend/app/chat/page.tsx)). Today that route is a styled placeholder — replace it with the real chat. The onboarding hand-off already routes here:
 
 - The onboarding hand-off's **Start chat** button routes to `/chat`.
-- The end-of-flow **quick actions** (register, academic calendar, financial aid, tutoring, campus events, talk to a coach) also route to `/chat`. As their real destinations ship, point each shortcut at the office/surface that owns it (see [`quick-actions.tsx`](../../apps/frontend/features/onboarding/shared/quick-actions.tsx)).
+- The end-of-flow **quick actions** are a separate row that already deep-links to the Dallas College office or site owning each one — see all credit classes, academic calendar, tutoring, aid & essentials, campus events, talk to a Success Coach — each opening in a new tab (see [`quick-actions.tsx`](../../apps/frontend/features/onboarding/shared/quick-actions.tsx)). They do not enter the chat.
 
 Keep the route stable so the hand-off keeps working while you build.
 
@@ -29,7 +29,7 @@ Onboarding produces one **payload** — the student's answers, keyed to the #36 
 | `skippedSteps` | steps left blank — a skip is distinct from a "no preference" answer |
 | `onboardingVersion` / `completedAt` | version stamp + timestamp |
 
-**How to read it:** the payload is kept in a small browser store — [`onboarding-store.ts`](../../apps/frontend/features/onboarding/onboarding-store.ts) (`useSavedSession()` / `saveSession()`). This is the **#52-scope stand-in** for the anonymous client store issue [#50](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/50) will own (Zustand `persist` + a client-generated UUID). When #50 lands, that one file is the seam to swap; until then, read from it so a returning student resumes seamlessly. Values are closed-list (catalog ids / enum codes), so they're safe to pass straight into a prompt or a retrieval filter.
+**How to read it:** the payload maps to the seam in [`onboarding-store.ts`](../../apps/frontend/features/onboarding/onboarding-store.ts) (`useSavedSession()` / `saveSession()`), which is currently a **no-op stub** — nothing is persisted yet, so every visit is first-time and the "Welcome back" entry is a disabled placeholder. Persisting and restoring the payload is the anonymous client store issue [#50](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/50) will own (Zustand `persist` + a client-generated UUID); when it lands, that one file is the seam to swap. Values are closed-list (catalog ids / enum codes), so they're safe to pass straight into a prompt or a retrieval filter.
 
 ## 3. Reuse the brand system — don't reinvent it
 
@@ -56,13 +56,13 @@ The onboarding was audited across phone, tablet (iPad), and laptop, portrait and
 
 ## 6. Guardrails and grounding (must-honor)
 
-- **Never assert an outcome the college hasn't confirmed** — transfer credit, financial aid, or graduation. Route those to the deciding institution/office and to a Success Coach. This is the interview's standing rule (#42) and the guardrail scope ([#39](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/39)); see also `GUARDRAIL_BENCHMARKS.md`. Every path closes on *"A Success Coach reviews your plan before it's official."*
+- **Never assert an outcome the college hasn't confirmed** — transfer credit, financial aid, or graduation. Route those to the deciding institution/office and to a Success Coach. This is the interview's standing rule (#42) and the guardrail scope ([#39](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/39)); see also `GUARDRAIL_BENCHMARKS.md`. Every path routes to a Success Coach for verification — the hand-off's closing line, from `coachVerifyLine()`, is *"Koa helps you plan. A Success Coach makes it official."*
 - **Ground answers in verified Dallas College catalog data** (RAG over the catalog — #35/#36/#61). `major`/`target_institution` arrive as catalog ids/codes to filter on.
 - **Respect staged capability.** [`shipped-intents.ts`](../../apps/frontend/features/onboarding/shipped-intents.ts) is the single source for which capabilities are live; don't offer an answer the pipeline can't yet ground.
 
 ## 7. Telemetry continuity
 
-Onboarding logs a console funnel with the #50 vocabulary (`page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `question_skipped`, `onboarding_skipped`, `onboarding_completed`, `onboarding_resumed`, `audience_link_tap`, `capability_opened`) via [`telemetry.ts`](../../apps/frontend/features/onboarding/telemetry.ts). Continue the funnel into the chat with matching names (e.g. a `chat_opened` / first-message event) so the same anonymous analytics transport is a drop-in.
+Onboarding logs a console funnel with the #50 vocabulary (`page_load`, `cta_tap`, `onboarding_started`, `question_answered`, `onboarding_skipped`, `onboarding_completed`, `onboarding_resumed`, `audience_link_tap`, `capability_opened`) via [`telemetry.ts`](../../apps/frontend/features/onboarding/telemetry.ts). Continue the funnel into the chat with matching names (e.g. a `chat_opened` / first-message event) so the same anonymous analytics transport is a drop-in.
 
 ## 8. Known follow-ups carried over
 
