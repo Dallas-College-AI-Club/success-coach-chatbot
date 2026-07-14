@@ -70,8 +70,8 @@ export function Welcome({
           <BotAvatar />
           <p className="max-w-xs text-sm text-[#1E2A3A]/70">
             {canPick
-              ? "Hey there — pick a look and I'll ask a few quick questions to point you the right way."
-              : "Hey there — I'll ask a few quick questions to point you the right way."}
+              ? "Hey — I'm Koa. Pick a look and I'll ask a few quick questions to point you the right way."
+              : "Hey — I'm Koa. I'll ask a few quick questions to point you the right way."}
           </p>
         </div>
 

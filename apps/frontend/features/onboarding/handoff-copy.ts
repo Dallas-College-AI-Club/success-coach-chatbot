@@ -222,7 +222,7 @@ export function authorityNotes(p: OnboardingPayload): string[] {
 // ends here — the one promise this tool can honestly make.
 export function coachVerifyLine(p: OnboardingPayload): string {
   if (p.student_type === "parent_guardian") {
-    return "A Success Coach can review the plan with you and your student.";
+    return "Koa helps you and your student plan; a Success Coach makes it official.";
   }
-  return "A Success Coach reviews your plan before it's official.";
+  return "Koa helps you plan; a Success Coach makes it official.";
 }

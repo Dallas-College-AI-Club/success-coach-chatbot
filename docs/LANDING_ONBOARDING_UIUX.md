@@ -159,7 +159,7 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 - **A forward line** tailored to the goal — *"Next, in your planning chat we'll…"*.
 - **A preview of the chat, drawn from the answers.** The starter prompts are chosen to fit the student's goal and sub-answers — a student taking a class for a job or license sees *"Who confirms this class counts?"*, not "classes for my major." A destination name appears only for the two named transfer partners; every other school reads as a plain phrase.
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
-- **The close, on every path:** *"A Success Coach reviews your plan before it's official."*
+- **The close, on every path:** *"Koa helps you plan; a Success Coach makes it official."*
 - **The entry point:** a **Start planning chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
 - **A few quick actions.** Beneath the entry point, a quiet row of shortcuts — *Register for classes*, *Academic calendar*, *Financial aid*, *Tutoring*, *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable rather than a wall of options. Each opens the planning chat, which answers the topic or routes to the office that owns it; as those surfaces ship, a shortcut can point at its real destination.
 
@@ -269,6 +269,16 @@ Planned enhancements, sequenced with the surrounding work:
 - **Home-school search for visiting students** and destination-led ordering for outbound transfers, as the articulation data in #35/#61 lands.
 - **A signposted visiting-student route** and a workforce / continuing-education door, as their backing intents ship.
 - **SSO prefill** — with the client store (#50), the program and returning-student steps collapse toward a single confirmation.
+
+### The name — working placeholder: "Koa"
+
+Students meet the AI as **Koa**, a working placeholder while the governed assistant name is settled (the strategy's §13.1 already leaves room for a shorter student-facing display name). Koa is *not* the human role — a **Success Coach** is a person; Koa is the AI **planning companion** that helps a student plan and get ready, and the copy says so throughout.
+
+- **Meaning.** Hawaiian for *brave / warrior* (and the koa tree — strength, endurance); Māori for *glad, cheerful*. Together: courage + encouragement, fitting for a companion cheering a student toward their goals.
+- **Gen-Z fit.** Short, soft, easy to say ("KOH-ah"), gender-neutral — squarely in the current wave of soft-ending names (Luca, Ezra, Micah). Reads as a friendly peer, not a corporate bot.
+- **Trade-offs.** No tie to Dallas/Texas (unlike, say, the city's own Pegasus); a meaningful Hawaiian word used out of place can feel arbitrary; and other brands use "Koa" (e.g., Koa Health), so it isn't distinctive — a trademark/clearance check would be needed before it's official.
+
+Because the assistant name is governed (a persona-config change with a version bump + evaluation per GP-0006), "Koa" lives only in this front-end copy for now; the config and RFCs still carry the canonical *Dallas College Success Coach Assistant*.
 
 ---
 
