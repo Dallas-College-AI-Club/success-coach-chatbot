@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { AiClubLogo } from "@/features/onboarding/shared/brand";
+import {
+  AiClubLogo,
+  SuccessCoachWordmark,
+} from "@/features/onboarding/shared/brand";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 
 // Placeholder for the planning chat (issue #3 / strategy View 3). The onboarding
@@ -13,14 +16,7 @@ export default function ChatPage() {
       {/* Club branding — the AI Club logo and the Success Coach wordmark. */}
       <div className="absolute top-5 left-5 flex items-center gap-2.5">
         <AiClubLogo className="text-[#003385]" />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/title.png"
-          alt="Success Coach"
-          width={1182}
-          height={852}
-          style={{ height: 40, width: "auto" }}
-        />
+        <SuccessCoachWordmark height={40} />
       </div>
 
       <div className="flex w-full max-w-md flex-col gap-4 rounded-3xl border border-[#003385]/12 bg-white p-6 shadow-[0_1px_3px_rgba(0,51,133,.06),0_12px_34px_rgba(0,51,133,.10)]">

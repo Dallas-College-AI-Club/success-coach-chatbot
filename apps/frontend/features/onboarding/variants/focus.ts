@@ -20,7 +20,7 @@ export const focus: Mode = {
     heading: "text-3xl font-semibold text-[#2B3A4A] outline-none md:text-4xl",
     helper: "text-sm text-[#2B3A4A]/55",
     option:
-      "group/opt flex h-auto! min-h-11 w-full items-center justify-between gap-3 rounded-xl border border-[#2B3A4A]/15 bg-white/60 px-4 py-2.5 text-left text-base whitespace-normal text-[#2B3A4A] backdrop-blur-[1px] transition-all hover:border-[#7C93AC] hover:bg-[#7C93AC]/[0.10] focus-visible:ring-2 focus-visible:ring-[#ec5f56] focus-visible:ring-offset-2 focus-visible:ring-offset-[#EDF2F7] motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#ec5f56] data-[state=on]:bg-[#ec5f56]/[0.07] data-[state=on]:ring-2 data-[state=on]:ring-[#ec5f56]",
+      "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#2B3A4A]/15 bg-white/60 px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#2B3A4A] backdrop-blur-[1px] transition-all hover:border-[#7C93AC] hover:bg-[#7C93AC]/[0.10] focus-visible:ring-2 focus-visible:ring-[#ec5f56] focus-visible:ring-offset-2 focus-visible:ring-offset-[#EDF2F7] motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#ec5f56] data-[state=on]:bg-[#ec5f56]/[0.07] data-[state=on]:ring-2 data-[state=on]:ring-[#ec5f56]",
     optionCheck:
       "shrink-0 text-lg leading-none text-[#ec5f56] opacity-0 transition-opacity group-data-[state=on]/opt:opacity-100",
     chip: "inline-flex items-center gap-1.5 rounded-full bg-[#7C93AC]/15 px-3 py-1 text-sm text-[#2B3A4A] transition-colors hover:bg-[#7C93AC]/25 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2",

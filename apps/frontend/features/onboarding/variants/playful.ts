@@ -20,7 +20,7 @@ export const playful: Mode = {
     heading: "text-2xl font-bold text-[#003385] outline-none",
     helper: "text-sm text-[#1E2A3A]/60",
     option:
-      "group/opt flex h-auto! min-h-11 w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#003385]/15 bg-white px-4 py-2.5 text-left text-base whitespace-normal text-[#1E2A3A] transition-all hover:border-[#003385] hover:bg-[#003385]/5 focus-visible:ring-2 focus-visible:ring-[#E52626] focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#E52626] data-[state=on]:bg-[#E52626]/10 data-[state=on]:ring-2 data-[state=on]:ring-[#E52626]",
+      "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#003385]/15 bg-white px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#1E2A3A] transition-all hover:border-[#003385] hover:bg-[#003385]/5 focus-visible:ring-2 focus-visible:ring-[#E52626] focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#E52626] data-[state=on]:bg-[#E52626]/10 data-[state=on]:ring-2 data-[state=on]:ring-[#E52626]",
     optionCheck:
       "shrink-0 text-xl leading-none text-[#E52626] opacity-0 transition-all group-data-[state=on]/opt:opacity-100 motion-safe:group-data-[state=on]/opt:animate-in motion-safe:group-data-[state=on]/opt:zoom-in-50",
     chip: "inline-flex items-center gap-1.5 rounded-full bg-[#003385]/10 px-3 py-1 text-sm font-medium text-[#1E2A3A] transition-colors hover:bg-[#003385]/20 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2",

@@ -1,6 +1,6 @@
 "use client";
 
-import { ToggleGroup } from "@/components/ui/toggle-group";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { INTL_STATUSES, intlGoalOptions } from "@/features/onboarding/questions";
 import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import type { Skin } from "@/features/onboarding/skin";
@@ -66,16 +66,24 @@ export const IntlGoalStep = ({
 
   return (
     <div className="flex w-full flex-col gap-4">
+      {/* New vs. returning: a compact segmented pair on one line, distinct from
+          the goal rows below. */}
       <ToggleGroup
         type="single"
         aria-label="Are you new to Dallas College or already studying here?"
         value={statusId}
         onValueChange={(id: string) => id && chooseStatus(id)}
         spacing={2}
-        className="flex flex-wrap justify-start"
+        className="flex w-full"
       >
         {INTL_STATUSES.map((s) => (
-          <SkinnedOption key={s.id} option={s} skin={skin} />
+          <ToggleGroupItem
+            key={s.id}
+            value={s.id}
+            className="min-h-9 flex-1 rounded-lg border border-current/20 px-2 py-1.5 text-center text-sm font-medium whitespace-normal text-current/70 transition-colors hover:border-current/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] data-[state=on]:border-current data-[state=on]:bg-current/[0.07] data-[state=on]:font-semibold data-[state=on]:text-current pointer-coarse:min-h-11"
+          >
+            {s.label}
+          </ToggleGroupItem>
         ))}
       </ToggleGroup>
       <ToggleGroup

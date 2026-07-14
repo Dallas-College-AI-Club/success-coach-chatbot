@@ -52,8 +52,58 @@ export function SuccessCoachCover({ className = "" }: { className?: string }) {
   );
 }
 
+// The Success Coach wordmark at header size. Uses public/title.png when present;
+// falls back to a compact coded lockup (blue script "Success" + red "COACH") so a
+// missing image never shows a broken-image icon.
+export function SuccessCoachWordmark({
+  height = 46,
+  className = "",
+}: {
+  height?: number;
+  className?: string;
+}) {
+  const [ok, setOk] = useState(true);
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = ref.current;
+    if (img && img.complete && img.naturalWidth === 0) setOk(false);
+  }, []);
+  if (ok) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        ref={ref}
+        src="/title.png"
+        alt="Success Coach"
+        width={1182}
+        height={852}
+        style={{ height, width: "auto" }}
+        className={className}
+        onError={() => setOk(false)}
+        onLoad={(e) => {
+          if (e.currentTarget.naturalWidth === 0) setOk(false);
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      aria-label="Success Coach"
+      className={`flex items-center gap-1 leading-none ${className}`}
+      style={{ height }}
+    >
+      <span className={`${dancingScript.className} text-2xl text-[#003385]`}>
+        Success
+      </span>
+      <span className={`${anton.className} text-xl tracking-tight text-[#E52626]`}>
+        COACH
+      </span>
+    </span>
+  );
+}
+
 // The Dallas College AI Club logo, linking to the club site. Falls back to a
-// text link until the image is added at public/ai-club-logo.png.
+// text lockup until the image is added at public/logo.png.
 export function AiClubLogo({ className = "" }: { className?: string }) {
   const [ok, setOk] = useState(true);
   const ref = useRef<HTMLImageElement>(null);
@@ -87,8 +137,10 @@ export function AiClubLogo({ className = "" }: { className?: string }) {
           }}
         />
       ) : (
-        <span className="text-xs font-semibold tracking-wide text-current opacity-70 underline underline-offset-2">
-          Dallas College AI Club
+        <span className="text-xs font-semibold leading-tight tracking-wide text-current opacity-80">
+          Dallas College
+          <br />
+          AI Club
         </span>
       )}
     </a>

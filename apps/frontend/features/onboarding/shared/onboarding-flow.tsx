@@ -5,7 +5,7 @@ import {
   type SavedSession,
 } from "@/features/onboarding/onboarding-store";
 import type { DoneState, Mode } from "@/features/onboarding/skin";
-import { AiClubLogo } from "@/features/onboarding/shared/brand";
+import { AiClubLogo, SuccessCoachWordmark } from "@/features/onboarding/shared/brand";
 import { ModeSwitcher } from "@/features/onboarding/shared/mode-switcher";
 import { Welcome } from "@/features/onboarding/shared/welcome";
 import { emit } from "@/features/onboarding/telemetry";
@@ -113,14 +113,7 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
               aria-label="Success Coach — back to the welcome page"
               className="rounded focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] motion-safe:transition-transform motion-safe:hover:scale-[1.03]"
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/title.png"
-                alt="Success Coach"
-                width={1182}
-                height={852}
-                style={{ height: 46, width: "auto" }}
-              />
+              <SuccessCoachWordmark height={46} />
             </button>
           </div>
           <ModeSwitcher modes={modes} current={mode} onSwitch={switchMode} />
