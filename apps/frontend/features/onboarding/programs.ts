@@ -1,22 +1,24 @@
 // Dallas College programs of study for the onboarding program picker (Q2).
 //
-// `code` is the catalog program id (poid) — a stable, real identifier that maps
-// one-to-one to a catalog program. `label` is the DISPLAY name shown in the picker;
-// for long transfer/academic degrees it is a trimmed, student-friendly form, NOT the
-// verbatim catalog title (the official name lives in the canonical program index,
-// apps/data/raw/catalog/<year>/program_index.json).
+// GENERATED — do not hand-edit. The data pipeline (#36) regenerates this from the
+// canonical catalog program index + program-overrides.json (exclude list, per-exclude
+// notes, and trimmed picker labels) on each catalog refresh:
+//   node generate-programs.mjs <program_index.json>
 //
-// Intentionally EXCLUDED — they are requirements-for-all, not a student's choice
-// (surfaced by the degree plan / RAG, never picked):
-//   - Core Curriculum (poid 3388)                 the 42-hr gen-ed block every degree embeds
-//   - Core Options for A.A.S. Awards (poid 3040)   the shared A.A.S. elective-options block
-// BOTH still MUST be ingested into program_map for the RAG (they supply the
-// "choose one from Area X" slots every degree references) so graduation requirements
-// come out complete — see docs/DATA_PIPELINE.md (degree-plan nuances) and issue #61.
+// `code` is the catalog program id (poid) — a stable, real identifier that maps one-to-one
+// to a catalog program. `label` is the DISPLAY name shown in the picker; for long transfer/
+// academic degrees it is a trimmed, student-friendly form, NOT the verbatim catalog title
+// (the official name lives in the canonical program index, program_index.json).
 //
-// Hand-maintained for now; the data pipeline (#36) owns a generator that regenerates
-// this from program_index.json + program-overrides.json (exclude list + trimmed picker
-// labels) on catalog refresh. Sorted by label.
+// Intentionally EXCLUDED — requirements-for-all, not a student's choice (surfaced by the
+// degree plan / RAG, never picked):
+//   - Core Curriculum (poid 3388) — the 42-hr gen-ed block every degree embeds
+//   - Core Options for A.A.S. Awards (poid 3040) — the shared A.A.S. elective-options block
+// These still MUST be ingested into program_map for the RAG (they supply the "choose one
+// from Area X" slots every degree references) so graduation requirements come out complete
+// — see docs/DATA_PIPELINE.md (degree-plan nuances) and issue #61.
+//
+// Sorted by label.
 
 export interface Program {
   code: string;

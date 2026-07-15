@@ -1,9 +1,13 @@
 {
-  "_README": "Config for the data-pipeline generator (issue #36) that produces programs.ts from program_index.json. exclude = poids kept OUT of the onboarding picker (structural / requirements-for-all; still ingested into program_map for the RAG). display_overrides = trimmed, student-friendly picker labels by poid; anything not listed falls back to the official catalog name. The generator sorts the final list by display label.",
+  "_README": "Config for the data-pipeline generator (issue #36) that produces programs.ts from program_index.json. exclude = poids kept OUT of the onboarding picker (structural / requirements-for-all; still ingested into program_map for the RAG). exclude_notes = human-readable name + rationale per excluded poid, rendered into the generated programs.ts header so the exclusions stay documented at the point of use. display_overrides = trimmed, student-friendly picker labels by poid; anything not listed falls back to the official catalog name. The generator sorts the final list by display label.",
   "exclude": [
     "3388",
     "3040"
   ],
+  "exclude_notes": {
+    "3388": { "name": "Core Curriculum", "note": "the 42-hr gen-ed block every degree embeds" },
+    "3040": { "name": "Core Options for A.A.S. Awards", "note": "the shared A.A.S. elective-options block" }
+  },
   "display_overrides": {
     "2778": "Architecture (A.S. Field of Study)",
     "2792": "Biomedical Engineering (A.S. transfer → UTD)",
