@@ -82,10 +82,10 @@ These gate delivery; confirm each at grooming. (Data readiness — not feature a
 | Dependency | Needed by | Status to confirm |
 |---|---|---|
 | Machine-readable catalog (requirements, prerequisites, course codes) | DP-010/011/012/020 — **most of the MVP** | **Blocking** — structured API vs. PDF/web |
-| Course-by-course transfer equivalency (`transfer_guide` schema) | DP-021/022 | Catalog carries only TCCN + Core-transfer signals, **not** full articulation → ship as *guidance + verify*; full equivalency defers to the target school |
+| Course-by-course transfer equivalency (`transfer_guide` schema) | DP-021/022 | Catalog carries only TCCN + Core-transfer signals, **not** full articulation. **Source identified:** Dallas College GPS transfer guides (~74 degree→destination maps, 2023–25), **pending ingest** (#35/#61); until then, ship as *guidance + verify* (defers to the target/home school) |
 | Visiting/transient "counts-back" equivalency (`transfer_guide`; TCCNS common numbering) | DP-023 | Same — *guidance + verify*; the home school's registrar confirms |
 | Inbound credit-by-exam / prior-learning tables + Admissions evaluation channel | DP-024 | Confirm published charts + official evaluation contact |
-| Field-of-Study / Texas Direct block plans (`program_map`) | DP-025 | **In corpus** — backfilled into the 2026–2027 scrape (`program_index`, `is_transfer`/`award_type`, incl. Engineering A.S.→UTD tracks) per #36; **data-ready** |
+| Field-of-Study / Texas Direct block plans + degree→destination articulation | DP-025 | Block-plan **curriculum in corpus** (`program_index`/`program_map`, #36). **Destination mapping** (which university each pathway feeds) comes from the GPS transfer guides (~74) — **pending ingest** (#35/#61) |
 | Historical syllabus repository (per course/section) | DP-040/041 | Required for syllabus intelligence |
 | Schedule & modality data (per term) | DP-032 | Required for modality filter |
 | Student context via institutional SSO (read-only profile) | personalized plans | Bot reads profile; **never** handles credentials |
@@ -517,7 +517,7 @@ Scenario: No published rule for the credential
 2. Query one without a pathway; confirm graceful fallback to per-course mapping, no fabricated pathway.
 3. Confirm no response guarantees admission.
 
-> **Data note.** The block-plan data is now in the corpus — the 2026–2027 catalog scrape was backfilled with the academic-transfer degrees (Field-of-Study / Texas Direct plans + Engineering A.S.→UTD tracks), flagged `is_transfer`/`award_type` in `program_index` / `program_map` (#36). DP-025 is therefore **data-ready** — gated only on the retrieval/tool layer, not on data. Course-by-course equivalency stays with DP-021/022/023 (`transfer_guide`, *guidance + verify*).
+> **Data note.** The block-plan **curriculum** is now in the corpus — the 2026–2027 scrape was backfilled with the academic-transfer degrees (Field-of-Study / Texas Direct plans + Engineering A.S.→UTD tracks), flagged `is_transfer`/`award_type` in `program_index` / `program_map` (#36). The **degree→destination articulation** (which university each pathway feeds) comes from Dallas College's GPS transfer guides (~74, 2023–25) and is **pending ingest** (#35/#61). So DP-025 can surface the plan now; destination-specific answers follow the GPS-guide ingest. Course-by-course equivalency stays with DP-021/022/023 (`transfer_guide`, *guidance + verify*).
 
 ---
 
