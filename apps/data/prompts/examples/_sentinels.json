@@ -1,0 +1,159 @@
+{
+  "$comment": "Identity registry of the REAL documents used as prompt exemplars. Lint L9: an extraction whose context identity differs from an exemplar's but whose output contains that exemplar's distinctive values is parroting -> retry/quarantine. These source documents are excluded from gold-gate aggregates (smoke-only). A pytest should re-derive this file from the exemplar .md files and fail on drift.",
+  "version": 2,
+  "exemplars": {
+    "syllabus/01-spch1321-points-mixed-total": {
+      "source": "raw/syllabi/2026SP/122458.html",
+      "identity": [
+        "SPCH 1321",
+        "47",
+        "Minnifee, Tamisha",
+        "spring"
+      ],
+      "distinctive_strings": [
+        "2026-03-30",
+        "2026-04-27",
+        "2026-04-29",
+        "All speeches and the group assignment must be submitted to pass the class. The graded-work table totals 800 points while the letter-grade scale spans 0-1000; the syllabus does not reconcile the difference.",
+        "Attendance is based on your log ins to eCampus. You are expected to log in every 2-3 days, if not every day. There is no attendance grade, but if you fall behind on work and have not been logging in regularly, I may contact you to discuss your participation in the course.",
+        "Business and Professional Communication (SPCH 1321), Spring 2026, Section 47, taught online by Professor Minnifee: communication in business and professional contexts with graded discussions, chapter quizzes and assignments, and three speech sequences (Who Am I, informative, persuasive) with outlines. All speeches and the group assignment must be submitted to pass. Late work may receive partial credit up to 3 days after the deadline; plagiarism carries a zero-tolerance policy. The withdraw deadline is April 29, 2026.",
+        "Chapter Discussions 6 at 25 points each.",
+        "Discussion to introduce yourself to the class.",
+        "Discussions",
+        "Informative Speech (100 points) and Outline (50 points).",
+        "LATE means your work was submitted, completed, or posted after the 11:59 PM deadline on the due date. Assignments submitted up to 3 days after the date may receive partial credit.",
+        "Mixed bucket: Chapter Quizzes (4) / Assignments (4) at 25 points each.",
+        "Persuasive Speech (100 points) and Outline (50 points).",
+        "Quizzes/Assignments",
+        "Speeches",
+        "Students will not receive credit for plagiarized assignments: There is a zero-tolerance policy for this practice. Plagiarism can be intentional (copying, stealing, buying a paper) or unintentional (forgetting to cite, or citing incorrectly). The consequences are the same.",
+        "Syllabus Quiz",
+        "Verifies understanding of important elements of the syllabus.",
+        "Welcome Discussion",
+        "Who Am I Speech: Outline (25) Presentation (75).",
+        "medium",
+        "other",
+        "participation",
+        "presentation",
+        "quiz"
+      ],
+      "distinctive_numbers": [
+        1,
+        6,
+        25,
+        100,
+        150,
+        200
+      ]
+    },
+    "syllabus/02-govt2306-percent-checksum-boilerplate": {
+      "source": "raw/syllabi/2026SP/84063.html",
+      "identity": [
+        "GOVT 2306",
+        "148",
+        "Galloway, Mitchell",
+        "spring"
+      ],
+      "distinctive_strings": [
+        "2026-03-30",
+        "2026-04-02",
+        "2026-04-29",
+        "Chapter Quizzes",
+        "Discussion Board",
+        "Exams",
+        "For in person classes, students are required to attend. Participation and attendance represents 20% of the overall grade. Each unexcused absence is a deduction in numerical grade and increase in the deduction depending on if assignments are given on that day which the assignment cannot be made up. In a 16 week course after 3 unexcused absences then total letter grade is lowered by one.",
+        "Label as printed; the syllabus does not explain this category.",
+        "Smart Book Assignments",
+        "Texas Government (GOVT 2306), Spring 2026, Section 148, taught online by Professor Galloway: the Texas constitution, state and local government, elections, and public policy. Grading is percentage-weighted: chapter quizzes (20%), discussion board (20%), a materials category (20%), SmartBook assignments (15%), and exams (25%). The attendance policy text is written for in-person classes and is not reflected in the grading table. TSI Reading and Writing standards are required. The withdraw deadline is April 29, 2026.",
+        "The attendance policy is written for in-person, 16-week classes and says attendance is 20% of the grade, but this is an online section and no attendance row appears in the grading table — the syllabus does not reconcile this.",
+        "Updated and Materials",
+        "exam",
+        "homework",
+        "medium",
+        "other",
+        "participation",
+        "quiz"
+      ],
+      "distinctive_numbers": [
+        15,
+        20,
+        25
+      ]
+    },
+    "course/01-acnt2303-crosslist-or-trap": {
+      "source": "raw/catalog/2026-2027/courses/15149.html",
+      "identity": [
+        "ACNT 2303",
+        "2026-2027"
+      ],
+      "distinctive_strings": [
+        "ACCT 2301",
+        "ACNT 2303",
+        "Analysis of generally accepted accounting principles, concepts, and theory underlying the preparation of financial statements.",
+        "BHC, CVC, EFC, ECC, MVC, NLC, RLC",
+        "Intermediate Accounting I",
+        "Prerequisites: Required: ACCT 2301. This course is cross-listed as ACNT 2403. The student may register for either ACNT 2303 or ACNT 2403 but may receive credit for only one of the two.",
+        "Required: ACCT 2301.",
+        "high"
+      ],
+      "distinctive_numbers": [
+        3
+      ]
+    },
+    "course/02-acct2301-tccn-noprereq": {
+      "source": "raw/catalog/2026-2027/courses/15128.html",
+      "identity": [
+        "ACCT 2301",
+        "2026-2027"
+      ],
+      "distinctive_strings": [
+        "5203015104",
+        "ACCT 2301",
+        "BHC, CVC, EFC, ECC, MVC, NLC, RLC",
+        "Principles of Financial Accounting",
+        "This course is an introduction to the fundamental concepts of financial accounting as prescribed by U.S. generally accepted accounting principles (GAAP) as applied to transactions and events that affect business organizations. Students will examine the procedures and systems to accumulate, analyze, measure, and record financial transactions.",
+        "high"
+      ],
+      "distinctive_numbers": [
+        3
+      ]
+    },
+    "program_map/01-osa-cit-aplus-semesters": {
+      "source": "raw/catalog/2026-2027/programs/2760.html",
+      "identity": [
+        "OSA_CIT_A+",
+        "2026-2027"
+      ],
+      "distinctive_strings": [
+        "2026-2027",
+        "A+ Occupational Skills Award",
+        "ITNW 1308",
+        "ITSC 1305",
+        "ITSC 1305 Introduction to PC Operating Systems is the capstone course for this award.",
+        "ITSC 1325",
+        "OSA_CIT_A+",
+        "Occupational Skills Award",
+        "Semester 1",
+        "Semester 2",
+        "fixed",
+        "high"
+      ],
+      "distinctive_numbers": [
+        3,
+        6,
+        9
+      ]
+    },
+    "cv/01-aaron-reyes-no-codes": {
+      "source": "raw/cv/aaron-reyes.html",
+      "identity": [
+        "Reyes, Aaron"
+      ],
+      "distinctive_strings": [
+        "Aaron Reyes",
+        "high"
+      ],
+      "distinctive_numbers": []
+    }
+  }
+}

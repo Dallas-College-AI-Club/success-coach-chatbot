@@ -35,6 +35,13 @@
               "other"
             ]
           },
+          "count": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "$comment": "how many graded items make up this row (12 quizzes, 3 exams); null when not printed or when the row mixes item types - never computed by division"
+          },
           "weight_pct": {
             "type": [
               "number",
