@@ -24,7 +24,27 @@ export type IntlStatus = "incoming" | "current";
 
 export type TransferDirection = "outbound" | "transfer_back" | "inbound";
 
-export type TargetInstitution = "UTD" | "UNT" | "TX_OTHER" | "US_OTHER" | "INTL";
+// Named universities Dallas College has documented transfer paths to: the Richland
+// engineering academies + RLC/SMU (co-enrollment, named in the catalog degrees) and
+// the Field-of-Study / Texas Direct GPS transfer guides (dallascollege.edu/gps). The
+// chat grounds specific articulation guidance from these; the three region codes are
+// catch-all buckets.
+export type TargetInstitution =
+  | "UTD"
+  | "UNT"
+  | "UNT_DALLAS"
+  | "UTA"
+  | "TWU"
+  | "TTU"
+  | "TXST"
+  | "TARLETON"
+  | "ETAMU"
+  | "PVAMU"
+  | "TAMU_CS"
+  | "SMU"
+  | "TX_OTHER"
+  | "US_OTHER"
+  | "INTL";
 
 export type InterestArea = "health" | "tech" | "business" | "arts" | "trades";
 
@@ -33,17 +53,24 @@ export type OneoffPurpose = "prerequisite" | "job_licensure" | "enrichment";
 /**
  * A step contributes one or more fields to the final payload. Every value comes
  * from a closed option list; `null` means "answered, no preference" (distinct
- * from a skipped step). Keys mirror the profile allowlist so the payload can be
- * persisted later without reshaping.
+ * from a skipped step).
+ *
+ * Persistence (#50): the DURABLE profile allowlist (the `chat_session.profile`
+ * CHECK finalized in #36) is the subset that persists — `major`, `student_type`,
+ * `target_institution`, `transfer_direction`, `intl_status`, `modality_pref`,
+ * `dayparts_pref`, `interest_area`, `oneoff_purpose` (+ `campus`, not collected
+ * here). `goal` and the completion meta (`skippedSteps` / `onboardingVersion` /
+ * `completedAt`) are TRANSIENT — they route to telemetry/events, never into
+ * `profile` (writing them would trip the CHECK).
  */
 export type PayloadContribs = Partial<{
-  goal: GoalValue | null;
+  goal: GoalValue | null; // transient: Q1 entry-routing intent → telemetry, not profile
   major: string | null;
   target_institution: TargetInstitution | null;
   modality_pref: "online" | null;
   dayparts_pref: string[] | null;
   student_type: StudentType | null;
-  // Client-only until the profile allowlist is extended (see the design doc).
+  // Durable profile keys — the allowlist was extended to include these (#36).
   transfer_direction: TransferDirection | null;
   interest_area: InterestArea | null;
   oneoff_purpose: OneoffPurpose | null;

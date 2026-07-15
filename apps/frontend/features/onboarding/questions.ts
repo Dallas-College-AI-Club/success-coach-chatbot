@@ -142,23 +142,45 @@ export const directionOptions: QuestionOption[] = [
 ];
 
 type SchoolShowFor = "both" | "outbound";
+type SchoolTier = "partner" | "region";
 interface SchoolOption extends QuestionOption {
   showFor: SchoolShowFor;
+  /** "partner" = a named university with coordinated articulation (rendered first);
+   *  "region" = a catch-all bucket. */
+  tier: SchoolTier;
+  /** Extra search terms so a region bucket surfaces when a student types a specific
+   *  school it covers (e.g. typing "austin" finds "Elsewhere in Texas"). */
+  keywords?: string[];
 }
 
-// Categorized by what the planning chat can actually ground an answer in, not by
-// listing universities we hold no equivalency data for. UT Dallas and UNT are
-// named because Dallas College has coordinated articulation with them (shown in the
-// catalog); everyone else is a bucket that routes to the right process and caveat.
+// Named universities are the ones Dallas College has documented transfer paths to:
+// the Richland engineering academies + RLC/SMU (co-enrollment, named in the catalog
+// degrees: UTD, UT Arlington, Prairie View A&M, Texas A&M College Station, SMU) and
+// the Field-of-Study / Texas Direct GPS transfer guides (dallascollege.edu/gps: UNT,
+// UNT Dallas, TWU, East Texas A&M, Texas Tech, Tarleton State, Texas State) — so the
+// planning chat can ground specific articulation guidance. Everyone else is a region
+// bucket that routes to the right process and caveat. Rendered as a searchable picker
+// (partners first, then regions). Keep this list in sync with the GPS guides / the
+// #35/#61 articulation dataset when it's scraped.
 // "Not sure yet" fits the outbound "where are you transferring" case but not the
 // visiting "which college do you attend" case (a visitor knows their home school).
 export const schoolOptions: SchoolOption[] = [
-  { id: "sch_utd", label: "UT Dallas", contribs: { target_institution: "UTD" }, showFor: "both" },
-  { id: "sch_unt", label: "UNT", contribs: { target_institution: "UNT" }, showFor: "both" },
-  { id: "sch_tx", label: "Another Texas school", contribs: { target_institution: "TX_OTHER" }, showFor: "both" },
-  { id: "sch_us", label: "Out of state", contribs: { target_institution: "US_OTHER" }, showFor: "both" },
-  { id: "sch_intl", label: "International", contribs: { target_institution: "INTL" }, showFor: "both" },
-  { id: "sch_unsure", label: "Not sure yet", contribs: { target_institution: null }, showFor: "outbound" },
+  { id: "sch_utd", label: "UT Dallas", contribs: { target_institution: "UTD" }, showFor: "both", tier: "partner", keywords: ["utd", "dallas"] },
+  { id: "sch_unt", label: "University of North Texas (UNT)", contribs: { target_institution: "UNT" }, showFor: "both", tier: "partner", keywords: ["unt", "denton"] },
+  { id: "sch_unt_dallas", label: "UNT Dallas", contribs: { target_institution: "UNT_DALLAS" }, showFor: "both", tier: "partner", keywords: ["untd", "unt dallas"] },
+  { id: "sch_uta", label: "UT Arlington", contribs: { target_institution: "UTA" }, showFor: "both", tier: "partner", keywords: ["uta", "arlington"] },
+  { id: "sch_twu", label: "Texas Woman's University (TWU)", contribs: { target_institution: "TWU" }, showFor: "both", tier: "partner", keywords: ["twu", "womans", "denton"] },
+  { id: "sch_ttu", label: "Texas Tech University", contribs: { target_institution: "TTU" }, showFor: "both", tier: "partner", keywords: ["ttu", "tech", "lubbock"] },
+  { id: "sch_txst", label: "Texas State University", contribs: { target_institution: "TXST" }, showFor: "both", tier: "partner", keywords: ["txst", "san marcos"] },
+  { id: "sch_tarleton", label: "Tarleton State University", contribs: { target_institution: "TARLETON" }, showFor: "both", tier: "partner", keywords: ["tarleton", "stephenville"] },
+  { id: "sch_etamu", label: "East Texas A&M University", contribs: { target_institution: "ETAMU" }, showFor: "both", tier: "partner", keywords: ["etamu", "east texas a&m", "tamuc", "commerce", "texas a&m commerce"] },
+  { id: "sch_pvamu", label: "Prairie View A&M", contribs: { target_institution: "PVAMU" }, showFor: "both", tier: "partner", keywords: ["pvamu", "prairie view"] },
+  { id: "sch_tamu_cs", label: "Texas A&M (College Station)", contribs: { target_institution: "TAMU_CS" }, showFor: "both", tier: "partner", keywords: ["tamu", "aggies", "college station"] },
+  { id: "sch_smu", label: "SMU", contribs: { target_institution: "SMU" }, showFor: "both", tier: "partner", keywords: ["southern methodist"] },
+  { id: "sch_tx", label: "Elsewhere in Texas", contribs: { target_institution: "TX_OTHER" }, showFor: "both", tier: "region", keywords: ["texas", "ut austin", "houston", "another"] },
+  { id: "sch_us", label: "Another U.S. state", contribs: { target_institution: "US_OTHER" }, showFor: "both", tier: "region", keywords: ["out of state", "out-of-state", "oos", "different state"] },
+  { id: "sch_intl", label: "Outside the U.S.", contribs: { target_institution: "INTL" }, showFor: "both", tier: "region", keywords: ["international", "abroad", "overseas"] },
+  { id: "sch_unsure", label: "Not sure yet", contribs: { target_institution: null }, showFor: "outbound", tier: "region", keywords: ["undecided", "unknown"] },
 ];
 
 const transferOriginQuestion: OnboardingQuestion = {

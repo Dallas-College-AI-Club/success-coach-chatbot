@@ -73,23 +73,23 @@
 
 ## 3. Audiences
 
-Three distinct situations, plus one **credit-portability family** — audiences whose core question is identical: *"will credits earned in one place count in the other?"*
+Three distinct situations, plus **John's credit-portability journey** — one longitudinal persona whose core question recurs at every touchpoint: *"will credits earned in one place count in the other?"*
 
 | Audience | Situation | What the design gives them |
 |---|---|---|
 | **Maria** — first-year (primary) | Highest jargon burden, help-seeking stigma, likely undecided | Inline term definitions; normalize-then-answer; "Not sure yet" as a first-class option; visible progress (P5, P6) |
 | **Hannah** — working adult, online | Time-poor, mobile, evenings | Persistent "online only" filter (DP-032); one-tap resume; short answers, expansion on request |
 | **Sean** — international, F-1 | Highest stakes, plausibly ESL | Idiom-free sentences; visa questions = published basics + DSO referral only, never improvised (DP-050) |
-| **Credit-portability family (John + variants)** | Verification-driven; many have seen credits not count. The variants below differ in direction, timing, and life stage — not in the core need | Family invariants: acceptance is never guaranteed — the receiving school decides; every answer cites the agreement + its date, or TCCNS + the school's verification link; the caveat is embedded in shareable cards so screenshots carry it (DP-021/022, P6); one chip captures direction (§6.2) |
+| **Credit-portability — John's journey** | Verification-driven; many have seen credits not count. This is **one longitudinal persona (John), not four peers** — the same core need recurs at four credit touchpoints that differ only in direction and stage | Family invariants: acceptance is never guaranteed — the receiving school decides; every answer cites the agreement + its date, or TCCNS + the school's verification link; the caveat is embedded in shareable cards so screenshots carry it (DP-021/022, P6); one chip captures direction (§6.2) |
 
-**The family's four variants:**
+**John's four credit-touchpoint stages (chronological):**
 
-| Variant | Direction and timing | Variant-specific design |
+| Stage | Direction and timing | Stage-specific design |
 |---|---|---|
-| **John** — classic transfer | Dallas College associate → university, forward | Articulation maps with agreement dates; confirmed vs. unverified marked visually; Promise transfer-scholarship card |
-| **Dual-credit student + parent** | Same forward direction, started in high school — plus progress toward the associate itself | **Minors:** crisis routing is minor-aware (§13); no age or birthdate collected — audience is a self-declared `student_type`; parents supported, "your student" phrasing, answers stay general. Graduation-check flow for associate progress; transfer questions use the standard John toolset; Promise balance-of-hours + associate-in-HS scholarship facts; Guide register, maximum jargon translation. (Strategy-proposed audience — persona/story backing lands with §13.5) |
-| **Visiting (transient)** | Reverse enrollment: a Dallas College class → their home institution, now | Persona John's documented reverse-transfer case, promoted from the DP-065 backlog. TCCNS fact + "your home school decides" + equivalency link; summer-deadline cards; Direct register; Promise/FAFSA-here cards suppressed (aid runs through the home school) |
-| **Inbound credit** — prior college, AP/CLEP/IB, military | Credits earned elsewhere → Dallas College, at entry | The receiving school deciding is *us* here: credits never appear automatically — official transcripts go to Admissions for evaluation (the #42 interview's top-flagged misconception). Deterministic answer + Admissions contact (query J); prior-learning-credit facts (§7.4) |
+| **1. Dual-credit** — started in high school | Forward, before enrolling — plus progress toward the associate itself | **Minors:** crisis routing is minor-aware (§13); no age or birthdate collected — the audience is a self-declared `student_type: dual_credit` (a co-deciding **parent shares the same value** — no separate `parent_guardian` type). Graduation-check flow for associate progress; transfer questions use the standard transfer toolset; Promise balance-of-hours + associate-in-HS scholarship facts; Guide register, maximum jargon translation. Persona/story backing: John's dual-credit stage (DP-024/025). |
+| **2. Inbound credit** — prior college, AP/CLEP/IB, military, skills-cert waivers | Credits earned elsewhere → Dallas College, at entry | The receiving school deciding is *us* here: credits never appear automatically — official transcripts go to Admissions for evaluation (the #42 interview's top-flagged misconception). Deterministic answer + Admissions contact (query J); prior-learning-credit facts (§7.4). (DP-024) |
+| **3. Outbound transfer** — Dallas associate → university | Forward, on completion (Field-of-Study / Texas Direct pathways, e.g. Dallas → UT Dallas Computer Eng) | Articulation maps with agreement dates; confirmed vs. unverified marked visually; Promise transfer-scholarship card. (DP-021/022/025) |
+| **4. Visiting / transient** — a Dallas class counts back home | Counts-back: a Dallas College class → their home institution, now | John's documented **counts-back** case (DP-023, P1). TCCNS fact + "your home school decides" + equivalency link; summer-deadline cards; Direct register; Promise/FAFSA-here cards suppressed (aid runs through the home school). ("Reverse transfer" is reserved for earning the associate from accumulated university credit — DP-065 ranks which DC classes are best to count back.) |
 
 ---
 
@@ -156,7 +156,7 @@ Extends the team's entry design (`conversation-entry-design.md` and the `convers
 |---|---|---|---|---|
 | "Plan my first semester" | New student (Maria) | DP-030 | Program | S2 |
 | "See what I still need to graduate" | Continuing / dual credit | DP-011 / DP-020 | Program | S1 as "See what my program requires" (DP-011); this label when the progress diff exists (SSO-era, post-MVP) |
-| "Check what transfers where" | Credit-portability family (§3) — John, dual credit, inbound, or visiting | DP-021 / DP-022 | Direction chip → school | S3 — data-gated (articulation source needed) |
+| "Check what transfers where" | John's credit-portability journey (§3) — any of his four touchpoints | DP-021 / DP-022 | Direction chip → school | S3 — Field-of-Study/Texas Direct program data now in #36; destination articulation (GPS guides) still to ingest |
 | "Fit classes around my current schedule" | Schedule-constrained (Hannah and others) | DP-032 → DP-030 | Schedule fit | S3 (DP-032) |
 | "Help me figure out my major" | Exploring (Maria) | Caveated exploration flow | Interest area only — never ask the major of a student who came to choose one | S1 |
 
@@ -186,8 +186,7 @@ One line: proves personalization and demonstrates catalog grounding (rendered li
 
 Under the goal buttons: *"Not a current Dallas College student? **Dual credit · Parent or guardian · Visiting from another college**."* Selecting one sets the existing `student_type` key (proposed registry values — §13.5; they ship with the CHECK + registry PR, §9.9) and routes:
 
-- **dual_credit** → graduation-check flow for associate progress; "will these count at ⟨university⟩" questions run through the standard transfer branch and John toolset (§3); §3 card set; Guide register.
-- **parent_guardian** → Guide register, "your student" phrasing, Parent Promise card; answers stay general — no student-specific data fetched or implied.
+- **dual_credit** (a co-deciding **parent shares this same value** — no separate `parent_guardian` type; the "Parent or guardian" audience link routes here) → graduation-check flow for associate progress; "will these count at ⟨university⟩" questions run through the standard transfer branch and John toolset (§3); §3 card set; Guide register. When the registrant is a parent: "your student" phrasing + Parent Promise card, answers stay general — no student-specific data fetched or implied.
 - **visiting** → transfer branch pre-set to transfer-back; the school picker means the *home* institution (`target_institution` generalizes); Direct register; schedule fit always offered.
 
 **Transfer-direction chip (all transfer-branch users):** *"Moving my Dallas College credits to a university"* / *"Taking a class here to count at my school"* / *"Bringing credits from a previous college, AP/CLEP, or the military."* One tap selects the knowledge source (articulation maps, transfer-back guidance, or the inbound-evaluation answer — official transcripts to Admissions, query J contact) and the matching disclaimers.
@@ -542,7 +541,7 @@ Keys mirror the profile allowlist; each new key ships with the CHECK extension i
 
 1. **Assistant display name** — the governed `persona.name` unblocks §9.4 copy today; a shorter student-facing name is a persona-section config change with evaluation evidence (§13.1). Not blocking.
 2. **SSO profile availability** — none at MVP by design (#50 is anonymous-UUID); View 2 ships with zero prefill. SSO prefill and the endowed-progress payoff (§6.1) are the post-MVP upgrade path, at which point View 2 collapses toward one confirmation step.
-3. **Profile allowlist extension** — `goal`, `target_institution`, schedule-fit keys (CHECK + registry, one PR; #51's contract-sync CI pins the pair); `student_type` gains `dual_credit`, `parent_guardian`, `visiting` (§13.5).
+3. **Profile allowlist extension** — `goal`, `target_institution`, schedule-fit keys (CHECK + registry, one PR; #51's contract-sync CI pins the pair); `student_type` gains `dual_credit` (parents share it — no `parent_guardian`) and `visiting` (§13.5).
 4. **View 3 route** — CTA and wizard exit route to `/chat` (issue #3's proposed structure). At #52 scope, Complete/Start-Chatting = `preventDefault` → console payload (§9.8) → navigate to `/chat`, which may ship as a minimal entry shell (welcome copy §9.4 + starter prompts + input). The auto-fired first intent travels in the payload's `goal` key and activates when the grounded chain lands (dep 7).
 5. **Returning-user persistence** — decided by issue #50: Zustand `persist` → localStorage, client `student_id` UUID, cached profile + chat history. Server sessions archive ~48 h idle and purge weekly (`DATABASE_ARCHITECTURE.md` §5F), so continuity is client-side by design; build the §9.8 payload as #50's profile type.
 6. **Mockup refresh owner** — required before the fidelity AC is testable; two Canva artifacts to reconcile (§9.6).
@@ -674,7 +673,7 @@ Ranked: experiments 1–2 are launch-window; 3–6 activate behind a stated traf
 2. **Slug vocabulary PR + prompt-config RFC** — register slugs + overlay flags into the registry, and the RFC that homes register definitions in `ai-prompts.json` (§8.7, RFC-0005).
 3. **Distress lexicon** — reviewed trigger list + stricter crisis-routing list, minor-aware for dual credit (§3); Success Coach review. Seed it with the #45 trigger list (rent, utilities, food, technology, stress) and the #43 `help_topics` vocabulary, so the empathy overlay and support routing share one list.
 4. **Planner scope** — appointment-prep content (Workday, holds, transcripts) exceeds the MVP; confirm before building for it (§8.3). The #42 interview is the source of the appointment-prep ask, and `GUARDRAIL_BENCHMARKS.md` already treats Workday/holds pointers as valid in-scope answers — so the open question is depth, not legitimacy.
-5. **`student_type` values + audience-link telemetry** — registry entries for `dual_credit`, `parent_guardian`, `visiting` (§6.2). The dual-credit and parent audiences are strategy-proposed extensions needing persona/story backing; `MVP_USER_PERSONAS.md` itself still lives on the issue-6 branch — land it on main before the copy freeze.
+5. **`student_type` values + audience-link telemetry** — registry entries for `dual_credit` (parents share it — no `parent_guardian`) and `visiting` (§6.2). The dual-credit/parent audience now has persona/story backing (John's dual-credit stage; DP-024/025); `docs/MVP_USER_PERSONAS.md` (v1.2) still lands from the issue-6 branch — merge before the copy freeze.
 6. **TCCNS / transfer-back content** — verify before shipping visiting-student answers; source home-school equivalency links (§3, §7.4).
 7. **Card-dismissal storage** — profile key vs. telemetry derivation; needed only if the standalone card graduates from experiment #2 — inline facts need none (§6.3, §7.4).
 8. **Content ops for proactive facts** — an ingestion or manual-seed path for `academic_calendar` rows (registration windows, drop deadlines) and the §7.4 inventory as `knowledge_article` rows, with a named per-term re-verification owner. Both the reminder opt-in (§6.4) and every money card depend on it.
