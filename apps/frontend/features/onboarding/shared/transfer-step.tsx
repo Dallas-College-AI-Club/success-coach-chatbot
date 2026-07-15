@@ -1,5 +1,13 @@
 "use client";
 
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { ToggleGroup } from "@/components/ui/toggle-group";
 import { directionOptions, schoolOptions } from "@/features/onboarding/questions";
 import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
@@ -116,18 +124,40 @@ export const TransferStep = ({
       <p ref={schoolPromptRef} tabIndex={-1} className="font-medium outline-none">
         {schoolPrompt}
       </p>
-      <ToggleGroup
-        type="single"
-        aria-label={schoolPrompt}
-        value={existing?.optionIds.school ?? ""}
-        onValueChange={chooseSchool}
-        spacing={2}
-        className="flex flex-wrap justify-start"
-      >
-        {visibleSchools.map((o) => (
-          <SkinnedOption key={o.id} option={o} skin={skin} />
-        ))}
-      </ToggleGroup>
+      <Command className={skin.picker}>
+        <CommandInput placeholder="Search for a school…" aria-label={schoolPrompt} />
+        <CommandList>
+          <CommandEmpty>Not listed? Clear the search and pick a broader area below.</CommandEmpty>
+          <CommandGroup heading="Universities">
+            {visibleSchools
+              .filter((s) => s.tier === "partner")
+              .map((o) => (
+                <CommandItem
+                  key={o.id}
+                  value={o.label}
+                  keywords={o.keywords}
+                  onSelect={() => chooseSchool(o.id)}
+                >
+                  {o.label}
+                </CommandItem>
+              ))}
+          </CommandGroup>
+          <CommandGroup heading="Or a broader area">
+            {visibleSchools
+              .filter((s) => s.tier === "region")
+              .map((o) => (
+                <CommandItem
+                  key={o.id}
+                  value={o.label}
+                  keywords={o.keywords}
+                  onSelect={() => chooseSchool(o.id)}
+                >
+                  {o.label}
+                </CommandItem>
+              ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
     </div>
   );
 };
