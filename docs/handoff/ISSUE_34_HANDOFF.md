@@ -34,8 +34,8 @@ professor, term) that later stages stamp into the database. The manifest is the
 
 | Module | What it scrapes | Status |
 |---|---|---|
-| [`archive_syllabi_cv.py`](../../apps/data/pipeline/archive_syllabi_cv.py) | Concourse syllabus + instructor-CV pages, driven by schedule-CSV work-lists | ✅ ran the Spring+Summer 2026 corpus (~9.8k syllabi + ~2.5k CVs on disk after de-dup) |
-| [`catalog_fetch.py`](../../apps/data/pipeline/catalog_fetch.py) | Acalog catalog: 337 degree plans (306 in the by-Program index + 31 academic-transfer degrees) + every course they reference | ✅ ran the 2026-2027 catalog (~1.8k pages) |
+| [`archive_syllabi_cv.py`](../../apps/data/pipeline/archive_syllabi_cv.py) | Concourse syllabus + instructor-CV pages, driven by schedule-CSV work-lists | ✅ ran 8 terms, Spring 2024–Summer 2026 (~32k syllabi + ~3.1k CVs on disk) |
+| [`catalog_fetch.py`](../../apps/data/pipeline/catalog_fetch.py) | Acalog catalog: 337 degree plans (306 in the by-Program index + 31 academic-transfer degrees) + every course they reference | ✅ ran the 2026-2027 catalog (~2k pages: 337 programs + ~1.7k courses) |
 | [`run_archive_today.py`](../../apps/data/pipeline/run_archive_today.py) | Self-healing driver: discovers every schedule CSV, runs CVs then per-term syllabi | ✅ overnight-safe |
 
 **The conventions they share** (this is the de-facto framework, currently duplicated):

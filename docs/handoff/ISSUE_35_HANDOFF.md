@@ -9,8 +9,8 @@
 > **pre-filtering by course before similarity search** — *is* the production
 > design. This handoff maps that approach onto the production target
 > (`knowledge_entry`), gives the exact contracts to build against, and lists what's
-> left to ship. The raw corpus is already on disk (~9.8k syllabi — 6,856 Spring 2026 + 2,975
-> Summer 2026 — ~2.5k CVs, and ~1.8k catalog pages under `apps/data/raw/`), so
+> left to ship. The raw corpus is already on disk (~32k syllabi across 8 terms, Spring 2024–
+> Summer 2026; ~3.1k CVs; ~2k catalog pages — under `apps/data/raw/`), so
 > this stage has real input to run on.
 
 ---
