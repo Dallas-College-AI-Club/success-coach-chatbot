@@ -12,9 +12,9 @@
 | **File** | `DEGREE_PLANNING_STORIES.md` |
 | **Document type** | Sprint-ready user stories + acceptance criteria |
 | **Status** | Draft for backlog grooming |
-| **Version** | 1.1 |
-| **Last updated** | June 17, 2026 |
-| **Source persona doc** | `MVP_USER_PERSONAS.md` |
+| **Version** | 1.2 |
+| **Last updated** | July 15, 2026 |
+| **Source persona doc** | [`../MVP_USER_PERSONAS.md`](../MVP_USER_PERSONAS.md) (v1.2) |
 
 **Scope.** Degree Planning only. The original three-pillar concept (AI Degree Planning, Event Finder, Lost & Found) has been narrowed: **Event Finder and Lost & Found are out of scope** for this release. They appear here only as a *redirect* behavior (DP-052), never as implemented features. The task's "event has passed" edge-case example is therefore **N/A** for this pillar and is handled by out-of-scope redirection rather than event logic.
 
@@ -32,10 +32,12 @@
 | Key | Persona | Scope |
 |---|---|---|
 | **M** | Maria — First-Year Student | Primary |
-| **J** | John — Transfer Student | Secondary |
-| **H** | Hannah — Adult Online Learner | Secondary |
+| **J** | John — Transfer Student (dual-credit → in / out / visiting, one journey) | Secondary |
+| **H** | Hannah — Adult Online Learner (workforce / continuing-ed) | Secondary |
 | **S** | Sean — International Student | Secondary |
 | **G** | Grace — Straight-A Strategist | Post-MVP (deferred) |
+
+> **Audience note.** Two shipped onboarding audiences fold into these personas rather than getting their own: **dual-credit** high-schoolers (+ a co-deciding parent, who shares `student_type: dual_credit`) are John's first stage, and **workforce / continuing-education** students are Hannah — both reuse the generic stories (requirement lookup, schedule fit, transfer check), so neither needs a dedicated DP story.
 
 **Priority tags** (map to the persona doc's MoSCoW): `P0` = Must (MVP-critical) · `P1` = Should (high value, often data-gated) · `P2` = Could (later).
 
@@ -58,6 +60,11 @@
 | **NLU / Intent / Entity** | Natural-language understanding; the *intent* is what the user wants (e.g., requirement lookup); *entities* are the things referenced (course, program, school). |
 | **Prerequisite / Co-requisite** | A course required *before* another; a course required *alongside* another. |
 | **Articulation / transfer equivalency** | Official mapping of how a course at one school counts at another. |
+| **Visiting / transient student** | Enrolled at another college; takes one Dallas class to count back at their home school. |
+| **Credit by exam / prior learning** | Dallas credit from AP/IB/CLEP, military (JST/ACE), or a skills certificate — evaluated by Admissions to waive a course. |
+| **Field of Study / Texas Direct** | A published Dallas associate plan that transfers as a block into a specific university major. |
+| **Reverse transfer** | Earning a Dallas associate by applying credits earned *after* transferring to a university back to the associate. |
+| **Dual credit** | A high-school student earning Dallas College credit before graduating (a parent may co-decide; shares `student_type: dual_credit`). |
 | **Modality** | Course delivery mode: online, in-person, or hybrid. |
 | **Catalog citation** | A reference to the official catalog section/source backing a claim. |
 | **Hand-off** | Routing the student to a human (advisor, or DSO for F-1). |
@@ -75,7 +82,10 @@ These gate delivery; confirm each at grooming. (Data readiness — not feature a
 | Dependency | Needed by | Status to confirm |
 |---|---|---|
 | Machine-readable catalog (requirements, prerequisites, course codes) | DP-010/011/012/020 — **most of the MVP** | **Blocking** — structured API vs. PDF/web |
-| Articulation / transfer-equivalency data per partner university | DP-021/022 | Required for transfer stories |
+| Course-by-course transfer equivalency (`transfer_guide` schema) | DP-021/022 | Catalog carries only TCCN + Core-transfer signals, **not** full articulation → ship as *guidance + verify*; full equivalency defers to the target school |
+| Visiting/transient "counts-back" equivalency (`transfer_guide`; TCCNS common numbering) | DP-023 | Same — *guidance + verify*; the home school's registrar confirms |
+| Inbound credit-by-exam / prior-learning tables + Admissions evaluation channel | DP-024 | Confirm published charts + official evaluation contact |
+| Field-of-Study / Texas Direct block plans (`program_map`) | DP-025 | **In corpus** — backfilled into the 2026–2027 scrape (`program_index`, `is_transfer`/`award_type`, incl. Engineering A.S.→UTD tracks) per #36; **data-ready** |
 | Historical syllabus repository (per course/section) | DP-040/041 | Required for syllabus intelligence |
 | Schedule & modality data (per term) | DP-032 | Required for modality filter |
 | Student context via institutional SSO (read-only profile) | personalized plans | Bot reads profile; **never** handles credentials |
@@ -98,6 +108,9 @@ These gate delivery; confirm each at grooming. (Data readiness — not feature a
 | DP-020 | Degree-track pathway map | M | P0 | 8 |
 | DP-021 | Associate-to-4-year transfer map | J | P1 | 8 |
 | DP-022 | Transfer-equivalency check with disclaimer | J | P1 | 5 |
+| DP-023 | Visiting/transient "counts back home" equivalency | J | P1 | 5 |
+| DP-024 | Inbound credit-in guidance (AP/IB/CLEP, military, certs) | J | P1 | 5 |
+| DP-025 | Field-of-Study / Texas Direct block-pathway surfacing | J | P1 | 5 |
 | DP-030 | First-semester plan generation | M | P0 | 8 |
 | DP-031 | Multi-term course sequencing | M, J | P1 | 5 |
 | DP-032 | Modality filter (online / evening / weekend) | H | P1 | 5 |
@@ -418,6 +431,96 @@ Scenario: Target university not supported
 
 ---
 
+### DP-023 — Visiting/transient "counts back home" equivalency
+**Persona(s):** John (visiting/transient) · **Priority:** P1 · **Estimate:** 5 · **Labels:** `type:feature` `area:transfer` · **Dependencies:** DP-022, DP-010
+
+**User story.** As a visiting/transient student enrolled elsewhere (John, in the visiting/transient stage of his journey), I want to know whether a specific Dallas College class will count *back* at my home university, so that I don't spend a term on a class that won't transfer.
+
+**Acceptance criteria (Gherkin).**
+```gherkin
+Scenario: Check whether a Dallas class counts back at the home school
+  Given I say I attend another college and name my home school
+  When I ask "will this Dallas class count back toward my degree?"
+  Then the bot gives the likely equivalency (using TCCNS common numbering where it exists)
+  And it appends a mandatory "only your home school's registrar can confirm what counts" disclaimer
+  And it never guarantees the credit will be accepted
+
+Scenario: No counts-back data for that class / home-school pair
+  Given no reliable equivalency data exists
+  When I ask
+  Then the bot says it can't confirm and routes me to my home school's registrar / transfer office (DP-053)
+```
+
+**Edge cases / error paths.**
+- Named partner school vs. a bucket → be school-specific only where data exists; else generic + verify.
+- Counts as elective only (not toward the major) → state the distinction.
+
+**QA verification steps.**
+1. Name a home school + class with known common-numbering equivalency; confirm result + home-school disclaimer.
+2. Name a class with no data; confirm deferral + hand-off, no guarantee.
+3. Scan responses for any "guaranteed to transfer back" language (must be absent).
+
+> **Note.** Shares the equivalency engine and verify-disclaimer with DP-022; the difference is the *authority* — the **home** school, not a target school. DP-065 covers the later "which DC classes are best to count back" optimization.
+
+---
+
+### DP-024 — Inbound credit-in guidance (AP/IB/CLEP, military, prior college, skills certs)
+**Persona(s):** John (inbound) · **Priority:** P1 · **Estimate:** 5 · **Labels:** `type:feature` `area:transfer` · **Dependencies:** DP-011, DP-013, DP-053
+
+**User story.** As a student bringing outside credit into a Dallas College degree (John, in the inbound credit-in stage), I want to know which requirements my prior credit, exams, military service, or certificate might waive, so that I don't retake or over-enroll — while understanding Admissions makes the call.
+
+**Acceptance criteria (Gherkin).**
+```gherkin
+Scenario: General inbound-credit guidance for a chosen program
+  Given I name a Dallas program and a credential (e.g., AP Calculus, a SQL certificate, military service, CLEP)
+  When I ask "does this waive any requirement?"
+  Then the bot explains the general, published rules for how that credit type typically applies
+  And it routes the official evaluation to Dallas College Admissions
+  And it never states or implies a requirement is waived
+
+Scenario: No published rule for the credential
+  Given the credential has no published credit-by-exam / prior-learning rule
+  When I ask
+  Then the bot says it can't confirm and routes me to Admissions (DP-053)
+```
+
+**Edge cases / error paths.**
+- Score/level-dependent credit (e.g., AP score thresholds) → state that the exact score determines the outcome; Admissions confirms.
+- Credit applies as elective, not toward the specific requirement → state the distinction.
+
+**QA verification steps.**
+1. Ask about a credential with a published rule; confirm general guidance + Admissions routing + no waiver promise.
+2. Ask about an unlisted credential; confirm deferral to Admissions.
+3. Scan responses for any "this is waived / you don't need it" language (must be absent — only Admissions decides).
+
+> **Guardrail.** Distinct from DP-022's outbound "verify with your target school": inbound credit is decided by **Dallas College Admissions**, not a receiving school.
+
+---
+
+### DP-025 — Field-of-Study / Texas Direct block-pathway surfacing
+**Persona(s):** John (outbound) · **Priority:** P1 · **Estimate:** 5 · **Labels:** `type:feature` `area:transfer` · **Dependencies:** DP-021
+
+**User story.** As an outbound transfer student (John, in the outbound-pathway stage), I want to know whether a guaranteed block-transfer pathway (Field of Study / Texas Direct) exists for my goal, so that my whole associate transfers as a block toward my target major instead of course-by-course.
+
+**Acceptance criteria (checklist).**
+- [ ] For a program + target with a published Field-of-Study / Texas Direct plan, the bot surfaces it and links the official plan.
+- [ ] It explains the block-transfer benefit (e.g., ~60-hour block toward the major) in plain language.
+- [ ] It still appends the standard "confirm with the target school" disclaimer and never guarantees admission.
+- [ ] Where no published pathway exists, it falls back to per-course equivalency (DP-021/022) without inventing a pathway.
+
+**Edge cases / error paths.**
+- Pathway exists but the target isn't the named partner → present the statewide block-transfer framing; verify with the target.
+- Pathway data stale → show the plan's date + caveat.
+
+**QA verification steps.**
+1. Query a program/target with a known FoS/Texas Direct plan; confirm the plan is surfaced + linked + benefit explained.
+2. Query one without a pathway; confirm graceful fallback to per-course mapping, no fabricated pathway.
+3. Confirm no response guarantees admission.
+
+> **Data note.** The block-plan data is now in the corpus — the 2026–2027 catalog scrape was backfilled with the academic-transfer degrees (Field-of-Study / Texas Direct plans + Engineering A.S.→UTD tracks), flagged `is_transfer`/`award_type` in `program_index` / `program_map` (#36). DP-025 is therefore **data-ready** — gated only on the retrieval/tool layer, not on data. Course-by-course equivalency stays with DP-021/022/023 (`transfer_guide`, *guidance + verify*).
+
+---
+
 ## EPIC D — Semester planning
 **Goal.** Turn requirements into a concrete, valid schedule the student can register from. *Serves: Maria (primary), John, Hannah.*
 
@@ -733,7 +836,7 @@ Ship a thin, end-to-end path that proves value and de-risks the core before brea
 - **Sprint 1 (core loop):** DP-001, DP-002, DP-010, DP-011, DP-013, DP-051, DP-053
   → *"Ask in plain language → get cited degree requirements → safe fallback / hand-off."*
 - **Sprint 2 (planning depth):** DP-003, DP-012, DP-020, DP-030.
-- **Sprint 3 (breadth, data-gated):** DP-021, DP-022, DP-031, DP-032, DP-040, DP-041, DP-050, DP-052.
+- **Sprint 3 (breadth, data-gated):** DP-021, DP-022, DP-023, DP-024, DP-025, DP-031, DP-032, DP-040, DP-041, DP-050, DP-052.
 
 Sequencing is driven by **data readiness** (see External dependencies): nothing data-gated should enter a sprint before its source is confirmed or stubbed.
 
@@ -748,7 +851,7 @@ Tracked for later; intentionally **not** specced to sprint-ready depth. Serves G
 | DP-062 | Easy / well-reviewed class recommendations | G | P2 / Post-MVP |
 | DP-063 | Scholarship / aid finder & deadline tracking | M, H | P2 |
 | DP-064 | Career-fit guidance | H | P2 |
-| DP-065 | Reverse-transfer optimization (DC courses → bachelor's) | J | P2 |
+| DP-065 | Reverse-/back-transfer optimization (best DC classes to count toward a bachelor's; DP-023 covers the live single-class check) | J | P2 |
 | DP-066 | Major-exploration "what-if" scenario comparison | M | P1 (next) |
 | DP-067 | First-arrival & settling-in guidance (housing, DFW, SIM) | S | P1 (next) |
 | DP-068 | Multilingual / plain-English simplification | S | TBD (open question) |
@@ -768,7 +871,7 @@ Tracked for later; intentionally **not** specced to sprint-ready depth. Serves G
 | Effort estimates | Per-story "Estimate" + Story index |
 | Priority tags | Per-story "Priority" + Story index |
 | QA verification steps | Per-story "QA verification steps" |
-| Focus: NL extraction of codes / prereqs / pathways | DP-010, DP-011, DP-012, DP-020, DP-021 |
+| Focus: NL extraction of codes / prereqs / pathways | DP-010, DP-011, DP-012, DP-020, DP-021, DP-023, DP-024, DP-025 |
 | Focus: intent shift catalog → historical syllabi | DP-040, DP-041 |
 | Industry best practice | NFRs (incl. FERPA/a11y), external dependencies, state model, first-sprint slice, glossary, labels, DoR/DoD |
 
