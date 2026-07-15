@@ -1,0 +1,46 @@
+{
+  "$comment": "Failure-taxonomy registry. Each gold case's notes.md lists the traits it exhibits; the eval runner's coverage report asserts every trait has >=1 verified case that the candidate model gets right. Selecting gold documents by trait (not convenience) is what makes a green gate mean something. Add a trait when a NEW production failure mode is found; add a gold case that exhibits it.",
+  "version": 1,
+  "traits": {
+    "points_grading": {"doc_type": "syllabus", "description": "grading rows are in points, not percentages; every weight_pct must be null"},
+    "percent_grading": {"doc_type": "syllabus", "description": "grading rows are percentages; every points must be null and the rows sum to ~100"},
+    "checksum_row": {"doc_type": "syllabus", "description": "a 'Total Points'/'TOTAL 100%' summary row that must be EXCLUDED from grading[]"},
+    "extra_credit_row": {"doc_type": "syllabus", "description": "an extra-credit row that must go to policies.extra_credit, never grading[]"},
+    "makeup_in_grading_notes": {"doc_type": "syllabus", "description": "the make-up policy is hidden in a grading-table note, not under a policy heading"},
+    "empty_heading_null": {"doc_type": "syllabus", "description": "a section heading (e.g. Late Work, Instructor-Defined Outcomes) with no content under it -> null, never the next section's text"},
+    "link_only_materials": {"doc_type": "syllabus", "description": "Required Materials is only a bookstore link; required_materials must be [] (no invented titles)"},
+    "named_textbook": {"doc_type": "syllabus", "description": "a textbook is named with title/author/ISBN -> a required_materials entry with raw_text verbatim"},
+    "inclusive_access": {"doc_type": "syllabus", "description": "materials provided free / no purchase required -> inclusive_access true"},
+    "duplicate_raw_labels": {"doc_type": "syllabus", "description": "multiple grading rows share one label (e.g. three 'Speeches') and must stay separate rows"},
+    "mixed_bucket_other": {"doc_type": "syllabus", "description": "a grading row mixes item types (Quizzes/Assignments) -> canonical_type 'other', count null"},
+    "sum_mismatch_medium_confidence": {"doc_type": "syllabus", "description": "grading totals don't reconcile with the letter-grade scale; record it, set confidence medium, never silently fix"},
+    "contradictory_policy": {"doc_type": "syllabus", "description": "a policy contradicts the document (in-person text on an online section); copy verbatim, flag, confidence medium"},
+    "opaque_label": {"doc_type": "syllabus", "description": "an unexplained grading label ('Updated and Materials'); keep verbatim, map to 'other', note the ambiguity"},
+    "office_hours_present": {"doc_type": "syllabus", "description": "office hours are printed -> office_hours verbatim (populated, not the null default)"},
+    "two_part_final": {"doc_type": "syllabus", "description": "a two-part final exam; one final_exam row, count 2, both parts in notes"},
+    "plagiarism_policy": {"doc_type": "syllabus", "description": "an academic-integrity/plagiarism statement -> policies.ai_plagiarism even when AI is not mentioned"},
+
+    "one_of_prereq": {"doc_type": "course", "description": "'X or Y' prerequisite -> one prerequisites entry whose one_of lists both, plus verbatim raw_text"},
+    "crosslist_or_trap": {"doc_type": "course", "description": "a cross-listing 'either A or B' note that must NOT be parsed as an alternative prerequisite"},
+    "no_prereqs": {"doc_type": "course", "description": "no prerequisites stated -> prerequisites [] (empty list, not null)"},
+    "tccn_present": {"doc_type": "course", "description": "'Texas Common Course Number' marking -> tccn set"},
+    "wecm_not_tccn": {"doc_type": "course", "description": "'WECM Course Number' or 'Local Need Course' is NOT a TCCN -> tccn null"},
+    "is_core": {"doc_type": "course", "description": "explicit Core Curriculum marking -> is_core true + core_component_area (CB0xx)"},
+    "cb_approval": {"doc_type": "course", "description": "a Coordinating Board Academic Approval Number -> cb_approval_number verbatim"},
+    "line_shredded_links": {"doc_type": "course", "description": "catalog text shreds a requisite across lines; reassemble before parsing"},
+
+    "fixed_groups": {"doc_type": "program_map", "description": "requirement blocks with explicit 'take all' course lists -> slot_kind fixed"},
+    "choose_group": {"doc_type": "program_map", "description": "a 'choose from' group with a credit target -> slot_kind choose"},
+    "placeholder_slot": {"doc_type": "program_map", "description": "a 'SUBJ XXXX' wildcard slot -> slot_kind placeholder, wildcard kept verbatim in courses[]"},
+    "exclusions": {"doc_type": "program_map", "description": "a combination ban ('cannot use both X and Y') -> exclusions[] verbatim"},
+    "options_not_exhaustive": {"doc_type": "program_map", "description": "'other options may exist' -> options_exhaustive false"},
+    "semester_sequence": {"doc_type": "program_map", "description": "groups organized by Semester 1/2 with per-semester credit totals"},
+    "footnote_rule": {"doc_type": "program_map", "description": "an asterisk footnote (capstone/co-req) attaches as a rule on the footnoted group"},
+
+    "cv_no_course_codes": {"doc_type": "cv", "description": "a CV with credentials but no course codes -> courses_taught []"},
+    "cv_no_email": {"doc_type": "cv", "description": "no email/vita link printed -> null each"},
+
+    "identity_mismatch": {"doc_type": "any", "description": "the document contradicts the context identity (different code/term) -> confidence low"},
+    "garbled_text": {"doc_type": "any", "description": "OCR/PDF mangling (ligatures, hyphenation, shredded lines); adversarial junk case"}
+  }
+}

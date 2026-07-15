@@ -1,0 +1,71 @@
+{
+  "grading": [
+    {
+      "raw_label": "Ready for Class (due 1st day of chapter in class)",
+      "canonical_type": "homework",
+      "count": 12,
+      "weight_pct": null,
+      "points": 60,
+      "notes": "12 @ 5 points each. These assignments are designed to prepare the student for class."
+    },
+    {
+      "raw_label": "Assignments",
+      "canonical_type": "homework",
+      "count": null,
+      "weight_pct": null,
+      "points": 240,
+      "notes": "SmartBook: 12 @ 5 points/each. Assignment: 12 @ 15 points/each. Unlimited attempts, highest score counts."
+    },
+    {
+      "raw_label": "Quizzes",
+      "canonical_type": "quiz",
+      "count": 12,
+      "weight_pct": null,
+      "points": 60,
+      "notes": "12 @ 5 points/each. 20 multiple choice questions; two attempts, highest score counts."
+    },
+    {
+      "raw_label": "Comprehensive Problem",
+      "canonical_type": "other",
+      "count": 1,
+      "weight_pct": null,
+      "points": 15,
+      "notes": "1 @ 15 points. Due in UNIT 1."
+    },
+    {
+      "raw_label": "Unit Exams",
+      "canonical_type": "exam",
+      "count": 3,
+      "weight_pct": null,
+      "points": 375,
+      "notes": "3 @ 125 points/each."
+    },
+    {
+      "raw_label": "Final Exams",
+      "canonical_type": "final_exam",
+      "count": 2,
+      "weight_pct": null,
+      "points": 250,
+      "notes": "Part 1 - 125 points (Chapters 1-6), Part 2 - 125 points (Chapters 7-12)."
+    }
+  ],
+  "policies": {
+    "late_work": null,
+    "attendance": "Attendance and participation is required in order to succeed in this class. Excellent attendance will be rewarded. You must come to class to find out the reward!",
+    "makeup": "Failure to take both parts of the final exam as scheduled will result in a zero for each part. No make-up exams will be given, and may not substitute a unit exam grade for either part of the final.",
+    "ai_plagiarism": null,
+    "extra_credit": "Opportunities for extra credit may include, but are not limited to, the following: Extra credit problems included in this course for each chapter 12 @ 4 points/each; Team practice in-class for each Unit 3 @ 10 points/each. Extra credit activities may have a combined possible total of more than 48 points; however, only 48 points may be applied toward your final course points and grade."
+  },
+  "instructor_outcomes": null,
+  "course_schedule": "Weekly chapter sequence over the Spring 2026 term with Ready-for-Class, Assignment, Quiz, and SmartBook due dates per chapter; Exam 1 (Ch 1-4) around Feb 17-19, Exam 2 (Ch 5-8) Mar 30-Apr 3, Exam 3 (Ch 9-12) Apr 29-May 2, and a two-part Final Exam beginning May 11. Spring Break Mar 16-20.",
+  "distinctive_features": "Points-based grading out of 1000 with a two-part final exam (Part 1 covers Chapters 1-6, Part 2 covers Chapters 7-12); extra credit is available but capped at 48 applied points.",
+  "full_summary": "Principles of Financial Accounting (ACCT 2301), Spring 2026, Section 24: an introduction to GAAP-based financial accounting, financial statement preparation, and exposure to IFRS. Grading is points-based out of 1000: Ready-for-Class exercises (60), assignments (240), quizzes (60), a comprehensive problem (15), three unit exams (375), and a two-part final exam (250). No make-up exams are given, and both parts of the final are required. Extra credit is available but capped at 48 applied points. The withdraw deadline is April 16, 2026.",
+  "modified_date": "2026-04-22",
+  "withdraw_date": "2026-04-16",
+  "certification_date": "2026-02-02",
+  "inclusive_access": null,
+  "required_materials": [],
+  "office_hours": null,
+  "instructor_contact": null,
+  "confidence": "high"
+}
