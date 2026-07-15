@@ -90,20 +90,27 @@ and is downloaded directly.
 
 ## 4. What we've gathered so far
 
-The syllabus, CV, and section sources are downloaded and archived. Current corpus
-(`apps/data/raw/`):
+The syllabus, CV, and catalog sources are downloaded and archived. Dallas College retains
+roughly 2.5 years of syllabi, and the archive mirrors that window — **8 terms, Spring 2024
+through Summer 2026** — so the bot can fall back to a recent prior-term syllabus (with a
+disclaimer) when a current one isn't posted yet. Current corpus (the gitignored `raw/`
+archive; ~2.8 GB, shared via SharePoint since it exceeds git's size limits):
 
-| | count |
+| source | count |
 |---|---:|
-| Instructor CVs | **2,473** (one per professor) |
-| Spring 2026 syllabi | **6,856** |
-| Summer 2026 syllabi | **2,975** |
-| **Total syllabus/CV files** | **12,304 (~410 MB)** |
+| **Syllabi** — 8 terms | **32,356** |
+| &nbsp;&nbsp;2024: SP 1,557 · SU 756 · FA 4,747 | 7,060 |
+| &nbsp;&nbsp;2025: SP 6,050 · SU 2,731 · FA 6,684 | 15,465 |
+| &nbsp;&nbsp;2026: SP 6,856 · SU 2,975 | 9,831 |
+| **Instructor CVs** — one per professor | **3,116** |
+| **Catalog** — 337 programs + 1,693 courses | **2,030** |
+| **Total files** | **~37,500** |
 
-Syllabi are downloaded **one representative per (professor, course, modality)** — sibling
-sections of the same professor+course share a syllabus, so this avoids tens of thousands of
-duplicate downloads while a manifest records which section each file came from. The **catalog**
-(courses + degree plans) is the next source to bring in (see §7).
+Two syllabus formats by era: **2025–26 are Concourse HTML**; **2024 are HB 2504 PDFs**
+(Concourse retains only ~1.5 yrs, so the 2024 backfill came from the Texas HB 2504 statutory
+repository). Syllabi are downloaded **one representative per (professor, course, modality)** —
+sibling sections of the same professor+course share a syllabus — so this avoids tens of
+thousands of duplicate downloads while a manifest records which section each file came from.
 
 ---
 
