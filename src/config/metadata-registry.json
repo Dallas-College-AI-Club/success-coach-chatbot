@@ -349,11 +349,18 @@
     ]
   },
   "profile_keys": {
-    "$comment": "chat_session.profile allowlist - mirrors the onboarding question set; adding a question extends the DB CHECK in the same PR; values come only from closed option lists (major holds a program_code)",
+    "$comment": "chat_session.profile allowlist - the DURABLE onboarding answers; adding a persisted question extends this + the DB CHECK in the same PR. Values come only from the onboarding closed option lists (apps/frontend/features/onboarding/questions.ts): major holds a program_code; student_type includes dual_credit (a co-deciding parent SHARES student_type:dual_credit - intentionally NO parent_type); transfer_direction is outbound|inbound|transfer_back. TRANSIENT onboarding fields are NOT profile keys and belong in telemetry/event data (section 6.3): goal (Q1 entry-routing intent, can shift within a session) and session meta (skippedSteps, onboardingVersion, completedAt). The payload writer (#50/#52) must persist exactly this set - confirm both sides agree before shipping the CHECK.",
     "keys": [
       "campus",
       "major",
-      "student_type"
+      "student_type",
+      "transfer_direction",
+      "intl_status",
+      "target_institution",
+      "modality_pref",
+      "dayparts_pref",
+      "interest_area",
+      "oneoff_purpose"
     ]
   }
 }

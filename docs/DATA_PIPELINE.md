@@ -183,7 +183,7 @@ need, in what order, does it transfer").
 The catalog (`catalog.dallascollege.edu`, catalog year `2026-2027` = `catoid=5`) is a
 structured, high-value source. It has two page types:
 
-- **Program pages** (`preview_program.php?...poid=N`) — 308 of them. Each is a full degree
+- **Program pages** (`preview_program.php?...poid=N`) — **337 in total**. Each is a full degree
   plan: the Degree Plan Code (e.g. `AS_SCIENCE`), total credits (e.g. 60), eligibility rules,
   and a **semester-by-semester list of requirement groups** with Core component-area codes.
   *The A.S. page literally lists "Semester 1: ENGL 1301, HIST 1301, Math, EDUC 1300"* — so the
@@ -193,8 +193,16 @@ structured, high-value source. It has two page types:
 
 **Ingestion plan:**
 
-1. **Enumerate** — read the program index (308 program links), then collect the course links
-   the programs reference (that gets exactly the courses that matter for degree plans).
+1. **Enumerate** — the *"Degrees & Certificates by Program"* index (`navoid=1227`) lists only
+   **306** programs: the occupational A.A.S./certificate awards. The **academic-transfer degrees
+   are not in it** — they live in separate section indexes (Engineering `1262`, Field of Study /
+   **Texas Direct** `1263`, Emphasis `1261`, Associate of Arts in Teaching `1224`), which add
+   **31** more for a full **337**. Enumerate all of them (a comprehensive cross-check is the *by
+   Award Type* `1218` / *by Subject* `1229` indexes — 327 each — unioned with the four section
+   indexes). Then collect the course links the programs reference. `catalog_fetch.py --poids-file
+   <file>` backfills a specific poid list without re-walking the index — this is how those 31
+   transfer degrees (the Field-of-Study / Texas Direct block plans and the Engineering
+   A.S.→university tracks) were backfilled; **all 337 are now on disk.**
 2. **Fetch with a headless browser** (Playwright) — the catalog is behind a JavaScript
    challenge, so a scripted Chromium is required; archive the raw HTML like every other source.
 3. **Extract** into `course` and `program_map` fact rows using the same extractor as syllabi.
@@ -202,11 +210,36 @@ structured, high-value source. It has two page types:
    year-namespaced so multiple catalog years coexist — a student follows the catalog they
    enrolled under ("catalog rights").
 
-**The Core Curriculum is itself a program** in the catalog (a single `CORE-42` plan listing
-the acceptable courses for each of the nine component areas). Degree plans reference the
-component-area codes; the `CORE-42` row supplies the option lists behind "choose one" slots.
-This is why the `program_map` groups distinguish *take-all* from *choose-one* and flag when
-"other options exist."
+**The Core Curriculum is itself a program** in the catalog (`poid=3388`, a single `CORE-42`
+plan listing the acceptable courses for each of the nine component areas), and **Core Options
+for A.A.S. Awards** (`poid=3040`) plays the same structural role for A.A.S. degrees. Degree
+plans reference the component-area codes; these two rows supply the option lists behind "choose
+one" slots. This is why the `program_map` groups distinguish *take-all* from *choose-one* and
+flag when "other options exist."
+
+> **Picker-vs-RAG split (agreed with onboarding / #52).** `3388` and `3040` are structural
+> requirement-sets, not programs a student "picks," so they are **excluded from the onboarding
+> program picker** (`apps/frontend/features/onboarding/programs.ts`). But they are **required in
+> `program_map` for the RAG** — every degree's requirements bottom out in the core's "choose one
+> from Area X" slots, so if extraction drops them, *all* degree requirements come out
+> incomplete. Both must be ingested even though neither is pickable. The remaining **335**
+> programs are the pickable set.
+>
+> A ready lookup index of all 337 programs — name, award type, transfer flag, credit hours, the
+> live requirements URL, and the local raw path — lives at `raw/catalog/2026-2027/program_index.json`
+> (+ `.csv`). The onboarding picker is generated from it (drop the 2 exclusions, apply trimmed
+> display labels).
+
+> **`program_map` vs `transfer_guide` — the transfer seam (agreed with the persona/#6 work).**
+> The Field-of-Study / Texas Direct degrees and the Engineering A.S.→university tracks are
+> block-transfer **PLANS** — the ~60-hour associate built to transfer as a *block* into a specific
+> university major. They are **`program_map`** rows and, as of the backfill, they are **in the
+> corpus**, so the transfer stories that surface a block pathway (e.g. degree-planning story
+> DP-025) have a *ready* data dependency rather than a pending one. Course-by-course transfer
+> **equivalency** ("does ENGL 1301 count at UTD?") is a **different** doc_type — `transfer_guide` —
+> and the catalog carries only TCCN + Core-transfer *signals*, not full articulation, so those
+> checks stay **guidance + mandatory verify** (defer to the target/home school). Inbound credit-in
+> (AP/CLEP/certificates → waivers) is a third lane, routed to Admissions, not `transfer_guide`.
 
 Once the catalog is loaded, the five `doc_type`s **compose into a full plan**:
 

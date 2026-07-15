@@ -110,6 +110,15 @@ python -m pipeline.extract --doc-type course --html "raw/catalog/2026-2027/cours
 python -m pipeline.extract --doc-type program_map --html "raw/catalog/2026-2027/programs/3448.html" ...
 ```
 
+> **Do NOT skip the two structural "core" programs when extracting `program_map`:**
+> `poid=3388` (**Core Curriculum**, `CORE-42`) and `poid=3040` (**Core Options for A.A.S.
+> Awards**). They are excluded from the onboarding *picker* (they aren't programs a student
+> chooses), but every degree's requirements reference their "choose one from Area X" option
+> lists — drop them and *all* degree-plan answers come out incomplete. They must land in
+> `program_map` even though no student picks them. Both are in the raw corpus
+> (`programs/3388.html`, `programs/3040.html`). See `DATA_PIPELINE.md §7` (picker-vs-RAG split)
+> and the full program list at `raw/catalog/2026-2027/program_index.json`.
+
 The **batch runner** is a small loop over the scrape manifests
 (`raw/manifests/archive_*.jsonl`): each line supplies the file path *and* the
 identity context. Batch by term; the engine is stateless, so parallelism is safe up
