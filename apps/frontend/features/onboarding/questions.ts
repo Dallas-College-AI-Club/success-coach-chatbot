@@ -166,7 +166,7 @@ interface SchoolOption extends QuestionOption {
 // visiting "which college do you attend" case (a visitor knows their home school).
 export const schoolOptions: SchoolOption[] = [
   { id: "sch_utd", label: "UT Dallas", contribs: { target_institution: "UTD" }, showFor: "both", tier: "partner", keywords: ["utd", "dallas"] },
-  { id: "sch_unt", label: "University of North Texas (UNT)", contribs: { target_institution: "UNT" }, showFor: "both", tier: "partner", keywords: ["unt", "denton"] },
+  { id: "sch_unt", label: "University of North Texas (Denton)", contribs: { target_institution: "UNT" }, showFor: "both", tier: "partner", keywords: ["unt", "denton", "north texas"] },
   { id: "sch_unt_dallas", label: "UNT Dallas", contribs: { target_institution: "UNT_DALLAS" }, showFor: "both", tier: "partner", keywords: ["untd", "unt dallas"] },
   { id: "sch_uta", label: "UT Arlington", contribs: { target_institution: "UTA" }, showFor: "both", tier: "partner", keywords: ["uta", "arlington"] },
   { id: "sch_twu", label: "Texas Woman's University (TWU)", contribs: { target_institution: "TWU" }, showFor: "both", tier: "partner", keywords: ["twu", "womans", "denton"] },

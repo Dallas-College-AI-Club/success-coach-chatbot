@@ -29,7 +29,7 @@ function majorLabel(p: OnboardingPayload): string {
 function schoolLabel(p: OnboardingPayload): string {
   const t = p.target_institution;
   if (t === "UTD") return "UT Dallas";
-  if (t === "UNT") return "UNT";
+  if (t === "UNT") return "UNT Denton";
   if (t === "UNT_DALLAS") return "UNT Dallas";
   if (t === "UTA") return "UT Arlington";
   if (t === "TWU") return "Texas Woman's University";
