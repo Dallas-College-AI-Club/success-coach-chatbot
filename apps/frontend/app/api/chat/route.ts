@@ -1,7 +1,8 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, convertToModelMessages } from 'ai';
 import fs from 'fs';
 import path from 'path';
+import { successCoachTools } from '../../../lib/tools';
 
 // Next.js Route Segment Configuration
 export const runtime = 'nodejs';
@@ -76,19 +77,15 @@ export async function POST(req: Request) {
       baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || 'General'}\n- Major/Area of Interest: ${context.major || 'General studies'}`;
     }
 
-    // Clean the message payload to ensure strict compatibility with OpenRouter's API schema
-    const cleanMessages = messages.map((m: { role: string; content?: string }) => ({
-      role: m.role === 'user' ? 'user' : 'assistant',
-      content: String(m.content || ''),
-    }));
-
-    // Call streamText using openai/gpt-oss-20b:free via OpenRouter
+    // Call streamText using qwen/qwen3-235b-a22b:free via OpenRouter to support tool calling
     const result = streamText({
-      model: openrouter.chat('openai/gpt-oss-20b:free'),
-      messages: cleanMessages,
+      model: openrouter.chat('qwen/qwen3-235b-a22b:free'),
+      messages: convertToModelMessages(messages),
       system: baseSystemPrompt,
-      maxTokens: 1000,
+      maxTokens: 1500, // increased for tool calling and reasoning overhead
       temperature: 0.7,
+      tools: successCoachTools,
+      maxSteps: 5, // allow up to 5 rounds of tool calling
     });
 
     return result.toUIMessageStreamResponse();
