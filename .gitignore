@@ -39,3 +39,11 @@ lerna-debug.log*
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Local Chroma Database
+apps/data/chroma_db/
+.tmp/
