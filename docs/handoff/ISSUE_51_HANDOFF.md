@@ -60,11 +60,13 @@ same flat convention (`dallasai/repository.py`).
 
 ### 3a. Branch base — do this first
 
-The branch is based on `main`, which does **not** contain `apps/data/db/schema.sql`,
-`apps/data/db/seed_mock.sql`, or the `src/config/` contract files — they live on
-`feature/36-database-architecture-design-initialization` (PR #59). Until that
-merges (or you rebase onto it), the seed test and the contract-sync CI test have
-nothing to run against. Coordinate the merge order before writing the migration.
+PR #59 (`feature/36-database-architecture-design-initialization`) **merged into
+`main` on 2026-07-14**, so `main` now contains `apps/data/db/schema.sql`,
+`apps/data/db/seed_mock.sql`, and the `src/config/` contract files. Rebase the
+`51-backend-database-models` branch onto current `main` so the seed test and the
+contract-sync CI test have something to run against before you write the migration.
+(Note: the `profile` allowlist is being widened from 3 to 10 keys in PR #70 — see
+§4 — which is open at time of writing; rebase again once it merges.)
 
 ### 3b. The initial migration (the core deliverable)
 
@@ -137,7 +139,10 @@ are part of the decided design:
    generated under; one less table to migrate and mirror. "All sessions for a
    student" remains one indexed query.
 2. **`profile` is narrower than "raw json"** — a CHECK constraint allowlists its
-   keys (campus/major/student_type, mirroring onboarding) with closed option-list
+   keys (the 10 onboarding-derived durable keys finalized in PR #70 — campus,
+   major, student_type, transfer_direction, intl_status, target_institution,
+   modality_pref, dayparts_pref, interest_area, oneoff_purpose — mirroring
+   onboarding) with closed option-list
    values. Deliberate privacy hardening: free-form JSONB profiles are where PII
    leaks in.
 
