@@ -2,6 +2,7 @@
 
 import {
   saveSession,
+  useHydrateSession,
   type SavedSession,
 } from "@/features/onboarding/onboarding-store";
 import type { DoneState, Mode } from "@/features/onboarding/skin";
@@ -50,6 +51,10 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   // Bumped to remount the wizard for a fresh run (Start over).
   const [runId, setRunId] = useState(0);
 
+  // Above every consumer: the store must be read from localStorage before
+  // anything writes to it.
+  useHydrateSession();
+
   useEffect(() => {
     emit("page_load");
   }, []);
@@ -84,7 +89,9 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
     setMode(m);
   };
 
-  // Start over — fresh run, keeping the chosen look.
+  // Start over — fresh run, keeping the chosen look. The saved session is
+  // intentionally kept until a new completion replaces it: losing everything
+  // on an abandoned re-run would be worse.
   const restart = () => {
     setDone(null);
     setRunId((r) => r + 1);

@@ -26,7 +26,7 @@ The seam between stage 1 and the rest is a single console-logged payload whose k
 ## 2. The screen
 
 - **Welcome.** The *Success Coach* brand cover (`public/title.png`, served through `next/image`), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
-- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Saving a session belongs to the anonymous client store (#50), so for now the welcome screen shows the **"Welcome back"** entry as a visible, disabled placeholder that marks where #50 wires the resume link. `onboarding-store.ts` keeps the `useSavedSession` / `saveSession` seam as no-ops, so the call sites stay in place and #50 drops in the real store; [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) hands over the removed implementation and a gap analysis.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Sessions are saved by the anonymous client store (#50): `onboarding-store.ts` persists the completed session to `localStorage` (key `student-session-store`), and the **"Welcome back"** entry renders only for a returning student, resuming their saved summary. [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) records the design history.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -173,7 +173,7 @@ The hand-off copy is the pure module [`handoff-copy.ts`](../apps/frontend/featur
 
 ## 7. What gets captured
 
-Completion logs one object to the console — the placeholder for the global-state integration (#50). Its keys mirror the #36 profile allowlist, so persistence stores it without reshaping and the chat route reads it as the same context seam.
+Completion logs one object to the console and persists it through the client store (#50). Its keys mirror the #36 profile allowlist, so persistence stores it without reshaping and the chat route reads it as the same context seam.
 
 | Key | Meaning |
 |---|---|
@@ -189,7 +189,7 @@ Completion logs one object to the console — the placeholder for the global-sta
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
 
-Persisting this object so a returning student can resume is the anonymous client store's job (#50), so [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) currently keeps only the interface as no-ops: nothing is written and `useSavedSession` returns `null`, so every visit is first-time and the welcome screen shows the returning-student entry as a disabled placeholder. When #50 lands it owns the store; [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) hands over the removed implementation and how it maps to #50. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
+Persisting this object so a returning student can resume is the anonymous client store's job (#50): [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) persists it to `localStorage` under `student-session-store` alongside a client-generated `studentId`, and the welcome screen shows the returning-student entry only when a saved session exists. [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) records the handoff that shaped it. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
 
 ---
 
@@ -230,7 +230,7 @@ features/onboarding/
   programs.ts                    Dallas College programs of study (picker)
   build-payload.ts               answers → payload; derives skippedSteps
   handoff-copy.ts                the personalized chat hand-off copy (pure, UI-free)
-  onboarding-store.ts            returning-user seam (no-op interface; persistence is #50)
+  onboarding-store.ts            the anonymous client store (#50): Zustand persist + studentId
   shipped-intents.ts             single source for staged capability
   telemetry.ts                   console instrumentation
   skin.ts                        Skin / Copy / Mode contracts
@@ -265,7 +265,7 @@ High-fidelity match to the Canva theme is met in structure and brand; the flow e
 
 ## 12. Scope and planned enhancements
 
-**In this page.** The landing with its first-time/returning fork, the style switcher, the conditional flow, all local state, the console payload, instrumentation, the chat hand-off, and the closing quick actions. The returning-student entry is present as a disabled placeholder; persisting and restoring a session is the anonymous client store's job. **Elsewhere:** durable persistence and analytics as an anonymous client store (#50), backend models (#51), and the chat surface the payload feeds (#37).
+**In this page.** The landing with its first-time/returning fork, the style switcher, the conditional flow, all local state, the console payload, instrumentation, the chat hand-off, and the closing quick actions. The returning-student entry resumes a saved session via the anonymous client store (#50). **Elsewhere:** backend models (#51), and the chat surface the payload feeds (#37).
 
 Planned enhancements, sequenced with the surrounding work:
 
