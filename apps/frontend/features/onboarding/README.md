@@ -14,7 +14,8 @@ and per-mode details in [`variants/README.md`](./variants/README.md).
 |---|---|
 | [`types.ts`](./types.ts) | The vocabulary. `PayloadContribs` is the one source of truth for answerable fields; `OnboardingPayload` is derived from it, so the two never drift. |
 | [`questions.ts`](./questions.ts) | The question catalog **and** the branch rules. `followUpsFor(answers)` is a pure function: a `switch` on the goal returning the ordered follow-ups, keeping every path ≤ 3 follow-ups. `programFor` rewords the program question by who's asking. |
-| [`programs.ts`](./programs.ts) | The Dallas College programs of study feeding the picker (each `code` is a catalog id). |
+| [`programs.ts`](./programs.ts) | The 335 Dallas College programs feeding the picker (`code` = catalog poid). `label` is a trimmed display name for long transfer degrees, not the official catalog title — see the file header + `program-overrides.json`. |
+| [`program-overrides.json`](./program-overrides.json) | Config for the #36 generator that regenerates `programs.ts` from the catalog: `exclude` (structural poids kept out of the picker) + `display_overrides` (trimmed labels by poid). The onboarding side owns this; the pipeline reads it. |
 | [`build-payload.ts`](./build-payload.ts) | `buildPayload(answers, branch)` → the payload; derives `skippedSteps` from the resolved branch, so back-navigation still yields a correct record. |
 | [`handoff-copy.ts`](./handoff-copy.ts) | The personalized chat hand-off copy (intro line, starter prompts, authority notes, coach-verify line). States no academic outcome. |
 | [`shipped-intents.ts`](./shipped-intents.ts) | The capability list behind the "what can this help with" dialog; staging mirror of the question `shipped` flag. |
@@ -62,6 +63,8 @@ they live in the hook, not the shell.
 - **Chat hand-off (#37):** `ChatHandoff` routes to `/chat` (`QuickActions` is the separate row of external Dallas College resource links, not a `/chat` route); `handoff-copy.ts` owns the personalized copy; `app/chat/page.tsx` is the placeholder the RAG chat replaces.
 - **Telemetry:** `emit()` is a console stub carrying the final event names — swap the body for the real transport.
 - **Shipped gate:** the `shipped` flag on questions (and on intents) keeps the flow from advertising unbuilt paths.
+- **Program data (#36):** the picker lists **335** of the catalog's 337 programs. Two structural entries are **excluded** — `Core Curriculum` (poid 3388) and `Core Options for A.A.S. Awards` (poid 3040) — because they're *requirements for all*, not a student's choice. **Nuance for the main chatbot:** both still MUST be ingested into `program_map` for the RAG (they supply the "choose one from Area X" slots every degree references), or graduation requirements come out incomplete — see [`docs/DATA_PIPELINE.md`](../../../../docs/DATA_PIPELINE.md) (degree-plan nuances) and #61. The list is hand-maintained now; #36 will regenerate it from `program_index.json` + `program-overrides.json`.
+- **Transfer destinations:** `schoolOptions` (in `questions.ts`) names the universities Dallas College has coordinated articulation with (UTD, UNT, UT Arlington, Prairie View A&M, Texas A&M ×2, SMU — the Richland academies + RLC/SMU) so the chat can ground specific guidance; everyone else is a region bucket. Rendered as a searchable picker in `transfer-step.tsx`.
 
 ## Verifying
 

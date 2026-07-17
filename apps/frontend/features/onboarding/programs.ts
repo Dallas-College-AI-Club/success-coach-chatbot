@@ -1,9 +1,24 @@
-// Dallas College programs of study for the Q2 picker.
+// Dallas College programs of study for the onboarding program picker (Q2).
 //
-// Generated from the 2026-2027 catalog program pages (acalog preview_program).
-// `code` is the catalog program id (poid); it is a stable, real identifier that
-// maps one-to-one to a catalog program until canonical program codes are wired in
-// from catalog ingestion. Regenerate from the catalog when it refreshes.
+// GENERATED — do not hand-edit. The data pipeline (#36) regenerates this from the
+// canonical catalog program index + program-overrides.json (exclude list, per-exclude
+// notes, and trimmed picker labels) on each catalog refresh:
+//   node generate-programs.mjs <program_index.json>
+//
+// `code` is the catalog program id (poid) — a stable, real identifier that maps one-to-one
+// to a catalog program. `label` is the DISPLAY name shown in the picker; for long transfer/
+// academic degrees it is a trimmed, student-friendly form, NOT the verbatim catalog title
+// (the official name lives in the canonical program index, program_index.json).
+//
+// Intentionally EXCLUDED — requirements-for-all, not a student's choice (surfaced by the
+// degree plan / RAG, never picked):
+//   - Core Curriculum (poid 3388) — the 42-hr gen-ed block every degree embeds
+//   - Core Options for A.A.S. Awards (poid 3040) — the shared A.A.S. elective-options block
+// These still MUST be ingested into program_map for the RAG (they supply the "choose one
+// from Area X" slots every degree references) so graduation requirements come out complete
+// — see docs/DATA_PIPELINE.md (degree-plan nuances) and issue #61.
+//
+// Sorted by label.
 
 export interface Program {
   code: string;
@@ -27,6 +42,7 @@ export const PROGRAMS: Program[] = [
   { code: "2775", label: "Apparel Design A.A.S." },
   { code: "2776", label: "Architectural Drafting Certificate" },
   { code: "2777", label: "Architectural Drafting Occupational Skills Award" },
+  { code: "2778", label: "Architecture (A.S. Field of Study)" },
   { code: "2779", label: "Associate Degree Nursing A.A.S." },
   { code: "3393", label: "Associate of Arts A.A." },
   { code: "3448", label: "Associate of Science A.S." },
@@ -49,9 +65,11 @@ export const PROGRAMS: Program[] = [
   { code: "2790", label: "Basic Criminal Justice Studies Certificate" },
   { code: "3199", label: "Basic Firefighter Certificate" },
   { code: "3389", label: "Behavioral Health Management Advanced Technical Certificate" },
+  { code: "2792", label: "Biomedical Engineering (A.S. transfer → UTD)" },
   { code: "3162", label: "Biotechnology Certificate" },
   { code: "3382", label: "Blockchain Occupational Skills Award" },
   { code: "2960", label: "Builder/Contractor Certificate" },
+  { code: "2795", label: "Business Administration (A.A. Texas Direct transfer)" },
   { code: "2794", label: "Business Administration A.A.S." },
   { code: "2798", label: "Business Office Specialist Certificate" },
   { code: "2799", label: "Business Operations Generalist Certificate" },
@@ -62,10 +80,12 @@ export const PROGRAMS: Program[] = [
   { code: "2804", label: "C++ Programming Occupational Skills Award" },
   { code: "2808", label: "Chassis Service Technician Certificate" },
   { code: "3194", label: "Chassis Service Technician Occupational Skills Award" },
+  { code: "2809", label: "Chemical Engineering (A.S. Field of Study)" },
   { code: "2810", label: "Child Development/Early Childhood Education A.A.S." },
   { code: "2811", label: "CISCO Networking CCNA Occupational Skills Award" },
   { code: "2813", label: "Civil Drafting Certificate" },
   { code: "2814", label: "Civil Drafting Occupational Skills Award" },
+  { code: "2815", label: "Civil Engineering (A.S. Field of Study)" },
   { code: "2816", label: "Cloud Computing A.A.S." },
   { code: "2817", label: "Cloud Computing Certificate" },
   { code: "2818", label: "Cloud Computing Occupational Skills Award" },
@@ -78,12 +98,14 @@ export const PROGRAMS: Program[] = [
   { code: "2825", label: "Commercial Electrical Technology Certificate" },
   { code: "3200", label: "Commercial Electrical Technology Occupational Skills Award" },
   { code: "2827", label: "Computed Tomography Advanced Technical Certificate" },
+  { code: "3010", label: "Computer Engineering (A.S. transfer → UTD)" },
+  { code: "3011", label: "Computer Science (A.S. transfer → UTD)" },
   { code: "3013", label: "Computer-Aided Design and Drafting A.A.S." },
   { code: "2924", label: "Construction Management A.A.S." },
   { code: "2925", label: "Construction Technology A.A.S." },
   { code: "3176", label: "Construction Technology Occupational Skills Award" },
-  { code: "3040", label: "Core Options for A.A.S. Awards" },
   { code: "2926", label: "Credential for Critical Care Professionals Enhanced Skills Certificate" },
+  { code: "2921", label: "Criminal Justice (A.A. Texas Direct transfer)" },
   { code: "2922", label: "Criminal Justice and Public Safety A.A.S." },
   { code: "2923", label: "Criminal Justice Management Certificate" },
   { code: "3009", label: "Crisis Intervention Certificate" },
@@ -109,10 +131,15 @@ export const PROGRAMS: Program[] = [
   { code: "3169", label: "Early Childhood Teacher Development Occupational Skills Award" },
   { code: "3803", label: "Electrical Construction A.A.S." },
   { code: "3802", label: "Electrical Construction Certificate" },
+  { code: "3033", label: "Electrical Engineering (A.S. Field of Study)" },
+  { code: "3030", label: "Electrical Engineering (A.S. transfer → Prairie View A&M)" },
+  { code: "3031", label: "Electrical Engineering (A.S. transfer → UT Arlington)" },
+  { code: "3032", label: "Electrical Engineering (A.S. transfer → UTD)" },
   { code: "3034", label: "Electrical Engineering Technology A.A.S." },
   { code: "3035", label: "Electro Mechanical Technology A.A.S." },
   { code: "3036", label: "Electronics and Climate Controls Technician Certificate" },
   { code: "3195", label: "Electronics and Climate Controls Technician Occupational Skills Award" },
+  { code: "3037", label: "Electronics Engineering Technology (A.S. transfer → Texas A&M)" },
   { code: "3039", label: "Electronics Technology Certificate" },
   { code: "3138", label: "Electronics Technology Occupational Skills Award" },
   { code: "2914", label: "Emergency Medical Services/Paramedic A.A.S." },
@@ -170,6 +197,7 @@ export const PROGRAMS: Program[] = [
   { code: "2903", label: "Human Services Certificate" },
   { code: "2905", label: "Industrial Automation Certificate" },
   { code: "3153", label: "Industrial Automation Occupational Skills Award" },
+  { code: "2891", label: "Industrial Engineering (A.S. transfer → East Texas A&M)" },
   { code: "2893", label: "Information Security Occupational Skills Award" },
   { code: "2894", label: "Information Systems Administration Foundations Certificate" },
   { code: "2897", label: "Interactive Simulation and Game Technology A.A.S." },
@@ -185,6 +213,7 @@ export const PROGRAMS: Program[] = [
   { code: "2880", label: "Java Developer Certificate" },
   { code: "2881", label: "Java Programming Occupational Skills Award" },
   { code: "3164", label: "Junior Legal Assistant Certificate" },
+  { code: "3810", label: "Kinesiology (A.S. Texas Direct transfer)" },
   { code: "2882", label: "Land Surveying and Geospatial Technology A.A.S." },
   { code: "2883", label: "Land Surveying Certificate" },
   { code: "2884", label: "Leadership Occupational Skills Award" },
@@ -200,6 +229,8 @@ export const PROGRAMS: Program[] = [
   { code: "2797", label: "Marketing A.A.S." },
   { code: "2866", label: "Mechanical Drafting Certificate" },
   { code: "2867", label: "Mechanical Drafting Occupational Skills Award" },
+  { code: "2869", label: "Mechanical Engineering (A.S. Field of Study)" },
+  { code: "2868", label: "Mechanical Engineering (A.S. transfer → UTD)" },
   { code: "2870", label: "Mechatronics Technology Certificate" },
   { code: "3139", label: "Mechatronics Technology Occupational Skills Award" },
   { code: "2871", label: "Medical Assisting Certificate" },
@@ -213,6 +244,7 @@ export const PROGRAMS: Program[] = [
   { code: "2853", label: "Mortgage Banking A.A.S." },
   { code: "2854", label: "Mortgage Banking Intern Certificate" },
   { code: "3180", label: "Multiple Processes Welding Occupational Skills Award" },
+  { code: "2856", label: "Music (A.A. Field of Study)" },
   { code: "2857", label: "Music Business and Entrepreneurship A.A.S." },
   { code: "2858", label: "Music Business and Entrepreneurship Certificate" },
   { code: "2845", label: "Network Administrator and Support A.A.S." },
@@ -224,11 +256,13 @@ export const PROGRAMS: Program[] = [
   { code: "3799", label: "NTE (North Texas Electrical) Journeyman Electrician 3 Occupational Skills Award" },
   { code: "3800", label: "NTE (North Texas Electrical) Journeyman Electrician 4 Occupational Skills Award" },
   { code: "3801", label: "NTE (North Texas Electrical) Journeyman Electrician 5 Occupational Skills Award" },
+  { code: "2851", label: "Nursing (A.S. Texas Direct transfer)" },
   { code: "3790", label: "Occupational Skills Award in Professional Accountancy" },
   { code: "2985", label: "Occupational Therapy Assistant A.A.S." },
   { code: "2984", label: "Paralegal A.A.S." },
   { code: "2983", label: "Paramedic Certificate" },
   { code: "2981", label: "Patient Care Technician Certificate" },
+  { code: "3453", label: "Peace & Human Rights Studies (A.A. transfer → SMU)" },
   { code: "2978", label: "Performing Musician A.A.S." },
   { code: "2977", label: "Performing Musician Certificate" },
   { code: "2975", label: "Personal Computer Support A.A.S." },
@@ -236,16 +270,19 @@ export const PROGRAMS: Program[] = [
   { code: "3181", label: "Pipe Welding and Fitting Occupational Skills Award" },
   { code: "3155", label: "Plumbing Technology A.A.S." },
   { code: "3156", label: "Plumbing Technology Certificate" },
+  { code: "2974", label: "Political Science (A.A. Texas Direct transfer)" },
   { code: "3172", label: "Power Equipment Occupational Skills Award" },
   { code: "3170", label: "Power Equipment Technology Certificate" },
   { code: "3171", label: "Power Sports Certificate" },
   { code: "3173", label: "Power Sports Occupational Skills Award" },
   { code: "3808", label: "Pre-Apprenticeship Certificate in Electrical Construction Technology" },
+  { code: "2972", label: "Pre-Mechanical Engineering (A.S. transfer)" },
   { code: "2973", label: "Precision Machining Technology A.A.S." },
   { code: "2971", label: "Preventive Maintenance Technician Certificate" },
   { code: "3024", label: "Producer and Songwriter A.A.S." },
   { code: "3025", label: "Producer Certificate" },
   { code: "3161", label: "Psychiatric Technician Certificate" },
+  { code: "3207", label: "Psychology (A.A. Texas Direct transfer)" },
   { code: "2968", label: "Python Developer Certificate" },
   { code: "2967", label: "Python Programming Occupational Skills Award" },
   { code: "2966", label: "Radiologic Technology A.A.S." },
@@ -276,9 +313,12 @@ export const PROGRAMS: Program[] = [
   { code: "2945", label: "Shielded Metal Arc Welding (SMAW) Certificate" },
   { code: "3183", label: "Shielded Metal Arc Welding (SMAW) Occupational Skills Award" },
   { code: "3379", label: "Simulation Operations Specialist Advanced Technical Certificate" },
+  { code: "2943", label: "Social Work (A.A. Texas Direct transfer)" },
   { code: "2942", label: "Social Work Associate - Generalist A.A.S." },
+  { code: "2941", label: "Sociology (A.A. Texas Direct transfer)" },
   { code: "2940", label: "Software Application Specialist Certificate" },
   { code: "2939", label: "Software Development A.A.S." },
+  { code: "2938", label: "Software Engineering (A.S. transfer → UTD)" },
   { code: "2826", label: "Songwriter Certificate" },
   { code: "2937", label: "SQL Occupational Skills Award" },
   { code: "2936", label: "Structural Welding Certificate" },
@@ -288,6 +328,10 @@ export const PROGRAMS: Program[] = [
   { code: "2933", label: "Supervisor Certificate" },
   { code: "2932", label: "Surgical Technologist A.A.S." },
   { code: "2931", label: "Surveying Occupational Skills Award" },
+  { code: "3449", label: "Teaching: Early Childhood-Grade 6 (EC-6)" },
+  { code: "3450", label: "Teaching: Foreign Language (EC-12)" },
+  { code: "3452", label: "Teaching: Grades 4-8 & Special Education (EC-12)" },
+  { code: "3451", label: "Teaching: Mathematics (8-12)" },
   { code: "2930", label: "Technical Pattern Design A.A.S." },
   { code: "2772", label: "Technician Level I Certificate in Air Conditioning" },
   { code: "2773", label: "Technician Level II Certificate in Air Conditioning" },

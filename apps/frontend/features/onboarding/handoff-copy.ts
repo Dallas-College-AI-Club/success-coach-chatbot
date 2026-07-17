@@ -18,8 +18,8 @@ import type { OnboardingPayload } from "@/features/onboarding/types";
 type HandoffSet = { intro: string; prompts: string[] };
 
 // --- placeholder fill -------------------------------------------------------
-// {major}/{school}/{interest} resolve from the payload. {school} can only be a
-// real institution name for the two named partners (UTD/UNT) — every bucket
+// {major}/{school}/{interest} resolve from the payload. {school} is a real
+// institution name for the named partner universities — every region bucket
 // stores a category code, so it resolves to a plain phrase instead.
 function majorLabel(p: OnboardingPayload): string {
   if (!p.major) return "your program";
@@ -29,7 +29,17 @@ function majorLabel(p: OnboardingPayload): string {
 function schoolLabel(p: OnboardingPayload): string {
   const t = p.target_institution;
   if (t === "UTD") return "UT Dallas";
-  if (t === "UNT") return "UNT";
+  if (t === "UNT") return "UNT Denton";
+  if (t === "UNT_DALLAS") return "UNT Dallas";
+  if (t === "UTA") return "UT Arlington";
+  if (t === "TWU") return "Texas Woman's University";
+  if (t === "TTU") return "Texas Tech";
+  if (t === "TXST") return "Texas State";
+  if (t === "TARLETON") return "Tarleton State";
+  if (t === "ETAMU") return "East Texas A&M";
+  if (t === "PVAMU") return "Prairie View A&M";
+  if (t === "TAMU_CS") return "Texas A&M";
+  if (t === "SMU") return "SMU";
   // Visiting: any bucket home school is simply "your home college".
   if (p.transfer_direction === "transfer_back") return "your home college";
   // Outbound buckets (destinations):
@@ -163,7 +173,9 @@ function selectSet(p: OnboardingPayload): HandoffSet {
       const dir = p.transfer_direction;
       const t = p.target_institution;
       if (dir === "outbound") {
-        if (t === "UTD" || t === "UNT") return SETS.transfer_out_partner;
+        // Any named partner university (not a region bucket) → specific guidance.
+        const partner = t !== null && t !== "TX_OTHER" && t !== "US_OTHER" && t !== "INTL";
+        if (partner) return SETS.transfer_out_partner;
         if (t === "TX_OTHER") return SETS.transfer_out_texas;
         return SETS.transfer_out_other; // US_OTHER, INTL, null
       }
