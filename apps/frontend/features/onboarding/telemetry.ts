@@ -1,3 +1,5 @@
+import { useStudentSession } from "@/features/onboarding/onboarding-store";
+
 // Console-only instrumentation stubs for the onboarding funnel.
 //
 // At this stage events are logged, not sent — the transport (an anonymous,
@@ -17,5 +19,10 @@ export type OnboardingEvent =
   | "capability_opened";
 
 export function emit(event: OnboardingEvent, detail?: Record<string, unknown>): void {
-  console.log("[onboarding]", event, detail ?? {});
+  // Every event carries the anonymous client id (#50) so the transport, when it
+  // exists, can group a student's sessions with no PII involved. `null` only
+  // until the store rehydrates, which `useHydrateSession()` does synchronously
+  // from the flow's first effect — so the funnel is tagged from `page_load` on.
+  const studentId = useStudentSession.getState().studentId;
+  console.log("[onboarding]", event, { studentId, ...detail });
 }

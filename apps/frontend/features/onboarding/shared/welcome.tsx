@@ -10,12 +10,6 @@ import type { Mode } from "@/features/onboarding/skin";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import { useState } from "react";
 
-// Returning-student entry point. Real session persistence is issue #50 (landing
-// in a few days), so `useSavedSession` returns null for now — this flag keeps the
-// resume button VISIBLE as a disabled placeholder, so we know exactly where to
-// wire the link. Once #50 ships, delete this and rely on `returning` alone.
-const RESUME_ENTRY_PLACEHOLDER = true;
-
 // The welcome greeter — Koa, a friendly rounded robot in its own warm palette
 // (blue-grey head, mint face screen, orange antenna and side ears). Deliberately
 // its own mascot, distinct from the Dallas-branded SuccessCoachBot used in the
@@ -55,7 +49,9 @@ export function Welcome({
   // A saved session (from a previous visit) turns this into the returning-user
   // view. Read SSR-safely: null on the server and during hydration, then the
   // stored value on the client — so the "Welcome back" option appears without a
-  // hydration mismatch.
+  // hydration mismatch. The accepted cost: the first-time view is visible until
+  // hydration and the storage read complete, so a returning student sees the
+  // resume card pop in.
   const returning = useSavedSession();
   const headingRef = useHeadingFocus(null);
   const canPick = modes.length > 1;
@@ -83,13 +79,12 @@ export function Welcome({
           </p>
         </div>
 
-        {(returning || RESUME_ENTRY_PLACEHOLDER) && (
+        {returning && (
           <>
             <button
               type="button"
-              disabled={!returning}
-              onClick={() => returning && onResume(returning)}
-              className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#003385] bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-[#003385]/[0.04] focus-visible:ring-2 focus-visible:ring-[#003385] focus-visible:ring-offset-2 motion-safe:active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-55 disabled:shadow-none disabled:hover:bg-white"
+              onClick={() => onResume(returning)}
+              className="flex w-full items-center gap-3 rounded-2xl border-2 border-[#003385] bg-white px-4 py-3 text-left shadow-sm transition-all hover:bg-[#003385]/[0.04] focus-visible:ring-2 focus-visible:ring-[#003385] focus-visible:ring-offset-2 motion-safe:active:scale-[0.99]"
             >
               <span className="text-2xl" aria-hidden>
                 👋
@@ -97,9 +92,7 @@ export function Welcome({
               <span className="flex flex-col">
                 <span className="font-semibold text-[#003385]">Welcome back!</span>
                 <span className="text-sm text-[#1E2A3A]/60">
-                  {returning
-                    ? "Pick up right where you left off."
-                    : "Your saved plan will show up here next time."}
+                  Pick up right where you left off.
                 </span>
               </span>
               <span aria-hidden className="ml-auto text-lg text-[#003385]">
