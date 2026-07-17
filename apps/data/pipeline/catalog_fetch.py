@@ -178,6 +178,10 @@ def main(argv: Optional[list[str]] = None) -> None:
                     default=Path(__file__).resolve().parent.parent / "raw")
     ap.add_argument("--navoid", type=int, default=PROGRAM_INDEX_NAVOID,
                     help="program-index navoid (default 1227)")
+    ap.add_argument("--poids-file", type=Path, default=None,
+                    help="fetch exactly these program poids (one per line); skips the "
+                         "index pass. Use to backfill programs not in the by-program index "
+                         "(e.g. engineering/field-of-study transfer degrees).")
     ap.add_argument("--programs-only", action="store_true",
                     help="fetch program pages only; skip the course pass")
     ap.add_argument("--limit-programs", type=int, default=None,
@@ -193,14 +197,20 @@ def main(argv: Optional[list[str]] = None) -> None:
         print(f"catalog {args.catalog_year} (catoid={args.catoid})  out={cat}\n"
               f"manifest={fx.manifest}\n", flush=True)
 
-        # ---- pass 0: the program index -------------------------------------
-        index_html = fx.fetch(idx_url, cat / "index.html",
-                              {"kind": "index", "catalog_year": args.catalog_year,
-                               "catoid": args.catoid, "navoid": args.navoid})
-        if not index_html:
-            print("could not fetch the program index; aborting", file=sys.stderr)
-            return
-        poids = extract_poids(index_html)
+        # ---- pass 0: the program index (or an explicit poid list) ----------
+        if args.poids_file:
+            poids = [ln.strip() for ln in args.poids_file.read_text().splitlines()
+                     if ln.strip() and not ln.startswith("#")]
+            print(f"targeted backfill: {len(poids)} programs from "
+                  f"{args.poids_file.name}", flush=True)
+        else:
+            index_html = fx.fetch(idx_url, cat / "index.html",
+                                  {"kind": "index", "catalog_year": args.catalog_year,
+                                   "catoid": args.catoid, "navoid": args.navoid})
+            if not index_html:
+                print("could not fetch the program index; aborting", file=sys.stderr)
+                return
+            poids = extract_poids(index_html)
         if args.limit_programs:
             poids = poids[:args.limit_programs]
         print(f"pass 1: {len(poids)} programs", flush=True)

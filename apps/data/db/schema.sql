@@ -185,8 +185,12 @@ CREATE TABLE chat_session (
         -- NOT a foreign key — there is no student table, and the id is never
         -- derived from any real identifier.
     profile       jsonb,
-        -- optional entry-flow snapshot: {campus?, major?, student_type?}.
-        -- The CHECK below allowlists the keys so no free-text (and therefore
+        -- optional entry-flow snapshot — the allowlisted durable onboarding keys
+        -- (kept in lockstep with the registry profile_keys): {campus?, major?,
+        -- student_type?, transfer_direction?, intl_status?, target_institution?,
+        -- modality_pref?, dayparts_pref?, interest_area?, oneoff_purpose?}.
+        -- Transient onboarding fields (goal, session meta) go to telemetry, never
+        -- here. The CHECK below allowlists the keys so no free-text (and therefore
         -- no PII) can ever be stored here.
     history       jsonb       NOT NULL DEFAULT '[]'::jsonb,
         -- append-only array of per-turn event objects (versioned JSON Schema,
@@ -198,7 +202,11 @@ CREATE TABLE chat_session (
     archived_at   timestamptz,                           -- set by the weekly archive job
 
     CONSTRAINT ck_cs_profile_allowlist CHECK (
-        profile IS NULL OR profile - 'campus' - 'major' - 'student_type' = '{}'::jsonb),
+        profile IS NULL OR profile
+          - 'campus' - 'major' - 'student_type'
+          - 'transfer_direction' - 'intl_status' - 'target_institution'
+          - 'modality_pref' - 'dayparts_pref' - 'interest_area' - 'oneoff_purpose'
+          = '{}'::jsonb),
     CONSTRAINT ck_cs_history_cap CHECK (jsonb_array_length(history) <= 200)
 );
 
