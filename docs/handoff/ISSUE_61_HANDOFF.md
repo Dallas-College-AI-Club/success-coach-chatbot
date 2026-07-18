@@ -72,9 +72,15 @@ good row).
      ~10 GB RAM/VRAM at Q4), or
    - **Qwen 2.5 7B / Llama 3.1 8B Instruct** for lighter machines (expect a few more
      validation retries).
-3. Open the **Local Server** tab → *Start Server*. LM Studio serves an
+3. **When loading the model, set the context length to ≥ 32768** (LM Studio's
+   default is 4096, which fits *no* extraction prompt — the assembled
+   program_map prompt plus its 16384-token output budget needs ~25-32K; a too-
+   small context silently truncates and produces plausible-wrong JSON). The
+   same rule on Ollama is `options.num_ctx`, which `pipeline/extract.py` now
+   sets automatically (override with `OLLAMA_NUM_CTX`).
+4. Open the **Local Server** tab → *Start Server*. LM Studio serves an
    OpenAI-compatible API at `http://localhost:1234/v1`.
-4. Configure the pipeline (in `apps/data/.env`):
+5. Configure the pipeline (in `apps/data/.env`):
 
 ```bash
 EXTRACTOR="lmstudio:qwen2.5-14b-instruct"      # provider:model (model name as shown in LM Studio)

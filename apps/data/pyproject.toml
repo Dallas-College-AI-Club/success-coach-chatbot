@@ -10,6 +10,9 @@ dependencies = [
     "lxml>=5.0",             # fast parser backend for bs4
     "playwright>=1.44",      # headless-browser catalog fetcher (pipeline/catalog_fetch.py);
                              # after install run:  playwright install chromium
+    "jsonschema>=4.21",      # facts validation gate (pipeline/extract.py)
+    "pypdf>=6.0",            # PDF->text for the 2024 HB2504 corpus; pin-sensitive:
+                             # gold-case input.txt is regenerated through it (tests/gold)
 ]
 
 [dependency-groups]

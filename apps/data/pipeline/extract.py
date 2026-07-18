@@ -35,6 +35,7 @@ from typing import Optional
 
 REPO = Path(__file__).resolve().parents[3]           # …/success-coach-chatbot
 SCHEMAS_DIR = REPO / "src" / "config" / "facts-schemas"
+REGISTRY_PATH = REPO / "src" / "config" / "metadata-registry.json"
 PROMPT_VERSION = "v1"
 PROMPT_PATH = Path(__file__).resolve().parent.parent / "prompts" / f"extract_{PROMPT_VERSION}.md"
 MAX_RETRIES = 2
@@ -46,6 +47,13 @@ DOC_SCHEMAS = {
     "program_map": ("facts-program-map-v1.schema.json", "1"),
     "cv": ("facts-cv-v1.schema.json", "1"),
 }
+
+# Output-token budget per doc_type. program_map needs headroom: poid=3388
+# (Core Curriculum) emits nine component-area groups[] with full option lists —
+# a truncated response fails validation identically on every retry and
+# quarantines the single most load-bearing document in the corpus.
+DEFAULT_MAX_TOKENS = 8192
+MAX_TOKENS_BY_DOC_TYPE = {"program_map": 16384}
 
 
 @dataclass
@@ -81,26 +89,40 @@ def _method_for(provider: str) -> str:
             "lmstudio": "local_lmstudio", "openai": "api", "openrouter": "api"}[provider]
 
 
-def _call_anthropic(model: str, prompt: str) -> str:
+def _call_anthropic(model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     import anthropic
     client = anthropic.Anthropic()                    # ANTHROPIC_API_KEY from env
-    msg = client.messages.create(model=model, max_tokens=8192,
+    # temperature=0 is gate-blocking: the golden gate diffs expected JSON on
+    # this path, and a sampled response makes the diff flake.
+    msg = client.messages.create(model=model, max_tokens=max_tokens, temperature=0,
                                  messages=[{"role": "user", "content": prompt}])
     return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
 
 
-def _call_ollama(model: str, prompt: str) -> str:
+def _call_ollama(model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     import requests
-    base = os.environ.get("OLLAMA_HOST", "http://localhost:11434")
+    base = os.environ.get("OLLAMA_HOST") or "http://localhost:11434"
+    # num_ctx is mandatory (EXTRACTION_PLAYBOOK.md provider matrix): without it
+    # Ollama silently truncates the PROMPT at the model default (~2-4k tokens)
+    # and returns plausible-wrong JSON — the worst failure mode. Size it to
+    # prompt + output; len//3 over-estimates prompt tokens on purpose.
+    num_ctx = int(os.environ.get("OLLAMA_NUM_CTX") or 0) \
+        or max(16384, len(prompt) // 3 + max_tokens)
     r = requests.post(f"{base}/api/chat", timeout=600, json={
         "model": model, "stream": False, "format": "json",
-        "options": {"temperature": 0},
+        "options": {"temperature": 0, "num_predict": max_tokens, "num_ctx": num_ctx},
         "messages": [{"role": "user", "content": prompt}]})
     r.raise_for_status()
-    return r.json()["message"]["content"]
+    data = r.json()
+    if data.get("prompt_eval_count", 0) >= num_ctx - 8:   # input hit the ceiling
+        raise RuntimeError(f"ollama truncated the prompt (prompt_eval_count "
+                           f"{data['prompt_eval_count']} at num_ctx {num_ctx}); "
+                           f"raise OLLAMA_NUM_CTX")
+    return data["message"]["content"]
 
 
-def _call_openai_compatible(model: str, prompt: str, provider: str = "openai") -> str:
+def _call_openai_compatible(model: str, prompt: str, provider: str = "openai",
+                            max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     """LM Studio / OpenRouter / any OpenAI Chat Completions endpoint.
 
     OpenRouter specifics (the repo's selected free LLM gateway): base URL and
@@ -112,40 +134,50 @@ def _call_openai_compatible(model: str, prompt: str, provider: str = "openai") -
 
     import requests
     if provider == "openrouter":
-        base = os.environ.get("LLM_BASE_URL", "https://openrouter.ai/api/v1")
+        # `or` (not a .get default) so an empty LLM_BASE_URL= line sourced from
+        # .env falls back instead of producing a request to ""
+        base = os.environ.get("LLM_BASE_URL") or "https://openrouter.ai/api/v1"
         key = (os.environ.get("OPENROUTER_API_KEY")
                or os.environ.get("LLM_API_KEY", ""))
         extra = {"HTTP-Referer": "https://dc-success-coach.vercel.app",
                  "X-Title": "Dallas College Success Coach Chatbot"}
     else:
-        base = os.environ.get("LLM_BASE_URL", "http://localhost:1234/v1")
-        key = os.environ.get("LLM_API_KEY", "lm-studio")
+        base = os.environ.get("LLM_BASE_URL") or "http://localhost:1234/v1"
+        key = os.environ.get("LLM_API_KEY") or "lm-studio"
         extra = {}
-    body = {"model": model, "temperature": 0,
+    # current OpenAI models reject max_tokens in favor of max_completion_tokens;
+    # LM Studio / OpenRouter speak classic max_tokens
+    tokens_key = "max_completion_tokens" if provider == "openai" else "max_tokens"
+    body = {"model": model, "temperature": 0, tokens_key: max_tokens,
             "response_format": {"type": "json_object"},
             "messages": [{"role": "user", "content": prompt}]}
-    for attempt in range(5):
+    MAX_TRANSIENT_RETRIES = 5
+    attempt = 0
+    while True:
         r = requests.post(f"{base}/chat/completions", timeout=600,
                           headers={"Authorization": f"Bearer {key}", **extra},
                           json=body)
         if r.status_code in (429, 500, 502, 503, 504):     # rate limit / transient
-            _time.sleep(min(4 * 2 ** attempt, 60))
+            attempt += 1
+            if attempt >= MAX_TRANSIENT_RETRIES:
+                r.raise_for_status()                       # out of retries: surface it
+            _time.sleep(min(4 * 2 ** (attempt - 1), 60))
             continue
-        if r.status_code == 400 and "response_format" in body:
-            body.pop("response_format")                    # provider rejects it
-            continue
+        if (r.status_code == 400 and "response_format" in body
+                and "response_format" in r.text):
+            body.pop("response_format")   # provider rejects json mode; free retry
+            continue                      # (does not consume a transient-retry slot)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
-    r.raise_for_status()
-    raise RuntimeError("unreachable")
 
 
-def call_model(provider: str, model: str, prompt: str) -> str:
+def call_model(provider: str, model: str, prompt: str,
+               max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     if provider == "anthropic":
-        return _call_anthropic(model, prompt)
+        return _call_anthropic(model, prompt, max_tokens)
     if provider == "ollama":
-        return _call_ollama(model, prompt)
-    return _call_openai_compatible(model, prompt, provider)  # lmstudio | openai | openrouter
+        return _call_ollama(model, prompt, max_tokens)
+    return _call_openai_compatible(model, prompt, provider, max_tokens)  # lmstudio | openai | openrouter
 
 
 # --------------------------------------------------------------------------- prompt + validation
@@ -155,20 +187,37 @@ def load_schema(doc_type: str) -> dict:
     return json.loads((SCHEMAS_DIR / fname).read_text(encoding="utf-8"))
 
 
+_HTML_COMMENT_RE = re.compile(r"<!--.*?-->\s*", re.DOTALL)
+
+
 def build_prompt(doc_type: str, document: str, context: dict,
                  retry_errors: Optional[str] = None) -> str:
-    template = PROMPT_PATH.read_text(encoding="utf-8")
+    # Strip the template's header comment BEFORE filling placeholders: the
+    # comment lists the literal placeholder names, so replacing on the raw
+    # template used to inject the full schema + document TWICE per prompt
+    # (nearly doubling every prompt's token cost — measured on the 337-program
+    # catalog sweep, and enough to push the largest documents past a 32K
+    # local-model context window).
+    template = _HTML_COMMENT_RE.sub("", PROMPT_PATH.read_text(encoding="utf-8"), count=1)
     schema_json = json.dumps(load_schema(doc_type), indent=2)
     retry_block = ""
     if retry_errors:
         retry_block = ("\n## Your previous attempt FAILED validation — fix EXACTLY "
                        f"these errors and output corrected JSON only\n```\n{retry_errors}\n```\n")
-    return (template
-            .replace("{{DOC_TYPE}}", doc_type)
-            .replace("{{CONTEXT}}", json.dumps(context, indent=2))
-            .replace("{{SCHEMA}}", schema_json)
-            .replace("{{RETRY_ERRORS}}", retry_block)
-            .replace("{{DOCUMENT}}", document))
+    prompt = (template
+              .replace("{{DOC_TYPE}}", doc_type)
+              .replace("{{CONTEXT}}", json.dumps(context, indent=2))
+              .replace("{{SCHEMA}}", schema_json)
+              .replace("{{RETRY_ERRORS}}", retry_block)
+              .replace("{{DOCUMENT}}", document))
+    if "{{EXAMPLES}}" in prompt:
+        # extract_v2.md declares this placeholder; the splice isn't implemented.
+        # Fail loudly rather than ship the literal token to the model.
+        raise NotImplementedError(
+            f"{PROMPT_PATH.name} uses {{{{EXAMPLES}}}} but build_prompt() has no "
+            "examples splice yet — implement it (+ a test) before activating this "
+            "prompt version")
+    return prompt
 
 
 _FENCE_RE = re.compile(r"^```(?:json)?\s*|\s*```$", re.MULTILINE)
@@ -181,7 +230,13 @@ def parse_json_response(raw: str) -> dict:
         if brace == -1:
             raise ValueError("no JSON object in model response")
         cleaned = cleaned[brace:]
-    return json.loads(cleaned)
+    # raw_decode tolerates trailing prose after the object ("...} Hope that
+    # helps!") — chat-tuned free models emit exactly that once response_format
+    # has been dropped, and json.loads would burn every retry on 'Extra data'.
+    payload, _end = json.JSONDecoder().raw_decode(cleaned)
+    if not isinstance(payload, dict):
+        raise ValueError("model response was JSON but not an object")
+    return payload
 
 
 def validate(doc_type: str, payload: dict) -> Optional[list]:
@@ -194,6 +249,38 @@ def validate(doc_type: str, payload: dict) -> Optional[list]:
     return errors or None
 
 
+# --------------------------------------------------------------------------- registry stamps
+
+_registry_cache: Optional[dict] = None
+
+
+def _registry() -> dict:
+    global _registry_cache
+    if _registry_cache is None:
+        _registry_cache = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
+    return _registry_cache
+
+
+def validate_registry_stamp(doc_type: str, extraction_method: str) -> None:
+    """Contract-sync check against src/config/metadata-registry.json (#61):
+    the doc_type must be in the registry vocabulary and extraction_method in
+    its enum, so a row can never be stamped with values the registry doesn't
+    know. Deliberately does NOT require a non-null facts_schema — the registry
+    sets syllabus facts_schema to null on purpose (syllabus facts embed in the
+    section row as facts.syllabus; the schema file stays the extractor's
+    output contract). Exhaustive per-key validation is #51's CI contract-sync,
+    not this check."""
+    reg = _registry()
+    doc_types = reg["doc_types"]
+    if doc_type not in doc_types:
+        raise ValueError(f"doc_type {doc_type!r} not in metadata-registry "
+                         f"doc_types (have {sorted(doc_types)})")
+    methods = reg["keys"]["extraction_method"]["enum"]
+    if extraction_method not in methods:
+        raise ValueError(f"extraction_method {extraction_method!r} not in "
+                         f"metadata-registry enum {methods}")
+
+
 # --------------------------------------------------------------------------- extract
 
 def extract(doc_type: str, document: str, context: dict,
@@ -201,7 +288,9 @@ def extract(doc_type: str, document: str, context: dict,
     if doc_type not in DOC_SCHEMAS:
         raise ValueError(f"unknown doc_type {doc_type!r} (have {sorted(DOC_SCHEMAS)})")
     provider, model = parse_extractor_setting(extractor_setting)
+    validate_registry_stamp(doc_type, _method_for(provider))
     _, schema_version = DOC_SCHEMAS[doc_type]
+    max_tokens = MAX_TOKENS_BY_DOC_TYPE.get(doc_type, DEFAULT_MAX_TOKENS)
     res = ExtractionResult(status="failed", doc_type=doc_type, extractor=model,
                            extraction_method=_method_for(provider),
                            schema_version=schema_version)
@@ -210,7 +299,7 @@ def extract(doc_type: str, document: str, context: dict,
         res.attempts = attempt + 1
         prompt = build_prompt(doc_type, document, context, retry_errors=errors_text)
         try:
-            raw = call_model(provider, model, prompt)
+            raw = call_model(provider, model, prompt, max_tokens)
         except Exception as e:                          # transport failure
             res.status = "failed"
             res.validation_errors = [f"provider_error: {type(e).__name__}: {e}"]
@@ -237,6 +326,7 @@ def extract(doc_type: str, document: str, context: dict,
 def extract_manual(doc_type: str, payload: dict,
                    extractor: str = "claude-code-session") -> ExtractionResult:
     """No-API-key path: validate already-produced schema-valid JSON."""
+    validate_registry_stamp(doc_type, "claude_code_session")
     _, schema_version = DOC_SCHEMAS[doc_type]
     errs = validate(doc_type, payload)
     if errs:
@@ -245,6 +335,34 @@ def extract_manual(doc_type: str, payload: dict,
         status="needs_review" if payload.get("confidence") == "low" else "ok",
         doc_type=doc_type, data=payload, extractor=extractor,
         extraction_method="claude_code_session", schema_version=schema_version)
+
+
+def persist_quarantine(res: ExtractionResult, quarantine_dir: Path, doc_id: str,
+                       source: Optional[Path] = None,
+                       context: Optional[dict] = None) -> Path:
+    """Persist a non-ok result to <quarantine_dir>/<doc_type>/<doc_id>.json —
+    the review queue (#61). Quarantined rows are never loaded and never
+    displace good data; everything needed to re-adjudicate travels with the
+    row: the (possibly invalid) data, the exact validator errors, every raw
+    model response, the source path + identity context, and full provenance.
+    Never overwrites: a doc_id collision gets a numeric suffix, so a later run
+    cannot destroy an earlier document's review evidence."""
+    out_dir = quarantine_dir / res.doc_type
+    out_dir.mkdir(parents=True, exist_ok=True)
+    out = out_dir / f"{doc_id}.json"
+    n = 2
+    while out.exists():
+        out = out_dir / f"{doc_id}.{n}.json"
+        n += 1
+    out.write_text(json.dumps({
+        "status": res.status, "doc_type": res.doc_type, "doc_id": doc_id,
+        "source": str(source) if source else None, "context": context,
+        "extractor": res.extractor, "extraction_method": res.extraction_method,
+        "prompt_version": res.prompt_version, "schema_version": res.schema_version,
+        "attempts": res.attempts, "validation_errors": res.validation_errors,
+        "data": res.data, "raw_responses": res.raw_responses,
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
+    return out
 
 
 def html_to_text(html: str) -> str:
@@ -263,12 +381,27 @@ def pdf_to_text(pdf_path: Path) -> str:
     (see apps/data/tests/gold/README.md). Changing this rendering marks every
     PDF gold case stale until re-verified."""
     from pypdf import PdfReader
-    pages = (page.extract_text() or "" for page in PdfReader(pdf_path).pages)
-    text = "\n\n".join(p.strip() for p in pages if p.strip())
-    return re.sub(r"[ \t]+\n", "\n", re.sub(r"\n\s*\n+", "\n\n", text)).strip()
+    try:
+        pages = (page.extract_text() or "" for page in PdfReader(pdf_path).pages)
+        text = "\n\n".join(p.strip() for p in pages if p.strip())
+    except Exception as e:
+        raise ValueError(f"{pdf_path}: unreadable PDF ({type(e).__name__}: {e})") from e
+    text = re.sub(r"[ \t]+\n", "\n", re.sub(r"\n\s*\n+", "\n\n", text)).strip()
+    if len(text) < 200:
+        # scanned/image-only PDF: extracting against (near-)empty text would let
+        # the model fabricate facts out of the context block alone
+        raise ValueError(f"{pdf_path}: no extractable text ({len(text)} chars) — "
+                         "scanned/image PDF? needs OCR or quarantine")
+    return text
 
 
 def main(argv: Optional[list[str]] = None) -> None:
+    import sys
+    if hasattr(sys.stdout, "reconfigure"):
+        # Windows redirected stdout is cp1252: printing model-echoed document
+        # text (ﬁ ligatures from pypdf are all over this corpus) must degrade,
+        # not crash the run
+        sys.stdout.reconfigure(errors="replace")
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--doc-type", required=True, choices=sorted(DOC_SCHEMAS))
@@ -277,8 +410,13 @@ def main(argv: Optional[list[str]] = None) -> None:
     ap.add_argument("--text", type=Path, help="already-plain-text file to extract")
     ap.add_argument("--context", default="{}", help="JSON identity context")
     ap.add_argument("--out", type=Path, help="write the facts JSON here")
+    ap.add_argument("--quarantine-dir", type=Path,
+                    default=Path(__file__).resolve().parent.parent / "out" / "quarantine",
+                    help="where non-ok results are persisted for review "
+                         "(default apps/data/out/quarantine)")
     args = ap.parse_args(argv)
 
+    src = args.html or args.pdf or args.text
     if args.html:
         document = html_to_text(args.html.read_text(encoding="utf-8", errors="replace"))
     elif args.pdf:
@@ -288,14 +426,25 @@ def main(argv: Optional[list[str]] = None) -> None:
     else:
         ap.error("give --html, --pdf, or --text")
 
-    res = extract(args.doc_type, document, json.loads(args.context))
+    context = json.loads(args.context)
+    res = extract(args.doc_type, document, context)
+    if res.status != "ok":
+        # persist BEFORE any printing: evidence must survive even if stdout
+        # chokes on model-echoed text
+        doc_id = f"{src.parent.name}-{src.stem}"    # term-qualified: 2024FA-ACCT-2301-21000
+        qpath = persist_quarantine(res, args.quarantine_dir, doc_id,
+                                   source=src, context=context)
     print(f"[{res.status}] {res.doc_type} via {res.extractor} "
           f"({res.extraction_method}) attempts={res.attempts}")
     if res.validation_errors:
         print("  errors:", res.validation_errors)
-    if res.data and args.out:
-        args.out.write_text(json.dumps(res.data, indent=2), encoding="utf-8")
-        print(f"  wrote {args.out}")
+    if res.status == "ok":
+        if res.data and args.out:
+            args.out.parent.mkdir(parents=True, exist_ok=True)
+            args.out.write_text(json.dumps(res.data, indent=2), encoding="utf-8")
+            print(f"  wrote {args.out}")
+    else:
+        print(f"  quarantined -> {qpath}")
 
 
 if __name__ == "__main__":
