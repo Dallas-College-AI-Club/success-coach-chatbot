@@ -1,0 +1,5 @@
+# Gold-case inputs are byte-reproducible outputs of pipeline.extract converters
+# (pdf_to_text / html_to_text). They must check out identically on every
+# platform or byte-level comparison against regenerated text breaks on Windows
+# (core.autocrlf=true rewrites LF -> CRLF in the working tree).
+apps/data/tests/gold/** text eol=lf

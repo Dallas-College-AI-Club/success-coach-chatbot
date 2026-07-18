@@ -1,0 +1,8 @@
+{
+  "course_code": "ACCT 2301",
+  "section": "24",
+  "professor": "Staff",
+  "year": 2026,
+  "semester": "spring",
+  "_note": "Identity the extractor receives (authoritative; never re-derived from the document body). In production these come from the schedule manifest; this sample PDF names no instructor, so professor is a placeholder. No facts-syllabus field consumes professor, so it does not affect expected.json."
+}

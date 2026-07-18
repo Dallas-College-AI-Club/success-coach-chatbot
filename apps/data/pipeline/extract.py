@@ -255,11 +255,25 @@ def html_to_text(html: str) -> str:
     return re.sub(r"\n\s*\n+", "\n\n", soup.get_text("\n")).strip()
 
 
+def pdf_to_text(pdf_path: Path) -> str:
+    """The canonical PDF -> extractor-input text rendering (2024 HB2504 corpus,
+    Concourse print-to-PDFs). Deliberately bare pypdf text — no headers, no
+    frontmatter, nothing time-dependent — because gold-case input.txt files are
+    regenerated through this exact function and must stay byte-reproducible
+    (see apps/data/tests/gold/README.md). Changing this rendering marks every
+    PDF gold case stale until re-verified."""
+    from pypdf import PdfReader
+    pages = (page.extract_text() or "" for page in PdfReader(pdf_path).pages)
+    text = "\n\n".join(p.strip() for p in pages if p.strip())
+    return re.sub(r"[ \t]+\n", "\n", re.sub(r"\n\s*\n+", "\n\n", text)).strip()
+
+
 def main(argv: Optional[list[str]] = None) -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--doc-type", required=True, choices=sorted(DOC_SCHEMAS))
     ap.add_argument("--html", type=Path, help="raw HTML file to extract")
+    ap.add_argument("--pdf", type=Path, help="raw PDF file to extract (2024 HB2504 archive)")
     ap.add_argument("--text", type=Path, help="already-plain-text file to extract")
     ap.add_argument("--context", default="{}", help="JSON identity context")
     ap.add_argument("--out", type=Path, help="write the facts JSON here")
@@ -267,10 +281,12 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     if args.html:
         document = html_to_text(args.html.read_text(encoding="utf-8", errors="replace"))
+    elif args.pdf:
+        document = pdf_to_text(args.pdf)
     elif args.text:
         document = args.text.read_text(encoding="utf-8", errors="replace")
     else:
-        ap.error("give --html or --text")
+        ap.error("give --html, --pdf, or --text")
 
     res = extract(args.doc_type, document, json.loads(args.context))
     print(f"[{res.status}] {res.doc_type} via {res.extractor} "
