@@ -5,11 +5,19 @@ description = "Data scraping module for the Dallas College Success Coach Chatbot
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+<<<<<<< HEAD
     "alembic>=1.18.5",
     "pgvector>=0.5.0",
     "psycopg>=3.3.4",
     "python-dotenv>=1.2.2",
     "sqlalchemy>=2.0.51",
+=======
+    "requests>=2.31",        # scrapers (pipeline/archive_syllabi_cv.py)
+    "beautifulsoup4>=4.12",  # HTML parsing (facts extraction stage)
+    "lxml>=5.0",             # fast parser backend for bs4
+    "playwright>=1.44",      # headless-browser catalog fetcher (pipeline/catalog_fetch.py);
+                             # after install run:  playwright install chromium
+>>>>>>> 4f55ad76925f3334da738eafc13630753220c50c
 ]
 
 [dependency-groups]

@@ -1,0 +1,43 @@
+{
+  "_README": "Config for the data-pipeline generator (issue #36) that produces programs.ts from program_index.json. exclude = poids kept OUT of the onboarding picker (structural / requirements-for-all; still ingested into program_map for the RAG). exclude_notes = human-readable name + rationale per excluded poid, rendered into the generated programs.ts header so the exclusions stay documented at the point of use. display_overrides = trimmed, student-friendly picker labels by poid; anything not listed falls back to the official catalog name. The generator sorts the final list by display label.",
+  "exclude": [
+    "3388",
+    "3040"
+  ],
+  "exclude_notes": {
+    "3388": { "name": "Core Curriculum", "note": "the 42-hr gen-ed block every degree embeds" },
+    "3040": { "name": "Core Options for A.A.S. Awards", "note": "the shared A.A.S. elective-options block" }
+  },
+  "display_overrides": {
+    "2778": "Architecture (A.S. Field of Study)",
+    "2792": "Biomedical Engineering (A.S. transfer → UTD)",
+    "2795": "Business Administration (A.A. Texas Direct transfer)",
+    "2809": "Chemical Engineering (A.S. Field of Study)",
+    "2815": "Civil Engineering (A.S. Field of Study)",
+    "2851": "Nursing (A.S. Texas Direct transfer)",
+    "2856": "Music (A.A. Field of Study)",
+    "2868": "Mechanical Engineering (A.S. transfer → UTD)",
+    "2869": "Mechanical Engineering (A.S. Field of Study)",
+    "2891": "Industrial Engineering (A.S. transfer → East Texas A&M)",
+    "2921": "Criminal Justice (A.A. Texas Direct transfer)",
+    "2938": "Software Engineering (A.S. transfer → UTD)",
+    "2941": "Sociology (A.A. Texas Direct transfer)",
+    "2943": "Social Work (A.A. Texas Direct transfer)",
+    "2972": "Pre-Mechanical Engineering (A.S. transfer)",
+    "2974": "Political Science (A.A. Texas Direct transfer)",
+    "3010": "Computer Engineering (A.S. transfer → UTD)",
+    "3011": "Computer Science (A.S. transfer → UTD)",
+    "3030": "Electrical Engineering (A.S. transfer → Prairie View A&M)",
+    "3031": "Electrical Engineering (A.S. transfer → UT Arlington)",
+    "3032": "Electrical Engineering (A.S. transfer → UTD)",
+    "3033": "Electrical Engineering (A.S. Field of Study)",
+    "3037": "Electronics Engineering Technology (A.S. transfer → Texas A&M)",
+    "3207": "Psychology (A.A. Texas Direct transfer)",
+    "3449": "Teaching: Early Childhood-Grade 6 (EC-6)",
+    "3450": "Teaching: Foreign Language (EC-12)",
+    "3451": "Teaching: Mathematics (8-12)",
+    "3452": "Teaching: Grades 4-8 & Special Education (EC-12)",
+    "3453": "Peace & Human Rights Studies (A.A. transfer → SMU)",
+    "3810": "Kinesiology (A.S. Texas Direct transfer)"
+  }
+}

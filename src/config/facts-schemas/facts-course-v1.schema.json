@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-course-v1",
+  "title": "facts-course-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "course_code",
+    "title",
+    "prerequisites",
+    "corequisites",
+    "confidence"
+  ],
+  "properties": {
+    "course_code": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "credit_hours": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "description": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "state_outcomes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "prerequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "one_of",
+          "raw_text"
+        ],
+        "properties": {
+          "one_of": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "corequisites": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "one_of",
+          "raw_text"
+        ],
+        "properties": {
+          "one_of": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "requisites_raw": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "is_core": {
+      "type": [
+        "boolean",
+        "null"
+      ],
+      "$comment": "true if the catalog marks it a Texas Core Curriculum course"
+    },
+    "core_component_area": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "CB component-area code the course satisfies (CB010 Communication, CB020 Math, CB030 Life & Physical Sciences, ... CB090 Institutional); null if not a core course"
+    },
+    "tccn": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "Texas Common Course Number as printed (e.g. 'ENGL 1301'). Non-null => it IS a TCCN and transfers to any Texas public university, and the value is the equivalent code the target school maps to; null = catalog did not mark one. Answer still carries a verify-with-target-school disclaimer."
+    },
+    "cb_approval_number": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "Coordinating Board Academic Approval Number as printed"
+    },
+    "campus_locations": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "campuses that offer the course, as printed (e.g. 'BHC, CVC, EFC, ...')"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}
