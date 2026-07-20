@@ -22,7 +22,7 @@ from sqlalchemy.dialects.postgresql import (
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
-from dallasai.database import Base
+from dallasai.base import Base
 
 
 class KnowledgeEntry(Base):

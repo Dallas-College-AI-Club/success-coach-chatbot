@@ -14,5 +14,12 @@ dependencies = [
     "beautifulsoup4>=4.12",  # HTML parsing (facts extraction stage)
     "lxml>=5.0",             # fast parser backend for bs4
     "playwright>=1.44",      # headless-browser catalog fetcher (pipeline/catalog_fetch.py);
-                             # after install run:  playwright install chromium
+    # after install run:  playwright install chromium
+    "pypdf>=6.14.2",
+    "chromadb>=1.5.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
 ]
