@@ -1,6 +1,8 @@
 import aiPrompts from "../../../src/config/ai-prompts.json";
 import promptTemplates from "../../../src/config/prompt-templates.json";
 
+import { PROGRAMS } from "@/features/onboarding/programs";
+import { directionOptions, schoolOptions } from "@/features/onboarding/questions";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 
 export interface PromptBuildInput {
@@ -14,6 +16,52 @@ export interface PromptBuildInput {
 
 export interface PromptBuildResult {
     systemPrompt: string;
+}
+
+function resolveMajorLabel(
+    major?: string | null,
+): string | null {
+    if (!major) {
+        return null;
+    }
+
+    return (
+        PROGRAMS.find(
+            (program) => program.code === major,
+        )?.label ?? major
+    );
+}
+
+function resolveInstitutionLabel(
+    targetInstitution?: string | null,
+): string | null {
+    if (!targetInstitution) {
+        return null;
+    }
+
+    return (
+        schoolOptions.find(
+            (option) =>
+                option.contribs.target_institution ===
+                targetInstitution,
+        )?.label ?? targetInstitution
+    );
+}
+
+function resolveTransferDirectionLabel(
+    transferDirection?: string | null,
+): string | null {
+    if (!transferDirection) {
+        return null;
+    }
+
+    return (
+        directionOptions.find(
+            (option) =>
+                option.contribs.transfer_direction ===
+                transferDirection,
+        )?.label ?? transferDirection
+    );
 }
 
 function buildUserContext(
@@ -34,18 +82,29 @@ function buildUserContext(
     }
 
     if (payload.major) {
-        lines.push(`Major: ${payload.major}`);
+        const majorLabel = resolveMajorLabel(
+            payload.major,
+        );
+        lines.push(`Major: ${majorLabel}`);
     }
 
     if (payload.target_institution) {
+        const institutionLabel =
+            resolveInstitutionLabel(
+                payload.target_institution,
+            );
         lines.push(
-            `Target Institution: ${payload.target_institution}`,
+            `Target Institution: ${institutionLabel}`,
         );
     }
 
     if (payload.transfer_direction) {
+        const transferDirectionLabel =
+            resolveTransferDirectionLabel(
+                payload.transfer_direction,
+            );
         lines.push(
-            `Transfer Direction: ${payload.transfer_direction}`,
+            `Transfer Direction: ${transferDirectionLabel}`,
         );
     }
 
@@ -86,10 +145,23 @@ function buildUserContext(
 function buildPersonaSection(
     persona?: string,
 ): string {
-    return (
-        persona ??
-        aiPrompts.persona.name
-    );
+    if (persona) {
+        return persona;
+    }
+
+    const {
+        name,
+        role,
+        purpose,
+        generalPurposeAssistant,
+    } = aiPrompts.persona;
+
+    return [
+        `Name: ${name}`,
+        `Role: ${role}`,
+        `Purpose: ${purpose}`,
+        `General Purpose Assistant: ${String(generalPurposeAssistant)}`,
+    ].join("\n");
 }
 
 export function buildPrompt(
