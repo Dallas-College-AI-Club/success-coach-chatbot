@@ -1,4 +1,4 @@
-import { systemClock, type Clock } from "../clock";
+import { systemClock, type Clock } from "./clock";
 import { defineTool, isRecord, ToolInputError, type Tool, type ToolDefinition } from "./types";
 
 export const GET_CURRENT_DATE_TOOL_NAME = "get_current_date";
