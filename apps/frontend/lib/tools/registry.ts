@@ -1,15 +1,8 @@
-import { createGetCurrentDateTool } from './getCurrentDate';
-import { toAiSdkTools } from './adapter';
-import type { Tool } from './types';
+import { createGetCurrentDateTool } from "./getCurrentDate";
+import { toolSet } from "./types";
 
-/**
- * Canonical Project Tool instances map.
- */
-export const projectTools: Record<string, Tool<any, any>> = {
-  get_current_date: createGetCurrentDateTool(),
-};
+export const toolsList = [
+    createGetCurrentDateTool(),
+];
 
-/**
- * AI SDK-compatible tool registry exported for streamText().
- */
-export const toolRegistry = toAiSdkTools(projectTools);
+export const toolRegistry = toolSet(toolsList);
