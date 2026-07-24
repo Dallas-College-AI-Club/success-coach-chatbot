@@ -43,10 +43,19 @@ function RobotIcon() {
   );
 }
 
+interface ToolInvocation {
+  state: 'call' | 'result';
+  toolCallId: string;
+  toolName: string;
+  args: any;
+  result?: any;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  toolInvocations?: ToolInvocation[];
 }
 
 // Custom Markdown-to-HTML parser function to render headers, links, lists, and tables without external library overhead
@@ -200,6 +209,84 @@ function parseMarkdownToHTML(text: string): string {
   return html;
 }
 
+function ToolInvocationBadge({ invocation }: { invocation: ToolInvocation }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const isExecuting = invocation.state === 'call';
+
+  // Human-readable titles based on toolName
+  let icon = '⚙️';
+  let label = `Executing ${invocation.toolName}...`;
+  let successLabel = `Completed ${invocation.toolName}`;
+
+  if (invocation.toolName === 'get_date') {
+    icon = '📅';
+    label = 'Retrieving date and time...';
+    successLabel = 'Retrieved date and time';
+  } else if (invocation.toolName === 'get_course_information') {
+    icon = '📚';
+    const courseCode = invocation.args?.courseCode || 'course';
+    label = `Searching course catalog for ${courseCode}...`;
+    successLabel = `Found course info for ${courseCode}`;
+  }
+
+  return (
+    <div className={`p-3 rounded-xl border text-xs font-sans transition-all duration-200 ${
+      isExecuting 
+        ? 'bg-amber-50/50 border-amber-200/60 text-amber-800' 
+        : 'bg-emerald-50/40 border-emerald-100/70 text-emerald-800'
+    }`}>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2 font-medium">
+          {isExecuting ? (
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+          ) : (
+            <span className="h-2 w-2 rounded-full bg-emerald-500 font-semibold">✓</span>
+          )}
+          <span>{icon}</span>
+          <span>{isExecuting ? label : successLabel}</span>
+        </div>
+        
+        {/* Toggle Details Button */}
+        <button 
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded border transition-colors cursor-pointer ${
+            isExecuting 
+              ? 'bg-amber-100/50 hover:bg-amber-100 border-amber-200 text-amber-700' 
+              : 'bg-emerald-100/40 hover:bg-emerald-100/80 border-emerald-200/60 text-emerald-700'
+          }`}
+        >
+          {isOpen ? 'Hide Payload' : 'Show Payload'}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className={`mt-2.5 pt-2 border-t text-[10px] font-mono space-y-1.5 overflow-x-auto ${
+          isExecuting ? 'border-amber-200/40 text-amber-700/80' : 'border-emerald-200/30 text-emerald-700/80'
+        }`}>
+          <div>
+            <span className="font-semibold">Arguments:</span>
+            <pre className="mt-0.5 p-1.5 bg-black/5 rounded text-[9px] whitespace-pre-wrap break-all">
+              {JSON.stringify(invocation.args, null, 2)}
+            </pre>
+          </div>
+          {!isExecuting && invocation.result && (
+            <div>
+              <span className="font-semibold">Result:</span>
+              <pre className="mt-0.5 p-1.5 bg-black/5 rounded text-[9px] whitespace-pre-wrap break-all">
+                {JSON.stringify(invocation.result, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ChatTestPage() {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -266,6 +353,7 @@ export default function ChatTestPage() {
       }
 
       const decoder = new TextDecoder();
+      let buffer = '';
       
       // Add empty assistant bubble
       setMessages((prev) => [...prev, { id: assistantMessageId, role: 'assistant', content: '' }]);
@@ -274,8 +362,10 @@ export default function ChatTestPage() {
         const { done, value } = await reader.read();
         if (done) break;
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split('\n');
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        // Keep potential incomplete line at the end in buffer for next chunk
+        buffer = lines.pop() || '';
 
         for (const line of lines) {
           const trimmed = line.trim();
@@ -283,7 +373,6 @@ export default function ChatTestPage() {
           
           const rawData = trimmed.slice(6);
           if (rawData === '[DONE]') continue;
-
           try {
             const parsed = JSON.parse(rawData);
             if (parsed.type === 'text-delta' && parsed.delta) {
@@ -292,6 +381,45 @@ export default function ChatTestPage() {
                 prev.map((msg) =>
                   msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg
                 )
+              );
+            } else if (parsed.type === 'tool-call') {
+              const { toolCallId, toolName, args } = parsed;
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id !== assistantMessageId) return msg;
+                  const currentInvocations = msg.toolInvocations || [];
+                  if (currentInvocations.some((inv) => inv.toolCallId === toolCallId)) {
+                    return msg;
+                  }
+                  return {
+                    ...msg,
+                    toolInvocations: [
+                      ...currentInvocations,
+                      {
+                        state: 'call',
+                        toolCallId,
+                        toolName,
+                        args,
+                      },
+                    ],
+                  };
+                })
+              );
+            } else if (parsed.type === 'tool-result') {
+              const { toolCallId, toolName, result } = parsed;
+              setMessages((prev) =>
+                prev.map((msg) => {
+                  if (msg.id !== assistantMessageId) return msg;
+                  const currentInvocations = msg.toolInvocations || [];
+                  return {
+                    ...msg,
+                    toolInvocations: currentInvocations.map((inv) =>
+                      inv.toolCallId === toolCallId
+                        ? { ...inv, state: 'result', result }
+                        : inv
+                    ),
+                  };
+                })
               );
             } else if (parsed.type === 'error' && parsed.errorText) {
               throw new Error(parsed.errorText);
@@ -407,10 +535,24 @@ export default function ChatTestPage() {
                       {isUser ? (
                         message.content
                       ) : (
-                        <div
-                          className="prose prose-sm max-w-none text-slate-800 space-y-1"
-                          dangerouslySetInnerHTML={{ __html: parseMarkdownToHTML(message.content) }}
-                        />
+                        <div className="space-y-3">
+                          {/* Tool Invocations UI */}
+                          {message.toolInvocations && message.toolInvocations.length > 0 && (
+                            <div className="flex flex-col gap-2">
+                              {message.toolInvocations.map((inv) => (
+                                <ToolInvocationBadge key={inv.toolCallId} invocation={inv} />
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Assistant Text Response */}
+                          {message.content && (
+                            <div
+                              className="prose prose-sm max-w-none text-slate-800 space-y-1"
+                              dangerouslySetInnerHTML={{ __html: parseMarkdownToHTML(message.content) }}
+                            />
+                          )}
+                        </div>
                       )}
                     </div>
                   </div>

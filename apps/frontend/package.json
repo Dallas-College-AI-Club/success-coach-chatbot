@@ -6,9 +6,9 @@
     "node": ">=20.9.0"
   },
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "npx next dev -H 0.0.0.0 -p 3000 --webpack",
+    "build": "npx next build",
+    "start": "npx next start",
     "lint": "eslint"
   },
   "dependencies": {
