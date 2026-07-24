@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-transfer-guide-v1",
+  "title": "facts-transfer-guide-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "target_institution",
+    "confidence"
+  ],
+  "properties": {
+    "target_institution": {
+      "type": "string"
+    },
+    "program_notes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "advisor_contacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "route-don't-determine: guidance only, never equivalency promises"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}

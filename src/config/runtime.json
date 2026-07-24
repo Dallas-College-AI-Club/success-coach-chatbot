@@ -1,0 +1,9 @@
+{
+  "$comment": "App-level runtime configuration. 'This semester' and default catalog-year pinning resolve HERE, never via LLM date math. Flip ACTIVE_CATALOG_YEAR only after a new catalog year's ingest passes verification (blue-green rollover, docs/DATABASE_ARCHITECTURE.md section 4).",
+  "ACTIVE_CATALOG_YEAR": "2025-2026",
+  "ACTIVE_TERM": {
+    "year": 2026,
+    "semester": "summer"
+  },
+  "DISPLAY_TIMEZONE": "America/Chicago"
+}

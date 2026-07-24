@@ -1,0 +1,45 @@
+# Dallas College - Course Syllabus
+## BIOL 1406: Biology for Science Majors I (4 Credit Hours)
+### Course Information
+* **Course ID**: BIOL-1406-11001
+* **Term**: Fall 2026
+* **Class Location**: Science Building, Room 302
+* **Lab Location**: Science Lab, Room 305
+
+### Instructor Information
+* **Instructor**: Dr. Jane Doe
+* **Email**: jdoe@dallascollege.edu
+* **Office Hours**: Monday & Wednesday, 1:00 PM - 3:00 PM
+
+### Course Description
+This course focuses on the fundamental principles of living organisms, including physical and chemical properties of life, cellular organization and function, concepts of metabolic processes, cellular reproduction, genetics, and molecular biology.
+
+### Required Materials
+* **Textbook Policy**: Campbell Biology (12th Edition) by Urry et al. 
+* **Inclusive Access**: A digital copy of the textbook is provided free to all students on the first day of class via eCampus (Canvas) through the Dallas College Inclusive Access program. **No physical textbook purchase is required.**
+* **Lab Manual**: BIOL 1406 Lab Exercises (provided as free downloadable PDFs on eCampus).
+
+### Grading Scale & Policy
+Grades will be calculated as follows:
+* Lecture Exams (4 total): 60% of final grade
+* Lab Assignments & Quizzes: 30% of final grade
+* Final Cumulative Exam: 10% of final grade
+
+Grading Rubric:
+* A: 90 - 100%
+* B: 80 - 89%
+* C: 70 - 79%
+* D: 60 - 69%
+* F: Below 60%
+
+### Course Schedule
+* Week 1: Introduction to the Chemistry of Life
+* Week 2: Macromolecules and Water Properties
+* Week 3: Cell Structure and Membrane Function (Lab Quiz 1)
+* Week 4: Cellular Respiration and Photosynthesis
+* Week 5: Lecture Exam 1; Cell Division (Mitosis)
+* Week 6: Meiosis and Sexual Life Cycles
+* Week 7: Mendelian Genetics & Chromosomal Inheritance (Lab Quiz 2)
+* Week 8: DNA Replication and Protein Synthesis
+* Week 9: Lecture Exam 2; Gene Expression Regulation
+* Week 10: Biotechnology and Recombinant DNA (Final Lab Exam)

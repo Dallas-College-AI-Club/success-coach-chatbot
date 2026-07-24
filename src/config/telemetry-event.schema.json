@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "telemetry-event-v1",
+  "title": "telemetry-event-v1",
+  "$comment": "Shape of each chat_session.history element (docs/DATABASE_ARCHITECTURE.md 6.3). Appended server-side at EVERY terminal guardrail stage. All content PII-scrubbed upstream; budget ~1KB/event; the API stops appending at the 200-event CHECK cap. Vocabularies for state/intent/classification live in metadata-registry.json.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "v",
+    "role",
+    "ts",
+    "event"
+  ],
+  "properties": {
+    "v": {
+      "const": 1
+    },
+    "role": {
+      "enum": [
+        "user",
+        "assistant",
+        "system"
+      ]
+    },
+    "ts": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "content_scrubbed": {
+      "type": "string",
+      "$comment": "user turns <= 300 chars, assistant turns <= 1500; scrubbing (not truncation) is the privacy mechanism"
+    },
+    "event": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string"
+        },
+        "intent": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "confidence": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "config": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "$comment": "the experimentation backbone - personality slugs will come from issue #41's personalities doc",
+          "properties": {
+            "personality": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "model": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "prompt_version": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "experiment": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "retrieval": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "k": {
+              "type": "integer"
+            },
+            "top_score": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "results": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "source_url",
+                  "chunk_index"
+                ],
+                "$comment": "keyed by (source_url, chunk_index), stable across re-ingest - row ids are not",
+                "properties": {
+                  "source_url": {
+                    "type": "string"
+                  },
+                  "chunk_index": {
+                    "type": "integer"
+                  },
+                  "score": {
+                    "type": [
+                      "number",
+                      "null"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "guardrail": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "classification": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "refusal": {
+              "type": "boolean"
+            },
+            "injection_detected": {
+              "type": "boolean"
+            }
+          }
+        },
+        "grounding": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "matched": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "phrase": {
+                    "type": "string"
+                  },
+                  "target": {
+                    "type": "string"
+                  },
+                  "match_kind": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "unresolved_phrases": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "$comment": "scrubbed key-phrases only, never full utterances; mined weekly for the vocabulary growth loop"
+            }
+          }
+        },
+        "citation_present": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "dropped_filters": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "$comment": "filters the tool layer dropped as inapplicable to the doc_type (time-scoping rules)"
+        },
+        "handoff_target": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "feedback": {
+          "enum": [
+            "up",
+            "down",
+            null
+          ]
+        },
+        "latency_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "tokens": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "in": {
+              "type": "integer"
+            },
+            "out": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,219 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-syllabus-v1",
+  "title": "facts-syllabus-v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "confidence"
+  ],
+  "properties": {
+    "grading": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "raw_label",
+          "canonical_type"
+        ],
+        "properties": {
+          "raw_label": {
+            "type": "string"
+          },
+          "canonical_type": {
+            "enum": [
+              "exam",
+              "quiz",
+              "homework",
+              "project",
+              "lab",
+              "participation",
+              "paper",
+              "presentation",
+              "final_exam",
+              "other"
+            ]
+          },
+          "weight_pct": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "points": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "policies": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "late_work": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attendance": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "makeup": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ai_plagiarism": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extra_credit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "instructor_outcomes": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "course_schedule": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "distinctive_features": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "full_summary": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "<=120-word neutral paragraph; doubles as the fact row's embedded chunk_text"
+    },
+    "modified_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "withdraw_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "certification_date": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "inclusive_access": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "required_materials": {
+      "type": "array",
+      "$comment": "textbooks/materials the syllabus NAMES; empty [] when the syllabus only links the bookstore (title/cost not stated - never invent them)",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "raw_text"
+        ],
+        "properties": {
+          "raw_text": {
+            "type": "string"
+          },
+          "title": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "author": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isbn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "edition": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "cost": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "required": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "office_hours": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "verbatim office-hours text (days/times/location/virtual link); null if the syllabus doesn't state them - stalest fact, always disclaim"
+    },
+    "instructor_contact": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "instructor email/phone as printed on the syllabus; null if absent"
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    }
+  },
+  "$comment": "Starter contract (issue #36). Issue #51 finalizes and CI-pins it against the SQLAlchemy models. Nulls mean 'the source didn't say' - never invent values. Evolving a shape = copy to vN+1 and bump schema_version stamps."
+}
