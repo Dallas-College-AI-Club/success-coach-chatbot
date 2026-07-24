@@ -109,3 +109,34 @@ const result = streamText({
   maxSteps: 5,
 });
 ```
+
+---
+
+## 6. Frontend State Handling & UI Badges (Section 3)
+
+### 6.1 Client-Side Tool Invocation Parsing (`useChat` & Stream Protocol)
+When `streamText()` runs with `tools`, the server sends Server-Sent Events (SSE) containing special JSON chunks:
+- `tool-call`: Emitted when the LLM decides to trigger a tool, containing `toolCallId`, `toolName`, and `args`.
+- `tool-result`: Emitted when the server completes execution, containing `toolCallId`, `toolName`, and `result`.
+
+The Vercel AI SDK client hook (`useChat`) automatically updates each message object with a `toolInvocations` array containing these items.
+
+### 6.2 Visual Tool Badges (`ToolInvocationBadge`)
+In `apps/frontend/app/dev/chat-test/page.tsx`, we map over `message.toolInvocations` to render interactive UI badges above the natural language text response:
+
+- **State `call` (Executing)**:
+  Renders an animated pulsing amber badge (*"⚙️ Executing tool: get_course_information..."*), visually indicating to the student that the system is fetching data.
+- **State `result` (Completed)**:
+  Transitions to a solid emerald green badge with a checkmark (*"✓ Completed tool: get_course_information"*).
+- **Expandable Raw JSON Payload Toggle**:
+  Includes a toggle button (*"Show Payload"* / *"Hide Payload"*) that expands an inline `<pre><code>` block displaying the raw JSON input parameters and returned output payload.
+
+### 6.3 Network Line Buffering
+To prevent Google Drive FUSE latency and high-latency SSE packet fragmentation from dropping tool invocation events, the custom stream reader in `page.tsx` implements string line buffering:
+```typescript
+buffer += chunk;
+const lines = buffer.split('\n');
+buffer = lines.pop() || ''; // Preserve incomplete tail lines
+```
+This guarantees that partial SSE stream lines are never lost mid-transmission.
+
