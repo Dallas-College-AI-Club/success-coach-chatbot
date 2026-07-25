@@ -1,0 +1,16 @@
+{
+  "course_code": "BIOL 1406",
+  "title": "Biology for Science Majors I",
+  "credit_hours": 4,
+  "description": "Fundamental principles of living organisms will be studied, including physical and chemical properties of life, organization, function, evolutionary adaptation, and classification. Study and examination of the concepts of cytology, reproduction, genetics, and scientific reasoning are included. Laboratory activities will reinforce these concepts.",
+  "state_outcomes": null,
+  "prerequisites": [],
+  "corequisites": [],
+  "requisites_raw": "Prerequisites: Required: College level ready in Reading.",
+  "is_core": true,
+  "core_component_area": null,
+  "tccn": "BIOL 1406",
+  "cb_approval_number": "2601015103",
+  "campus_locations": "BHC, CVC, EFC, ECC, MVC, NLC, RLC",
+  "confidence": "high"
+}
