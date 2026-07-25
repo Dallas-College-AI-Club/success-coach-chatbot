@@ -58,16 +58,7 @@ export async function POST(req: Request) {
         if (context && (context.campus || context.major)) {
             baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || 'General'}\n- Major/Area of Interest: ${context.major || 'General studies'}`;
         }
-        let baseSystemPrompt = systemPrompt || 'You are an academic advisor for Dallas College.';
-        if (context && (context.campus || context.major)) {
-            baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || 'General'}\n- Major/Area of Interest: ${context.major || 'General studies'}`;
-        }
 
-        // Clean the message payload to ensure strict compatibility with OpenRouter's API schema
-        const cleanMessages = messages.map((m: { role: string; content?: string }) => ({
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content: String(m.content || ''),
-        }));
         // Clean the message payload to ensure strict compatibility with OpenRouter's API schema
         const cleanMessages = messages.map((m: { role: string; content?: string }) => ({
             role: m.role === 'user' ? 'user' : 'assistant',
