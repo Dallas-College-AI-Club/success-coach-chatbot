@@ -8,10 +8,12 @@ export const runtime = 'nodejs';
 export async function POST(req: Request) {
     try {
         const { messages, systemPrompt, context } = await req.json();
-        console.log(
-            "[CHAT] incoming messages:",
-            JSON.stringify(messages, null, 2),
-        );
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(
+                '[CHAT] incoming messages:',
+                JSON.stringify(messages, null, 2),
+            );
+        }
         const activeApiKey = process.env.OPENROUTER_API_KEY;
 
         if (!activeApiKey) {

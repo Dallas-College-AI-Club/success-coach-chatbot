@@ -132,17 +132,14 @@ export function createGetCurrentDateTool(
         },
 
         execute(input: GetCurrentDateInput): CurrentDateResult {
-            console.log("================================");
-            console.log("[TOOL] get_current_date invoked");
-            console.log("[TOOL] input:", input);
+            if (process.env.NODE_ENV !== 'production') {
+                console.log('[TOOL] get_current_date invoked');
+            }
 
             const timeZone = input.timeZone ?? defaultTimeZone;
             assertValidTimeZone(timeZone);
 
             const result = describeInstant(clock(), timeZone);
-
-            console.log("[TOOL] result:", result);
-            console.log("================================");
 
             return result;
         },
