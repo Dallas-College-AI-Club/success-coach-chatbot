@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { streamText, stepCountIs } from 'ai';
+import { toolRegistry } from '@/lib/tools/registry';
 
 // Next.js Route Segment Configuration
 export const runtime = 'nodejs';
@@ -7,7 +8,10 @@ export const runtime = 'nodejs';
 export async function POST(req: Request) {
     try {
         const { messages, systemPrompt, context } = await req.json();
-
+        console.log(
+            "[CHAT] incoming messages:",
+            JSON.stringify(messages, null, 2),
+        );
         const activeApiKey = process.env.OPENROUTER_API_KEY;
 
         if (!activeApiKey) {
@@ -29,7 +33,8 @@ export async function POST(req: Request) {
             baseURL: 'https://openrouter.ai/api/v1',
             apiKey: activeApiKey,
             headers: {
-                'HTTP-Referer': 'https://github.com/Dallas-College-AI-Club/success-coach-chatbot',
+                'HTTP-Referer':
+                    'https://github.com/Dallas-College-AI-Club/success-coach-chatbot',
                 'X-Title': 'Success Coach Chatbot Dev Test',
             },
         });
@@ -46,15 +51,23 @@ export async function POST(req: Request) {
         }));
 
         // Call streamText using openai/gpt-oss-20b:free via OpenRouter
+        console.log('[CHAT] Registered tools:', Object.keys(toolRegistry));
         const result = streamText({
             model: openrouter.chat('openai/gpt-oss-20b:free'),
             messages: cleanMessages,
             system: baseSystemPrompt,
+            tools: toolRegistry,
+            // Allow multi-step tool execution.
+            // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
+            stopWhen: stepCountIs(5),
+
             maxOutputTokens: 1000,
             temperature: 0.7,
         });
 
+        console.log('[CHAT] stream response started');
         return result.toUIMessageStreamResponse();
+
     } catch (error: unknown) {
         console.error('[API Chat Route Error]:', error);
         return new Response(
