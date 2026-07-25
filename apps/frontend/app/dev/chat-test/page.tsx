@@ -74,11 +74,37 @@ function parseMarkdownToHTML(text: string): string {
         // Code: `text`
         processed = processed.replace(/`(.*?)`/g, '<code class="bg-slate-100 px-1 py-0.5 rounded font-mono text-xs">$1</code>');
 
-        // Markdown Links: [text](url)
-        processed = processed.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>');
+        // Markdown Links: url
+        // Only allow http/https URLs to avoid javascript: XSS vectors.
+        processed = processed.replace(
+            /\[(.*?)\]\((.*?)\)/g,
+            (_match, text, url) => {
+                const href = String(url).trim();
 
-        // Naked Link brackets: <https://...>
-        processed = processed.replace(/&lt;(https?:\/\/.*?)&gt;/g, '<a href="$1" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline">$1</a>');
+                // Only allow http and https links
+                if (!/^https?:\/\//i.test(href)) {
+                    return text;
+                }
+
+                // Escape quotes used inside the href attribute
+                const escapedHref = href
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+
+                return `${escapedHref}`;
+            }
+        );
+
+        processed = processed.replace(
+            /&lt;(https?:\/\/.*?)&gt;/g,
+            (_match, url) => {
+                const escapedHref = String(url)
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+
+                return `${escapedHref} class="text-blue-600 hover:underline">${escapedHref}</a>`;
+            }
+        );
 
         return processed;
     };
