@@ -112,7 +112,7 @@ def compose_course(cf: dict, source_url: str, catalog_year: str) -> dict:
     text = (f"{cc} — {cf.get('title','')} ({cf.get('credit_hours','?')} cr). "
             f"{cf.get('description','') or ''} "
             f"Prerequisites: {cf.get('requisites_raw') or 'none stated'}. "
-            + ("Texas Common Course Number (transfers to any Texas public university). "
+            + ("Texas Common Course Number (generally transfers to Texas public universities - verify with the receiving school). "
                if cf.get("tccn") else ""))
     return _row(f"{source_url}#{catalog_year}#facts", 0, text.strip(), cf, meta)
 

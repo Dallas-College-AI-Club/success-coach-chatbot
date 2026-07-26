@@ -237,3 +237,6 @@
   "confidence": "high"
 }
 ```
+
+### Critical note on options_exhaustive
+This page PRINTS 'Other options exist...' for exactly one requirement area — that is the ONLY reason any group above has options_exhaustive false. Groups without that printed wording are null. NEVER infer false from a list merely looking closed.

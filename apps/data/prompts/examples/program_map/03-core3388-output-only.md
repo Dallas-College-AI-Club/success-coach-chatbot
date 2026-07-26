@@ -372,3 +372,6 @@
   "confidence": "medium"
 }
 ```
+
+### Critical note on options_exhaustive
+Every group above has options_exhaustive null — this page never prints 'other options' wording anywhere. false requires the PRINTED wording; a bounded list alone is always null.
