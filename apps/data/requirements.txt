@@ -1,0 +1,16 @@
+# Python dependencies for the pipeline + tests (no ORMs by design, ADR-004).
+# Install:  python -m venv .venv && .venv/Scripts/pip install -r requirements.txt
+
+psycopg[binary]>=3.2     # the one Postgres driver (db/client.py)
+psycopg-pool>=3.2        # connection pool for db/client.py
+pydantic>=2.7            # extraction validation (pipeline/models.py)
+jsonschema>=4.21         # meta-validation of schemas/*.schema.json in tests
+python-dotenv>=1.0       # .env loading (db/client.py)
+requests>=2.31           # scrapers + ollama provider
+pypdf>=4.0               # syllabus PDF text extraction
+beautifulsoup4>=4.12.0   # HTML DOM cleaning & markdown conversion
+pytest>=8.0              # acceptance tests
+
+# Optional — only when EXTRACTOR=anthropic:* runs via API:
+# anthropic>=0.34
+

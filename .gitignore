@@ -47,3 +47,17 @@ __pycache__/
 # Local Chroma Database
 apps/data/chroma_db/
 .tmp/
+
+# Processed syllabi corpus (keep all files locally, ignore bulk files from git except 5 sample pairs)
+apps/data/cleaned/2026SP/*
+!apps/data/cleaned/2026SP/84063.md
+!apps/data/cleaned/2026SP/84063_clean.html
+!apps/data/cleaned/2026SP/98296.md
+!apps/data/cleaned/2026SP/98296_clean.html
+!apps/data/cleaned/2026SP/98301.md
+!apps/data/cleaned/2026SP/98301_clean.html
+!apps/data/cleaned/2026SP/98305.md
+!apps/data/cleaned/2026SP/98305_clean.html
+!apps/data/cleaned/2026SP/98326.md
+!apps/data/cleaned/2026SP/98326_clean.html
+
