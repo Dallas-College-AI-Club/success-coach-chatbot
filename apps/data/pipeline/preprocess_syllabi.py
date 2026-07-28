@@ -18,7 +18,6 @@ Usage (CLI):
 
 import argparse
 import glob
-import os
 import sys
 from pathlib import Path
 
