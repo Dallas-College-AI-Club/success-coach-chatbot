@@ -119,7 +119,9 @@ export function createGetCurrentDateTool(
             // for a no-argument call. Both mean "use the defaults".
             if (raw === undefined || raw === null) return {};
             if (!isRecord(raw)) {
-                throw new ToolInputError(`Expected an object, received ${typeof raw}.`);
+                throw new ToolInputError(
+                    `Expected an object, received ${Array.isArray(raw) ? "array" : typeof raw}.`,
+                );
             }
 
             const { timeZone } = raw;

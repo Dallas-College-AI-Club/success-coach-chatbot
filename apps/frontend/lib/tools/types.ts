@@ -127,8 +127,8 @@ export function defineTool<TInput, TOutput>(spec: ToolSpec<TInput, TOutput>): To
         // `NeverOptional<OUTPUT, …>`, a conditional type; with `OUTPUT` still an
         // unresolved generic here, TypeScript defers the condition and cannot check
         // an object literal against it. Every concrete instantiation satisfies it.
-        // `assertsFunctionTool` below checks the shape at runtime, and
-        // `types.test.ts` asserts the built tool round-trips through the SDK.
+        // `assertsFunctionTool` below checks the shape at runtime so
+        // structural mistakes fail fast during tool registration.
     } as unknown as AnyToolDefinition;
 
     assertsFunctionTool(definition, spec.name);
@@ -157,12 +157,20 @@ function assertsFunctionTool(
     definition: { description?: unknown; inputSchema?: unknown; execute?: unknown },
     name: string,
 ): void {
+    if (!/^[a-zA-Z0-9_-]{1,64}$/.test(name)) {
+        throw new Error(
+            `Tool ${JSON.stringify(name)}: name must match ^[a-zA-Z0-9_-]{1,64}$.`,
+        );
+    }
+
     if (typeof definition.description !== "string" || definition.description === "") {
         throw new Error(`Tool ${name}: description must be a non-empty string.`);
     }
+
     if (definition.inputSchema == null) {
         throw new Error(`Tool ${name}: inputSchema is required.`);
     }
+
     if (typeof definition.execute !== "function") {
         throw new Error(`Tool ${name}: execute must be a function.`);
     }
@@ -177,9 +185,9 @@ function assertsFunctionTool(
  * @throws {Error} on duplicate names, which a record would silently collapse.
  */
 export function toolSet(tools: readonly ExecutableTool[]): ToolSet {
-    const set: Record<string, AnyToolDefinition> = {};
+    const set: Record<string, AnyToolDefinition> = Object.create(null);
     for (const entry of tools) {
-        if (entry.name in set) throw new Error(`Duplicate tool name: ${entry.name}`);
+        if (Object.prototype.hasOwnProperty.call(set, entry.name)) throw new Error(`Duplicate tool name: ${entry.name}`);
         set[entry.name] = entry.definition;
     }
     return set as ToolSet;
