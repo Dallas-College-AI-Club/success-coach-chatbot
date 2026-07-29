@@ -204,7 +204,7 @@ export function createGetSemesterTool(
       if (raw === undefined || raw === null) return {};
       if (!isRecord(raw)) {
         throw new ToolInputError(
-        `Expected an object, received ${Array.isArray(raw) ? "array" : typeof raw}.`,
+          `Expected an object, received ${Array.isArray(raw) ? "array" : typeof raw}.`,
         );
       }
 
