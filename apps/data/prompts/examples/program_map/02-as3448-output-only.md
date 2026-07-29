@@ -1,0 +1,242 @@
+# Worked example (output-only) — AS_SCIENCE — semester-sequenced academic transfer degree
+<!-- doc_type: program_map | hand-verified 2026-07-24; excerpt omitted (long catalog page) —
+     this exemplar teaches GROUP MODELING: group granularity, slot_kind choices, verbatim
+     placeholder/rule text, credits arithmetic. Values are sentinel-registered; never copy them. -->
+
+### Correct output for this document
+```json
+{
+  "program_code": "AS_SCIENCE",
+  "name": "Associate of Science A.S.",
+  "award_type": "Associate of Science",
+  "school": null,
+  "total_credits": 60,
+  "catalog_year": "2026-2027",
+  "groups": [
+    {
+      "name": "Semester 1 (First Year)",
+      "component_area_code": null,
+      "credits_required": 12,
+      "rule": "Mathematics - if a student takes the four (4) credit hour mathematics course; three (3) of those hours will apply towards the mathematics requirement. The remaining one (1) credit hour from that mathematics course will be applied to the general elective requirement and does not count towards the 42-hour Core.",
+      "slot_kind": "fixed",
+      "options_exhaustive": false,
+      "exclusions": [],
+      "courses": [
+        "ENGL 1301",
+        "HIST 1301",
+        "MATH XXXX - Mathematics (3-4 Credit Hours) (CB020)",
+        "EDUC 1300"
+      ]
+    },
+    {
+      "name": "Semester 2 (First Year Continued)",
+      "component_area_code": null,
+      "credits_required": 16,
+      "rule": "Speak with your success coach about elective options.",
+      "slot_kind": "fixed",
+      "options_exhaustive": false,
+      "exclusions": [],
+      "courses": [
+        "ENGL 1302",
+        "GOVT 2305",
+        "HIST XXXX - American History (3 Credit Hours) (CB060)",
+        "Elective - AS General Elective (3 Credit Hours)",
+        "Elective - AS Math/Science Elective (3 Credit Hours)",
+        "PHED 1164"
+      ]
+    },
+    {
+      "name": "Semester 3 (Second Year)",
+      "component_area_code": null,
+      "credits_required": 16,
+      "rule": "Speak with your success coach about elective options.",
+      "slot_kind": "fixed",
+      "options_exhaustive": null,
+      "exclusions": [
+        {
+          "courses": [
+            "BIOL 1406",
+            "BIOL 1408"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "BIOL 1407",
+            "BIOL 1409"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "BIOL 2420",
+            "BIOL 2421"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1405",
+            "CHEM 1411"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1406",
+            "CHEM 1411"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1405",
+            "CHEM 1406"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1406",
+            "CHEM 1407"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "GEOL 1401",
+            "GEOL 1403"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1401",
+            "PHYS 1405"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1401",
+            "PHYS 2425"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1405",
+            "PHYS 2425"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        }
+      ],
+      "courses": [
+        "GOVT 2306",
+        "Life and Physical Sciences XXXX (4 Credit Hours) (CB030)",
+        "Creative Arts XXXX (3 Credit Hours) (CB050)",
+        "Elective - AS General Elective (3 Credit Hours)",
+        "Elective - AS Math/Science Elective (3 Credit Hours)"
+      ]
+    },
+    {
+      "name": "Semester 4 (Second Year Continued)",
+      "component_area_code": null,
+      "credits_required": 16,
+      "rule": "Speak with your success coach about elective options.",
+      "slot_kind": "fixed",
+      "options_exhaustive": null,
+      "exclusions": [
+        {
+          "courses": [
+            "BIOL 1406",
+            "BIOL 1408"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "BIOL 1407",
+            "BIOL 1409"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "BIOL 2420",
+            "BIOL 2421"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1405",
+            "CHEM 1411"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1406",
+            "CHEM 1411"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1405",
+            "CHEM 1406"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "CHEM 1406",
+            "CHEM 1407"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "GEOL 1401",
+            "GEOL 1403"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1401",
+            "PHYS 1405"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1401",
+            "PHYS 2425"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        },
+        {
+          "courses": [
+            "PHYS 1405",
+            "PHYS 2425"
+          ],
+          "raw_text": "Life and Physical Sciences - This requirement cannot be met using the following combinations: BIOL 1406 and BIOL 1408; BIOL 1407 and BIOL 1409; BIOL 2420 and BIOL 2421; CHEM 1405 and CHEM 1411; CHEM 1406 and CHEM 1411; CHEM 1405 and CHEM 1406; CHEM 1406 and CHEM 1407; GEOL 1401 and GEOL 1403; PHYS 1401 and PHYS 1405; PHYS 1401 and PHYS 2425; PHYS 1405 and PHYS 2425."
+        }
+      ],
+      "courses": [
+        "Life and Physical Sciences XXXX (4 Credit Hours) (CB030)",
+        "Language, Philosophy and Culture XXXX (3 Credit Hours) (CB040)",
+        "Social and Behavioral Sciences XXXX (3 Credit Hours) (CB080)",
+        "Elective - AS General Elective (3 Credit Hours)",
+        "Elective - AS General Elective (3 Credit Hours)"
+      ]
+    }
+  ],
+  "confidence": "high"
+}
+```
+
+### Critical note on options_exhaustive
+This page PRINTS 'Other options exist...' for exactly one requirement area — that is the ONLY reason any group above has options_exhaustive false. Groups without that printed wording are null. NEVER infer false from a list merely looking closed.

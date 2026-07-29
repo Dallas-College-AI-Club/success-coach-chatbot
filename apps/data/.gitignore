@@ -209,3 +209,5 @@ __marimo__/
 # Scraped raw HTML corpus (syllabi, CVs) + manifests - OneDrive-shared, not committed
 raw/
 
+deliveries/
+fresh.json
