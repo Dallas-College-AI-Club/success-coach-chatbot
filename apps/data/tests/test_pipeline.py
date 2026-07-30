@@ -1,12 +1,12 @@
 import re
-import datetime
 from pathlib import Path
+
 from dallasai.markdown_converter import MarkdownConverter
 
 # Resolve test directories
 DATA_DIR = Path(__file__).resolve().parent.parent
-SAMPLE_HTML_PATH = DATA_DIR / "sample_syllabi" / "real_concourse_syllabus.html"
-SAMPLE_SYLLABI_DIR = DATA_DIR / "sample_syllabi"
+SAMPLE_SYLLABI_DIR = DATA_DIR / "sample_data" / "syllabi"
+SAMPLE_HTML_PATH = SAMPLE_SYLLABI_DIR / "real_concourse_syllabus.html"
 
 
 def test_markdown_converter_html_conversion():
@@ -18,32 +18,43 @@ def test_markdown_converter_html_conversion():
     4. Accurately compiles HTML tables into Markdown syntax.
     5. Generates valid YAML frontmatter containing expected keys and inferred course ID.
     """
-    assert SAMPLE_HTML_PATH.exists(), f"Syllabus test file {SAMPLE_HTML_PATH.name} is missing."
+    assert SAMPLE_HTML_PATH.exists(), (
+        f"Syllabus test file {SAMPLE_HTML_PATH.name} is missing."
+    )
 
     with open(SAMPLE_HTML_PATH, "r", encoding="utf-8") as f:
         html_content = f.read()
 
     converter = MarkdownConverter()
     markdown_output = converter.html_to_markdown(
-        html_content, 
-        source_url="https://dallascollege.campusconcourse.com/view_syllabus?course_id=16340"
+        html_content,
+        source_url="https://dallascollege.campusconcourse.com/view_syllabus?course_id=16340",
     )
 
     # Assertions on YAML frontmatter
     assert markdown_output.startswith("---")
-    
+
     # Extract YAML lines
-    frontmatter_match = re.match(r"^---\n(.*?)\n---", markdown_output, re.DOTALL)
-    assert frontmatter_match is not None, "YAML frontmatter block is missing or malformed."
-    
+    frontmatter_match = re.match(
+        r"^---\n(.*?)\n---", markdown_output, re.DOTALL
+    )
+    assert frontmatter_match is not None, (
+        "YAML frontmatter block is missing or malformed."
+    )
+
     frontmatter_content = frontmatter_match.group(1)
-    assert "source_url: \"https://dallascollege.campusconcourse.com/view_syllabus?course_id=16340\"" in frontmatter_content
+    assert (
+        'source_url: "https://dallascollege.campusconcourse.com/view_syllabus?course_id=16340"'
+        in frontmatter_content
+    )
     assert "document_type: syllabus" in frontmatter_content
     assert "course_id: BIOL-1406" in frontmatter_content
     assert "extracted_date:" in frontmatter_content
 
     # Assertions on Boilerplate stripping (script tags and head tag elements are removed)
-    assert "googletagmanager" not in markdown_output, "Script tag content was not decomposed."
+    assert "googletagmanager" not in markdown_output, (
+        "Script tag content was not decomposed."
+    )
 
     # Assertions on main content preservation
     assert "Biology for Science Majors I" in markdown_output
@@ -54,7 +65,10 @@ def test_markdown_converter_html_conversion():
 
     # Assertions on Markdown Table conversion
     # Verify column headers exist
-    assert "| Bldg | Room | Type | Days | Start Time | End Time |" in markdown_output
+    assert (
+        "| Bldg | Room | Type | Days | Start Time | End Time |"
+        in markdown_output
+    )
     # Verify markdown table alignment dividers
     assert "| --- | --- | --- | --- | --- | --- |" in markdown_output
     # Verify row values
@@ -71,7 +85,9 @@ def test_markdown_converter_text_conversion():
     4. Prepends correct YAML frontmatter.
     """
     sample_txt = SAMPLE_SYLLABI_DIR / "biol_1406_doe.txt"
-    assert sample_txt.exists(), f"Sample syllabus file {sample_txt.name} is missing."
+    assert sample_txt.exists(), (
+        f"Sample syllabus file {sample_txt.name} is missing."
+    )
 
     converter = MarkdownConverter()
     markdown_output = converter.text_to_markdown(sample_txt)
@@ -80,10 +96,16 @@ def test_markdown_converter_text_conversion():
     assert markdown_output.startswith("---")
     assert "course_id: BIOL-1406" in markdown_output
     assert "document_type: syllabus" in markdown_output
-    
+
     # Verify headings formatting
-    assert "### Instructor Information" in markdown_output or "### INSTRUCTOR INFORMATION" in markdown_output
-    assert "### Grading Scale & Policy" in markdown_output or "### GRADING SCALE & POLICY" in markdown_output
+    assert (
+        "### Instructor Information" in markdown_output
+        or "### INSTRUCTOR INFORMATION" in markdown_output
+    )
+    assert (
+        "### Grading Scale & Policy" in markdown_output
+        or "### GRADING SCALE & POLICY" in markdown_output
+    )
 
 
 def test_markdown_converter_pdf_conversion():
@@ -102,7 +124,10 @@ def test_markdown_converter_pdf_conversion():
 
     # Verify text contents
     assert "PUCT Certificate" in markdown_output
-    assert "Just Energy" in markdown_output or "justenergy" in markdown_output.lower()
+    assert (
+        "Just Energy" in markdown_output
+        or "justenergy" in markdown_output.lower()
+    )
 
 
 def test_markdown_converter_multiple_html_syllabi():
@@ -111,24 +136,32 @@ def test_markdown_converter_multiple_html_syllabi():
     and correctly extract frontmatter metadata and content.
     """
     import glob
+
     converter = MarkdownConverter()
     html_files = glob.glob(str(SAMPLE_SYLLABI_DIR / "real_concourse_*.html"))
-    assert len(html_files) >= 5, "Expected at least 5 real Concourse HTML files."
+    assert len(html_files) >= 5, (
+        "Expected at least 5 real Concourse HTML files."
+    )
 
     for filepath in html_files:
         with open(filepath, "r", encoding="utf-8") as f:
             html_content = f.read()
-        
-        markdown_output = converter.html_to_markdown(html_content, source_url="https://dallascollege.campusconcourse.com/view_syllabus")
-        
+
+        markdown_output = converter.html_to_markdown(
+            html_content,
+            source_url="https://dallascollege.campusconcourse.com/view_syllabus",
+        )
+
         # Verify metadata frontmatter block
         assert markdown_output.startswith("---")
         assert "document_type: syllabus" in markdown_output
         assert "course_id: " in markdown_output
-        
+
         # Verify course ID is non-empty and formatted correctly
         match = re.search(r"course_id:\s+([A-Z]{4}-\d{4})", markdown_output)
-        assert match is not None, f"Failed to extract valid course ID from {filepath}"
+        assert match is not None, (
+            f"Failed to extract valid course ID from {filepath}"
+        )
 
 
 def test_semantic_chunker_basic_splitting():
@@ -152,17 +185,23 @@ We meet on Mondays.
 """
     chunker = SemanticChunker(chunk_size=1000, chunk_overlap=100)
     chunks = chunker.chunk_markdown(markdown, source_file="math1314.md")
-    
+
     assert len(chunks) == 2
     # First chunk: College Algebra
     assert chunks[0]["metadata"]["course_id"] == "MATH-1314"
     assert chunks[0]["metadata"]["header_path"] == "MATH-1314 > College Algebra"
     assert "[Context: MATH-1314 > College Algebra]" in chunks[0]["content"]
     assert "Welcome to college algebra." in chunks[0]["content"]
-    
+
     # Second chunk: Course Info
-    assert chunks[1]["metadata"]["header_path"] == "MATH-1314 > College Algebra > Course Info"
-    assert "[Context: MATH-1314 > College Algebra > Course Info]" in chunks[1]["content"]
+    assert (
+        chunks[1]["metadata"]["header_path"]
+        == "MATH-1314 > College Algebra > Course Info"
+    )
+    assert (
+        "[Context: MATH-1314 > College Algebra > Course Info]"
+        in chunks[1]["content"]
+    )
     assert "We meet on Mondays." in chunks[1]["content"]
 
 
@@ -182,20 +221,25 @@ This is sentence one of the history syllabus. This is sentence two of the histor
     # Use chunk_size 200 (minimum limit) and overlap 40
     chunker = SemanticChunker(chunk_size=200, chunk_overlap=40)
     chunks = chunker.chunk_markdown(markdown, source_file="hist1301.md")
-    
+
     assert len(chunks) > 1
     for chunk in chunks:
         assert "[Context: HIST-1301 > History I]" in chunk["content"]
         # Ensure no sentence is cut off mid-sentence (ends on a period)
         assert chunk["content"].strip().endswith(".")
-        
+
     # Check overlap presence
     overlap_found = False
-    if "sentence two" in chunks[0]["content"] and "sentence two" in chunks[1]["content"]:
+    if (
+        "sentence two" in chunks[0]["content"]
+        and "sentence two" in chunks[1]["content"]
+        or "sentence three" in chunks[0]["content"]
+        and "sentence three" in chunks[1]["content"]
+    ):
         overlap_found = True
-    elif "sentence three" in chunks[0]["content"] and "sentence three" in chunks[1]["content"]:
-        overlap_found = True
-    assert overlap_found, "Overlap sentence was not shared between consecutive chunks."
+    assert overlap_found, (
+        "Overlap sentence was not shared between consecutive chunks."
+    )
 
 
 def test_semantic_chunker_dynamic_env_config(tmp_path):
@@ -206,7 +250,7 @@ def test_semantic_chunker_dynamic_env_config(tmp_path):
 
     env_file = tmp_path / ".env"
     env_file.write_text("CHUNK_SIZE=500\nCHUNK_OVERLAP=75\n")
-    
+
     chunker = SemanticChunker(env_path=env_file)
     assert chunker.chunk_size == 500
     assert chunker.chunk_overlap == 75
@@ -219,10 +263,12 @@ def test_semantic_chunker_fallback_on_exception():
     from dallasai.semantic_chunker import SemanticChunker
 
     chunker = SemanticChunker()
-    
+
     # Mock _parse_frontmatter to raise an exception
-    chunker._parse_frontmatter = lambda x: (_ for _ in ()).throw(ValueError("Simulated parsing error"))
-    
+    chunker._parse_frontmatter = lambda text: (_ for _ in ()).throw(
+        ValueError("Simulated parsing error")
+    )
+
     chunks = chunker.chunk_markdown("some text", source_file="error_test.md")
     assert len(chunks) == 1
     assert chunks[0]["metadata"]["course_id"] == "UNKNOWN"
@@ -238,19 +284,18 @@ def test_pipeline_runner_integration(tmp_path):
     3. Runs vector searches to retrieve the chunks and asserts markdown table formats
        and metadata properties are preserved correctly.
     """
-    import os
     from dallasai.pipeline_runner import PipelineRunner
 
     # Define temporary database path and collection name via environment mocks
     env_file = tmp_path / ".env"
     env_file.write_text(
-        f"CHROMA_DB_PATH={str(tmp_path / 'chroma_db')}\n"
+        f"CHROMA_DB_PATH={tmp_path / 'chroma_db'!s}\n"
         f"CHROMA_COLLECTION_NAME=test_integration_collection\n"
     )
 
     # Initialize the runner targeting our temporary environment
     runner = PipelineRunner(env_path=env_file)
-    
+
     # Define a sample chunk to upsert
     test_chunk = {
         "content": "[Context: BIOL-1406 > Grading Policy]\n\n| Assessment Category | Weight |\n| --- | --- |\n| Exams | 40% |\n| Labs | 25% |",
@@ -258,8 +303,8 @@ def test_pipeline_runner_integration(tmp_path):
             "course_id": "BIOL-1406",
             "document_type": "syllabus",
             "source_file": "biol_1406.html",
-            "header_path": ["BIOL-1406", "Grading Policy"]
-        }
+            "header_path": ["BIOL-1406", "Grading Policy"],
+        },
     }
 
     # Format the metadata for ChromaDB (flat key-values)
@@ -270,13 +315,12 @@ def test_pipeline_runner_integration(tmp_path):
     runner.collection.upsert(
         ids=["chunk_test_0"],
         documents=[test_chunk["content"]],
-        metadatas=[flat_meta]
+        metadatas=[flat_meta],
     )
 
     # Query the collection immediately
     results = runner.collection.query(
-        query_texts=["What is the weight for Exams?"],
-        n_results=1
+        query_texts=["What is the weight for Exams?"], n_results=1
     )
 
     # Assertions on retrieved document content and metadata tags
@@ -284,5 +328,3 @@ def test_pipeline_runner_integration(tmp_path):
     assert "Exams | 40%" in results["documents"][0][0]
     assert results["metadatas"][0][0]["course_id"] == "BIOL-1406"
     assert results["metadatas"][0][0]["document_type"] == "syllabus"
-
-

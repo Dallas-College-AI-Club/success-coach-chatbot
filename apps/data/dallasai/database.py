@@ -5,8 +5,6 @@ from dotenv import load_dotenv
 from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from dallasai.base import Base
-
 load_dotenv()
 
 

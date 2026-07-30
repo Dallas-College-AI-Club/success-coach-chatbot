@@ -28,11 +28,11 @@ Usage (CLI):
 """
 
 import argparse
+import glob
 import re
 import sys
-import glob
 from pathlib import Path
-from typing import Optional
+
 from bs4 import BeautifulSoup, Comment, Tag
 
 
@@ -44,8 +44,15 @@ class HTMLCleaner:
     def __init__(self) -> None:
         """Initialize cleaner with default unwanted HTML tags."""
         self.unwanted_tags: list[str] = [
-            "script", "style", "iframe", "noscript", "form",
-            "button", "input", "select", "svg"
+            "script",
+            "style",
+            "iframe",
+            "noscript",
+            "form",
+            "button",
+            "input",
+            "select",
+            "svg",
         ]
 
     def clean_html(self, raw_html: str) -> str:
@@ -65,11 +72,13 @@ class HTMLCleaner:
             tag.decompose()
 
         # Step 2: Remove HTML comments
-        for comment in soup.find_all(string=lambda text: isinstance(text, Comment)):
+        for comment in soup.find_all(
+            string=lambda text: isinstance(text, Comment)
+        ):
             comment.extract()
 
         # Step 3: Target the core syllabus content container
-        target_container: Optional[Tag] = (
+        target_container: Tag | None = (
             soup.find(id="syllabus")
             or soup.find(class_="syl")
             or soup.find(class_="block_content")
@@ -78,7 +87,9 @@ class HTMLCleaner:
         )
 
         # Step 4: Decompose layout header, footer, navigation, and sidebar elements
-        for el in target_container.find_all(["header", "footer", "nav", "aside"]):
+        for el in target_container.find_all(
+            ["header", "footer", "nav", "aside"]
+        ):
             el.decompose()
 
         # Step 5: Decompose non-course noise sections
@@ -92,13 +103,15 @@ class HTMLCleaner:
     def _strip_noise_categories(self, container: Tag) -> None:
         """Decomposes state objective headings and redundant course descriptions."""
         noise_pattern = re.compile(
-            r'state-defined\s+learning\s+outcomes|texas\s+core\s+objectives|course\s+description',
-            re.IGNORECASE
+            r"state-defined\s+learning\s+outcomes|texas\s+core\s+objectives|course\s+description",
+            re.IGNORECASE,
         )
-        for element in container.find_all(['h1', 'h2', 'h3', 'h4', 'div']):
+        for element in container.find_all(["h1", "h2", "h3", "h4", "div"]):
             text = element.get_text(strip=True)
             if noise_pattern.search(text):
-                parent_item = element.find_parent(class_=re.compile(r'syl-item'))
+                parent_item = element.find_parent(
+                    class_=re.compile(r"syl-item")
+                )
                 if parent_item:
                     parent_item.decompose()
                 else:
@@ -107,13 +120,15 @@ class HTMLCleaner:
     def _truncate_institutional_policies(self, container: Tag) -> None:
         """Truncates document at generic district disclaimers and footers."""
         cutoff_pattern = re.compile(
-            r'dallas\s+college\s+policies|institutional\s+policies|district\s+policies|support\s+contacts',
-            re.IGNORECASE
+            r"dallas\s+college\s+policies|institutional\s+policies|district\s+policies|support\s+contacts",
+            re.IGNORECASE,
         )
-        for element in container.find_all(['h1', 'h2', 'h3', 'h4', 'div']):
+        for element in container.find_all(["h1", "h2", "h3", "h4", "div"]):
             text = element.get_text(strip=True)
             if cutoff_pattern.search(text):
-                parent_item = element.find_parent(class_=re.compile(r'syl-item'))
+                parent_item = element.find_parent(
+                    class_=re.compile(r"syl-item")
+                )
                 target_elem = parent_item if parent_item else element
                 siblings = list(target_elem.find_next_siblings())
                 for sib in siblings:
@@ -128,12 +143,16 @@ def main() -> None:
         description="HTML Cleaner & Boilerplate Truncation CLI tool."
     )
     parser.add_argument(
-        "-i", "--input", required=True,
-        help="Path to an input HTML file OR directory of HTML files."
+        "-i",
+        "--input",
+        required=True,
+        help="Path to an input HTML file OR directory of HTML files.",
     )
     parser.add_argument(
-        "-o", "--output", required=False,
-        help="Path to an output HTML file OR directory. Defaults to <input_stem>_clean.html"
+        "-o",
+        "--output",
+        required=False,
+        help="Path to an output HTML file OR directory. Defaults to <input_stem>_clean.html",
     )
 
     args = parser.parse_args()
@@ -150,7 +169,11 @@ def main() -> None:
             raw_html = f.read()
 
         clean_html = cleaner.clean_html(raw_html)
-        out_file = Path(args.output) if args.output else input_path.with_name(f"{input_path.stem}_clean.html")
+        out_file = (
+            Path(args.output)
+            if args.output
+            else input_path.with_name(f"{input_path.stem}_clean.html")
+        )
         out_file.parent.mkdir(parents=True, exist_ok=True)
 
         with open(out_file, "w", encoding="utf-8") as f:
@@ -158,11 +181,17 @@ def main() -> None:
         print(f"SUCCESS: Clean HTML written to {out_file.resolve()}")
 
     elif input_path.is_dir():
-        out_dir = Path(args.output) if args.output else input_path.parent / f"{input_path.name}_cleaned"
+        out_dir = (
+            Path(args.output)
+            if args.output
+            else input_path.parent / f"{input_path.name}_cleaned"
+        )
         out_dir.mkdir(parents=True, exist_ok=True)
 
         files = glob.glob(str(input_path / "*.html"))
-        print(f"Cleaning {len(files)} HTML files from '{input_path}' -> '{out_dir}'...")
+        print(
+            f"Cleaning {len(files)} HTML files from '{input_path}' -> '{out_dir}'..."
+        )
 
         count = 0
         for filepath in files:

@@ -1,22 +1,23 @@
 """
 Document Ingestion & Markdown Conversion Engine.
 
-Converts raw scraped catalog pages, plain text syllabi, and Concourse HTML/PDF 
-files into standardized, GitHub-Flavored Markdown (.md) pre-pended with YAML 
+Converts raw scraped catalog pages, plain text syllabi, and Concourse HTML/PDF
+files into standardized, GitHub-Flavored Markdown (.md) pre-pended with YAML
 frontmatter metadata blocks.
 
 Design Constraints:
 1. Safe to Run: Decomposes active scripts, styles, frames, and interactive elements.
 2. Context Integrity: Selectively bypasses layout stripping for syllabus pages to
    protect policy, contact, and accommodation details.
-3. Parser Robustness: Dynamically isolates core content containers and handles 
+3. Parser Robustness: Dynamically isolates core content containers and handles
    tag-nesting anomalies.
 """
 
-import re
 import datetime
+import re
 from pathlib import Path
-from bs4 import BeautifulSoup, Comment
+
+from bs4 import BeautifulSoup
 from pypdf import PdfReader
 
 
@@ -27,7 +28,7 @@ class MarkdownConverter:
 
     def __init__(self):
         # HTML tag mappings to their markdown representations
-        self.header_pattern = re.compile(r'^h([1-6])$')
+        self.header_pattern = re.compile(r"^h([1-6])$")
 
     def html_to_markdown(self, html_content: str, source_url: str = "") -> str:
         """
@@ -38,7 +39,9 @@ class MarkdownConverter:
         md, _ = self.clean_html_and_markdown(html_content, source_url)
         return md
 
-    def clean_html_and_markdown(self, html_content: str, source_url: str = "") -> tuple[str, str]:
+    def clean_html_and_markdown(
+        self, html_content: str, source_url: str = ""
+    ) -> tuple[str, str]:
         """
         Processes raw HTML string and returns a tuple of (clean_markdown, clean_html).
         Enforces 3 Structural Preprocessing Rules:
@@ -46,13 +49,8 @@ class MarkdownConverter:
         2. Strict GFM pipe table preservation
         3. UTF-8 encoding compliance
         """
-        try:
-            from apps.data.pipeline.html_cleaner import HTMLCleaner
-        except ModuleNotFoundError:
-            import sys
-            sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-            from apps.data.pipeline.html_cleaner import HTMLCleaner
-            
+        from dallasai.pipeline.html_cleaner import HTMLCleaner
+
         raw_soup = BeautifulSoup(html_content, "html.parser")
         cleaner = HTMLCleaner()
         clean_html_str = cleaner.clean_html(html_content)
@@ -66,35 +64,51 @@ class MarkdownConverter:
 
         # Step 2: Target the core content container
         target_container = (
-            soup.find(id="syllabus") 
-            or soup.find(class_="syl") 
-            or soup.find(class_="block_content") 
-            or soup.find("body") 
+            soup.find(id="syllabus")
+            or soup.find(class_="syl")
+            or soup.find(class_="block_content")
+            or soup.find("body")
             or soup
         )
 
         # Step 3: Convert HTML elements to Markdown recursively
         markdown_body = self._parse_element(target_container)
-        
+
         # Post-processing: clean up extra spaces and newlines
-        markdown_body = re.sub(r'\n{3,}', '\n\n', markdown_body).strip()
+        markdown_body = re.sub(r"\n{3,}", "\n\n", markdown_body).strip()
 
         # Step 4: Extract metadata using raw_soup (to preserve meta tags)
-        metadata = self.extract_metadata_from_html(raw_soup, markdown_body, source_url)
+        metadata = self.extract_metadata_from_html(
+            raw_soup, markdown_body, source_url
+        )
         local_ref = metadata["source_url"]
         doc_id = metadata.get("concourse_id", "UNKNOWN")
         frontmatter = self.generate_frontmatter(metadata)
 
         # Append explicit unstated markers for optional policies if missing in markdown body
         unstated_markers = []
-        if not re.search(r'late\s+work', markdown_body, re.IGNORECASE):
-            unstated_markers.append("*Late Work Policy: Not stated in syllabus*")
-        if not re.search(r'graded\s+work|grading\s+scale|grading\s+criteria', markdown_body, re.IGNORECASE):
-            unstated_markers.append("*Grading Criteria: Not stated in syllabus*")
-        if not re.search(r'attendance', markdown_body, re.IGNORECASE):
-            unstated_markers.append("*Attendance Policy: Not stated in syllabus*")
+        if not re.search(r"late\s+work", markdown_body, re.IGNORECASE):
+            unstated_markers.append(
+                "*Late Work Policy: Not stated in syllabus*"
+            )
+        if not re.search(
+            r"graded\s+work|grading\s+scale|grading\s+criteria",
+            markdown_body,
+            re.IGNORECASE,
+        ):
+            unstated_markers.append(
+                "*Grading Criteria: Not stated in syllabus*"
+            )
+        if not re.search(r"attendance", markdown_body, re.IGNORECASE):
+            unstated_markers.append(
+                "*Attendance Policy: Not stated in syllabus*"
+            )
 
-        policy_notes = ("\n\n## Policy Status Notes\n---\n" + "\n".join(unstated_markers)) if unstated_markers else ""
+        policy_notes = (
+            ("\n\n## Policy Status Notes\n---\n" + "\n".join(unstated_markers))
+            if unstated_markers
+            else ""
+        )
 
         # Structured course header block
         header_block_md = (
@@ -108,17 +122,16 @@ class MarkdownConverter:
         if target_container:
             link_html = (
                 f'<div class="concourse-metadata-header mb-3" style="background:#f8f9fa; padding:12px; border-radius:6px; border:1px solid #dee2e6;">\n'
-                f'  <p><strong>Course:</strong> {metadata["course_id"]} | <strong>Instructor:</strong> {metadata["instructor"]}</p>\n'
-                f'  <p><strong>Term:</strong> {metadata["term"]} | <strong>Section:</strong> {metadata["section"]} | <strong>Credits:</strong> {metadata["credit_hours"]}</p>\n'
-                f'  <p>📄 <strong>Local Concourse File:</strong> <code>{doc_id}.html</code></p>\n'
-                f'</div>'
+                f"  <p><strong>Course:</strong> {metadata['course_id']} | <strong>Instructor:</strong> {metadata['instructor']}</p>\n"
+                f"  <p><strong>Term:</strong> {metadata['term']} | <strong>Section:</strong> {metadata['section']} | <strong>Credits:</strong> {metadata['credit_hours']}</p>\n"
+                f"  <p>📄 <strong>Local Concourse File:</strong> <code>{doc_id}.html</code></p>\n"
+                f"</div>"
             )
-            clean_html_str = f"{link_html}\n{str(target_container)}"
+            clean_html_str = f"{link_html}\n{target_container!s}"
         else:
             clean_html_str = str(target_container)
 
         return clean_md_str, clean_html_str
-
 
     def pdf_to_markdown(self, pdf_path: Path, source_url: str = "") -> str:
         """
@@ -131,7 +144,7 @@ class MarkdownConverter:
         for i, page in enumerate(reader.pages):
             text = page.extract_text()
             if text:
-                pages_text.append(f"<!-- Page {i+1} -->\n{text}")
+                pages_text.append(f"<!-- Page {i + 1} -->\n{text}")
 
         raw_text = "\n\n".join(pages_text)
 
@@ -141,14 +154,16 @@ class MarkdownConverter:
         formatted_text = self._format_raw_text(raw_text)
 
         # Extract metadata
-        course_id = self._infer_course_id_from_text(formatted_text) or self._infer_course_id_from_filename(pdf_path.name)
+        course_id = self._infer_course_id_from_text(
+            formatted_text
+        ) or self._infer_course_id_from_filename(pdf_path.name)
         metadata = {
             "source_url": source_url or pdf_path.name,
             "extracted_date": datetime.datetime.now().isoformat(),
             "document_type": "syllabus",
             "course_id": course_id,
         }
-        
+
         frontmatter = self.generate_frontmatter(metadata)
         return f"{frontmatter}\n\n{formatted_text}"
 
@@ -162,14 +177,19 @@ class MarkdownConverter:
 
         formatted_text = self._format_raw_text(raw_text)
 
-        course_id = self._infer_course_id_from_text(formatted_text) or self._infer_course_id_from_filename(file_path.name)
+        course_id = self._infer_course_id_from_text(
+            formatted_text
+        ) or self._infer_course_id_from_filename(file_path.name)
         metadata = {
             "source_url": source_url or file_path.name,
             "extracted_date": datetime.datetime.now().isoformat(),
-            "document_type": "syllabus" if "syllabus" in file_path.name.lower() or "biol" in file_path.name.lower() else "general",
+            "document_type": "syllabus"
+            if "syllabus" in file_path.name.lower()
+            or "biol" in file_path.name.lower()
+            else "general",
             "course_id": course_id,
         }
-        
+
         frontmatter = self.generate_frontmatter(metadata)
         return f"{frontmatter}\n\n{formatted_text}"
 
@@ -187,7 +207,9 @@ class MarkdownConverter:
         lines.append("---")
         return "\n".join(lines)
 
-    def extract_metadata_from_html(self, soup: BeautifulSoup, markdown_body: str, source_url: str) -> dict:
+    def extract_metadata_from_html(
+        self, soup: BeautifulSoup, markdown_body: str, source_url: str
+    ) -> dict:
         """
         Infers metadata like course ID, instructor name, term, section, credit hours,
         and document type from the HTML context and meta tags.
@@ -203,15 +225,51 @@ class MarkdownConverter:
         if meta_kw and meta_kw.get("content"):
             keywords_str = meta_kw["content"]
             kw_parts = [k.strip() for k in keywords_str.split(",")]
-            
+
             # Exclude known subject/institutional keywords
             skip_words = {
-                "dallas", "college", "syllabus", "syllabi", "concourse", "government", 
-                "composition", "nursing", "welding", "business", "biology", "history", 
-                "english", "course", "outline", "system", "management", "template", 
-                "sample", "example", "master", "online", "spring", "summer", "fall", 
-                "winter", "2024", "2025", "2026", "2027", "govt", "biol", "bcis", 
-                "engl", "rnsg", "wdlg", "2306", "1406", "1305", "1301", "2443", "1144"
+                "dallas",
+                "college",
+                "syllabus",
+                "syllabi",
+                "concourse",
+                "government",
+                "composition",
+                "nursing",
+                "welding",
+                "business",
+                "biology",
+                "history",
+                "english",
+                "course",
+                "outline",
+                "system",
+                "management",
+                "template",
+                "sample",
+                "example",
+                "master",
+                "online",
+                "spring",
+                "summer",
+                "fall",
+                "winter",
+                "2024",
+                "2025",
+                "2026",
+                "2027",
+                "govt",
+                "biol",
+                "bcis",
+                "engl",
+                "rnsg",
+                "wdlg",
+                "2306",
+                "1406",
+                "1305",
+                "1301",
+                "2443",
+                "1144",
             }
 
             for part in kw_parts:
@@ -221,26 +279,39 @@ class MarkdownConverter:
                     continue
                 if any(w in part_clean.lower() for w in skip_words):
                     continue
-                
+
                 # Match human names (allows hyphens, dots, prefixes, 2-4 words)
-                if re.match(r"^(?:Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)?\s*[A-Z][a-zA-Z\.\-']+(?:\s+[A-Z][a-zA-Z\.\-']+)+$", part_clean):
+                if re.match(
+                    r"^(?:Dr\.|Prof\.|Mr\.|Mrs\.|Ms\.)?\s*[A-Z][a-zA-Z\.\-']+(?:\s+[A-Z][a-zA-Z\.\-']+)+$",
+                    part_clean,
+                ):
                     instructor = part_clean
                     break
 
         # Fallback instructor regex search in text
         if not instructor:
-            inst_match = re.search(r"Instructor:\s*([A-Z][a-zA-Z\.\-']+(?:\s+[A-Z][a-zA-Z\.\-']+)+)", markdown_body, re.IGNORECASE)
+            inst_match = re.search(
+                r"Instructor:\s*([A-Z][a-zA-Z\.\-']+(?:\s+[A-Z][a-zA-Z\.\-']+)+)",
+                markdown_body,
+                re.IGNORECASE,
+            )
             if inst_match:
                 instructor = inst_match.group(1).strip()
 
         # 3. Extract Term, Section, Credit Hours
-        term_match = re.search(r'(Spring|Summer|Fall|Winter)\s+\d{4}', markdown_body, re.IGNORECASE)
+        term_match = re.search(
+            r"(Spring|Summer|Fall|Winter)\s+\d{4}", markdown_body, re.IGNORECASE
+        )
         term = term_match.group(0) if term_match else "Spring 2026"
 
-        section_match = re.search(r'Section\s+(\d+)', markdown_body, re.IGNORECASE)
+        section_match = re.search(
+            r"Section\s+(\d+)", markdown_body, re.IGNORECASE
+        )
         section = section_match.group(1) if section_match else None
 
-        credits_match = re.search(r'(\d+)\s+Credits?', markdown_body, re.IGNORECASE)
+        credits_match = re.search(
+            r"(\d+)\s+Credits?", markdown_body, re.IGNORECASE
+        )
         credits = credits_match.group(1) if credits_match else None
 
         # 4. Store local scraped file reference without inventing broken external URLs
@@ -280,7 +351,9 @@ class MarkdownConverter:
             return self._convert_table_to_markdown(element)
 
         # For all other tags, recursively parse children first to build child markdown
-        child_markdown = "".join(self._parse_element(child) for child in element.children)
+        child_markdown = "".join(
+            self._parse_element(child) for child in element.children
+        )
 
         # Apply specific tag conversion rules
         if self.header_pattern.match(tag_name):
@@ -298,10 +371,16 @@ class MarkdownConverter:
             return "\n" + child_markdown
 
         elif tag_name in ["strong", "b"]:
-            return f"**{child_markdown.strip()}**" if child_markdown.strip() else ""
+            return (
+                f"**{child_markdown.strip()}**"
+                if child_markdown.strip()
+                else ""
+            )
 
         elif tag_name in ["em", "i"]:
-            return f"*{child_markdown.strip()}*" if child_markdown.strip() else ""
+            return (
+                f"*{child_markdown.strip()}*" if child_markdown.strip() else ""
+            )
 
         elif tag_name == "a":
             href = element.get("href", "")
@@ -315,9 +394,13 @@ class MarkdownConverter:
             return f"\n\n{child_markdown}\n\n"
 
         elif tag_name == "li":
-            parent_name = element.parent.name.lower() if element.parent else "ul"
+            parent_name = (
+                element.parent.name.lower() if element.parent else "ul"
+            )
             if parent_name == "ol":
-                siblings = [sib for sib in element.parent.children if sib.name == "li"]
+                siblings = [
+                    sib for sib in element.parent.children if sib.name == "li"
+                ]
                 idx = siblings.index(element) + 1 if element in siblings else 1
                 return f"{idx}. {child_markdown.strip()}\n"
             return f"- {child_markdown.strip()}\n"
@@ -351,16 +434,22 @@ class MarkdownConverter:
             cell_contents = []
             for cell in cells:
                 # Recursively parse tags inside the cell (e.g. bold, italics, inline links)
-                cell_text = "".join(self._parse_element(child) for child in cell.children)
+                cell_text = "".join(
+                    self._parse_element(child) for child in cell.children
+                )
                 # Escape pipe characters inside table cells to prevent Markdown grid corruption
-                cell_text = cell_text.strip().replace("\n", " ").replace("|", "\\|")
+                cell_text = (
+                    cell_text.strip().replace("\n", " ").replace("|", "\\|")
+                )
                 cell_contents.append(cell_text)
 
             max_cols = max(max_cols, len(cell_contents))
-            
+
             # Check if this row is a header row (all <th> tags or the first row)
-            is_header = all(c.name == "th" for c in cells) or (not headers_found and len(markdown_rows) == 0)
-            
+            is_header = all(c.name == "th" for c in cells) or (
+                not headers_found and len(markdown_rows) == 0
+            )
+
             markdown_rows.append((cell_contents, is_header))
             if is_header:
                 headers_found = True
@@ -370,13 +459,13 @@ class MarkdownConverter:
 
         # Build table parts
         final_table = []
-        
+
         # 1. Header row
         header_row, _ = markdown_rows[0]
         # Pad column count if needed
         if len(header_row) < max_cols:
             header_row.extend([""] * (max_cols - len(header_row)))
-        
+
         final_table.append("| " + " | ".join(header_row) + " |")
 
         # 2. Divider row
@@ -405,21 +494,32 @@ class MarkdownConverter:
 
         # Common syllabus headers
         header_keywords = [
-            "course syllabus", "instructor information", "grading criteria",
-            "grading scale", "grading policy", "course schedule", "course information",
-            "course requirements", "attendance policy", "required materials",
-            "tentative calendar", "disabilities accommodation", "academic integrity",
-            "student support services", "course description", "learning outcomes"
+            "course syllabus",
+            "instructor information",
+            "grading criteria",
+            "grading scale",
+            "grading policy",
+            "course schedule",
+            "course information",
+            "course requirements",
+            "attendance policy",
+            "required materials",
+            "tentative calendar",
+            "disabilities accommodation",
+            "academic integrity",
+            "student support services",
+            "course description",
+            "learning outcomes",
         ]
 
         for line in lines:
             line_strip = line.strip()
-            
+
             # If the line already starts with a Markdown header tag, preserve it as is
             if line_strip.startswith("#"):
                 formatted_lines.append(line)
                 continue
-                
+
             # If the line is short, matches a known heading title, and doesn't end with a period
             if len(line_strip) > 3 and len(line_strip) < 60:
                 is_header = False
@@ -429,9 +529,11 @@ class MarkdownConverter:
                         is_header = True
                         break
                 # Check regex: e.g. "Section I: Course Details" or "1. Introduction"
-                if re.match(r'^(?:[I|V|X\d]+\.|\bWeek\s+\d+|[A-Z\s\-]+:)', line_strip):
+                if re.match(
+                    r"^(?:[I|V|X\d]+\.|\bWeek\s+\d+|[A-Z\s\-]+:)", line_strip
+                ):
                     is_header = True
-                
+
                 # Check capitalized headers
                 if line_strip.isupper() and len(line_strip) > 5:
                     is_header = True
@@ -451,7 +553,7 @@ class MarkdownConverter:
         """
         # Match pattern: 4 capital letters, space or hyphen, 4 numbers
         # Boundaries are relaxed to ensure we match unspaced combinations (e.g. 'IBIOL-1406').
-        match = re.search(r'([A-Z]{4})[\s-]?(\d{4})', text)
+        match = re.search(r"([A-Z]{4})[\s-]?(\d{4})", text)
         if match:
             return f"{match.group(1)}-{match.group(2)}"
         return None
@@ -461,7 +563,7 @@ class MarkdownConverter:
         Uses filename format (e.g. biol_1406_doe.txt) to infer the course code.
         """
         # Boundaries are relaxed to ensure we match unspaced combinations.
-        match = re.search(r'([a-zA-Z]{4})_?(\d{4})', filename)
+        match = re.search(r"([a-zA-Z]{4})_?(\d{4})", filename)
         if match:
             return f"{match.group(1).upper()}-{match.group(2)}"
         return None
@@ -475,16 +577,23 @@ if __name__ == "__main__":
         description="Reusable HTML/PDF to Clean Markdown Converter CLI tool."
     )
     parser.add_argument(
-        "-i", "--input", required=True,
-        help="Path to an input HTML/PDF file OR directory of HTML/PDF files."
+        "-i",
+        "--input",
+        required=True,
+        help="Path to an input HTML/PDF file OR directory of HTML/PDF files.",
     )
     parser.add_argument(
-        "-o", "--output", required=False,
-        help="Path to output Markdown file OR directory. Defaults to stdout or <input_stem>.md"
+        "-o",
+        "--output",
+        required=False,
+        help="Path to output Markdown file OR directory. Defaults to stdout or <input_stem>.md",
     )
     parser.add_argument(
-        "-u", "--url", required=False, default="",
-        help="Optional source URL or local reference to inject into frontmatter metadata."
+        "-u",
+        "--url",
+        required=False,
+        default="",
+        help="Optional source URL or local reference to inject into frontmatter metadata.",
     )
 
     args = parser.parse_args()
@@ -501,7 +610,9 @@ if __name__ == "__main__":
         if ext in (".html", ".htm"):
             with open(input_path, "r", encoding="utf-8", errors="ignore") as f:
                 html_data = f.read()
-            clean_md, clean_html = converter.clean_html_and_markdown(html_data, source_url=args.url or input_path.name)
+            clean_md, clean_html = converter.clean_html_and_markdown(
+                html_data, source_url=args.url or input_path.name
+            )
         elif ext == ".pdf":
             clean_md = converter.pdf_to_markdown(input_path, args.url)
         else:
@@ -517,11 +628,19 @@ if __name__ == "__main__":
             print(clean_md)
 
     elif input_path.is_dir():
-        out_dir = Path(args.output) if args.output else input_path.parent / f"{input_path.name}_markdown"
+        out_dir = (
+            Path(args.output)
+            if args.output
+            else input_path.parent / f"{input_path.name}_markdown"
+        )
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        files = glob.glob(str(input_path / "*.html")) + glob.glob(str(input_path / "*.htm"))
-        print(f"Converting {len(files)} files from '{input_path}' -> '{out_dir}'...")
+        files = glob.glob(str(input_path / "*.html")) + glob.glob(
+            str(input_path / "*.htm")
+        )
+        print(
+            f"Converting {len(files)} files from '{input_path}' -> '{out_dir}'..."
+        )
 
         count = 0
         for filepath in files:
@@ -529,10 +648,14 @@ if __name__ == "__main__":
             with open(p, "r", encoding="utf-8", errors="ignore") as f:
                 html_data = f.read()
 
-            clean_md, clean_html = converter.clean_html_and_markdown(html_data, source_url=p.name)
+            clean_md, clean_html = converter.clean_html_and_markdown(
+                html_data, source_url=p.name
+            )
             out_file = out_dir / f"{p.stem}.md"
             with open(out_file, "w", encoding="utf-8") as f:
                 f.write(clean_md)
             count += 1
 
-        print(f"SUCCESS: Converted {count} Markdown files in {out_dir.resolve()}")
+        print(
+            f"SUCCESS: Converted {count} Markdown files in {out_dir.resolve()}"
+        )

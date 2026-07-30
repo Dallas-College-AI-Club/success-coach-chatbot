@@ -1,79 +1,13 @@
-import json
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
 from typing import Any
 
-from sqlalchemy import case, delete, func, or_, select
+from sqlalchemy import case, delete, func, or_
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from dallasai.models import ChatSession, KnowledgeEntry
-
-
-class UserRepository:
-    """Export chat sessions grouped by student ID."""
-
-    def __init__(self, session: Session) -> None:
-        self.session = session
-
-    def export_sessions_to_json(
-        self,
-        output_path: str | Path,
-    ) -> int:
-        """Export all chat sessions to JSON for post-processing."""
-
-        statement = select(ChatSession).order_by(
-            ChatSession.student_id,
-            ChatSession.created_at,
-        )
-
-        sessions = self.session.scalars(statement).all()
-
-        grouped_sessions: dict[str, list[dict[str, Any]]] = {}
-
-        for chat_session in sessions:
-            student_key = (
-                str(chat_session.student_id)
-                if chat_session.student_id is not None
-                else "anonymous"
-            )
-
-            grouped_sessions.setdefault(student_key, []).append(
-                {
-                    "id": str(chat_session.id),
-                    "student_id": (
-                        str(chat_session.student_id)
-                        if chat_session.student_id is not None
-                        else None
-                    ),
-                    "profile": chat_session.profile,
-                    "history": chat_session.history,
-                    "message_count": chat_session.message_count,
-                    "created_at": chat_session.created_at.isoformat(),
-                    "updated_at": chat_session.updated_at.isoformat(),
-                    "archived_at": (
-                        chat_session.archived_at.isoformat()
-                        if chat_session.archived_at is not None
-                        else None
-                    ),
-                }
-            )
-
-        destination = Path(output_path)
-        destination.parent.mkdir(parents=True, exist_ok=True)
-
-        destination.write_text(
-            json.dumps(
-                grouped_sessions,
-                indent=2,
-                ensure_ascii=False,
-            ),
-            encoding="utf-8",
-        )
-
-        return len(sessions)
+from dallasai.models import KnowledgeEntry
 
 
 @dataclass(slots=True)
@@ -126,10 +60,8 @@ class KnowledgeRepository:
                 statement = insert(KnowledgeEntry).values(rows)
                 excluded = statement.excluded
 
-                content_changed = (
-                    KnowledgeEntry.content_hash.is_distinct_from(
-                        excluded.content_hash
-                    )
+                content_changed = KnowledgeEntry.content_hash.is_distinct_from(
+                    excluded.content_hash
                 )
 
                 statement = statement.on_conflict_do_update(
@@ -183,8 +115,7 @@ class KnowledgeRepository:
                 reconcile = reconcile.where(
                     or_(
                         KnowledgeEntry.catalog_year.is_(None),
-                        KnowledgeEntry.catalog_year
-                        == document.catalog_year,
+                        KnowledgeEntry.catalog_year == document.catalog_year,
                     )
                 )
 
@@ -202,14 +133,12 @@ class KnowledgeRepository:
 
         try:
             result = self.session.execute(
-                delete(KnowledgeEntry).where(
-                    KnowledgeEntry.id == entry_id
-                )
+                delete(KnowledgeEntry).where(KnowledgeEntry.id == entry_id)
             )
 
             self.session.commit()
 
-            return bool(result.rowcount)
+            return bool(result.rowcount)  # type: ignore
 
         except Exception:
             self.session.rollback()
