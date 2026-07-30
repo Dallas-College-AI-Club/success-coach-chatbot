@@ -50,26 +50,30 @@ import time
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 import requests
 
 CONCOURSE = "https://dallascollege.campusconcourse.com"
-BROWSER_UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-              "(KHTML, like Gecko) Chrome/126.0 Safari/537.36")
-DEFAULT_DELAY_S = 2.0            # polite; Concourse (a vendor) tolerated faster
-BREAK_AFTER_CONSEC_ERRORS = 3   # circuit breaker
+BROWSER_UA = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
+DEFAULT_DELAY_S = 2.0  # polite; Concourse (a vendor) tolerated faster
+BREAK_AFTER_CONSEC_ERRORS = 3  # circuit breaker
 COURSE_ID_RE = re.compile(r"course_id=(\d+)")
 
 
 # ----------------------------------------------------------------------------- work-list loading
+
 
 def _slug(name: str) -> str:
     """Fold a 'First Last' (or 'Last, First') name to a filesystem-safe slug."""
     if "," in name:
         last, _, first = name.partition(",")
         name = f"{first.strip()} {last.strip()}"
-    name = unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    name = (
+        unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode()
+    )
     name = re.sub(r"[^a-zA-Z0-9]+", "-", name).strip("-").lower()
     return name or "unknown"
 
@@ -96,7 +100,10 @@ def load_worklist(path: Path) -> list[dict]:
         cols = set(reader.fieldnames or [])
         is_schedule = "syllabus_url" in cols and "class_prefix" in cols
         for r in reader:
-            r = {k: (v.strip() if isinstance(v, str) else v) for k, v in r.items()}
+            r = {
+                k: (v.strip() if isinstance(v, str) else v)
+                for k, v in r.items()
+            }
             if is_schedule:
                 cid = None
                 search_url = None
@@ -108,29 +115,35 @@ def load_worklist(path: Path) -> list[dict]:
                     # archived terms (e.g. Fall 2025) link a Concourse SEARCH
                     # instead of the syllabus itself; resolved at fetch time
                     search_url = syl_url
-                rows.append({
-                    "course_id": cid,
-                    "search_url": search_url,
-                    "course_code": f"{r.get('class_prefix','')} {r.get('class_number','')}".strip(),
-                    "section": r.get("section_number", ""),
-                    "professor": r.get("professor", ""),
-                    "term_code": _term_code(r.get("term_year", "")),
-                    "session": _session_label(r.get("class_features", "")),
-                    "modality": _modality_from_meeting(r.get("meeting_info", "")),
-                })
+                rows.append(
+                    {
+                        "course_id": cid,
+                        "search_url": search_url,
+                        "course_code": f"{r.get('class_prefix', '')} {r.get('class_number', '')}".strip(),
+                        "section": r.get("section_number", ""),
+                        "professor": r.get("professor", ""),
+                        "term_code": _term_code(r.get("term_year", "")),
+                        "session": _session_label(r.get("class_features", "")),
+                        "modality": _modality_from_meeting(
+                            r.get("meeting_info", "")
+                        ),
+                    }
+                )
             else:  # summer work-list
                 code_sect = r.get("course_num_sect", "")
                 cc, _, sect = code_sect.rpartition("-")
                 cc = cc.replace("-", " ") if cc else ""
-                rows.append({
-                    "course_id": r.get("course_id"),
-                    "course_code": cc,
-                    "section": sect,
-                    "professor": r.get("professor", ""),
-                    "term_code": "2026SU",
-                    "session": r.get("session", ""),
-                    "modality": "unknown",
-                })
+                rows.append(
+                    {
+                        "course_id": r.get("course_id"),
+                        "course_code": cc,
+                        "section": sect,
+                        "professor": r.get("professor", ""),
+                        "term_code": "2026SU",
+                        "session": r.get("session", ""),
+                        "modality": "unknown",
+                    }
+                )
     return rows
 
 
@@ -151,7 +164,8 @@ def _term_code(term_year: str) -> str:
 
 _SESSION_RE = re.compile(
     r"(Winter Term|Spring First 8 Week Session|Spring Second 8 Week Session|"
-    r"Flex Term \w+|Summer Session I{1,2}|May Term|Night Classes)")
+    r"Flex Term \w+|Summer Session I{1,2}|May Term|Night Classes)"
+)
 
 
 def _session_label(class_features: str) -> str:
@@ -162,15 +176,25 @@ def _session_label(class_features: str) -> str:
 
 # ----------------------------------------------------------------------------- fetching
 
+
 class Archiver:
-    def __init__(self, out: Path, delay: float, run_id: str,
-                 refresh_before: Optional[datetime] = None):
+    def __init__(
+        self,
+        out: Path,
+        delay: float,
+        run_id: str,
+        refresh_before: datetime | None = None,
+    ):
         self.out = out
         self.delay = delay
         self.refresh_before = refresh_before
         self.sess = requests.Session()
-        self.sess.headers.update({"User-Agent": BROWSER_UA,
-                                  "Accept": "text/html,application/xhtml+xml"})
+        self.sess.headers.update(
+            {
+                "User-Agent": BROWSER_UA,
+                "Accept": "text/html,application/xhtml+xml",
+            }
+        )
         self.manifest = out / "manifests" / f"archive_{run_id}.jsonl"
         self.manifest.parent.mkdir(parents=True, exist_ok=True)
         self.consec_errors = 0
@@ -181,7 +205,9 @@ class Archiver:
         self.resolve_cache_path = out / "manifests" / "resolve_cache.jsonl"
         self.resolve_cache: dict[str, str] = {}
         if self.resolve_cache_path.exists():
-            for line in self.resolve_cache_path.read_text(encoding="utf-8").splitlines():
+            for line in self.resolve_cache_path.read_text(
+                encoding="utf-8"
+            ).splitlines():
                 try:
                     rec = json.loads(line)
                     self.resolve_cache[rec["search_url"]] = rec["course_id"]
@@ -191,8 +217,9 @@ class Archiver:
     _SYL_LINK_RE = re.compile(r"view_syllabus\?course_id=(\d+)")
     _SECTION_RE = re.compile(r"Section\s+([A-Za-z0-9]+)")
 
-    def resolve_course_id(self, search_url: str, section: str,
-                          professor: str) -> Optional[str]:
+    def resolve_course_id(
+        self, search_url: str, section: str, professor: str
+    ) -> str | None:
         """Resolve a Concourse search URL to the section's course_id.
 
         The results page lists candidate syllabi as 'CODE Term Section N
@@ -206,8 +233,10 @@ class Archiver:
             resp.raise_for_status()
             html = resp.text
         except Exception as e:  # noqa: BLE001
-            print(f"  RESOLVE ERROR {search_url}: {type(e).__name__}: {e}",
-                  file=sys.stderr)
+            print(
+                f"  RESOLVE ERROR {search_url}: {type(e).__name__}: {e}",
+                file=sys.stderr,
+            )
             return None
         finally:
             time.sleep(self.delay)
@@ -217,10 +246,16 @@ class Archiver:
         # candidate rows: text from each link to the next link
         cands = []
         for i, m in enumerate(matches):
-            end = matches[i + 1].start() if i + 1 < len(matches) else m.end() + 600
-            row_text = re.sub(r"<[^>]+>", " ", html[m.start():end])
+            end = (
+                matches[i + 1].start()
+                if i + 1 < len(matches)
+                else m.end() + 600
+            )
+            row_text = re.sub(r"<[^>]+>", " ", html[m.start() : end])
             sec_m = self._SECTION_RE.search(row_text)
-            cands.append((m.group(1), sec_m.group(1) if sec_m else None, row_text))
+            cands.append(
+                (m.group(1), sec_m.group(1) if sec_m else None, row_text)
+            )
         chosen = None
         for cid, sec, _ in cands:
             if sec is not None and sec.lower() == (section or "").lower():
@@ -231,14 +266,24 @@ class Archiver:
         if chosen is None and professor:
             last, _, first = professor.partition(",")
             display = f"{first.strip()} {last.strip()}".strip()
-            hits = [c for c in cands if display and display.lower() in c[2].lower()]
+            hits = [
+                c for c in cands if display and display.lower() in c[2].lower()
+            ]
             if len({c[0] for c in hits}) == 1:
                 chosen = hits[0][0]
         if chosen:
             self.resolve_cache[search_url] = chosen
             with self.resolve_cache_path.open("a", encoding="utf-8") as fh:
-                fh.write(json.dumps({"search_url": search_url, "course_id": chosen,
-                                     "section": section}) + "\n")
+                fh.write(
+                    json.dumps(
+                        {
+                            "search_url": search_url,
+                            "course_id": chosen,
+                            "section": section,
+                        }
+                    )
+                    + "\n"
+                )
         return chosen
 
     def _is_fresh(self, dest: Path) -> bool:
@@ -267,12 +312,14 @@ class Archiver:
             except (PermissionError, OSError) as e:
                 if attempt == 3:
                     raise
-                print(f"  write retry {attempt+1} ({type(e).__name__}) {dest.name}",
-                      file=sys.stderr)
+                print(
+                    f"  write retry {attempt + 1} ({type(e).__name__}) {dest.name}",
+                    file=sys.stderr,
+                )
                 time.sleep(1.5 * (attempt + 1))
 
     def fetch_to(self, url: str, dest: Path, meta: dict) -> None:
-        if self._is_fresh(dest):               # resumable: already archived
+        if self._is_fresh(dest):  # resumable: already archived
             self.n_skip += 1
             return
         # --- network leg: only these failures trip the circuit breaker -------
@@ -287,14 +334,24 @@ class Archiver:
         except Exception as e:  # noqa: BLE001 — network failure
             self.n_fail += 1
             self.consec_errors += 1
-            self._record({**meta, "source_url": url, "raw_path": None,
-                          "status": "error", "error": f"{type(e).__name__}: {e}",
-                          "fetched_at": datetime.now(timezone.utc).isoformat()})
-            print(f"  NET ERROR {url}: {type(e).__name__}: {e}", file=sys.stderr)
+            self._record(
+                {
+                    **meta,
+                    "source_url": url,
+                    "raw_path": None,
+                    "status": "error",
+                    "error": f"{type(e).__name__}: {e}",
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            print(
+                f"  NET ERROR {url}: {type(e).__name__}: {e}", file=sys.stderr
+            )
             if self.consec_errors >= BREAK_AFTER_CONSEC_ERRORS:
                 raise SystemExit(
                     f"circuit breaker: {self.consec_errors} consecutive network "
-                    f"errors — stopping. Re-run to resume (archived files skip).")
+                    f"errors — stopping. Re-run to resume (archived files skip)."
+                )
             time.sleep(self.delay)
             return
         # --- disk leg: retried locally, never trips the network breaker ------
@@ -302,22 +359,39 @@ class Archiver:
             self._write_bytes(dest, body)
         except Exception as e:  # noqa: BLE001 — persistent local write failure
             self.n_fail += 1
-            self._record({**meta, "source_url": url, "raw_path": None,
-                          "status": "write_error", "error": f"{type(e).__name__}: {e}",
-                          "fetched_at": datetime.now(timezone.utc).isoformat()})
-            print(f"  WRITE ERROR {dest}: {type(e).__name__}: {e}", file=sys.stderr)
+            self._record(
+                {
+                    **meta,
+                    "source_url": url,
+                    "raw_path": None,
+                    "status": "write_error",
+                    "error": f"{type(e).__name__}: {e}",
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            print(
+                f"  WRITE ERROR {dest}: {type(e).__name__}: {e}",
+                file=sys.stderr,
+            )
             time.sleep(self.delay)
             return
-        self._record({**meta, "source_url": url,
-                      "raw_path": str(dest.relative_to(self.out)),
-                      "sha256": hashlib.sha256(body).hexdigest(),
-                      "bytes": len(body), "status": status,
-                      "fetched_at": datetime.now(timezone.utc).isoformat()})
+        self._record(
+            {
+                **meta,
+                "source_url": url,
+                "raw_path": str(dest.relative_to(self.out)),
+                "sha256": hashlib.sha256(body).hexdigest(),
+                "bytes": len(body),
+                "status": status,
+                "fetched_at": datetime.now(timezone.utc).isoformat(),
+            }
+        )
         self.n_new += 1
         time.sleep(self.delay)
 
 
 # ----------------------------------------------------------------------------- plans
+
 
 def plan_cv(rows: list[dict]) -> list[dict]:
     """One target per distinct professor (across all work-lists)."""
@@ -352,35 +426,64 @@ def plan_syllabus(rows: list[dict], representatives: bool) -> list[dict]:
         return rows
     by_key: dict[tuple, dict] = {}
     for r in rows:
-        key = (_slug(r.get("professor", "")), r.get("course_code", ""), r.get("modality", ""))
+        key = (
+            _slug(r.get("professor", "")),
+            r.get("course_code", ""),
+            r.get("modality", ""),
+        )
         cur = by_key.get(key)
         if cur is None or _rep_order(r) < _rep_order(cur):
             by_key[key] = r
     return list(by_key.values())
 
 
-def main(argv: Optional[list[str]] = None) -> None:
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--worklist", action="append", required=True, type=Path,
-                    help="schedule CSV or summer work-list (repeatable)")
+def main(argv: list[str] | None = None) -> None:
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument(
+        "--worklist",
+        action="append",
+        required=True,
+        type=Path,
+        help="schedule CSV or summer work-list (repeatable)",
+    )
     ap.add_argument("--kind", choices=["syllabus", "cv"], required=True)
-    ap.add_argument("--out", type=Path,
-                    default=Path(__file__).resolve().parent.parent / "raw")
-    ap.add_argument("--sessions", default=None,
-                    help="comma-list KEEP filter on the session label (syllabus only)")
-    ap.add_argument("--exclude-sessions", default=None,
-                    help="comma-list DROP filter on the session label (e.g. "
-                         "'Summer Session II' to skip a not-yet-started session)")
-    ap.add_argument("--all-sections", action="store_true",
-                    help="syllabus: fetch every section, not just representatives")
-    ap.add_argument("--refresh-before", default=None, metavar="ISO8601",
-                    help="re-fetch (overwrite) files last fetched before this UTC "
-                         "moment, e.g. 2026-07-12T00:00:00 — use to pick up "
-                         "last-minute syllabus edits; without it, existing files "
-                         "are always skipped")
+    ap.add_argument(
+        "--out",
+        type=Path,
+        default=Path(__file__).resolve().parent.parent / "raw",
+    )
+    ap.add_argument(
+        "--sessions",
+        default=None,
+        help="comma-list KEEP filter on the session label (syllabus only)",
+    )
+    ap.add_argument(
+        "--exclude-sessions",
+        default=None,
+        help="comma-list DROP filter on the session label (e.g. "
+        "'Summer Session II' to skip a not-yet-started session)",
+    )
+    ap.add_argument(
+        "--all-sections",
+        action="store_true",
+        help="syllabus: fetch every section, not just representatives",
+    )
+    ap.add_argument(
+        "--refresh-before",
+        default=None,
+        metavar="ISO8601",
+        help="re-fetch (overwrite) files last fetched before this UTC "
+        "moment, e.g. 2026-07-12T00:00:00 — use to pick up "
+        "last-minute syllabus edits; without it, existing files "
+        "are always skipped",
+    )
     ap.add_argument("--delay", type=float, default=DEFAULT_DELAY_S)
-    ap.add_argument("--limit", type=int, default=None, help="cap targets (testing)")
+    ap.add_argument(
+        "--limit", type=int, default=None, help="cap targets (testing)"
+    )
     args = ap.parse_args(argv)
 
     refresh_before = None
@@ -403,7 +506,9 @@ def main(argv: Optional[list[str]] = None) -> None:
         drop = {s.strip() for s in args.exclude_sessions.split(",")}
         before = len(rows)
         rows = [r for r in rows if r.get("session") not in drop]
-        print(f"{len(rows)} rows after dropping {sorted(drop)} (removed {before - len(rows)})")
+        print(
+            f"{len(rows)} rows after dropping {sorted(drop)} (removed {before - len(rows)})"
+        )
 
     if args.kind == "cv":
         targets = plan_cv(rows)
@@ -413,12 +518,14 @@ def main(argv: Optional[list[str]] = None) -> None:
         endpoint = "view_syllabus"
 
     if args.limit:
-        targets = targets[:args.limit]
+        targets = targets[: args.limit]
 
     run_id = f"{args.kind}_{datetime.now(timezone.utc):%Y%m%dT%H%M%SZ}"
     arc = Archiver(args.out, args.delay, run_id, refresh_before=refresh_before)
-    print(f"kind={args.kind}  targets={len(targets)}  delay={args.delay}s  "
-          f"out={args.out}\nmanifest={arc.manifest}\n")
+    print(
+        f"kind={args.kind}  targets={len(targets)}  delay={args.delay}s  "
+        f"out={args.out}\nmanifest={arc.manifest}\n"
+    )
 
     for i, r in enumerate(targets, 1):
         cid = r["course_id"]
@@ -430,38 +537,57 @@ def main(argv: Optional[list[str]] = None) -> None:
                 if arc._is_fresh(dest):
                     arc.n_skip += 1
                     continue
-            cid = arc.resolve_course_id(r.get("search_url", ""), r.get("section", ""),
-                                        r.get("professor", ""))
+            cid = arc.resolve_course_id(
+                r.get("search_url", ""),
+                r.get("section", ""),
+                r.get("professor", ""),
+            )
             if not cid:
                 arc.n_fail += 1
-                arc._record({"kind": args.kind, "course_id": None,
-                             "course_code": r.get("course_code"),
-                             "section": r.get("section"),
-                             "professor": r.get("professor"),
-                             "term_code": r.get("term_code"),
-                             "source_url": r.get("search_url"), "raw_path": None,
-                             "status": "resolve_error",
-                             "error": "could not resolve search URL to a course_id",
-                             "fetched_at": datetime.now(timezone.utc).isoformat()})
+                arc._record(
+                    {
+                        "kind": args.kind,
+                        "course_id": None,
+                        "course_code": r.get("course_code"),
+                        "section": r.get("section"),
+                        "professor": r.get("professor"),
+                        "term_code": r.get("term_code"),
+                        "source_url": r.get("search_url"),
+                        "raw_path": None,
+                        "status": "resolve_error",
+                        "error": "could not resolve search URL to a course_id",
+                        "fetched_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
                 continue
         url = f"{CONCOURSE}/{endpoint}?course_id={cid}"
         if args.kind == "cv":
             dest = args.out / "cv" / f"{_slug(r['professor'])}.html"
         else:
             dest = args.out / "syllabi" / r["term_code"] / f"{cid}.html"
-        meta = {"kind": args.kind, "course_id": cid,
-                "course_code": r.get("course_code"), "section": r.get("section"),
-                "professor": r.get("professor"), "term_code": r.get("term_code"),
-                "session": r.get("session"), "modality": r.get("modality")}
+        meta = {
+            "kind": args.kind,
+            "course_id": cid,
+            "course_code": r.get("course_code"),
+            "section": r.get("section"),
+            "professor": r.get("professor"),
+            "term_code": r.get("term_code"),
+            "session": r.get("session"),
+            "modality": r.get("modality"),
+        }
         if r.get("search_url"):
             meta["resolved_from"] = r["search_url"]
         arc.fetch_to(url, dest, meta)
         if i % 50 == 0 or i == len(targets):
-            print(f"[{i}/{len(targets)}] new={arc.n_new} skip={arc.n_skip} "
-                  f"fail={arc.n_fail}")
+            print(
+                f"[{i}/{len(targets)}] new={arc.n_new} skip={arc.n_skip} "
+                f"fail={arc.n_fail}"
+            )
 
-    print(f"\nDONE {args.kind}: {arc.n_new} new, {arc.n_skip} already-archived, "
-          f"{arc.n_fail} failed\nmanifest: {arc.manifest}")
+    print(
+        f"\nDONE {args.kind}: {arc.n_new} new, {arc.n_skip} already-archived, "
+        f"{arc.n_fail} failed\nmanifest: {arc.manifest}"
+    )
     return arc
 
 

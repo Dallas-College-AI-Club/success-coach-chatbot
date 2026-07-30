@@ -1,19 +1,19 @@
 # Extraction Manual — how we turn raw scrapes into load-ready facts
 
-*Written after the 2026-07-25 catalog run (1,906 documents → 18,087 rows, zero
+_Written after the 2026-07-25 catalog run (1,906 documents → 18,087 rows, zero
 verification failures). Read top-to-bottom the first time; afterwards it's a
-runbook for any extraction round — syllabi, CVs, or a new catalog year.*
+runbook for any extraction round — syllabi, CVs, or a new catalog year._
 
 ## 0. What exists and where
 
-| Thing | Where |
-|---|---|
-| Raw corpus (~2.8 GB: syllabi, CVs, catalog, schedules, manifests) | OneDrive/SharePoint share — NOT in git. Set its local path as `RAW_ROOT` in `apps/data/.env`. |
-| The extraction engine + all tooling | `apps/data/pipeline/` (this repo) |
-| Prompts + worked exemplars + counterexamples | `apps/data/prompts/` — `extract_v3.md` is ACTIVE (`PROMPT_VERSION` in `pipeline/extract.py`) |
-| Golden-gate fixtures | `apps/data/gate/` (context + hand-verified expected per case) |
-| Finished deliveries (data + audit + conflicts reports) | SharePoint `working files - 20260724/neon-delivery/` — never in git |
-| Analysis materials (examples, fixtures, stress tests, advisor set) | SharePoint `working files - 20260724/` |
+| Thing                                                              | Where                                                                                         |
+| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------- |
+| Raw corpus (~2.8 GB: syllabi, CVs, catalog, schedules, manifests)  | OneDrive/SharePoint share — NOT in git. Set its local path as `RAW_ROOT` in `apps/data/.env`. |
+| The extraction engine + all tooling                                | `apps/data/pipeline/` (this repo)                                                             |
+| Prompts + worked exemplars + counterexamples                       | `apps/data/prompts/` — `extract_v3.md` is ACTIVE (`PROMPT_VERSION` in `pipeline/extract.py`)  |
+| Golden-gate fixtures                                               | `apps/data/gate/` (context + hand-verified expected per case)                                 |
+| Finished deliveries (data + audit + conflicts reports)             | SharePoint `working files - 20260724/neon-delivery/` — never in git                           |
+| Analysis materials (examples, fixtures, stress tests, advisor set) | SharePoint `working files - 20260724/`                                                        |
 
 Secrets: `apps/data/.env` (gitignored) holds `ANTHROPIC_API_KEY` / `OPENROUTER_API_KEY`,
 `EXTRACTOR`, `RAW_ROOT`, `FACTS_OUT`. Keys are personal — never shared, never committed.
@@ -37,8 +37,9 @@ python -m pipeline.embed_rows --rows out\delivery\rows.json
 ```
 
 Iron rules learned the hard way:
+
 - **A red gate blocks bulk.** Sonnet failed the gate on prompt v1 too — few-shot
-  exemplars are a *correctness* requirement, not an optimization.
+  exemplars are a _correctness_ requirement, not an optimization.
 - **Never edit a prompt in place** — copy to `extract_vN+1.md`, bump `PROMPT_VERSION`,
   re-run the gate.
 - **Promoting a gate fixture into the exemplars destroys it as a fixture**
@@ -68,7 +69,7 @@ option lists inside `rule` compressed to bare codes.
 **College-side (source) errors — record, never "fix" in data:**
 two confirmed typos (run-together words in 17060, missing leading letter in 17273 —
 see the delivery's CONFLICTS_REPORT); dangling course references are usually
-*fetch-scope artifacts* (developmental/ESOL/continuing-ed codes outside the
+_fetch-scope artifacts_ (developmental/ESOL/continuing-ed codes outside the
 program-referenced catalog set), not errors. Adjudicated anomalies live in
 `gate/adjudicated_source_anomalies.json` so the verifier stays honest about them.
 

@@ -25,7 +25,7 @@ import argparse
 import time
 from pathlib import Path
 
-from pipeline import archive_syllabi_cv as A
+from apps.data.dallasai.pipeline import archive_syllabi_cv as A
 
 # Raw corpus lives in apps/data/raw/ (gitignored, OneDrive-shared). Portable:
 # this file is apps/data/pipeline/run_archive_today.py, so parent.parent = apps/data.

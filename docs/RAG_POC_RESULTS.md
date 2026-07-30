@@ -20,7 +20,7 @@
   ## BIOL 1406: Biology for Science Majors I (4 Credit Hours)  
   ```
 ### LLM Answer:
-> Based on the BIOL-1406-11001 syllabus, this biology class provides a **digital textbook free** through the Dallas College Inclusive Access program via eCampus (Canvas). **No physical textbook purchase is required**, and the lab manual is also available as free downloadable PDFs. This class fully meets your need for a textbook-free biology course.
+> [MOCK LLM RESPONSE] API key is missing. Cannot perform LLM synthesis.
 
 
 ---
@@ -40,7 +40,7 @@
   ### Course Schedule  * Week 1: Introduction to Writing Processes & Rhetorical Situations  * Week 2: Narrative Structures and Drafting  * Week 3: Peer Review & Essay 1 Submission (Narrative)  * Week 4: Rhetorical Analysis Strategies  * Week 5: Peer Review & Essay 2 Submission (Rhetorical)  * Week 6: Argumentation and Logical Fallacies  * Week 7: Peer Review & Essay 3 Submission (Argumentative)  * Week 8: Research Methodologies and Annotated Bibliographies  * Week 9: Peer Review & Essay 4 Submission (Research Paper)  * Week 10: Portfolio Presentation and Reflection  
   ```
 ### LLM Answer:
-> HIST 1301 requires **one** essay— a 1,500–2,000‑word historiography paper analyzing a primary document from the pre‑Civil War era.
+> [MOCK LLM RESPONSE] API key is missing. Cannot perform LLM synthesis.
 
 
 ---
@@ -60,7 +60,7 @@
   ### Course Schedule  * Week 1: Pre-Columbian Societies and Transatlantic Encounters  * Week 2: Colonial America and the Atlantic World  * Week 3: Causes of the American Revolution  * Week 4: The Revolutionary War and the Constitution  * Week 5: The Early Republic & Jacksonian Democracy (Midterm Quiz)  * Week 6: Industrialization, Market Revolution, and Westward Expansion  * Week 7: Sectional Conflict and the Compromise of 1850  * Week 8: The Civil War (Essay Submission due by Friday)  * Week 9: Reconstruction and its Aftermath  * Week 10: Final Course Exam  
   ```
 ### LLM Answer:
-> The History class (HIST-1301) requires **one 1,500–2,000-word essay** analyzing a pre-Civil War primary document. The English class (ENGL-1301) focuses on **writing processes and rhetorical analysis** but does not specify an essay requirement in the provided syllabi. Thus, the History essay is a central, graded assignment, while the English course emphasizes skill development without a mandatory essay.
+> [MOCK LLM RESPONSE] API key is missing. Cannot perform LLM synthesis.
 
 
 ---
