@@ -82,12 +82,53 @@ def get_db_session(database_url: Optional[str] = None) -> Session:
     return SessionLocal()
 
 
+def check_db_status(database_url: Optional[str] = None) -> None:
+    """Queries and displays table record counts and latest ingested entries in Neon PostgreSQL."""
+    url = database_url or get_database_url()
+    print(f"📊 Querying Neon PostgreSQL database status...\n")
+
+    try:
+        engine = create_engine(url, echo=False)
+        with engine.connect() as conn:
+            # 1. Total record count in knowledge_entry
+            total_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry;")).scalar()
+            
+            # 2. Syllabi vs Catalog Course count
+            syl_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';")).scalar()
+            cat_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';")).scalar()
+            
+            # 3. Latest 3 ingested records
+            recent = conn.execute(text("SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;")).fetchall()
+
+            print(f"=========================================================================")
+            print(f"🐘 Neon PostgreSQL Database Status")
+            print(f"=========================================================================")
+            print(f"  • Total Knowledge Entries: {total_count}")
+            print(f"  • Syllabi Entries        : {syl_count}")
+            print(f"  • Catalog Course Entries : {cat_count}")
+            print(f"-------------------------------------------------------------------------")
+            print(f"📋 Latest Ingested Entries:")
+            if recent:
+                for r in recent:
+                    print(f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'")
+            else:
+                print("  (No records found in database yet)")
+            print(f"=========================================================================\n")
+    except Exception as err:
+        print(f"❌ Error connecting to database: {err}")
+
+
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Neon Database Setup Helper")
+    parser = argparse.ArgumentParser(description="Neon Database Setup & Verification Helper")
     parser.add_argument("--init", action="store_true", help="Initialize DDL schema tables in Neon")
+    parser.add_argument("--status", "--check", action="store_true", help="Check database record count and view latest entries")
     args = parser.parse_args()
 
     if args.init:
         init_db()
+    elif args.status:
+        check_db_status()
     else:
-        print("Run with --init flag to create tables in Neon PostgreSQL.")
+        print("Usage:")
+        print("  python3 apps/data/dallasai/db_setup.py --init    # Initialize database tables")
+        print("  python3 apps/data/dallasai/db_setup.py --status  # Check database records & counts")

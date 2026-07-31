@@ -54,15 +54,27 @@ def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str =
     sys.stdout.flush()
 
 
-# FUNCTION 1: Document Preprocessing (HTML -> Clean Markdown & Metadata)
 def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[str, Any]]:
     """Function 1: Cleans HTML DOM and extracts Markdown & metadata (Issue #90)."""
     converter = MarkdownConverter()
     clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=source_url)
     soup = BeautifulSoup(clean_html, "html.parser")
-    metadata = converter.extract_metadata_from_html(soup, clean_md, source_url)
-    if not metadata.get("doc_type"):
-        metadata["doc_type"] = "syllabus"
+    
+    raw_soup = BeautifulSoup(raw_html, "html.parser")
+    is_catalog_course = (
+        raw_soup.find(id="course_preview_title") is not None
+        or "preview_course" in raw_html
+        or "courses" in source_url.lower()
+        or "course" in source_url.lower()
+    )
+
+    if is_catalog_course:
+        metadata = converter.extract_catalog_course_metadata(raw_soup, source_url=source_url)
+        metadata["doc_type"] = "course"
+    else:
+        metadata = converter.extract_metadata_from_html(soup, clean_md, source_url=source_url)
+        metadata["doc_type"] = metadata.get("document_type", "syllabus")
+
     return clean_md, metadata
 
 
@@ -254,10 +266,9 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         if not has_tqdm and total_files > 0:
             print()
     else:
-        # Skip Function 1 (Files are already Markdown)
-        print("Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown!")
+        print("Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown! (Fast disk load)")
         stage1_start = time.time()
-        file_iterator = tqdm(input_files, desc="Function 1 (Reading Markdown)", unit="doc") if has_tqdm else input_files
+        file_iterator = tqdm(input_files, desc="Fast Loading (.md Files)", unit="doc") if has_tqdm else input_files
         for idx, file_path in enumerate(file_iterator, start=1):
             try:
                 raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
@@ -269,7 +280,7 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
             except Exception:
                 pass
             if not has_tqdm:
-                _render_ascii_bar(idx, total_files, stage1_start, "Reading Markdown")
+                _render_ascii_bar(idx, total_files, stage1_start, "Fast Loading .md")
         if not has_tqdm and total_files > 0:
             print()
 
