@@ -1,86 +1,128 @@
 """
 ===============================================================================
-Automated Structural Diff & Metadata Accuracy Test Suite
+Preprocessing Diff & Quality Gate Verification Test Suite
 ===============================================================================
 Author: Antigravity AI / Neftali
-Project: Success Coach Chatbot (Issue #90 - Section 3 Quality Gate)
+Project: Success Coach Chatbot (Issue #90 - Preprocessing Engine Tests)
 
 Description:
-    Asserts count of raw HTML <h1>/<h2>/<h3> tags match #/##/### in Markdown.
-    Asserts count of raw <tr> elements match pipe table rows (| ... |) in Markdown.
-    Asserts required metadata fields (instructor, course_id) are non-null and not UNKNOWN.
-
-Usage (Pytest):
-    pytest apps/data/tests/test_preprocessing_diff.py
-
-Usage (CLI):
-    python apps/data/tests/test_preprocessing_diff.py --input-dir path/to/raw_html/
-    python apps/data/tests/test_preprocessing_diff.py --input path/to/single_file.html
+    TDD Quality Gate test suite verifying structural diff, header retention,
+    metadata extraction accuracy, DOM purity (zero synthetic markers/headers),
+    and catalog course HTML cleaning & markdown conversion.
 ===============================================================================
 """
 
-import argparse
 import glob
 import re
-import sys
 from pathlib import Path
-
-# Add project root to sys.path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+import pytest
+from bs4 import BeautifulSoup
 
 try:
-    import pytest
-except ImportError:
-    pytest = None
-
-from bs4 import BeautifulSoup
-from apps.data.dallasai.markdown_converter import MarkdownConverter
+    from dallasai.markdown_converter import MarkdownConverter
+except ModuleNotFoundError:
+    from apps.data.dallasai.markdown_converter import MarkdownConverter
 
 
-def verify_file_accuracy(raw_html_path: Path) -> dict:
-    """
-    Verifies that a converted markdown file preserves structural element counts
-    and metadata integrity compared to the raw HTML file.
-    """
-    with open(raw_html_path, "r", encoding="utf-8", errors="ignore") as f:
-        raw_html = f.read()
-
+def verify_file_accuracy(raw_path: Path) -> dict:
+    """Helper to convert a single raw HTML file and calculate structural metrics."""
+    raw_html = raw_path.read_text(encoding="utf-8", errors="ignore")
     converter = MarkdownConverter()
-    clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=raw_html_path.name)
 
-    soup_raw = BeautifulSoup(raw_html, "html.parser")
-    soup_clean = BeautifulSoup(clean_html, "html.parser")
+    clean_md, clean_html = converter.clean_html_and_markdown(
+        raw_html, source_url=str(raw_path)
+    )
 
-    raw_headers = len(soup_clean.find_all(["h1", "h2", "h3"]))
-    md_headers = len(re.findall(r"^(?:#|##|###)\s+", clean_md, re.MULTILINE))
+    raw_soup = BeautifulSoup(raw_html, "html.parser")
 
-    raw_table_rows = len(soup_clean.find_all("tr"))
-    md_table_lines = [line for line in clean_md.splitlines() if line.strip().startswith("|")]
-    md_data_rows = [line for line in md_table_lines if not re.match(r"^\|\s*:?---", line)]
+    raw_headers = len(raw_soup.find_all(re.compile(r"^h[1-6]$", re.IGNORECASE)))
+    md_headers = len(re.findall(r"^#{1,6}\s+", clean_md, re.MULTILINE))
 
-    metadata = converter.extract_metadata_from_html(soup_raw, clean_md, raw_html_path.name)
+    raw_tables = len(raw_soup.find_all("table"))
+    raw_table_rows = len(raw_soup.find_all("tr"))
+
+    md_table_rows = len(
+        [
+            line
+            for line in clean_md.splitlines()
+            if line.startswith("|") and not line.startswith("| ---")
+        ]
+    )
+
+    metadata = converter.extract_metadata_from_html(raw_soup, clean_md, str(raw_path))
 
     return {
-        "file_name": raw_html_path.name,
-        "raw_headers": raw_headers,
-        "md_headers": md_headers,
-        "raw_table_rows": raw_table_rows,
-        "md_table_rows": len(md_data_rows),
-        "instructor": metadata.get("instructor"),
-        "course_id": metadata.get("course_id"),
-        "term": metadata.get("term"),
-        "section": metadata.get("section"),
+        "raw_path": raw_path,
         "clean_md": clean_md,
         "clean_html": clean_html,
+        "raw_headers": raw_headers,
+        "md_headers": md_headers,
+        "raw_tables": raw_tables,
+        "raw_table_rows": raw_table_rows,
+        "md_table_rows": md_table_rows,
+        "instructor": metadata.get("instructor"),
+        "course_id": metadata.get("course_id"),
+        "concourse_id": metadata.get("concourse_id"),
     }
 
 
+def test_no_synthetic_markers_or_injected_headers():
+    """Verifies zero synthetic policy markers and zero injected HTML header divs."""
+    sample_html = """
+    <html>
+    <head><title>GOVT 2306 - Federal Government</title></head>
+    <body>
+    <div id="syllabus">
+        <h1>GOVT 2306 Syllabus</h1>
+        <p>Welcome to class!</p>
+    </div>
+    </body>
+    </html>
+    """
+    converter = MarkdownConverter()
+    clean_md, clean_html = converter.clean_html_and_markdown(sample_html, source_url="test.html")
+
+    assert "Not stated in syllabus" not in clean_md
+    assert "concourse-metadata-header" not in clean_html
+    assert "GOVT-2306" in clean_md
+
+
+def test_catalog_course_cleaning_and_markdown_conversion():
+    """Verifies catalog course HTML cleaning and Markdown conversion."""
+    raw_catalog_html = """
+    <!DOCTYPE html>
+    <html>
+    <head><title>ABDR 1307 - Collision Repair Welding (3 Credit Hours) - Dallas College</title></head>
+    <body>
+    <td class="block_content">
+        <div id="gateway-toolbar-1" class="gateway-toolbar">Toolbar links to strip</div>
+        <h1 id="course_preview_title">ABDR 1307&nbsp;-&nbsp;Collision Repair Welding (3 Credit Hours)</h1>
+        <hr>
+        <em>Campus Location:</em> <em>EFC</em><br><br>
+        A study of collision repair welding and cutting procedures.<br><br>
+        <strong>Course Hour Configuration</strong><br> (2 Lec., 3 Lab.)<br><br>
+        CTE<br><br>
+        <em><strong>This is a WECM Course Number.</strong></em>
+    </td>
+    </body>
+    </html>
+    """
+    converter = MarkdownConverter()
+    clean_md, clean_html = converter.clean_html_and_markdown(raw_catalog_html, source_url="15113.html")
+
+    # Verify DOM purity and metadata extraction
+    assert "gateway-toolbar" not in clean_html
+    assert "ABDR 1307" in clean_md
+    assert "Collision Repair Welding" in clean_md
+    assert "credit_hours: 3" in clean_md
+    assert "document_type: course" in clean_md
+    assert "campus_locations: EFC" in clean_md
+
+
 def test_sample_syllabi_accuracy(input_dir: Path = None, limit: int = None) -> None:
-    """
-    Tests structural diff and metadata extraction accuracy on sample or full syllabi.
-    """
+    """Tests structural diff, metadata accuracy, and strict proportional header preservation."""
     if input_dir is None:
-        input_dir = Path(__file__).resolve().parent.parent / "2026SP (Unzipped Files)" / "2026SP"
+        input_dir = Path(__file__).resolve().parent.parent / "sample_data" / "syllabi"
 
     if not input_dir.exists():
         if pytest:
@@ -95,90 +137,30 @@ def test_sample_syllabi_accuracy(input_dir: Path = None, limit: int = None) -> N
 
     passed_count = 0
     failed_count = 0
-    failures = []
 
     for filepath in test_files:
         raw_path = Path(filepath)
         try:
             metrics = verify_file_accuracy(raw_path)
 
-            header_pass = metrics["md_headers"] >= min(1, metrics["raw_headers"])
+            header_pass = metrics["md_headers"] >= int(0.75 * metrics["raw_headers"]) if metrics["raw_headers"] > 0 else True
             table_pass = metrics["md_table_rows"] >= metrics["raw_table_rows"]
             instructor_pass = metrics["instructor"] and metrics["instructor"] != "UNKNOWN"
             course_pass = metrics["course_id"] and metrics["course_id"] != "UNKNOWN"
+            no_synthetic_pass = "Not stated in syllabus" not in metrics["clean_md"] and "concourse-metadata-header" not in metrics["clean_html"]
 
-            if header_pass and table_pass and instructor_pass and course_pass:
+            if header_pass and table_pass and instructor_pass and course_pass and no_synthetic_pass:
                 passed_count += 1
             else:
                 failed_count += 1
-                failures.append({
-                    "file": raw_path.name,
-                    "instructor": metrics["instructor"],
-                    "course_id": metrics["course_id"],
-                    "header_pass": header_pass,
-                    "table_pass": table_pass,
-                })
-        except Exception as e:
+        except Exception:
             failed_count += 1
-            failures.append({"file": raw_path.name, "error": str(e)})
-
-    print("--- Structural Diff & Metadata Accuracy Report ---")
-    print(f"Total Evaluated : {len(test_files)}")
-    print(f"Passed          : {passed_count} [OK]")
-    print(f"Failed          : {failed_count} [FAIL]")
-
-    if failures:
-        print("\n--- Failure Details (First 15) ---")
-        for f in failures[:15]:
-            print(f"File: {f['file']} | Instructor: {f.get('instructor')} | CourseID: {f.get('course_id')} | Error: {f.get('error')}")
 
     assert failed_count == 0, f"FAILED: {failed_count} syllabi failed quality gate accuracy checks."
-    print("\nALL TESTED SYLLABI PASSED STRUCTURAL & METADATA ACCURACY CHECKS! [OK]")
-
-
-def main() -> None:
-    """CLI Entry Point with Argparse for Quality Gate Testing."""
-    if hasattr(sys.stdout, "reconfigure"):
-        sys.stdout.reconfigure(encoding="utf-8")
-
-    parser = argparse.ArgumentParser(
-        description="Reusable Preprocessing Quality Gate Test CLI tool."
-    )
-    parser.add_argument(
-        "-i", "--input-dir", required=False,
-        help="Path to an input directory of HTML files to test."
-    )
-    parser.add_argument(
-        "-f", "--file", required=False,
-        help="Path to a single HTML file to verify accuracy."
-    )
-    parser.add_argument(
-        "-l", "--limit", required=False, type=int, default=None,
-        help="Optional integer limit on how many files to test (e.g., --limit 10). Defaults to testing all files."
-    )
-
-    args = parser.parse_args()
-
-    print("========================================================================")
-    print("           PREPROCESSING ACCURACY & STRUCTURAL DIFF QUALITY GATE        ")
-    print("========================================================================\n")
-
-    if args.file:
-        path = Path(args.file)
-        if not path.exists():
-            print(f"Error: File '{path}' does not exist.")
-            sys.exit(1)
-        r = verify_file_accuracy(path)
-        print(f"File: {r['file_name']} | Instructor: {r['instructor']} | CourseID: {r['course_id']} | Headers (HTML vs MD): {r['raw_headers']} vs {r['md_headers']} | Table Rows (HTML vs MD): {r['raw_table_rows']} vs {r['md_table_rows']}")
-        assert r["instructor"] != "UNKNOWN", f"Instructor is UNKNOWN in {path.name}"
-        assert r["course_id"] != "UNKNOWN", f"Course ID is UNKNOWN in {path.name}"
-        print(f"\nSUCCESS: {path.name} passed all structural and metadata quality checks! [OK]")
-    else:
-        in_dir = Path(args.input_dir) if args.input_dir else None
-        test_sample_syllabi_accuracy(in_dir, limit=args.limit)
-
-    print("========================================================================")
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    args = sys.argv[1:]
+    input_path = Path(args[0]) if args else None
+    test_sample_syllabi_accuracy(input_dir=input_path)
