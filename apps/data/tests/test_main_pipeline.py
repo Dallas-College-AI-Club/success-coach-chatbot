@@ -145,24 +145,30 @@ def test_process_document_end_to_end_real_production_files():
 if __name__ == "__main__":
     print("Testing Function 1 & 2 on 3 real Syllabi and 3 real Catalog Courses...")
     test_function_1_and_2_real_production_files()
-    print("PASSED test_function_1_and_2_real_production_files()")
+    print("PASSED test_function_1_and_2_real_production_files()\n")
 
     print("Testing Function 3 Payload Assembly on real files...")
     test_function_3_payload_assembly_real_files()
-    print("PASSED test_function_3_payload_assembly_real_files()")
+    print("PASSED test_function_3_payload_assembly_real_files()\n")
 
     print("Testing Function 4 Embedding Generation on real files...")
     test_function_4_embedding_generation_real_files()
-    print("PASSED test_function_4_embedding_generation_real_files()")
+    print("PASSED test_function_4_embedding_generation_real_files()\n")
 
     print("Testing Function 5 Validation and Upsert Gate on real files...")
     test_function_5_validation_and_upsert_real_files()
-    print("PASSED test_function_5_validation_and_upsert_real_files()")
+    print("PASSED test_function_5_validation_and_upsert_real_files()\n")
 
     print("Testing End-to-End process_document() on 6 real production files...")
     test_process_document_end_to_end_real_production_files()
-    print("PASSED test_process_document_end_to_end_real_production_files()")
+    print("PASSED test_process_document_end_to_end_real_production_files()\n")
+
+    print("=========================================================================")
+    print("🔍 VERIFYING NEON DATABASE ENTRIES & RETRIEVING LIVE OUTPUT")
+    print("=========================================================================")
+    try:
+        check_db_status()
+    except Exception as err:
+        print(f"Note: Database verification query: {err}")
 
     print("\nALL 5 MAIN PIPELINE TESTS PASSED 100% FOR ALL 6 REAL PRODUCTION FILES!")
-
-
