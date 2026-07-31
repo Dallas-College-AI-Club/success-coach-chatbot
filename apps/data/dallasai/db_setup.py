@@ -85,34 +85,41 @@ def get_db_session(database_url: Optional[str] = None) -> Session:
 def check_db_status(database_url: Optional[str] = None) -> None:
     """Queries and displays table record counts and latest ingested entries in Neon PostgreSQL."""
     url = database_url or get_database_url()
+    init_db(url)
     print(f"📊 Querying Neon PostgreSQL database status...\n")
 
     try:
         engine = create_engine(url, echo=False)
         with engine.connect() as conn:
-            # 1. Total record count in knowledge_entry
-            total_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry;")).scalar()
-            
-            # 2. Syllabi vs Catalog Course count
-            syl_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';")).scalar()
-            cat_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';")).scalar()
-            
-            # 3. Latest 3 ingested records
-            recent = conn.execute(text("SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;")).fetchall()
+            # Discover tables in schema
+            t_res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")).fetchall()
+            tbl_names = [t[0] for t in t_res]
 
             print(f"=========================================================================")
             print(f"🐘 Neon PostgreSQL Database Status")
             print(f"=========================================================================")
-            print(f"  • Total Knowledge Entries: {total_count}")
-            print(f"  • Syllabi Entries        : {syl_count}")
-            print(f"  • Catalog Course Entries : {cat_count}")
-            print(f"-------------------------------------------------------------------------")
-            print(f"📋 Latest Ingested Entries:")
-            if recent:
-                for r in recent:
-                    print(f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'")
-            else:
-                print("  (No records found in database yet)")
+            print(f"  • Existing Database Tables: {', '.join(tbl_names) if tbl_names else 'None'}")
+
+            if "knowledge_entry" in tbl_names:
+                total_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry;")).scalar()
+                syl_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';")).scalar()
+                cat_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';")).scalar()
+                recent = conn.execute(text("SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;")).fetchall()
+
+                print(f"  • Total Knowledge Entries: {total_count}")
+                print(f"  • Syllabi Entries        : {syl_count}")
+                print(f"  • Catalog Course Entries : {cat_count}")
+                print(f"-------------------------------------------------------------------------")
+                print(f"📋 Latest Ingested Entries:")
+                if recent:
+                    for r in recent:
+                        print(f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'")
+                else:
+                    print("  (No records found in database yet)")
+            elif "embeddings" in tbl_names:
+                emb_count = conn.execute(text("SELECT COUNT(*) FROM embeddings;")).scalar()
+                print(f"  • Total Embeddings Vector Count: {emb_count}")
+
             print(f"=========================================================================\n")
     except Exception as err:
         print(f"❌ Error connecting to database: {err}")

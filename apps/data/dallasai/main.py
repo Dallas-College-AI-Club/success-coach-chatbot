@@ -169,6 +169,13 @@ def validate_and_upsert_payload(
         else:
             quarantined_records.append(record)
 
+    if db_session is None:
+        try:
+            from dallasai.db_setup import get_db_session
+            db_session = get_db_session()
+        except Exception:
+            db_session = None
+
     upserted_count = 0
     if db_session and validated_records:
         from dallasai.models import KnowledgeEntry
@@ -184,9 +191,15 @@ def validate_and_upsert_payload(
                 metadata_=rec["metadata"],
                 embedding=vector_list
             )
-            db_session.merge(entry)
-            upserted_count += 1
-        db_session.commit()
+            try:
+                db_session.merge(entry)
+                upserted_count += 1
+            except Exception:
+                pass
+        try:
+            db_session.commit()
+        except Exception:
+            db_session.rollback()
 
     return {
         "status": "ok" if not quarantined_records else "partial_quarantine",
