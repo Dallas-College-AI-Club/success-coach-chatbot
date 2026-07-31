@@ -216,7 +216,7 @@ def process_document(file_path: Path) -> List[Dict[str, Any]]:
     return records
 
 
-def process_directory(input_dir: Path, output_dir: Path, workers: int = 1) -> List[Path]:
+def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start_stage: int = 2) -> List[Path]:
     """DIRECTORY PIPELINE ORCHESTRATOR (5 STAGES)"""
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
@@ -327,12 +327,16 @@ def parse_args() -> argparse.Namespace:
         default=min(os.cpu_count() or 1, 4),
         help="Number of multi-core CPU workers."
     )
+    parser.add_argument(
+        "-s", "--stage", type=int, choices=[1, 2, 3, 4, 5], default=2,
+        help="Select starting pipeline function/stage (1: Preprocess, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate/Upsert)."
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    process_directory(args.input, args.output, workers=args.workers)
+    process_directory(args.input, args.output, workers=args.workers, start_stage=args.stage)
 
 
 if __name__ == "__main__":
