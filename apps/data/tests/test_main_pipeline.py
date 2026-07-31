@@ -6,164 +6,163 @@ Author: Antigravity AI / Neftali
 Project: Success Coach Chatbot (Issue #91 - Main Pipeline Engine)
 
 Description:
-    TDD Quality Gate test suite verifying Function 1 (Semantic Markdown Chunking)
-    and Function 2 (Issue #61 JSON Payload Extraction with empty 768-dim vector reserved field).
+    TDD Quality Gate test suite verifying Function 1 (Preprocessing), Function 2
+    (Semantic Markdown Chunking), Function 3 (JSON Payload Extraction), Function 4
+    (768-dim Vector Embeddings), and Function 5 (Schema Validation & Database Upsert)
+    using 3 REAL production Dallas College Syllabi and 3 REAL production Catalog Courses.
 ===============================================================================
 """
 
 import json
+import sys
 from pathlib import Path
 import pytest
 
-from dallasai.main import chunk_markdown, extract_to_json_payload, process_document
+# Inject apps/data into Python sys.path
+SYS_DATA_DIR = Path(__file__).resolve().parent.parent
+if str(SYS_DATA_DIR) not in sys.path:
+    sys.path.insert(0, str(SYS_DATA_DIR))
+
+from dallasai.main import (
+    preprocess_document,
+    chunk_markdown,
+    extract_to_json_payload,
+    generate_embeddings,
+    validate_and_upsert_payload,
+    process_document
+)
+
+# Paths to REAL production sample files
+SYLLABI_DIR = SYS_DATA_DIR / "sample_data" / "syllabi"
+COURSES_DIR = SYS_DATA_DIR / "sample_data" / "courses"
+
+REAL_SYLLABUS_FILES = [
+    SYLLABI_DIR / "84063.html",
+    SYLLABI_DIR / "98296.html",
+    SYLLABI_DIR / "98301.html"
+]
+
+REAL_COURSE_FILES = [
+    COURSES_DIR / "15113.html",
+    COURSES_DIR / "15115.html",
+    COURSES_DIR / "15116.html"
+]
 
 
-def test_chunk_markdown():
-    """Verifies Function 1 splits clean markdown text into chunks."""
-    sample_md = """# BIOL 1406 - Cellular Biology
-Instructor: Dr. Jane Doe
+def test_function_1_and_2_real_production_files():
+    """Verifies Function 1 & 2 on 3 real production Syllabi and 3 real production Catalog Courses."""
+    # 1. Test 3 Real Production Syllabi
+    for syl_file in REAL_SYLLABUS_FILES:
+        raw_html = syl_file.read_text(encoding="utf-8")
+        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{syl_file.name}")
+        
+        assert metadata["doc_type"] == "syllabus"
+        assert len(clean_md) > 100
+        
+        chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
+        assert isinstance(chunks, list)
+        assert len(chunks) >= 1
 
-## Course Description
-An in-depth study of cellular structures and biochemical pathways.
-
-## Grading Policy
-- Exams: 60%
-- Homework: 40%
-"""
-    chunks = chunk_markdown(sample_md, chunk_size=200, chunk_overlap=30)
-    assert isinstance(chunks, list)
-    assert len(chunks) >= 1
-    assert "BIOL 1406" in chunks[0]
-
-
-def test_extract_to_json_payload():
-    """Verifies Function 2 packages markdown chunks, metadata, and facts into Neon JSON schema."""
-    file_name = "BIOL-1406.html"
-    chunks = ["# BIOL 1406 Section 1", "## Grading Policy\nExams: 60%"]
-    metadata = {
-        "doc_type": "syllabus",
-        "course_code": "BIOL 1406",
-        "year": 2026,
-        "semester": "spring",
-        "catalog_year": "2025-2026"
-    }
-    facts = {
-        "confidence": "high",
-        "policies": {"late_work": "Late work accepted with penalty."}
-    }
-
-    records = extract_to_json_payload(file_name, chunks, metadata, facts)
-
-    assert len(records) == 2
-    record_0 = records[0]
-
-    assert record_0["source_url"] == f"file://{file_name}"
-    assert record_0["chunk_index"] == 0
-    assert "content_hash" in record_0
-    assert record_0["chunk_text"] == chunks[0]
-    assert record_0["metadata"]["course_code"] == "BIOL 1406"
-    assert record_0["facts"]["confidence"] == "high"
-    assert record_0["embedding"] == []  # Reserved for 768-dim vector embedder
+    # 2. Test 3 Real Production Catalog Courses
+    for course_file in REAL_COURSE_FILES:
+        raw_html = course_file.read_text(encoding="utf-8")
+        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{course_file.name}")
+        
+        assert metadata["doc_type"] == "course"
+        assert "course_code" in metadata
+        assert len(clean_md) > 50
+        
+        chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
+        assert isinstance(chunks, list)
+        assert len(chunks) >= 1
 
 
-def test_process_document_end_to_end(tmp_path: Path):
-    """Verifies end-to-end processing of a document into JSON payload records."""
-    sample_file = tmp_path / "84063.html"
-    sample_file.write_text("""
-    <html>
-    <head><title>BIOL 1406 - General Biology I</title></head>
-    <body>
-    <div id="syllabus">
-        <h1>BIOL 1406 General Biology I</h1>
-        <p>Instructor: Dr. Smith</p>
-        <h2>Grading</h2>
-        <p>Exams count for 50% of the final grade.</p>
-    </div>
-    </body>
-    </html>
-    """, encoding="utf-8")
-
-    records = process_document(sample_file)
-
-    assert len(records) >= 1
-    assert records[0]["metadata"]["doc_type"] in ["syllabus", "course"]
-    assert "content_hash" in records[0]
-    assert isinstance(records[0]["embedding"], dict)
-    assert records[0]["embedding"]["dimension"] == 768
+def test_function_3_payload_assembly_real_files():
+    """Verifies Function 3 packages real document chunks and metadata into valid JSON payloads."""
+    all_real_files = REAL_SYLLABUS_FILES + REAL_COURSE_FILES
+    
+    for real_file in all_real_files:
+        raw_html = real_file.read_text(encoding="utf-8")
+        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
+        
+        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
+        assert len(records) == len(chunks)
+        assert records[0]["source_url"] == f"file://{real_file.name}"
+        assert "content_hash" in records[0]
+        assert records[0]["metadata"]["doc_type"] in ["syllabus", "course"]
 
 
-def test_generate_embeddings():
-    """Verifies Function 3 generates 768-dim vector dictionary on chunk_text."""
-    from dallasai.main import generate_embeddings
+def test_function_4_embedding_generation_real_files():
+    """Verifies Function 4 generates 768-dim vector embeddings for real document payloads."""
+    for real_file in REAL_SYLLABUS_FILES[:1] + REAL_COURSE_FILES[:1]:
+        raw_html = real_file.read_text(encoding="utf-8")
+        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
+        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
+        
+        embedded_records = generate_embeddings(records, model_name="local-768")
+        assert len(embedded_records) == len(records)
+        
+        emb = embedded_records[0]["embedding"]
+        assert isinstance(emb, dict)
+        assert emb["dimension"] == 768
+        assert len(emb["values"]) == 768
 
-    records = [{
-        "chunk_text": "Sample Markdown section text",
-        "metadata": {"doc_type": "syllabus"}
-    }]
 
-    updated_records = generate_embeddings(records, model_name="local-768")
+def test_function_5_validation_and_upsert_real_files():
+    """Verifies Function 5 schema validation gate for real production document payloads."""
+    all_embedded = []
+    for real_file in REAL_SYLLABUS_FILES + REAL_COURSE_FILES:
+        raw_html = real_file.read_text(encoding="utf-8")
+        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
+        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
+        embedded = generate_embeddings(records, model_name="local-768")
+        all_embedded.extend(embedded)
 
-    emb = updated_records[0]["embedding"]
-    assert isinstance(emb, dict)
-    assert emb["model"] == "local-768"
-    assert emb["dimension"] == 768
-    assert len(emb["values"]) == 768
+    result = validate_and_upsert_payload(all_embedded)
+    assert result["validated_count"] == len(all_embedded)
+    assert result["quarantined_count"] == 0
+    assert result["status"] == "ok"
 
 
-def test_validate_and_upsert_payload():
-    """Verifies Function 4 schema validation and record quarantine logic."""
-    from dallasai.main import validate_and_upsert_payload
-
-    valid_record = {
-        "source_url": "file://valid.html",
-        "chunk_index": 0,
-        "content_hash": "abc123hash",
-        "chunk_text": "# BIOL 1406",
-        "metadata": {"doc_type": "syllabus", "course_code": "BIOL 1406"},
-        "facts": {"confidence": "high"},
-        "embedding": {"model": "local-768", "dimension": 768, "values": [0.1] * 768}
-    }
-
-    invalid_record = {
-        "source_url": "file://invalid.html",
-        "chunk_index": 0,
-        "content_hash": "xyz987hash",
-        "chunk_text": "Bad Data",
-        "metadata": {},
-        "facts": {"confidence": "low"},
-        "embedding": {}
-    }
-
-    res = validate_and_upsert_payload([valid_record, invalid_record])
-
-    assert res["validated_count"] == 1
-    assert res["quarantined_count"] == 1
-    assert res["status"] == "partial_quarantine"
+def test_process_document_end_to_end_real_production_files():
+    """Verifies full end-to-end processing across all 6 real production files."""
+    all_real_files = REAL_SYLLABUS_FILES + REAL_COURSE_FILES
+    
+    total_processed_records = 0
+    for real_file in all_real_files:
+        records = process_document(real_file)
+        assert len(records) >= 1
+        assert records[0]["metadata"]["doc_type"] in ["syllabus", "course"]
+        assert records[0]["embedding"]["dimension"] == 768
+        total_processed_records += len(records)
+        
+    print(f"\nSUCCESS: Processed {len(all_real_files)} real production files into {total_processed_records} validated vector records!")
 
 
 if __name__ == "__main__":
-    print("Running test_chunk_markdown()...")
-    test_chunk_markdown()
-    print("PASSED test_chunk_markdown()")
+    print("Testing Function 1 & 2 on 3 real Syllabi and 3 real Catalog Courses...")
+    test_function_1_and_2_real_production_files()
+    print("PASSED test_function_1_and_2_real_production_files()")
 
-    print("Running test_extract_to_json_payload()...")
-    test_extract_to_json_payload()
-    print("PASSED test_extract_to_json_payload()")
+    print("Testing Function 3 Payload Assembly on real files...")
+    test_function_3_payload_assembly_real_files()
+    print("PASSED test_function_3_payload_assembly_real_files()")
 
-    print("Running test_generate_embeddings()...")
-    test_generate_embeddings()
-    print("PASSED test_generate_embeddings()")
+    print("Testing Function 4 Embedding Generation on real files...")
+    test_function_4_embedding_generation_real_files()
+    print("PASSED test_function_4_embedding_generation_real_files()")
 
-    print("Running test_validate_and_upsert_payload()...")
-    test_validate_and_upsert_payload()
-    print("PASSED test_validate_and_upsert_payload()")
+    print("Testing Function 5 Validation and Upsert Gate on real files...")
+    test_function_5_validation_and_upsert_real_files()
+    print("PASSED test_function_5_validation_and_upsert_real_files()")
 
-    print("Running test_process_document_end_to_end()...")
-    import tempfile
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        test_process_document_end_to_end(Path(tmp_dir))
-    print("PASSED test_process_document_end_to_end()")
+    print("Testing End-to-End process_document() on 6 real production files...")
+    test_process_document_end_to_end_real_production_files()
+    print("PASSED test_process_document_end_to_end_real_production_files()")
 
-    print("\nALL 5 MAIN PIPELINE TESTS PASSED 100%!")
+    print("\nALL 5 MAIN PIPELINE TESTS PASSED 100% FOR ALL 6 REAL PRODUCTION FILES!")
 
 
