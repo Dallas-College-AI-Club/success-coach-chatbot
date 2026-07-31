@@ -69,3 +69,14 @@
 - [ ] **Task 6.5 (Data Accuracy & Ground-Truth Reconciliation)**: Build `apps/data/tests/test_facts_reconciliation.py` (Exact substring ground-truth verification, grading math reconciliation, identity cross-check).
 - [ ] **Task 6.6 (PostgreSQL Insert & Quarantine)**: Insert 100% verified JSON into PostgreSQL or move failed records to `.tmp/quarantine/` (`needs_review`).
 
+---
+
+## Section 7: Issue #91 Main Processing Pipeline & 4-Function Orchestration (Completed [x])
+- [x] **Task 7.1 (Orchestration Architecture)**: Define clean 4-function CLI pipeline in `apps/data/dallasai/main.py` under 400 lines without reinventing the wheel.
+- [x] **Task 7.2 (Function 1 - Semantic Chunking)**: Delegate Clean Markdown section splitting to `SemanticChunker`.
+- [x] **Task 7.3 (Function 2 - JSON Payload Extraction)**: Package chunks, metadata, and Issue #61 syllabus `facts` into standardized payload objects.
+- [x] **Task 7.4 (Function 3 - Pluggable Embedder & Dict Vectors)**: Pass chunk text into pluggable embedder, generating 768-dim vector space stored as a dictionary (`{"model": ..., "dimension": 768, "values": [...]}`).
+- [x] **Task 7.5 (Function 4 - Validation & Neon DB Upsert)**: Validate JSON schema confidence gate and upsert vector records into Neon PostgreSQL (`knowledge_entry` table).
+- [x] **Task 7.6 (CLI Interface & TDD Suite)**: Add `--input` and `--output` flags (`argparse`) and build comprehensive TDD test suite (`apps/data/tests/test_main_pipeline.py`).
+
+
