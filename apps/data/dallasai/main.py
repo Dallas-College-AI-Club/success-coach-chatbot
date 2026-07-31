@@ -441,8 +441,8 @@ def parse_args() -> argparse.Namespace:
         "-o", "--output",
         type=Path,
         required=False,
-        default=Path(__file__).resolve().parent.parent / "cleaned_data" / "chunk_ready",
-        help="Path to the directory where chunk-ready JSON outputs will be written."
+        default=Path(__file__).resolve().parent.parent.parent.parent / ".tmp" / "chunk_ready",
+        help="Path to temporary directory where chunk JSON payloads are staged (default: .tmp/chunk_ready)."
     )
 
     return parser.parse_args()
