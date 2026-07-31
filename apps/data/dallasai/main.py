@@ -7,7 +7,8 @@ Project: Success Coach Chatbot (Issue #91)
 
 Description:
     This file acts strictly as an ORCHESTRATOR for local data ingestion into Neon.
-    Instead of rewriting logic, it connects existing deep modules across 4 functions:
+    It processes ANY academic document directory (syllabi, course catalogs, program maps,
+    CVs, events, contacts) across 4 high-speed pipeline stages:
     
     - Function 1: Semantic Markdown Chunking (chunk_markdown)
                   Reuses dallasai.semantic_chunker.SemanticChunker.
@@ -24,19 +25,27 @@ Description:
                   Reuses dallasai.pipeline.extract.validate for schema checking and
                   dallasai.models.KnowledgeEntry for Neon PostgreSQL database upserts.
 
-Team Usage Examples (Run from repository root):
-    1. Run on any custom input directory:
-       python3 apps/data/dallasai/main.py -i /path/to/your/syllabi_folder -o /path/to/your/output_folder
+Multi-Core Acceleration & Performance:
+    - Supports multi-process parallel CPU execution via `--workers`.
+    - Includes live visual progress bars with elapsed time, document processing speed,
+      and Estimated Time of Arrival (ETA).
 
-    2. Run with relative paths inside workspace:
-       python3 apps/data/dallasai/main.py -i apps/data/cleaned/2026SP -o apps/data/cleaned_data/chunk_ready
+Team Usage Examples (Run from repository root):
+    1. Run on any custom academic folder (syllabi, courses, catalogs):
+       python3 apps/data/dallasai/main.py -i /path/to/documents -o .tmp/chunk_ready
+
+    2. Run with multi-core parallel acceleration (e.g. 4 workers):
+       python3 apps/data/dallasai/main.py -i apps/data/cleaned/2026SP -w 4
 ===============================================================================
 """
 
 import argparse
 import hashlib
 import json
+import os
 import sys
+import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -53,12 +62,47 @@ from dallasai.pipeline.html_cleaner import HTMLCleaner
 from dallasai.semantic_chunker import SemanticChunker
 
 
-def _render_ascii_bar(current: int, total: int, prefix: str = "Processing") -> None:
-    """Renders a zero-dependency ASCII progress bar in standard output."""
+def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str = "Processing") -> None:
+    """
+    Renders a zero-dependency ASCII progress bar with live speed (doc/s),
+    elapsed time, and Estimated Time of Arrival (ETA).
+    """
     pct = int((current / total) * 100) if total > 0 else 100
     bar = "█" * (pct // 5) + "░" * (20 - (pct // 5))
-    sys.stdout.write(f"\r[{bar}] {pct}% ({current}/{total}) {prefix:<30}")
+    
+    elapsed = max(time.time() - start_time, 0.001)
+    speed = current / elapsed
+    remaining_items = total - current
+    eta_seconds = int(remaining_items / speed) if speed > 0 else 0
+    
+    elapsed_str = f"{int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
+    eta_str = f"{int(eta_seconds // 60):02d}:{int(eta_seconds % 60):02d}"
+    
+    sys.stdout.write(
+        f"\r[{bar}] {pct}% ({current}/{total}) [{elapsed_str}<{eta_str}, {speed:.1f}doc/s] {prefix:<22}"
+    )
     sys.stdout.flush()
+
+
+def _process_single_file_stage1(file_path: Path) -> Optional[Dict[str, Any]]:
+    """Helper top-level function for parallel multi-core document chunking."""
+    try:
+        raw_html = file_path.read_text(encoding="utf-8", errors="ignore")
+        converter = MarkdownConverter()
+        clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=str(file_path))
+        soup = BeautifulSoup(clean_html, "html.parser")
+        metadata = converter.extract_metadata_from_html(soup, clean_md, str(file_path))
+        if not metadata.get("doc_type"):
+            metadata["doc_type"] = "syllabus"
+        chunks = chunk_markdown(clean_md)
+        return {
+            "file_path": file_path,
+            "clean_md": clean_md,
+            "metadata": metadata,
+            "chunks": chunks
+        }
+    except Exception:
+        return None
 
 
 def chunk_markdown(clean_md: str, chunk_size: int = 800, chunk_overlap: int = 100) -> List[str]:
@@ -66,10 +110,8 @@ def chunk_markdown(clean_md: str, chunk_size: int = 800, chunk_overlap: int = 10
     FUNCTION 1: Semantic Markdown Chunking
     --------------------------------------
     Educational Context:
-    - What it does: Takes full-length Clean Markdown text and breaks it into smaller,
-      semantically meaningful section chunks (e.g. grading policy, exam schedule).
-    - Why we chunk: LLMs and vector search work best on focused context snippets rather
-      than giant 20-page documents.
+    - What it does: Takes full-length Clean Markdown text (syllabi, courses, catalogs)
+      and breaks it into smaller, semantically meaningful section chunks.
     - How it works: Reuses the SemanticChunker module (dallasai/semantic_chunker.py).
     """
     if not clean_md.strip():
@@ -81,7 +123,7 @@ def chunk_markdown(clean_md: str, chunk_size: int = 800, chunk_overlap: int = 10
     # 2. Perform chunking over clean markdown text
     raw_chunks = chunker.chunk_markdown(clean_md)
     
-    # 3. Extract and return just the content strings
+    # 3. Extract and return content strings
     return [chunk["content"] for chunk in raw_chunks] if raw_chunks else [clean_md]
 
 
@@ -96,17 +138,13 @@ def extract_to_json_payload(
     FUNCTION 2: JSON Extraction Payload Assembly
     ---------------------------------------------
     Educational Context:
-    - What it does: Combines document chunks, metadata (course code, term), and syllabus
-      facts into a standardized JSON record for every chunk.
-    - How it works: Reuses dallasai.pipeline.extract (extract / extract_manual) to extract
-      structured facts if they aren't pre-supplied.
-    - SHA-256 Hash: We compute a SHA-256 content_hash for every chunk to prevent duplicate
-      database insertions.
+    - What it does: Combines document chunks, metadata (course code, term, department),
+      and extracted facts into a standardized JSON record for every chunk.
+    - How it works: Reuses dallasai.pipeline.extract (extract / extract_manual).
+    - SHA-256 Hash: Computes SHA-256 content_hash for every chunk to prevent duplicates.
     """
-    # 1. Dynamically import extractor module to avoid circular dependencies
     from dallasai.pipeline.extract import extract, extract_manual
 
-    # 2. If facts dictionary is not passed, invoke pipeline.extract on document text
     if facts is None:
         doc_type = metadata.get("doc_type", "syllabus")
         if document_text and doc_type in ["syllabus", "course", "program_map", "cv"]:
@@ -116,7 +154,6 @@ def extract_to_json_payload(
             except Exception:
                 facts = {}
 
-    # 3. Fallback facts structure if extraction is missing
     if not facts:
         facts = {
             "confidence": "high",
@@ -125,10 +162,7 @@ def extract_to_json_payload(
         }
 
     json_records = []
-    
-    # 4. Loop over chunks and construct Issue #61 compliant JSON payloads
     for idx, chunk_text in enumerate(chunks):
-        # Unique SHA-256 fingerprint for this specific chunk text
         content_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()
         
         record = {
@@ -138,7 +172,7 @@ def extract_to_json_payload(
             "chunk_text": chunk_text,
             "metadata": metadata,
             "facts": facts,
-            "embedding": []  # Empty placeholder slot reserved for Function 3
+            "embedding": []
         }
         json_records.append(record)
         
@@ -154,27 +188,17 @@ def generate_embeddings(
     FUNCTION 3: Pluggable Vector Embedding Generator
     -------------------------------------------------
     Educational Context:
-    - What it does: Passes the chunk_text of each record into an embedding model and
-      populates the 'embedding' key as a dictionary.
-    - Embedding Dictionary Format:
-      {
-        "model": "local-768",
-        "dimension": 768,
-        "values": [0.012, -0.045, ...]
-      }
-    - Pluggable Architecture: Accepts any embedder_func so we can switch between local
-      models (SentenceTransformers / ChromaDB ONNX) and API models easily.
+    - What it does: Passes chunk_text into an embedding model and populates the 'embedding' key.
+    - Embedding Format: {"model": "local-768", "dimension": 768, "values": [...]}
     """
     for record in records:
         chunk_text = record.get("chunk_text", "")
         
-        # 1. Use pluggable embedder function if provided, else fallback to 768-dim float list
         if callable(embedder_func):
             vector_values = embedder_func(chunk_text)
         else:
-            vector_values = [0.0] * 768  # 768-dimensional fallback float vector
+            vector_values = [0.0] * 768
             
-        # 2. Store embedding as a structured dictionary inside the JSON record
         record["embedding"] = {
             "model": model_name,
             "dimension": len(vector_values),
@@ -193,24 +217,19 @@ def validate_and_upsert_payload(
     FUNCTION 4: Schema Validation Gate & Neon Database Upsert
     ---------------------------------------------------------
     Educational Context:
-    - What it does: 
-      1. Validates records against JSON schema rules (reusing dallasai.pipeline.extract.validate).
-      2. If valid, upserts into Neon PostgreSQL knowledge_entry table (reusing dallasai.models.KnowledgeEntry).
-    - Quarantine System: Low-confidence or schema-failing records are quarantined to prevent
-      corrupt data from reaching production search.
+    - What it does: Validates records against JSON schema rules and upserts into Neon PostgreSQL
+      knowledge_entry table using SQLAlchemy ORM.
     """
     from dallasai.pipeline.extract import validate
 
     validated_records = []
     quarantined_records = []
 
-    # 1. Validation Step (Schema check via existing validate function in pipeline.extract)
     for record in records:
         facts = record.get("facts", {})
         metadata = record.get("metadata", {})
         doc_type = metadata.get("doc_type", "syllabus")
         
-        # Validate facts against official JSON schema if facts exist
         schema_errors = None
         if facts and doc_type in ["syllabus", "course", "program_map", "cv"]:
             try:
@@ -228,13 +247,11 @@ def validate_and_upsert_payload(
                 "reason": f"Validation failure (errors: {schema_errors})" if schema_errors else "Failed confidence or missing metadata"
             })
 
-    # 2. Database Upsert Step (Neon PostgreSQL knowledge_entry table using SQLAlchemy model)
     upserted_count = 0
     if db_session and validated_records:
         from dallasai.models import KnowledgeEntry
         
         for rec in validated_records:
-            # Extract flat vector float list from dictionary or list structure
             raw_emb = rec.get("embedding")
             if isinstance(raw_emb, dict):
                 vector_list = raw_emb.get("values", [0.0] * 768)
@@ -243,7 +260,6 @@ def validate_and_upsert_payload(
             else:
                 vector_list = [0.0] * 768
 
-            # Instantiate KnowledgeEntry SQLAlchemy model
             entry = KnowledgeEntry(
                 source_url=rec["source_url"],
                 chunk_index=rec["chunk_index"],
@@ -253,11 +269,9 @@ def validate_and_upsert_payload(
                 metadata_=rec["metadata"],
                 embedding=vector_list
             )
-            # Perform upsert (merge) into PostgreSQL database session
             db_session.merge(entry)
             upserted_count += 1
         
-        # Commit database transaction
         db_session.commit()
 
     return {
@@ -272,60 +286,40 @@ def process_document(file_path: Path) -> List[Dict[str, Any]]:
     """
     DOCUMENT PIPELINE ORCHESTRATOR
     ------------------------------
-    Orchestrates the complete single-document flow:
-      1. DOM Clean & Markdown Conversion (MarkdownConverter & HTMLCleaner)
-      2. Function 1: Semantic Chunking (chunk_markdown)
-      3. Function 2: JSON Schema Payload Extraction (extract_to_json_payload)
-      4. Function 3: Pluggable Vector Embedding (generate_embeddings)
-      5. Function 4: Schema Validation Gate (validate_and_upsert_payload)
+    Orchestrates single document flow (syllabi, courses, catalogs, CVs, events).
     """
     if not file_path.exists():
         raise FileNotFoundError(f"File not found: {file_path}")
 
     raw_html = file_path.read_text(encoding="utf-8", errors="ignore")
     
-    # 1. Clean HTML DOM & convert to Clean Markdown
     converter = MarkdownConverter()
-    clean_md, clean_html = converter.clean_html_and_markdown(
-        raw_html, source_url=str(file_path)
-    )
+    clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=str(file_path))
     
-    # 2. Extract metadata facts (course code, instructor, term)
     soup = BeautifulSoup(clean_html, "html.parser")
     metadata = converter.extract_metadata_from_html(soup, clean_md, str(file_path))
     if not metadata.get("doc_type"):
         metadata["doc_type"] = "syllabus"
     
-    # 3. Function 1: Semantic Markdown Chunking
     chunks = chunk_markdown(clean_md)
-    
-    # 4. Function 2: Extract to JSON payload (reusing pipeline.extract)
     facts = {
         "confidence": "high",
         "instructor": metadata.get("instructor"),
         "course_id": metadata.get("course_id")
     }
     records = extract_to_json_payload(file_path.name, chunks, metadata, facts, document_text=clean_md)
-    
-    # 5. Function 3: Generate Pluggable 768-dim Vector Embeddings
     records = generate_embeddings(records)
-
-    # 6. Function 4: Validate JSON Payload
     _ = validate_and_upsert_payload(records)
 
     return records
 
 
-def process_directory(input_dir: Path, output_dir: Path) -> List[Path]:
+def process_directory(input_dir: Path, output_dir: Path, workers: int = 1) -> List[Path]:
     """
-    DIRECTORY PIPELINE ORCHESTRATOR WITH 4-STAGE FUNCTION PROGRESS BARS
-    --------------------------------------------------------------------
-    Processes all HTML files in input_dir with separate visual progress bars
-    for each of the 4 function pipeline sections:
-      - Stage 1: Function 1 (Semantic Chunking)
-      - Stage 2: Function 2 (JSON Fact Extraction)
-      - Stage 3: Function 3 (Vector Embedding Generation)
-      - Stage 4: Function 4 (Schema Validation & Persistence)
+    DIRECTORY PIPELINE ORCHESTRATOR WITH ETA PROGRESS BARS & MULTI-CORE WORKERS
+    --------------------------------------------------------------------------
+    Processes all HTML documents in input_dir with separate visual progress bars
+    displaying live ETA (Time Remaining) and speed (doc/s) for each stage.
     """
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
@@ -335,7 +329,7 @@ def process_directory(input_dir: Path, output_dir: Path) -> List[Path]:
     total_files = len(input_files)
     
     print(f"\n=========================================================================")
-    print(f"🚀 Starting Local Pipeline Ingestion: Processing {total_files} HTML files")
+    print(f"🚀 Starting Academic Pipeline Ingestion: {total_files} HTML documents ({workers} workers)")
     print(f"=========================================================================\n")
 
     try:
@@ -347,33 +341,33 @@ def process_directory(input_dir: Path, output_dir: Path) -> List[Path]:
     # STAGE 1: Function 1 - Semantic Chunking
     print("Stage 1/4 ✂️  Function 1: Semantic Markdown Chunking")
     file_docs = []
-    chunk_iterator = tqdm(input_files, desc="Function 1 (Chunking)", unit="file") if has_tqdm else input_files
-    for idx, file_path in enumerate(chunk_iterator, start=1):
-        try:
-            raw_html = file_path.read_text(encoding="utf-8", errors="ignore")
-            converter = MarkdownConverter()
-            clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=str(file_path))
-            soup = BeautifulSoup(clean_html, "html.parser")
-            metadata = converter.extract_metadata_from_html(soup, clean_md, str(file_path))
-            if not metadata.get("doc_type"):
-                metadata["doc_type"] = "syllabus"
-            chunks = chunk_markdown(clean_md)
-            file_docs.append({
-                "file_path": file_path,
-                "clean_md": clean_md,
-                "metadata": metadata,
-                "chunks": chunks
-            })
-        except Exception as err:
-            print(f"\nWarning: Chunking failed for {file_path.name}: {err}")
-        if not has_tqdm:
-            _render_ascii_bar(idx, total_files, f"Chunking: {file_path.name[:25]}")
+    stage1_start = time.time()
+
+    if workers > 1:
+        with ProcessPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_process_single_file_stage1, fp): fp for fp in input_files}
+            for idx, future in enumerate(as_completed(futures), start=1):
+                res = future.result()
+                if res:
+                    file_docs.append(res)
+                if not has_tqdm:
+                    _render_ascii_bar(idx, total_files, stage1_start, "Chunking")
+    else:
+        chunk_iterator = tqdm(input_files, desc="Function 1 (Chunking)", unit="doc") if has_tqdm else input_files
+        for idx, file_path in enumerate(chunk_iterator, start=1):
+            res = _process_single_file_stage1(file_path)
+            if res:
+                file_docs.append(res)
+            if not has_tqdm:
+                _render_ascii_bar(idx, total_files, stage1_start, "Chunking")
+
     if not has_tqdm and total_files > 0:
         print()
 
     # STAGE 2: Function 2 - JSON Extraction Payload
     print("\nStage 2/4 📄 Function 2: JSON Payload Extraction")
     extracted_doc_records = []
+    stage2_start = time.time()
     extract_iterator = tqdm(file_docs, desc="Function 2 (Extracting)", unit="doc") if has_tqdm else file_docs
     for idx, doc in enumerate(extract_iterator, start=1):
         facts = {
@@ -386,25 +380,27 @@ def process_directory(input_dir: Path, output_dir: Path) -> List[Path]:
         )
         extracted_doc_records.append((doc["file_path"], records))
         if not has_tqdm:
-            _render_ascii_bar(idx, len(file_docs), f"Extracting: {doc['file_path'].name[:25]}")
+            _render_ascii_bar(idx, len(file_docs), stage2_start, "Extracting")
     if not has_tqdm and file_docs:
         print()
 
     # STAGE 3: Function 3 - Pluggable 768-dim Vector Embeddings
     print("\nStage 3/4 🧠 Function 3: Generating 768-dim Vector Embeddings")
     embedded_doc_records = []
+    stage3_start = time.time()
     embed_iterator = tqdm(extracted_doc_records, desc="Function 3 (Embedding)", unit="doc") if has_tqdm else extracted_doc_records
     for idx, (file_path, records) in enumerate(embed_iterator, start=1):
         records = generate_embeddings(records)
         embedded_doc_records.append((file_path, records))
         if not has_tqdm:
-            _render_ascii_bar(idx, len(extracted_doc_records), f"Embedding: {file_path.name[:25]}")
+            _render_ascii_bar(idx, len(extracted_doc_records), stage3_start, "Embedding")
     if not has_tqdm and extracted_doc_records:
         print()
 
-    # STAGE 4: Function 4 - Schema Validation Gate & Writing JSON Output
-    print("\nStage 4/4 ✅ Function 4: Schema Validation Gate & Output Persistence")
+    # STAGE 4: Function 4 - Schema Validation Gate & Staging Output
+    print("\nStage 4/4 ✅ Function 4: Schema Validation Gate & Persistence")
     generated_json_files = []
+    stage4_start = time.time()
     valid_iterator = tqdm(embedded_doc_records, desc="Function 4 (Validating)", unit="doc") if has_tqdm else embedded_doc_records
     for idx, (file_path, records) in enumerate(valid_iterator, start=1):
         _ = validate_and_upsert_payload(records)
@@ -412,13 +408,13 @@ def process_directory(input_dir: Path, output_dir: Path) -> List[Path]:
         output_file.write_text(json.dumps(records, indent=2), encoding="utf-8")
         generated_json_files.append(output_file)
         if not has_tqdm:
-            _render_ascii_bar(idx, len(embedded_doc_records), f"Validating: {file_path.name[:25]}")
+            _render_ascii_bar(idx, len(embedded_doc_records), stage4_start, "Validating")
     if not has_tqdm and embedded_doc_records:
         print()
 
     print(f"\n=========================================================================")
     print(f"✅ Ingestion Complete across all 4 functions!")
-    print(f"Created {len(generated_json_files)} chunk-ready JSON files in: '{output_dir}'.")
+    print(f"Created {len(generated_json_files)} chunk-ready JSON files in staging: '{output_dir}'.")
     print(f"=========================================================================\n")
     return generated_json_files
 
@@ -445,13 +441,21 @@ def parse_args() -> argparse.Namespace:
         help="Path to temporary directory where chunk JSON payloads are staged (default: .tmp/chunk_ready)."
     )
 
+    parser.add_argument(
+        "-w", "--workers",
+        type=int,
+        required=False,
+        default=min(os.cpu_count() or 1, 4),
+        help="Number of multi-core CPU worker processes for parallel processing (default: max CPU cores up to 4)."
+    )
+
     return parser.parse_args()
 
 
 def main() -> None:
     """Main CLI entrypoint."""
     args = parse_args()
-    process_directory(args.input, args.output)
+    process_directory(args.input, args.output, workers=args.workers)
 
 
 if __name__ == "__main__":
