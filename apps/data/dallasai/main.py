@@ -184,8 +184,8 @@ def validate_and_upsert_payload(
     }
 
 
-def _process_single_file_pipeline(file_path: Path) -> Optional[Dict[str, Any]]:
-    """Helper worker reading converted Markdown (.md) or cleaning HTML (.html)."""
+def _read_and_clean_single_file(file_path: Path) -> Optional[Dict[str, Any]]:
+    """Function 1: Preprocesses document into clean Markdown and metadata."""
     try:
         raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
         if file_path.suffix.lower() in [".md", ".markdown"]:
@@ -194,12 +194,10 @@ def _process_single_file_pipeline(file_path: Path) -> Optional[Dict[str, Any]]:
         else:
             clean_md, metadata = preprocess_document(raw_text, source_url=str(file_path))
             
-        chunks = chunk_markdown(clean_md)
         return {
             "file_path": file_path,
             "clean_md": clean_md,
-            "metadata": metadata,
-            "chunks": chunks
+            "metadata": metadata
         }
     except Exception:
         return None
@@ -207,26 +205,32 @@ def _process_single_file_pipeline(file_path: Path) -> Optional[Dict[str, Any]]:
 
 def process_document(file_path: Path) -> List[Dict[str, Any]]:
     """Single document pipeline execution across 5 functions."""
-    res = _process_single_file_pipeline(file_path)
+    res = _read_and_clean_single_file(file_path)
     if not res:
         return []
-    records = extract_to_json_payload(res["file_path"].name, res["chunks"], res["metadata"], document_text=res["clean_md"])
+    chunks = chunk_markdown(res["clean_md"])
+    records = extract_to_json_payload(res["file_path"].name, chunks, res["metadata"], document_text=res["clean_md"])
     records = generate_embeddings(records)
     _ = validate_and_upsert_payload(records)
     return records
 
 
 def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start_stage: int = 2) -> List[Path]:
-    """DIRECTORY PIPELINE ORCHESTRATOR (5 STAGES)"""
+    """DIRECTORY PIPELINE ORCHESTRATOR (5 STAGES WITH INDIVIDUAL PROGRESS BARS)"""
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    input_files = list(input_dir.glob("*.md")) or list(input_dir.glob("*.html"))
+    
+    # Gather Markdown (.md) or HTML (.html) files
+    input_files = list(input_dir.glob("*.md")) + list(input_dir.glob("*.markdown"))
+    if not input_files:
+        input_files = list(input_dir.glob("*.html"))
+        
     total_files = len(input_files)
     
     print(f"\n=========================================================================")
-    print(f"🚀 Starting 5-Function Pipeline Ingestion: {total_files} files ({workers} workers)")
+    print(f"🚀 Starting 5-Function Ingestion Engine: {total_files} files (Stage {start_stage} ➔ 5)")
     print(f"=========================================================================\n")
 
     try:
@@ -235,35 +239,58 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     except ImportError:
         has_tqdm = False
 
-    # Stage 1 & 2: Preprocessing & Semantic Chunking
-    print("Stage 1 & 2 ✂️  Function 1 & 2: Preprocessing & Markdown Chunking")
-    file_docs = []
-    start_t = time.time()
-
-    if workers > 1:
-        with ProcessPoolExecutor(max_workers=workers) as executor:
-            futures = {executor.submit(_process_single_file_pipeline, fp): fp for fp in input_files}
-            for idx, future in enumerate(as_completed(futures), start=1):
-                res = future.result()
-                if res:
-                    file_docs.append(res)
-                if not has_tqdm:
-                    _render_ascii_bar(idx, total_files, start_t, "Chunking")
-    else:
-        file_iterator = tqdm(input_files, desc="Function 2 (Chunking)", unit="doc") if has_tqdm else input_files
+    # STAGE 1: Function 1 - Preprocessing (HTML -> Markdown)
+    clean_docs = []
+    if start_stage <= 1:
+        print("Stage 1/5 🧹 Function 1: Preprocessing & HTML Cleaning")
+        stage1_start = time.time()
+        file_iterator = tqdm(input_files, desc="Function 1 (Preprocessing)", unit="doc") if has_tqdm else input_files
         for idx, file_path in enumerate(file_iterator, start=1):
-            res = _process_single_file_pipeline(file_path)
+            res = _read_and_clean_single_file(file_path)
             if res:
-                file_docs.append(res)
+                clean_docs.append(res)
             if not has_tqdm:
-                _render_ascii_bar(idx, total_files, start_t, "Chunking")
-    if not has_tqdm and total_files > 0:
+                _render_ascii_bar(idx, total_files, stage1_start, "Preprocessing")
+        if not has_tqdm and total_files > 0:
+            print()
+    else:
+        # Skip Function 1 (Files are already Markdown)
+        print("Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown!")
+        stage1_start = time.time()
+        file_iterator = tqdm(input_files, desc="Function 1 (Reading Markdown)", unit="doc") if has_tqdm else input_files
+        for idx, file_path in enumerate(file_iterator, start=1):
+            try:
+                raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+                clean_docs.append({
+                    "file_path": file_path,
+                    "clean_md": raw_text,
+                    "metadata": {"source_url": f"file://{file_path.name}", "doc_type": "syllabus"}
+                })
+            except Exception:
+                pass
+            if not has_tqdm:
+                _render_ascii_bar(idx, total_files, stage1_start, "Reading Markdown")
+        if not has_tqdm and total_files > 0:
+            print()
+
+    # STAGE 2: Function 2 - Semantic Markdown Chunking
+    print("\nStage 2/5 ✂️  Function 2: Semantic Markdown Chunking")
+    file_docs = []
+    stage2_start = time.time()
+    chunk_iterator = tqdm(clean_docs, desc="Function 2 (Chunking)", unit="doc") if has_tqdm else clean_docs
+    for idx, doc in enumerate(chunk_iterator, start=1):
+        chunks = chunk_markdown(doc["clean_md"])
+        doc["chunks"] = chunks
+        file_docs.append(doc)
+        if not has_tqdm:
+            _render_ascii_bar(idx, len(clean_docs), stage2_start, "Chunking")
+    if not has_tqdm and clean_docs:
         print()
 
-    # Stage 3: Function 3 - JSON Payload Assembly
+    # STAGE 3: Function 3 - JSON Payload Extraction
     print("\nStage 3/5 📄 Function 3: JSON Payload Extraction")
     extracted_doc_records = []
-    start_t3 = time.time()
+    stage3_start = time.time()
     extract_iterator = tqdm(file_docs, desc="Function 3 (Payloads)", unit="doc") if has_tqdm else file_docs
     for idx, doc in enumerate(extract_iterator, start=1):
         records = extract_to_json_payload(
@@ -271,27 +298,27 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         )
         extracted_doc_records.append((doc["file_path"], records))
         if not has_tqdm:
-            _render_ascii_bar(idx, len(file_docs), start_t3, "Payloads")
+            _render_ascii_bar(idx, len(file_docs), stage3_start, "Payloads")
     if not has_tqdm and file_docs:
         print()
 
-    # Stage 4: Function 4 - Vector Embeddings
+    # STAGE 4: Function 4 - Vector Embeddings
     print("\nStage 4/5 🧠 Function 4: Pluggable 768-dim Vector Embeddings")
     embedded_doc_records = []
-    start_t4 = time.time()
+    stage4_start = time.time()
     embed_iterator = tqdm(extracted_doc_records, desc="Function 4 (Embedding)", unit="doc") if has_tqdm else extracted_doc_records
     for idx, (file_path, records) in enumerate(embed_iterator, start=1):
         records = generate_embeddings(records)
         embedded_doc_records.append((file_path, records))
         if not has_tqdm:
-            _render_ascii_bar(idx, len(extracted_doc_records), start_t4, "Embedding")
+            _render_ascii_bar(idx, len(extracted_doc_records), stage4_start, "Embedding")
     if not has_tqdm and extracted_doc_records:
         print()
 
-    # Stage 5: Function 5 - Validation Gate & Output Persistence
+    # STAGE 5: Function 5 - Validation Gate & Output Persistence
     print("\nStage 5/5 ✅ Function 5: Schema Validation Gate & Staging Output")
     generated_json_files = []
-    start_t5 = time.time()
+    stage5_start = time.time()
     valid_iterator = tqdm(embedded_doc_records, desc="Function 5 (Validating)", unit="doc") if has_tqdm else embedded_doc_records
     for idx, (file_path, records) in enumerate(valid_iterator, start=1):
         _ = validate_and_upsert_payload(records)
@@ -299,7 +326,7 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         output_file.write_text(json.dumps(records, indent=2), encoding="utf-8")
         generated_json_files.append(output_file)
         if not has_tqdm:
-            _render_ascii_bar(idx, len(embedded_doc_records), start_t5, "Validating")
+            _render_ascii_bar(idx, len(embedded_doc_records), stage5_start, "Validating")
     if not has_tqdm and embedded_doc_records:
         print()
 
@@ -324,8 +351,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "-w", "--workers", type=int, required=False,
-        default=min(os.cpu_count() or 1, 4),
-        help="Number of multi-core CPU workers."
+        default=1,
+        help="Number of CPU worker processes (default: 1 for safe Chromebook FUSE performance)."
     )
     parser.add_argument(
         "-s", "--stage", type=int, choices=[1, 2, 3, 4, 5], default=2,
