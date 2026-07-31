@@ -8,8 +8,6 @@ nothing here is model output.
 
   python -m dallasai.pipeline.expertise_index --facts out/facts-cv --raw-root <raw> \
       --out out/FACULTY_EXPERTISE_INDEX
-  python -m dallasai.pipeline.expertise_index --drafts prompts/examples/cv2 \
-      --raw-root <raw> --out out/FACULTY_EXPERTISE_INDEX   # exemplar demo
 
 Emits <out>.json (machine) and <out>.md (leadership-readable).
 """

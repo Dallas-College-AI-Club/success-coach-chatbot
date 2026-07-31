@@ -364,7 +364,7 @@ def build_prompt(
         # literal token to the model.
         raise NotImplementedError(
             f"{tpl_path.name}: literal {{{{EXAMPLES}}}} survived the splice — "
-            "an exemplar file under prompts/examples/ contains the placeholder "
+            "an exemplar file under reference/prompts/examples/ contains the placeholder "
             "token; remove it before activating this prompt version"
         )
     return prompt
@@ -624,7 +624,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     ap.add_argument(
         "--quarantine-dir",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "out" / "quarantine",
+        default=Path(__file__).resolve().parents[2] / "out" / "quarantine",
         help="where non-ok results are persisted for review "
         "(default apps/data/out/quarantine)",
     )

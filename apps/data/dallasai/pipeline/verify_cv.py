@@ -20,9 +20,9 @@ Checks, per CV:
 Personal-attribute inference (nationality, age, gender) is NOT mechanically
 checkable — that stays with the adversarial adjudication pass.
 
-  python -m dallasai.pipeline.verify_cv --facts out/facts-cv --as-of 2026 [--raw-root R]
-  python -m dallasai.pipeline.verify_cv --draft prompts/examples/cv2/DRAFT-02-x.md \
-      --source out/kelly-gebhart-cv.txt --as-of 2026 [--raw-root R]
+  python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw-root R
+    python -m dallasai.pipeline.verify_cv --draft <exemplar.md> \
+        --source <source.txt> --as-of 2026   # draft mode: --raw-root optional
 """
 
 from __future__ import annotations
@@ -487,6 +487,10 @@ def main(argv=None) -> None:
         help="corpus root: source docs + manifests (enables teaching_record check)",
     )
     args = ap.parse_args(argv)
+    if args.facts and not args.raw_root:
+        ap.error(
+            "--raw-root is required with --facts (source documents are loaded from it)"
+        )
 
     records = teaching_records(args.raw_root) if args.raw_root else None
     total_flags = files_flagged = checked = 0

@@ -185,13 +185,15 @@ def main(argv=None) -> None:
             accepted = (
                 json.loads(
                     (
-                        Path(__file__).resolve().parent.parent
+                        Path(__file__).resolve().parents[2]
+                        / "pipeline_runs"
                         / "gate"
                         / "adjudicated_source_anomalies.json"
                     ).read_text(encoding="utf-8")
                 )
                 if (
-                    Path(__file__).resolve().parent.parent
+                    Path(__file__).resolve().parents[2]
+                    / "pipeline_runs"
                     / "gate"
                     / "adjudicated_source_anomalies.json"
                 ).exists()

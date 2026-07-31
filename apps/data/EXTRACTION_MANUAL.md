@@ -77,10 +77,13 @@ where it stopped.
 
 **Install** (from `apps/data/`; Python ≥ 3.13):
 
-```bash
+```powershell
 pip install requests beautifulsoup4 lxml pypdf playwright anthropic jsonschema pytest
 playwright install chromium
 ```
+
+(All commands below run from `apps/data/` so `python -m dallasai.pipeline.*`
+resolves; `pip install -e .` from `apps/data/` makes it work from anywhere.)
 
 (`pyproject.toml` carries the same list for `uv` users — `anthropic` and
 `jsonschema` were added to it 2026-07-27; if `uv sync` predates that, add
@@ -116,7 +119,7 @@ Always QUOTE paths — they contain spaces (and the SharePoint path an emoji).
 
 **Sanity check the install:**
 
-```bash
+```powershell
 python -m pytest tests/test_extract.py tests/test_compute_cv.py -q
 ```
 
@@ -317,7 +320,7 @@ python -m dallasai.pipeline.golden_gate --raw-root %RAW_ROOT%
 Run after EVERY prompt/model/schema change that touches catalog. The
 comparison is **token-exact**: whitespace-only differences are tolerated
 (model sampling stopped being byte-stable when the API alias began thinking
-by default — adjudicated in `pipeline_runs/the whitespace adjudication record (SharePoint etl delivery audit trail)`), but
+by default — adjudicated 2026-07-26 — record in the delivery audit trail on SharePoint `etl`), but
 any changed word, case, or ordering fails. A red gate blocks catalog bulk.
 
 **When the gate is red:** (1) diff `pipeline_runs/gate/<case>/fresh.json` against
@@ -334,7 +337,7 @@ the hand-verified ground truth.
 with all the source-formatting tolerance we learned (prefix-elided code
 lists, no-space codes, superscript splits, ranged credits, non-credit pages).
 Known college-side typos are accept-listed in
-`pipeline_runs/pipeline_runs/gate/adjudicated_source_anomalies.json` — never "fixed" in data.
+`pipeline_runs/gate/adjudicated_source_anomalies.json` — never "fixed" in data.
 
 **CV verifier** — over every envelope:
 
@@ -475,9 +478,7 @@ Re-embedding a full CV re-run costs about a dollar, so re-runs simply
 re-embed. (If that ever matters at larger scale: rows whose `content_hash`
 did not change can safely keep their previous vectors.)
 
-`carry_embeddings` first copies vectors for rows whose `content_hash` didn't
-change (re-assembly after a fix re-embeds nothing it doesn't have to);
-`embed_rows` fills the rest — `openai/text-embedding-3-small`,
+`embed_rows` fills every row that lacks an `embedding` — `openai/text-embedding-3-small`,
 `dimensions=768`, provider-routing locked to OpenAI, **and it aborts unless
 every vector is exactly 768 dims at unit norm**. 768 was chosen so the column
 fits `HALFVEC(768)` with pgvector indexing headroom on Neon's free tier.

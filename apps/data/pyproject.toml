@@ -35,7 +35,7 @@ packages = ["dallasai"]
 
 [tool.ruff]
 target-version = "py313"
-src = ["asterism"]
+src = ["dallasai"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -44,8 +44,7 @@ fixable = ["ALL"]
 [tool.pyright]
 reportPrivateImportUsage = "none"
 enableTypeIgnoreComments = true
-include = ["asterism/*"]
-stubPath = "asterism/*"
+include = ["dallasai"]
 #typeCheckingMode = "basic"
 
 reportReturnType = "warning"
