@@ -87,13 +87,24 @@ def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str =
 def _process_single_file_stage1(file_path: Path) -> Optional[Dict[str, Any]]:
     """Helper top-level function for parallel multi-core document chunking."""
     try:
-        raw_html = file_path.read_text(encoding="utf-8", errors="ignore")
+        raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
         converter = MarkdownConverter()
-        clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=str(file_path))
-        soup = BeautifulSoup(clean_html, "html.parser")
-        metadata = converter.extract_metadata_from_html(soup, clean_md, str(file_path))
+        
+        # Natively process Markdown (.md) files or convert HTML (.html) files
+        if file_path.suffix.lower() in [".md", ".markdown"]:
+            clean_md = raw_text
+            metadata = {
+                "source_url": f"file://{file_path.name}",
+                "doc_type": "syllabus"
+            }
+        else:
+            clean_md, clean_html = converter.clean_html_and_markdown(raw_text, source_url=str(file_path))
+            soup = BeautifulSoup(clean_html, "html.parser")
+            metadata = converter.extract_metadata_from_html(soup, clean_md, str(file_path))
+
         if not metadata.get("doc_type"):
             metadata["doc_type"] = "syllabus"
+
         chunks = chunk_markdown(clean_md)
         return {
             "file_path": file_path,
@@ -325,11 +336,11 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1) -> Li
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    input_files = list(input_dir.glob("*.html"))
+    input_files = list(input_dir.glob("*.html")) + list(input_dir.glob("*.md")) + list(input_dir.glob("*.markdown"))
     total_files = len(input_files)
     
     print(f"\n=========================================================================")
-    print(f"🚀 Starting Academic Pipeline Ingestion: {total_files} HTML documents ({workers} workers)")
+    print(f"🚀 Starting Academic Pipeline Ingestion: {total_files} documents ({workers} workers)")
     print(f"=========================================================================\n")
 
     try:
