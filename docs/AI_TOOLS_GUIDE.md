@@ -248,14 +248,26 @@ Verify model supports tool calling.
 
 ## Tool Events Not Displayed
 
-Verify event parser handles:
+Tool events may be present in the AI SDK stream even when they are not rendered by the current frontend implementation.
+
+To verify tool execution:
+
+1. Add temporary logging to the stream parser:
+
+```ts
+console.log(parsed);
+```
+
+2. Confirm events such as:
 
 ```text
 tool-input-start
 tool-output-available
 ```
 
-Verify active tool UI state updates correctly.
+appear in the browser console.
+
+3. If visual tool status indicators are desired, extend the frontend event parser to handle tool-specific events and maintain tool-related UI state.
 
 ---
 
