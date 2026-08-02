@@ -94,13 +94,26 @@ A tool consists of:
 4. Input validation and normalization (`parseInput`)
 5. Execute method (`execute`)
 
-Example:
+Illustrative example:
 
 ```ts
 defineTool({
-  inputSchema,
-  parseInput,
-  execute,
+  name: "get_current_date",
+  description: "Returns the current date.",
+
+  inputSchema: jsonSchema({
+    type: "object",
+    properties: {},
+    additionalProperties: false,
+  }),
+
+  parseInput(input) {
+    return input;
+  },
+
+  async execute(input) {
+    // implementation
+  },
 });
 ```
 
@@ -114,7 +127,12 @@ Current tools use:
 - parseInput(...) for validation and normalization
 - JSON-schema based tool contracts
 
-The AI SDK supports both Zod schemas and JSON Schema through FlexibleSchema. The current tools in this repository use JSON Schema, but future tools may use Zod when appropriate.
+The AI SDK supports both Zod schemas and JSON Schema through FlexibleSchema.
+
+In the current codebase, tools use JSON Schema to describe the tool contract presented to the model. Runtime validation and normalization are performed by `parseInput(...)` before `execute(...)` runs.
+
+Future tools may use Zod schemas where appropriate. When Zod schemas are used, the AI SDK can perform schema validation directly from the Zod definition.
+
 
 Developers should follow the patterns used in:
 
@@ -179,23 +197,20 @@ finish
 
 Issue #38 investigated frontend tool execution visualization.
 
-Note: Visual tool execution indicators were implemented on a feature branch as part of the investigation effort and may not yet exist in the current main branch at the time this document is read.
+The following example reflects a prototype implementation explored during the investigation and may not exist in the current main branch.
 
 Example mappings:
 
 ```ts
-get_semester
-→ Looking up semester information
-
 get_current_date
 → Checking current date
 ```
 
-Displayed as:
+Example display:
 
-⚙ Looking up semester information...
-
-before the final assistant response is shown.
+```text
+⚙ Checking current date...
+```
 
 ---
 
