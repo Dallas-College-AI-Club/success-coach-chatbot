@@ -18,7 +18,7 @@ User
   ↓
 Custom fetch request
   ↓
-app/api/chat/route.ts
+apps/frontend/app/api/chat/route.ts
   ↓
 generateText / streamText
   ↓
@@ -47,10 +47,10 @@ During Issue #38 investigation it was discovered that:
 As a result:
 
 ```bash
-git grep "toolInvocations"
+git grep "toolInvocations" -- apps/frontend
 ```
 
-returns no results.
+returns no results in the current codebase.
 
 Tool visualization is implemented through custom event handling rather than AI SDK `toolInvocations`.
 
@@ -71,7 +71,6 @@ Example:
 ```ts
 export const toolsList = [
   createGetCurrentDateTool(),
-  createGetSemesterTool(),
 ];
 ```
 
@@ -91,44 +90,37 @@ A tool consists of:
 
 1. Name
 2. Description
-3. Zod input schema
-4. Execute method
+3. Input schema (`inputSchema`)
+4. Input validation and normalization (`parseInput`)
+5. Execute method (`execute`)
 
 Example:
 
 ```ts
-createTool({
-  name: "get_semester",
-  description: "...",
-  parameters: z.object({
-    ...
-  }),
-  execute(input) {
-    ...
-  }
+defineTool({
+  inputSchema,
+  parseInput,
+  execute,
 });
 ```
 
 ---
 
-# Zod Validation
+# Input Validation
 
-Each tool defines its input contract using Zod.
+Current tools use:
 
-Benefits:
+- `inputSchema` definitions
+- `parseInput(...)` for validation and normalization
+- JSON-schema based tool contracts
 
-- Runtime validation
-- Strong typing
-- AI SDK schema generation
-- Safer execution
+Developers should follow the patterns used in:
 
-Example:
-
-```ts
-z.object({
-  timeZone: z.string().optional(),
-})
+```text
+apps/frontend/lib/tools/
 ```
+
+when implementing new tools.
 
 ---
 
@@ -183,7 +175,9 @@ finish
 
 # Frontend Tool State Rendering
 
-Issue #38 added visual tool execution indicators.
+Issue #38 investigated frontend tool execution visualization.
+
+Note: Visual tool execution indicators were implemented on a feature branch as part of the investigation effort and may not yet exist in the current main branch at the time this document is read.
 
 Example mappings:
 
@@ -275,11 +269,15 @@ Confirmed:
 
 ✅ Backend tool execution works
 
-✅ Frontend receives tool events
+✅ Backend tool execution works
 
-✅ Frontend can render tool activity
+✅ Frontend stream events can be inspected
 
-✅ getSemester successfully executes
+✅ get_current_date successfully executes
+
+✅ Additional tools can be added using the existing architecture
+
+⚠ Additional tool implementations may exist on feature branches that have not yet been merged into main.
 
 ✅ Additional tools can be added using existing architecture
 
