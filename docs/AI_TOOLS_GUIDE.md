@@ -6,12 +6,13 @@ This document explains how tool calling is implemented in the Success Coach Chat
 
 ---
 
-# Architecture Overview
+## Architecture Overview
 
 Tool execution is implemented using the Vercel AI SDK.
 
 High-level flow:
 
+```text
 User
   ↓
 /dev/chat-test
@@ -20,7 +21,7 @@ Custom fetch request
   ↓
 apps/frontend/app/api/chat/route.ts
   ↓
-generateText / streamText
+streamText
   ↓
 toolRegistry
   ↓
@@ -31,12 +32,13 @@ AI SDK Stream Events
 Frontend Event Parser
   ↓
 UI Rendering
+```
 
 ---
 
-# Important Architectural Discovery
+## Important Architectural Discovery
 
-## /dev/chat-test Does Not Use useChat()
+### /dev/chat-test Does Not Use useChat()
 
 During Issue #38 investigation it was discovered that:
 
@@ -52,13 +54,13 @@ git grep "toolInvocations" -- apps/frontend
 
 returns no results in the current codebase.
 
-During the Issue #38 investigation, tool visualization was explored using custom event handling rather than AI SDK toolInvocations.
+During the Issue #38 investigation, tool visualization was explored using custom event handling rather than AI SDK `toolInvocations`.
 
 ---
 
-# Tool Registration
+## Tool Registration
 
-## Tool Registry
+### Tool Registry
 
 File:
 
@@ -84,7 +86,7 @@ which is supplied to the AI SDK.
 
 ---
 
-# Creating a Tool
+## Creating a Tool
 
 A tool consists of:
 
@@ -119,20 +121,19 @@ defineTool({
 
 ---
 
-# Input Validation
+## Input Validation
 
 Current tools use:
 
-- inputSchema definitions
-- parseInput(...) for validation and normalization
-- JSON-schema based tool contracts
+- `inputSchema` definitions
+- `parseInput(...)` for validation and normalization
+- JSON-schema-based tool contracts
 
-The AI SDK supports both Zod schemas and JSON Schema through FlexibleSchema.
+The AI SDK supports both Zod schemas and JSON Schema through `FlexibleSchema`.
 
 In the current codebase, tools use JSON Schema to describe the tool contract presented to the model. Runtime validation and normalization are performed by `parseInput(...)` before `execute(...)` runs.
 
 Future tools may use Zod schemas where appropriate. When Zod schemas are used, the AI SDK can perform schema validation directly from the Zod definition.
-
 
 Developers should follow the patterns used in:
 
@@ -144,7 +145,7 @@ when implementing new tools.
 
 ---
 
-# API Route Integration
+## API Route Integration
 
 File:
 
@@ -174,7 +175,7 @@ Streams tool events to the frontend.
 
 ---
 
-# Stream Event Lifecycle
+## Stream Event Lifecycle
 
 Observed events:
 
@@ -193,7 +194,7 @@ finish
 
 ---
 
-# Frontend Tool State Rendering
+## Frontend Tool State Rendering
 
 Issue #38 investigated frontend tool execution visualization.
 
@@ -214,9 +215,9 @@ Example display:
 
 ---
 
-# Testing New Tools
+## Testing New Tools
 
-## Backend Validation
+### Backend Validation
 
 1. Register tool in tool registry.
 2. Start application.
@@ -224,12 +225,12 @@ Example display:
 4. Confirm tool executes.
 5. Confirm output is returned.
 
-## Frontend Validation
+### Frontend Validation
 
 Add:
 
 ```ts
-console.log(parsed)
+console.log(parsed);
 ```
 
 Verify:
@@ -239,13 +240,13 @@ tool-input-start
 tool-output-available
 ```
 
-appear in browser console.
+appear in the browser console.
 
 ---
 
-# Troubleshooting
+## Troubleshooting
 
-## Tool Never Executes
+### Tool Never Executes
 
 Verify:
 
@@ -253,7 +254,7 @@ Verify:
 tools: toolRegistry
 ```
 
-exists in route handler.
+exists in the route handler.
 
 Verify tool is registered.
 
@@ -261,7 +262,7 @@ Verify model supports tool calling.
 
 ---
 
-## Tool Events Not Displayed
+### Tool Events Not Displayed
 
 Tool events may be present in the AI SDK stream even when they are not rendered by the current frontend implementation.
 
@@ -286,19 +287,19 @@ appear in the browser console.
 
 ---
 
-# Model Validation Matrix
+## Model Validation Matrix
 
 Model compatibility testing remains an open deliverable under Issue #38.
 
 See GitHub Issue #38:
 
-Investigate & Prototype Vercel AI SDK Tools (Function Calling)
+**Investigate & Prototype Vercel AI SDK Tools (Function Calling)**
 
 for the latest model compatibility findings and validation results.
 
 ---
 
-# Issue #38 Findings
+## Issue #38 Findings
 
 Confirmed:
 
@@ -306,7 +307,7 @@ Confirmed:
 
 ✅ Frontend stream events can be inspected
 
-✅ get_current_date successfully executes
+✅ `get_current_date` successfully executes
 
 ✅ Additional tools can be added using the existing architecture
 
@@ -314,7 +315,7 @@ Confirmed:
 
 Not present:
 
-❌ useChat toolInvocations
+❌ `useChat` toolInvocations
 
 Instead:
 
