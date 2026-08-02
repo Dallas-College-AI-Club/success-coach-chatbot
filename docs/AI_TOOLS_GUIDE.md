@@ -52,7 +52,7 @@ git grep "toolInvocations" -- apps/frontend
 
 returns no results in the current codebase.
 
-Tool visualization is implemented through custom event handling rather than AI SDK `toolInvocations`.
+During the Issue #38 investigation, tool visualization was explored using custom event handling rather than AI SDK toolInvocations.
 
 ---
 
@@ -110,9 +110,11 @@ defineTool({
 
 Current tools use:
 
-- `inputSchema` definitions
-- `parseInput(...)` for validation and normalization
+- inputSchema definitions
+- parseInput(...) for validation and normalization
 - JSON-schema based tool contracts
+
+The AI SDK supports both Zod schemas and JSON Schema through FlexibleSchema. The current tools in this repository use JSON Schema, but future tools may use Zod when appropriate.
 
 Developers should follow the patterns used in:
 
@@ -129,7 +131,7 @@ when implementing new tools.
 File:
 
 ```text
-app/api/chat/route.ts
+apps/frontend/app/api/chat/route.ts
 ```
 
 Critical configuration:
@@ -259,15 +261,19 @@ Verify active tool UI state updates correctly.
 
 # Model Validation Matrix
 
-See separate model compatibility section in Issue #38 deliverables.
+Model compatibility testing remains an open deliverable under Issue #38.
+
+See GitHub Issue #38:
+
+Investigate & Prototype Vercel AI SDK Tools (Function Calling)
+
+for the latest model compatibility findings and validation results.
 
 ---
 
 # Issue #38 Findings
 
 Confirmed:
-
-✅ Backend tool execution works
 
 ✅ Backend tool execution works
 
@@ -278,8 +284,6 @@ Confirmed:
 ✅ Additional tools can be added using the existing architecture
 
 ⚠ Additional tool implementations may exist on feature branches that have not yet been merged into main.
-
-✅ Additional tools can be added using existing architecture
 
 Not present:
 
