@@ -230,6 +230,7 @@ export default function ChatTestPage() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [activeTool, setActiveTool] = useState<string | null>(null);
     const [error, setError] = useState<{ message: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -263,6 +264,7 @@ export default function ChatTestPage() {
         setInput('');
         setIsLoading(true);
         setError(null);
+        setActiveTool(null);
 
         // Create container for assistant response
         const assistantMessageId = String(Date.now() + 1);
@@ -311,11 +313,38 @@ export default function ChatTestPage() {
 
                     try {
                         const parsed = JSON.parse(rawData);
+
+                      if (parsed.type === 'tool-input-start') {
+                            switch (parsed.toolName) {
+                                case 'get_semester':
+                                    setActiveTool('Looking up semester information');
+                                    break;
+
+                                case 'get_current_date':
+                                    setActiveTool('Checking current date');
+                                    break;
+
+                                default:
+                                    setActiveTool(`Running ${parsed.toolName}`);
+                            }
+                        }
+
+                        if (parsed.type === 'tool-output-available') {
+                            // Keep the tool indicator visible briefly so users can
+                            // see that tool execution occurred before it disappears.
+                            setTimeout(() => {
+                                setActiveTool(null);
+                            }, 1500);
+                        }
+
                         if (parsed.type === 'text-delta' && parsed.delta) {
                             accumulatedContent += parsed.delta;
+
                             setMessages((prev) =>
                                 prev.map((msg) =>
-                                    msg.id === assistantMessageId ? { ...msg, content: accumulatedContent } : msg
+                                    msg.id === assistantMessageId
+                                        ? { ...msg, content: accumulatedContent }
+                                        : msg
                                 )
                             );
                         } else if (parsed.type === 'error' && parsed.errorText) {
@@ -328,12 +357,24 @@ export default function ChatTestPage() {
             }
         } catch (err: unknown) {
             console.error('[Streaming Error]:', err);
-            const errorMessage = err instanceof Error ? err.message : 'Error streaming response.';
+
+            setActiveTool(null);
+
+            const errorMessage = err instanceof Error
+                ? err.message
+                : 'Error streaming response.';
+
             setError({ message: errorMessage });
+
             // Remove the incomplete assistant bubble if it was empty
-            setMessages((prev) => prev.filter((msg) => msg.id !== assistantMessageId || msg.content !== ''));
+            setMessages((prev) =>
+                prev.filter((msg) =>
+                    msg.id !== assistantMessageId || msg.content !== ''
+                )
+            );
         } finally {
             setIsLoading(false);
+            setActiveTool(null);
         }
     };
 
@@ -442,6 +483,15 @@ export default function ChatTestPage() {
                             })
                         )}
 
+                        
+                        {activeTool && (
+                            <div className="flex items-end gap-2.5 max-w-[85%] mr-auto">
+                                <RobotIcon />
+                                <div className="bg-amber-50 border border-amber-200 text-amber-700 rounded-2xl rounded-bl-none px-4 py-2.5 text-xs shadow-sm">
+                                    ⚙ {activeTool}...
+                                </div>
+                            </div>
+                        )}
                         {/* Loader / Typing Indicator */}
                         {isLoading && messages[messages.length - 1]?.role === 'user' && (
                             <div className="flex items-end gap-2.5 max-w-[85%] mr-auto">
