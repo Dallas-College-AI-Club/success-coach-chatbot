@@ -90,7 +90,7 @@ which is supplied to the AI SDK.
 
 A tool consists of:
 
-1. Name
+1. Name (must match `^[a-zA-Z0-9_-]{1,64}$`)
 2. Description
 3. Input schema (`inputSchema`)
 4. Input validation and normalization (`parseInput`)
@@ -131,7 +131,11 @@ Current tools use:
 
 The AI SDK supports both Zod schemas and JSON Schema through `FlexibleSchema`.
 
-In the current codebase, tools use JSON Schema to describe the tool contract presented to the model. Runtime validation and normalization are performed by `parseInput(...)` before `execute(...)` runs.
+In the current codebase, tools use JSON Schema to describe the tool contract presented to the model.
+
+When using `jsonSchema(...)`, runtime validation and normalization are performed by `parseInput(...)` before `execute(...)` runs. The JSON Schema primarily describes the contract exposed to the model.
+
+When using Zod schemas, the AI SDK can perform schema validation directly from the Zod definition.
 
 Future tools may use Zod schemas where appropriate. When Zod schemas are used, the AI SDK can perform schema validation directly from the Zod definition.
 
@@ -188,6 +192,7 @@ tool-input-available
 tool-output-available
 text-start
 text-delta
+error
 finish-step
 finish
 ```
