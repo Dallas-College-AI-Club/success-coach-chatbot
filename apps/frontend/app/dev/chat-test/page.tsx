@@ -233,6 +233,8 @@ export default function ChatTestPage() {
     const [activeTool, setActiveTool] = useState<string | null>(null);
     const [error, setError] = useState<{ message: string } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const toolClearTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
 
     // Scroll to chat bottom
     useEffect(() => {
@@ -297,14 +299,23 @@ export default function ChatTestPage() {
             // Add empty assistant bubble
             setMessages((prev) => [...prev, { id: assistantMessageId, role: 'assistant', content: '' }]);
 
+            let streamBuffer = '';
+
+
             while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
 
                 const chunk = decoder.decode(value, { stream: true });
-                const lines = chunk.split('\n');
+
+                streamBuffer += chunk;
+
+                const lines = streamBuffer.split('\n');
+
+                streamBuffer = lines.pop() ?? '';
 
                 for (const line of lines) {
+
                     const trimmed = line.trim();
                     if (!trimmed.startsWith('data: ')) continue;
 
@@ -332,9 +343,14 @@ export default function ChatTestPage() {
                         if (parsed.type === 'tool-output-available') {
                             // Keep the tool indicator visible briefly so users can
                             // see that tool execution occurred before it disappears.
-                            setTimeout(() => {
-                                setActiveTool(null);
-                            }, 1500);
+                            if (toolClearTimeoutRef.current) {
+                        clearTimeout(toolClearTimeoutRef.current);
+                        }
+
+                        toolClearTimeoutRef.current = setTimeout(() => {
+                            setActiveTool(null);
+                            toolClearTimeoutRef.current = null;
+                        }, 1500);
                         }
 
                         if (parsed.type === 'text-delta' && parsed.delta) {
@@ -372,10 +388,15 @@ export default function ChatTestPage() {
                     msg.id !== assistantMessageId || msg.content !== ''
                 )
             );
-        } finally {
-            setIsLoading(false);
-            setActiveTool(null);
-        }
+            } finally {
+                if (toolClearTimeoutRef.current) {
+                    clearTimeout(toolClearTimeoutRef.current);
+                    toolClearTimeoutRef.current = null;
+                }
+
+                setIsLoading(false);
+                setActiveTool(null);
+            }
     };
 
     return (
