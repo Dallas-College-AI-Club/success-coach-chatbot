@@ -163,7 +163,7 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 - **A forward line** tailored to the goal — *"Next, in your planning chat we'll…"*.
 - **A preview of the chat, drawn from the answers.** The starter prompts are chosen to fit the student's goal and sub-answers — a student taking a class for a job or license sees *"Who confirms this class counts?"*, not "classes for my major." A destination name appears only for the two named transfer partners; every other school reads as a plain phrase.
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
-- **The close, on every path:** *"Koa helps you plan; a Success Coach makes it official."*
+- **The close, on every path:** *"Major helps you plan; a Success Coach makes it official."*
 - **The entry point:** a **Start chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.
 - **Dallas College resources.** Beneath the entry point, a quiet row of links — *See all credit classes*, *Academic calendar*, *Tutoring*, *Aid & essentials* (the Student Care Network: tuition help, emergency aid, basic needs, childcare, laptops), *Campus events*, *Talk to a Success Coach* — kept deliberately short so the close stays scannable. Each opens the real Dallas College page in a new tab, so a student who wants a specific office can jump straight there.
 
@@ -275,21 +275,11 @@ Planned enhancements, sequenced with the surrounding work:
 - **A signposted visiting-student route** and a workforce / continuing-education door, as their backing intents ship.
 - **SSO prefill** — with the client store (#50), the program and returning-student steps collapse toward a single confirmation.
 
-### The name (working placeholder: "Koa")
+### The name (working placeholder: "Major")
 
-Students meet the AI as **Koa**, an AI **planning companion** that helps them plan and get ready. It is not the human role: a **Success Coach** is a person who makes plans official. "Koa" is a working placeholder in the front-end copy only. The governed assistant name is unchanged (strategy §13.1).
+Students meet the AI as **Major**, an AI **planning companion** that helps them plan and get ready. It is not the human role: a **Success Coach** is a person who makes plans official. "Major" is a working placeholder in the front-end copy only (it replaces the earlier placeholder "Koa"). The governed assistant name is unchanged (strategy §13.1).
 
-Handily, "Koa" reads well across the languages Dallas College students speak:
-
-| In | "Koa" reads as |
-|---|---|
-| Hawaiian | *brave / warrior*, and the strong koa tree: strength and moving forward |
-| Vietnamese | a near-homophone of *Khoa*: science, intellect, academics (a quiet win for a planning tool, and familiar to many students) |
-| Japanese | コア = *core* (a nod to core classes and prerequisites) |
-| Māori | *joy, happiness* |
-| Spanish | nothing, so no awkward slang; reads as a clean, trendy name |
-
-**Gen-Z fit:** short, soft, gender-neutral, easy to say ("KOH-ah"). A friendly peer, not a corporate bot. **Watch-out:** no direct Dallas/Texas tie, and other brands use "Koa" (e.g. Koa Health), so clear the trademark before it goes official.
+Why "Major": it is the product's own vocabulary — declaring a major, planning a major — so the name says what the tool helps with, and it doubles as a friendly title ("Hey, I'm Major"). **Watch-outs:** "major" also appears throughout the copy as a common noun ("your major"), so always capitalize the name and phrase sentences to avoid collisions; and it is a common English word, so check trademark/branding before the name goes official.
 
 ---
 

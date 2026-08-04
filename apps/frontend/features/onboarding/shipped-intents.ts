@@ -17,10 +17,10 @@ export interface ShippedIntent {
 // `shipped` is the staging switch: an intent appears only when `shipped` is
 // true. While the answering layer is built every intent is marked shipped, so
 // the full list shows; setting `shipped: false` hides an intent until it ships.
-// Phrased as honest, high-value things a student can actually get from Koa:
+// Phrased as honest, high-value things a student can actually get from Major:
 // catalog-grounded facts (requirements, sequence, schedule) and routing (transfer
 // confirmation, the coach, help paying). Deliberately excludes anything only a
-// human or the institution can decide — Koa never promises transfer, aid, or a
+// human or the institution can decide — Major never promises transfer, aid, or a
 // timeline, and never "figures out your major" for you.
 export const INTENTS: ShippedIntent[] = [
   { id: "degree_requirements", example: "What does my degree or certificate require?", shipped: true },

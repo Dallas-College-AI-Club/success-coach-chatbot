@@ -42,8 +42,8 @@ export const playful: Mode = {
     pickerEmpty: "Hmm, no match. Try a shorter word, or “I'm still figuring it out.”",
     completionHeadline: "Woohoo, solid start! 🎉",
     restart: "Start over",
-    capabilityTrigger: "What can Koa do?",
-    capabilityTitle: "What Koa can help with",
-    capabilityDesc: "Koa's a planning tool. Here's the kind of stuff you can ask.",
+    capabilityTrigger: "What can Major do?",
+    capabilityTitle: "What Major can help with",
+    capabilityDesc: "Major's a planning tool. Here's the kind of stuff you can ask.",
   },
 };
