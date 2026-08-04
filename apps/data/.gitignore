@@ -211,3 +211,5 @@ raw/
 
 deliveries/
 fresh.json
+dallasai/rows.json
+dallasai/rows-cv-embedded.json
