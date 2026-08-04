@@ -19,7 +19,7 @@ session) can be validated + wrapped via extract_manual() with
 extraction_method='claude_code_session'.
 
 CLI:
-    python -m pipeline.extract --doc-type syllabus --html raw/syllabi/2026SP/87180.html \
+    python -m dallasai.pipeline.extract --doc-type syllabus --html raw/syllabi/2026SP/87180.html \
         --context '{"course_code":"ENGL 1301","professor":"Contreras, Nelda","year":2026,"semester":"spring"}'
 """
 
@@ -33,24 +33,49 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-REPO = Path(__file__).resolve().parents[3]  # …/success-coach-chatbot
+REPO = Path(__file__).resolve().parents[4]  # …/success-coach-chatbot
 SCHEMAS_DIR = REPO / "src" / "config" / "facts-schemas"
 REGISTRY_PATH = REPO / "src" / "config" / "metadata-registry.json"
-PROMPT_VERSION = "v3"
-PROMPT_PATH = (
-    Path(__file__).resolve().parent.parent
-    / "prompts"
-    / f"extract_{PROMPT_VERSION}.md"
+# Prompt version is PER DOC_TYPE: the catalog gold gate validated v3 byte-exact,
+# and v4's rewritten ### cv section measurably degraded catalog verbatim fidelity
+# when shipped in catalog prompts (gate run 2026-07-26: flattened newlines,
+# dropped "Prerequisites:" prefix, case-normalized group names). Catalog stays on
+# its validated prompt; cv moves independently.
+PROMPT_VERSION_BY_DOC_TYPE = {
+    "syllabus": "v3",
+    "course": "v3",
+    "program_map": "v3",
+    "cv": "v4",
+}
+PROMPTS_DIR = Path(__file__).resolve().parents[2] / "reference" / "prompts"
+# test hook: when set (monkeypatch), overrides the per-doc_type template
+PROMPT_PATH: Optional[Path] = None
+
+
+def prompt_version(doc_type: str) -> str:
+    return PROMPT_VERSION_BY_DOC_TYPE[doc_type]
+
+
+def prompt_path(doc_type: str) -> Path:
+    return PROMPT_PATH or PROMPTS_DIR / f"extract_{prompt_version(doc_type)}.md"
+
+
+EXAMPLES_DIR = (
+    Path(__file__).resolve().parents[2] / "reference" / "prompts" / "examples"
 )
-EXAMPLES_DIR = Path(__file__).resolve().parent.parent / "prompts" / "examples"
 MAX_RETRIES = 2
+# cv gets more retry rounds: its in-loop quality gates (verbatim spans,
+# objectivity, figures) give the model more to converge on than schema shape,
+# and the largest CVs carry 25+ spans — 2026-07-26 pilot saw two big CVs still
+# non-convergent after 3 attempts
+MAX_RETRIES_BY_DOC_TYPE = {"cv": 4}
 
 # doc_type -> (schema file, schema_version)
 DOC_SCHEMAS = {
     "syllabus": ("facts-syllabus-v1.schema.json", "1"),
     "course": ("facts-course-v1.schema.json", "1"),
     "program_map": ("facts-program-map-v1.schema.json", "1"),
-    "cv": ("facts-cv-v1.schema.json", "1"),
+    "cv": ("facts-cv-v2.schema.json", "2"),
 }
 
 # Output-token budget per doc_type. program_map needs headroom: poid=3388
@@ -58,7 +83,21 @@ DOC_SCHEMAS = {
 # a truncated response fails validation identically on every retry and
 # quarantines the single most load-bearing document in the corpus.
 DEFAULT_MAX_TOKENS = 8192
-MAX_TOKENS_BY_DOC_TYPE = {"program_map": 16384}
+MAX_TOKENS_BY_DOC_TYPE = {
+    "program_map": 16384,
+    # cv v2 four-tier output: the longest CVs (Vail-class,
+    # ~7KB source) emit ~6-7K tokens of JSON — 8192 would
+    # truncate and quarantine exactly the richest profiles
+    "cv": 16384,
+}
+
+# claude-sonnet-5 defaults to ADAPTIVE THINKING, and thinking tokens come out of
+# max_tokens: on the largest pilot CV it burned 15,645/16,384 tokens thinking and
+# truncated the JSON at 739 text tokens (2026-07-26 pilot, 3/20 quarantined this
+# way). Extraction is few-shot mechanical — the exemplars carry the reasoning —
+# so cv runs with thinking disabled: no truncation, ~2-3x cheaper output. Catalog
+# doc_types are untouched (their gate baselines predate this setting).
+THINKING_DISABLED_DOC_TYPES = {"cv"}
 
 
 @dataclass
@@ -69,7 +108,7 @@ class ExtractionResult:
     validation_errors: Optional[list] = None
     extractor: str = ""
     extraction_method: str = ""
-    prompt_version: str = PROMPT_VERSION
+    prompt_version: str = ""
     schema_version: str = ""
     attempts: int = 0
     raw_responses: list = field(default_factory=list)
@@ -87,13 +126,7 @@ def parse_extractor_setting(setting: Optional[str] = None) -> tuple[str, str]:
         )
     provider, model = setting.split(":", 1)
     provider = provider.strip().lower()
-    if provider not in (
-        "anthropic",
-        "ollama",
-        "lmstudio",
-        "openai",
-        "openrouter",
-    ):
+    if provider not in ("anthropic", "ollama", "lmstudio", "openai", "openrouter"):
         raise SystemExit(f"unknown EXTRACTOR provider {provider!r}")
     return provider, model.strip()
 
@@ -108,39 +141,58 @@ def _method_for(provider: str) -> str:
     }[provider]
 
 
+# dynamic-tail marker: everything BEFORE it is a per-doc_type-constant prefix
+# safe to cache; everything after (context, retry errors, document) varies
+CACHE_SPLIT_MARKER = "\n## Identity context"
+# only templates laid out prefix-first participate (v4/cv); catalog v3 keeps
+# its validated layout with context near the top, where caching buys nothing
+CACHED_PROMPT_DOC_TYPES = {"cv"}
+
+
 def _call_anthropic(
-    model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS
+    model: str,
+    prompt: str,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    disable_thinking: bool = False,
+    cache_prefix: bool = False,
 ) -> str:
     import anthropic
 
     client = anthropic.Anthropic()  # ANTHROPIC_API_KEY from env
+    content: object = prompt
+    if cache_prefix and CACHE_SPLIT_MARKER in prompt:
+        # prompt caching is billing-only — identical tokens, identical model
+        # behavior; the shared ~18K-token prefix bills at ~1/10 price on reads
+        i = prompt.index(CACHE_SPLIT_MARKER)
+        content = [
+            {
+                "type": "text",
+                "text": prompt[:i],
+                "cache_control": {"type": "ephemeral"},
+            },
+            {"type": "text", "text": prompt[i:]},
+        ]
+    kwargs: dict = {
+        "model": model,
+        "max_tokens": max_tokens,
+        "messages": [{"role": "user", "content": content}],
+    }
+    if disable_thinking:
+        kwargs["thinking"] = {"type": "disabled"}
     # temperature=0 is gate-blocking: the golden gate diffs expected JSON on
     # this path, and a sampled response makes the diff flake. Claude 5-family
     # models reject the parameter outright ("`temperature` is deprecated for
     # this model") — retry without it; the gate still enforces determinism.
     try:
-        msg = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            temperature=0,
-            messages=[{"role": "user", "content": prompt}],
-        )
+        msg = client.messages.create(temperature=0, **kwargs)
     except anthropic.BadRequestError as e:
         if "temperature" not in str(e):
             raise
-        msg = client.messages.create(
-            model=model,
-            max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
-        )
-    return "".join(
-        b.text for b in msg.content if getattr(b, "type", "") == "text"
-    )
+        msg = client.messages.create(**kwargs)
+    return "".join(b.text for b in msg.content if getattr(b, "type", "") == "text")
 
 
-def _call_ollama(
-    model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS
-) -> str:
+def _call_ollama(model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS) -> str:
     import requests
 
     base = os.environ.get("OLLAMA_HOST") or "http://localhost:11434"
@@ -198,9 +250,7 @@ def _call_openai_compatible(
         # `or` (not a .get default) so an empty LLM_BASE_URL= line sourced from
         # .env falls back instead of producing a request to ""
         base = os.environ.get("LLM_BASE_URL") or "https://openrouter.ai/api/v1"
-        key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get(
-            "LLM_API_KEY", ""
-        )
+        key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("LLM_API_KEY", "")
         extra = {
             "HTTP-Referer": "https://dc-success-coach.vercel.app",
             "X-Title": "Dallas College Success Coach Chatbot",
@@ -211,9 +261,7 @@ def _call_openai_compatible(
         extra = {}
     # current OpenAI models reject max_tokens in favor of max_completion_tokens;
     # LM Studio / OpenRouter speak classic max_tokens
-    tokens_key = (
-        "max_completion_tokens" if provider == "openai" else "max_tokens"
-    )
+    tokens_key = "max_completion_tokens" if provider == "openai" else "max_tokens"
     body = {
         "model": model,
         "temperature": 0,
@@ -241,19 +289,24 @@ def _call_openai_compatible(
             and "response_format" in body
             and "response_format" in r.text
         ):
-            body.pop(
-                "response_format"
-            )  # provider rejects json mode; free retry
+            body.pop("response_format")  # provider rejects json mode; free retry
             continue  # (does not consume a transient-retry slot)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
 
 
 def call_model(
-    provider: str, model: str, prompt: str, max_tokens: int = DEFAULT_MAX_TOKENS
+    provider: str,
+    model: str,
+    prompt: str,
+    max_tokens: int = DEFAULT_MAX_TOKENS,
+    disable_thinking: bool = False,
+    cache_prefix: bool = False,
 ) -> str:
     if provider == "anthropic":
-        return _call_anthropic(model, prompt, max_tokens)
+        return _call_anthropic(
+            model, prompt, max_tokens, disable_thinking, cache_prefix
+        )
     if provider == "ollama":
         return _call_ollama(model, prompt, max_tokens)
     return _call_openai_compatible(
@@ -273,10 +326,7 @@ _HTML_COMMENT_RE = re.compile(r"<!--.*?-->\s*", re.DOTALL)
 
 
 def build_prompt(
-    doc_type: str,
-    document: str,
-    context: dict,
-    retry_errors: Optional[str] = None,
+    doc_type: str, document: str, context: dict, retry_errors: Optional[str] = None
 ) -> str:
     # Strip the template's header comment BEFORE filling placeholders: the
     # comment lists the literal placeholder names, so replacing on the raw
@@ -284,9 +334,8 @@ def build_prompt(
     # (nearly doubling every prompt's token cost — measured on the 337-program
     # catalog sweep, and enough to push the largest documents past a 32K
     # local-model context window).
-    template = _HTML_COMMENT_RE.sub(
-        "", PROMPT_PATH.read_text(encoding="utf-8"), count=1
-    )
+    tpl_path = prompt_path(doc_type)
+    template = _HTML_COMMENT_RE.sub("", tpl_path.read_text(encoding="utf-8"), count=1)
     schema_json = json.dumps(load_schema(doc_type), indent=2)
     retry_block = ""
     if retry_errors:
@@ -310,12 +359,13 @@ def build_prompt(
         .replace("{{DOCUMENT}}", document)
     )
     if "{{EXAMPLES}}" in prompt:
-        # extract_v2.md declares this placeholder; the splice isn't implemented.
-        # Fail loudly rather than ship the literal token to the model.
+        # the splice ran, so a residual literal token means an exemplar file
+        # itself contains "{{EXAMPLES}}" — fail loudly rather than ship the
+        # literal token to the model.
         raise NotImplementedError(
-            f"{PROMPT_PATH.name} uses {{{{EXAMPLES}}}} but build_prompt() has no "
-            "examples splice yet — implement it (+ a test) before activating this "
-            "prompt version"
+            f"{tpl_path.name}: literal {{{{EXAMPLES}}}} survived the splice — "
+            "an exemplar file under reference/prompts/examples/ contains the placeholder "
+            "token; remove it before activating this prompt version"
         )
     return prompt
 
@@ -361,7 +411,7 @@ def _registry() -> dict:
     global _registry_cache
     if _registry_cache is None:
         _registry_cache = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
-    return _registry_cache  # type: ignore
+    return _registry_cache
 
 
 def validate_registry_stamp(doc_type: str, extraction_method: str) -> None:
@@ -392,15 +442,10 @@ def validate_registry_stamp(doc_type: str, extraction_method: str) -> None:
 
 
 def extract(
-    doc_type: str,
-    document: str,
-    context: dict,
-    extractor_setting: Optional[str] = None,
+    doc_type: str, document: str, context: dict, extractor_setting: Optional[str] = None
 ) -> ExtractionResult:
     if doc_type not in DOC_SCHEMAS:
-        raise ValueError(
-            f"unknown doc_type {doc_type!r} (have {sorted(DOC_SCHEMAS)})"
-        )
+        raise ValueError(f"unknown doc_type {doc_type!r} (have {sorted(DOC_SCHEMAS)})")
     provider, model = parse_extractor_setting(extractor_setting)
     validate_registry_stamp(doc_type, _method_for(provider))
     _, schema_version = DOC_SCHEMAS[doc_type]
@@ -410,16 +455,22 @@ def extract(
         doc_type=doc_type,
         extractor=model,
         extraction_method=_method_for(provider),
+        prompt_version=prompt_version(doc_type),
         schema_version=schema_version,
     )
     errors_text: Optional[str] = None
-    for attempt in range(1 + MAX_RETRIES):
+    for attempt in range(1 + MAX_RETRIES_BY_DOC_TYPE.get(doc_type, MAX_RETRIES)):
         res.attempts = attempt + 1
-        prompt = build_prompt(
-            doc_type, document, context, retry_errors=errors_text
-        )
+        prompt = build_prompt(doc_type, document, context, retry_errors=errors_text)
         try:
-            raw = call_model(provider, model, prompt, max_tokens)
+            raw = call_model(
+                provider,
+                model,
+                prompt,
+                max_tokens,
+                disable_thinking=doc_type in THINKING_DISABLED_DOC_TYPES,
+                cache_prefix=doc_type in CACHED_PROMPT_DOC_TYPES,
+            )
         except Exception as e:  # transport failure
             res.status = "failed"
             res.validation_errors = [f"provider_error: {type(e).__name__}: {e}"]
@@ -432,11 +483,17 @@ def extract(
             res.validation_errors = [errors_text]
             continue
         errs = validate(doc_type, payload)
+        if errs is None and doc_type == "cv":
+            # cv quality gates run IN the retry loop (2026-07-26 pilot lesson):
+            # schema-valid output can still stitch quotes or overrun the summary
+            # limit — feed those back as retry errors instead of shipping them
+            # to the downstream verifier
+            from .verify_cv import extraction_stage_errors
+
+            errs = extraction_stage_errors(payload, document) or None
         if errs is None:
             res.data = payload
-            res.status = (
-                "needs_review" if payload.get("confidence") == "low" else "ok"
-            )
+            res.status = "needs_review" if payload.get("confidence") == "low" else "ok"
             res.validation_errors = None
             return res
         res.validation_errors = errs
@@ -460,6 +517,7 @@ def extract_manual(
         data=payload,
         extractor=extractor,
         extraction_method="claude_code_session",
+        prompt_version=prompt_version(doc_type),
         schema_version=schema_version,
     )
 
@@ -529,14 +587,10 @@ def pdf_to_text(pdf_path: Path) -> str:
     from pypdf import PdfReader
 
     try:
-        pages = (
-            page.extract_text() or "" for page in PdfReader(pdf_path).pages
-        )
+        pages = (page.extract_text() or "" for page in PdfReader(pdf_path).pages)
         text = "\n\n".join(p.strip() for p in pages if p.strip())
     except Exception as e:
-        raise ValueError(
-            f"{pdf_path}: unreadable PDF ({type(e).__name__}: {e})"
-        ) from e
+        raise ValueError(f"{pdf_path}: unreadable PDF ({type(e).__name__}: {e})") from e
     text = re.sub(r"[ \t]+\n", "\n", re.sub(r"\n\s*\n+", "\n\n", text)).strip()
     if len(text) < 200:
         # scanned/image-only PDF: extracting against (near-)empty text would let
@@ -555,25 +609,22 @@ def main(argv: Optional[list[str]] = None) -> None:
         # Windows redirected stdout is cp1252: printing model-echoed document
         # text (ﬁ ligatures from pypdf are all over this corpus) must degrade,
         # not crash the run
-        sys.stdout.reconfigure(errors="replace")  # type: ignore
+        sys.stdout.reconfigure(errors="replace")
     ap = argparse.ArgumentParser(
-        description=__doc__,
-        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     ap.add_argument("--doc-type", required=True, choices=sorted(DOC_SCHEMAS))
     ap.add_argument("--html", type=Path, help="raw HTML file to extract")
     ap.add_argument(
         "--pdf", type=Path, help="raw PDF file to extract (2024 HB2504 archive)"
     )
-    ap.add_argument(
-        "--text", type=Path, help="already-plain-text file to extract"
-    )
+    ap.add_argument("--text", type=Path, help="already-plain-text file to extract")
     ap.add_argument("--context", default="{}", help="JSON identity context")
     ap.add_argument("--out", type=Path, help="write the facts JSON here")
     ap.add_argument(
         "--quarantine-dir",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "out" / "quarantine",
+        default=Path(__file__).resolve().parents[2] / "out" / "quarantine",
         help="where non-ok results are persisted for review "
         "(default apps/data/out/quarantine)",
     )
@@ -581,9 +632,7 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     src = args.html or args.pdf or args.text
     if args.html:
-        document = html_to_text(
-            args.html.read_text(encoding="utf-8", errors="replace")
-        )
+        document = html_to_text(args.html.read_text(encoding="utf-8", errors="replace"))
     elif args.pdf:
         document = pdf_to_text(args.pdf)
     elif args.text:
@@ -593,11 +642,12 @@ def main(argv: Optional[list[str]] = None) -> None:
 
     context = json.loads(args.context)
     res = extract(args.doc_type, document, context)
-    qpath = None
     if res.status != "ok":
         # persist BEFORE any printing: evidence must survive even if stdout
         # chokes on model-echoed text
-        doc_id = f"{src.parent.name}-{src.stem}"  # term-qualified: 2024FA-ACCT-2301-21000
+        doc_id = (
+            f"{src.parent.name}-{src.stem}"  # term-qualified: 2024FA-ACCT-2301-21000
+        )
         qpath = persist_quarantine(
             res, args.quarantine_dir, doc_id, source=src, context=context
         )
@@ -610,9 +660,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     if res.status == "ok":
         if res.data and args.out:
             args.out.parent.mkdir(parents=True, exist_ok=True)
-            args.out.write_text(
-                json.dumps(res.data, indent=2), encoding="utf-8"
-            )
+            args.out.write_text(json.dumps(res.data, indent=2), encoding="utf-8")
             print(f"  wrote {args.out}")
     else:
         print(f"  quarantined -> {qpath}")

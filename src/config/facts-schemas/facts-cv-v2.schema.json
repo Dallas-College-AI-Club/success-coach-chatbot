@@ -1,0 +1,475 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facts-cv-v2",
+  "title": "facts-cv-v2 (ACTIVE, rev 7 — team-ratified 2026-07)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "name",
+    "education",
+    "experience",
+    "derived_profile",
+    "confidence"
+  ],
+  "properties": {
+    "name": {
+      "type": "string"
+    },
+    "department": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "email": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "cv_url": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "courses_taught": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "$comment": "unchanged from v1: codes exactly as printed; informational only"
+    },
+    "education": {
+      "type": "array",
+      "$comment": "EXTRACTIVE TIER: every value verbatim-traceable to the CV",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "institution",
+          "degree",
+          "raw_text"
+        ],
+        "properties": {
+          "institution": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "$comment": "null when the CV prints a degree line with no institution (real corpus case)"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "$comment": "as printed (city, state/country)"
+          },
+          "degree": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "$comment": "as printed, e.g. 'Doctor of Philosophy'; null when the CV prints an education stint with no degree line (real case: '2004-2006: Collin County Community College')"
+          },
+          "field": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "$comment": "only if printed"
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experience": {
+      "type": "array",
+      "$comment": "EXTRACTIVE TIER: one entry per printed position; dates as printed",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "organization",
+          "role",
+          "category",
+          "raw_text"
+        ],
+        "properties": {
+          "organization": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "$comment": "null when the CV prints a role with no organization (real corpus case)"
+          },
+          "location": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "$comment": "null when the CV prints an organization/date stint with no role title (real corpus case)"
+          },
+          "category": {
+            "enum": [
+              "teaching",
+              "industry",
+              "research",
+              "government",
+              "military",
+              "other"
+            ],
+            "$comment": "from the CV's own section headings when present ('Teaching Experience', 'Industry Experience'); otherwise from the role title, never guessed from the org name alone"
+          },
+          "start_year": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "end_year": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "$comment": "null = 'Present' as printed"
+          },
+          "is_current": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "certifications": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "raw_text"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "raw_text": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "publications": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "$comment": "EXTRACTIVE TIER: census of the printed list, never a bibliography copy",
+      "properties": {
+        "count": {
+          "type": "integer"
+        },
+        "year_min": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "year_max": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "venues_sample": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string"
+          },
+          "$comment": "distinct venue/conference names as printed, up to 8"
+        }
+      }
+    },
+    "computed": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "$comment": "COMPUTED TIER: written by pipeline post-processing (pure Python over the extractive tier) — THE EXTRACTOR MUST OUTPUT null. Durations are UNIONS of printed year-ranges (overlapping roles never double-count); 'Present' resolves to the scrape year.",
+      "properties": {
+        "years_teaching": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "years_industry": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "years_research_role": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "years_teaching_industry_overlap": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "countries_worked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "countries_studied": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "organizations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "computed_as_of": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "$comment": "scrape year used to resolve 'Present'; the answer layer may recompute open-ended durations live from the stored ranges"
+        }
+      }
+    },
+    "derived_profile": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "$comment": "DERIVED TIER: model judgment, every claim evidence-cited with a verbatim CV quote (mechanically checked present-in-source). Professional facts only — never infer personal attributes beyond what the CV states. null ONLY for empty-shell CVs — mechanically checkable trigger: education [] AND experience [] AND publications null AND certifications []; if any extractive tier is non-empty, an object is mandatory (verify_cv enforces both directions).",
+      "required": [
+        "orientation",
+        "orientation_evidence",
+        "expertise_topics",
+        "career_path",
+        "summary"
+      ],
+      "properties": {
+        "orientation": {
+          "enum": [
+            "industry_practitioner",
+            "academic_researcher",
+            "teaching_focused",
+            "hybrid"
+          ],
+          "$comment": "hybrid = substantial evidence on 2+ axes (e.g. long industry tenure AND a research publication record)"
+        },
+        "orientation_evidence": {
+          "type": "string",
+          "$comment": "1-2 sentences citing the deciding facts"
+        },
+        "expertise_topics": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "topic",
+              "evidence",
+              "currency",
+              "evidence_years"
+            ],
+            "properties": {
+              "topic": {
+                "type": "string",
+                "$comment": "short normalized tag, e.g. 'natural language processing'"
+              },
+              "evidence": {
+                "type": "string",
+                "$comment": "VERBATIM quote from the CV that supports this tag"
+              },
+              "currency": {
+                "enum": [
+                  "current",
+                  "recent",
+                  "historical"
+                ],
+                "$comment": "COMPUTED-VERIFIED: current = supporting role is_current or evidence within 3y of scrape; recent = within 8y; historical = older. The extractor proposes, compute_cv.py recomputes and overrides."
+              },
+              "evidence_years": {
+                "type": "array",
+                "minItems": 2,
+                "maxItems": 2,
+                "items": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "$comment": "[min,max] years of the supporting evidence (publication years or role range)"
+              }
+            }
+          }
+        },
+        "summary": {
+          "type": "string",
+          "$comment": "target <=120 words (hard cap 150), neutral; becomes the row's chunk_text (embedded). Must reflect orientation, top topics, notable organizations/countries, and the COMPUTED duration figures — never invented ones. The extractor writes duration figures as placeholder tokens ({{years_teaching}}, {{years_industry}}, {{years_research_role}}, {{years_teaching_industry_overlap}}); compute_cv.py substitutes real values, so the extractor never does arithmetic. Figures printed verbatim in the CV (publication counts, years) may appear literally."
+        },
+        "career_path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "archetype",
+            "stages"
+          ],
+          "properties": {
+            "archetype": {
+              "type": "string",
+              "$comment": "one plain-language phrase a student can repeat; descriptive, no evaluative adjectives"
+            },
+            "stages": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "label",
+                  "years",
+                  "evidence"
+                ],
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "years": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "string",
+                    "$comment": "verbatim CV quote"
+                  }
+                }
+              }
+            }
+          },
+          "$comment": "DERIVED TIER: ordered narrative of the printed positions"
+        }
+      }
+    },
+    "confidence": {
+      "enum": [
+        "high",
+        "medium",
+        "low"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "$comment": "ambiguity record per the general rules (rule 4: medium confidence -> note the resolved ambiguity here); adjudication-facing, never embedded"
+    },
+    "teaching_record": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "$comment": "COMPOSED TIER: joined from registrar schedule/section data by instructor_slug at load time — THE EXTRACTOR MUST OUTPUT null. More objective than the CV (not self-reported); refreshed every term.",
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "currently_teaching": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "courses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "course_code",
+              "first_term",
+              "last_term",
+              "terms_taught"
+            ],
+            "properties": {
+              "course_code": {
+                "type": "string"
+              },
+              "title": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "$comment": "printed class name from the schedule CSVs — codes alone are unreadable to students"
+              },
+              "first_term": {
+                "type": "string"
+              },
+              "last_term": {
+                "type": "string"
+              },
+              "terms_taught": {
+                "type": "integer"
+              },
+              "modalities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$comment": "DRAFT v2 (rev 7, 2026-07-26 late: experience.role also nullable, 2 bulk CVs print org+date stints without role titles. Rev 6 — rev 3: derived_profile nullable for empty shells + summary placeholder tokens; rev 4: education.degree nullable; rev 5: teaching_record course titles; rev 6, from the first 170 bulk CVs: education.institution and experience.organization nullable (CVs print degree lines and roles without them), optional root notes field (the general rules instruct the model to record resolved ambiguities there — additionalProperties:false without it forced 6 CVs into quarantine), summary word limit is target 120 / hard cap 150): four-tier CV profiling — extractive (verbatim-traceable) / computed (pipeline arithmetic; extractor outputs null; ranges are the source of truth, durations always derivable) / composed (teaching_record joined from registrar data; extractor outputs null) / derived (evidence-cited judgment; currency prevents stale interests reading as current; no evaluative adjectives; no personal-attribute inference). Every answer built on a cv row MUST surface source_url so students can verify. Supersedes facts-cv-v1 (team-ratified 2026-07). Evolving a shape = copy to v3."
+}
