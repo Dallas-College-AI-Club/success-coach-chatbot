@@ -24,6 +24,7 @@ import os
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -111,6 +112,8 @@ def extract_to_json_payload(
     if not facts:
         facts = {"confidence": "high", "policies": {}, "grading": []}
 
+    scraped_at = datetime.now(timezone.utc).isoformat()
+
     records = []
     for idx, chunk_text in enumerate(chunks):
         content_hash = hashlib.sha256(chunk_text.encode("utf-8")).hexdigest()
@@ -118,6 +121,7 @@ def extract_to_json_payload(
             "source_url": f"file://{file_name}",
             "chunk_index": idx,
             "content_hash": content_hash,
+            "scraped_at": scraped_at,
             "chunk_text": chunk_text,
             "metadata": metadata,
             "facts": facts,
@@ -133,15 +137,19 @@ def generate_embeddings(
     embedder_func: Optional[Any] = None,
     model_name: str = "local-768"
 ) -> List[Dict[str, Any]]:
-    """Function 4: Populates 768-dim float vector dictionary into record['embedding']."""
+    """Function 4: Populates 768-dim float vector list into record['embedding'].
+    
+    Output format matches upstream embed_rows.py (branch 99):
+      record['embedding'] = [float, float, ...]  (flat list, 768 dims)
+      record['metadata']['embedding_model'] = model_name
+      record['metadata']['embedding_dimensions'] = 768
+    """
     for record in records:
         chunk_text = record.get("chunk_text", "")
         vector_values = embedder_func(chunk_text) if callable(embedder_func) else [0.0] * 768
-        record["embedding"] = {
-            "model": model_name,
-            "dimension": len(vector_values),
-            "values": vector_values
-        }
+        record["embedding"] = vector_values
+        record["metadata"]["embedding_model"] = model_name
+        record["metadata"]["embedding_dimensions"] = len(vector_values)
     return records
 
 
@@ -169,37 +177,13 @@ def validate_and_upsert_payload(
         else:
             quarantined_records.append(record)
 
-    if db_session is None:
-        try:
-            from dallasai.db_setup import get_db_session
-            db_session = get_db_session()
-        except Exception:
-            db_session = None
-
     upserted_count = 0
-    if db_session and validated_records:
-        from dallasai.models import KnowledgeEntry
-        for rec in validated_records:
-            raw_emb = rec.get("embedding")
-            vector_list = raw_emb.get("values", [0.0] * 768) if isinstance(raw_emb, dict) else [0.0] * 768
-            entry = KnowledgeEntry(
-                source_url=rec["source_url"],
-                chunk_index=rec["chunk_index"],
-                content_hash=rec["content_hash"],
-                chunk_text=rec["chunk_text"],
-                facts=rec["facts"],
-                metadata_=rec["metadata"],
-                embedding=vector_list
-            )
-            try:
-                db_session.merge(entry)
-                upserted_count += 1
-            except Exception:
-                pass
+    if validated_records:
         try:
-            db_session.commit()
-        except Exception:
-            db_session.rollback()
+            from dallasai.models.load_catalog_to_neon import load_into_neon
+            upserted_count = load_into_neon(validated_records, db_session=db_session)
+        except Exception as err:
+            print(f"⚠️ Function 5 Upsert Note: {err}")
 
     return {
         "status": "ok" if not quarantined_records else "partial_quarantine",
@@ -365,8 +349,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="5-Function Data Processing CLI")
     parser.add_argument(
         "-i", "--input", type=Path, required=False,
-        default=Path(__file__).resolve().parent.parent / "cleaned" / "2026SP",
-        help="Path to directory containing input Markdown/HTML files."
+        default=Path(__file__).resolve().parent.parent / "sample_data" / "syllabi",
+        help="Path to directory containing input Markdown or HTML files."
     )
     parser.add_argument(
         "-o", "--output", type=Path, required=False,
@@ -376,13 +360,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-w", "--workers", type=int, required=False,
         default=1,
-        help="Number of CPU worker processes (default: 1 for safe Chromebook FUSE performance)."
+        help="Number of CPU worker processes (default: 1)."
     )
     parser.add_argument(
         "-s", "--stage", type=int, choices=[1, 2, 3, 4, 5], default=2,
-        help="Select starting pipeline function/stage (1: Preprocess, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate/Upsert)."
+        help="Select starting pipeline stage (1: Preprocess HTML/MD, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate & Upsert)."
     )
     return parser.parse_args()
+
 
 
 def main() -> None:

@@ -33,8 +33,7 @@ if str(SYS_DATA_DIR) not in sys.path:
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 
-from dallasai.base import Base
-from dallasai.models import ChatSession, KnowledgeEntry
+from dallasai.models import Base, ChatSession, KnowledgeEntry
 
 
 def get_database_url() -> str:
@@ -48,9 +47,15 @@ def get_database_url() -> str:
                     db_url = line.split("=", 1)[1].strip().strip('"').strip("'")
                     break
     if not db_url:
-        # Fallback to local default / template URL for Neon
-        db_url = "postgresql://neftali:neonpassword@ep-cool-db.us-east-2.aws.neon.tech/neondb?sslmode=require"
+        pghost = os.getenv("PGHOST", "localhost")
+        pgport = os.getenv("PGPORT", "5432")
+        pguser = os.getenv("PGUSER", "postgres")
+        pgpass = os.getenv("PGPASSWORD", "postgres")
+        pgdb = os.getenv("PGDATABASE", "chatbot_test")
+        proto = "postgresql"
+        db_url = f"{proto}://{pguser}:{pgpass}@{pghost}:{pgport}/{pgdb}"
     return db_url
+
 
 
 def init_db(database_url: Optional[str] = None) -> None:
@@ -59,7 +64,7 @@ def init_db(database_url: Optional[str] = None) -> None:
     print(f"🔌 Connecting to Neon PostgreSQL database...")
 
     try:
-        engine = create_engine(url, echo=False)
+        engine = create_engine(url, echo=False, connect_args={"connect_timeout": 5})
         
         # 1. Enable pgvector extension
         with engine.connect() as conn:
@@ -77,7 +82,7 @@ def init_db(database_url: Optional[str] = None) -> None:
 def get_db_session(database_url: Optional[str] = None) -> Session:
     """Creates and returns a new SQLAlchemy Session bound to the Neon database."""
     url = database_url or get_database_url()
-    engine = create_engine(url, echo=False)
+    engine = create_engine(url, echo=False, connect_args={"connect_timeout": 5})
     SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     return SessionLocal()
 
@@ -89,7 +94,7 @@ def check_db_status(database_url: Optional[str] = None) -> None:
     print(f"📊 Querying Neon PostgreSQL database status...\n")
 
     try:
-        engine = create_engine(url, echo=False)
+        engine = create_engine(url, echo=False, connect_args={"connect_timeout": 5})
         with engine.connect() as conn:
             # Discover tables in schema
             t_res = conn.execute(text("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")).fetchall()
