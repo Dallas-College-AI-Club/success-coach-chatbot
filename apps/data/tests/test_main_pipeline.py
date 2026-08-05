@@ -23,7 +23,7 @@ SYS_DATA_DIR = Path(__file__).resolve().parent.parent
 if str(SYS_DATA_DIR) not in sys.path:
     sys.path.insert(0, str(SYS_DATA_DIR))
 
-from dallasai.db_setup import check_db_status
+from dallasai.database import check_db_status
 from dallasai.main import (
     preprocess_document,
     chunk_markdown,
