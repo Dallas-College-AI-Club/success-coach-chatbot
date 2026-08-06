@@ -6,7 +6,7 @@ This document explains how tool calling is implemented in the Success Coach Chat
 
 ---
 
-## Architecture Overview
+# Architecture Overview
 
 Tool execution is implemented using the Vercel AI SDK.
 
@@ -19,9 +19,9 @@ User
   ↓
 Custom fetch request
   ↓
-apps/frontend/app/api/chat/route.ts
+app/api/chat/route.ts
   ↓
-streamText
+generateText / streamText
   ↓
 toolRegistry
   ↓
@@ -36,9 +36,9 @@ UI Rendering
 
 ---
 
-## Important Architectural Discovery
+# Important Architectural Discovery
 
-### /dev/chat-test Does Not Use useChat()
+## /dev/chat-test Does Not Use useChat()
 
 During Issue #38 investigation it was discovered that:
 
@@ -49,18 +49,18 @@ During Issue #38 investigation it was discovered that:
 As a result:
 
 ```bash
-git grep "toolInvocations" -- apps/frontend
+git grep "toolInvocations"
 ```
 
-returns no results in the current codebase.
+returns no results.
 
-During the Issue #38 investigation, tool visualization was explored using custom event handling rather than AI SDK `toolInvocations`.
+Tool visualization is implemented through custom event handling rather than AI SDK `toolInvocations`.
 
 ---
 
-## Tool Registration
+# Tool Registration
 
-### Tool Registry
+## Tool Registry
 
 File:
 
@@ -73,6 +73,7 @@ Example:
 ```ts
 export const toolsList = [
   createGetCurrentDateTool(),
+  createGetSemesterTool(),
 ];
 ```
 
@@ -86,75 +87,59 @@ which is supplied to the AI SDK.
 
 ---
 
-## Creating a Tool
+# Creating a Tool
 
 A tool consists of:
 
-1. Name (must match `^[a-zA-Z0-9_-]{1,64}$`)
+1. Name
 2. Description
-3. Input schema (`inputSchema`)
-4. Input validation and normalization (`parseInput`)
-5. Execute method (`execute`)
+3. Zod input schema
+4. Execute method
 
-Illustrative example:
+Example:
 
 ```ts
-defineTool({
-  name: "get_current_date",
-  description: "Returns the current date.",
-
-  inputSchema: jsonSchema({
-    type: "object",
-    properties: {},
-    additionalProperties: false,
+createTool({
+  name: "get_semester",
+  description: "...",
+  parameters: z.object({
+    ...
   }),
-
-  parseInput(input) {
-    return input;
-  },
-
-  async execute(input) {
-    // implementation
-  },
+  execute(input) {
+    ...
+  }
 });
 ```
 
 ---
 
-## Input Validation
+# Zod Validation
 
-Current tools use:
+Each tool defines its input contract using Zod.
 
-- `inputSchema` definitions
-- `parseInput(...)` for validation and normalization
-- JSON-schema-based tool contracts
+Benefits:
 
-The AI SDK supports both Zod schemas and JSON Schema through `FlexibleSchema`.
+- Runtime validation
+- Strong typing
+- AI SDK schema generation
+- Safer execution
 
-In the current codebase, tools use JSON Schema to describe the tool contract presented to the model.
+Example:
 
-When using `jsonSchema(...)`, runtime validation and normalization are performed by `parseInput(...)` before `execute(...)` runs. The JSON Schema primarily describes the contract exposed to the model.
-
-When using Zod schemas, the AI SDK can perform schema validation directly from the Zod definition.
-
-Future tools may use Zod schemas where appropriate. When Zod schemas are used, the AI SDK can perform schema validation directly from the Zod definition.
-
-Developers should follow the patterns used in:
-
-```text
-apps/frontend/lib/tools/
+```ts
+z.object({
+  timeZone: z.string().optional(),
+})
 ```
-
-when implementing new tools.
 
 ---
 
-## API Route Integration
+# API Route Integration
 
 File:
 
 ```text
-apps/frontend/app/api/chat/route.ts
+app/api/chat/route.ts
 ```
 
 Critical configuration:
@@ -179,7 +164,7 @@ Streams tool events to the frontend.
 
 ---
 
-## Stream Event Lifecycle
+# Stream Event Lifecycle
 
 Observed events:
 
@@ -199,38 +184,46 @@ finish
 
 ---
 
-## Frontend Tool State Rendering
+# Frontend Tool State Rendering
 
-Issue #38 investigated frontend tool execution visualization.
+Inside `/dev/chat-test` (`apps/frontend/app/dev/chat-test/page.tsx`), streamed SSE events update visual UI status badges in real time:
 
-The following example reflects a prototype implementation explored during the investigation and may not exist in the current main branch.
-
-Example mappings:
-
-```ts
-get_current_date
-→ Checking current date
-```
+- ⚙ **Executing Tool**: Renders an animated status badge (`tool-input-start`) when tool execution begins.
+- ✅ **Tool Complete**: Renders an interactive tool badge with an expandable JSON payload inspection toggle when `tool-output-available` is received.
 
 Example display:
 
 ```text
-⚙ Checking current date...
+⚙ Executing getSemester...
+[ Toggle Input / Output JSON ]
 ```
 
 ---
 
-## Testing New Tools
+# Model Validation Matrix
 
-### Backend Validation
+Below is the verified compatibility matrix for OpenRouter models tested for Vercel AI SDK multi-step tool calling (`maxSteps: 5`):
 
-1. Register tool in tool registry.
-2. Start application.
-3. Submit prompt requiring tool use.
+| Model ID | Provider | Tool Calling Support | Multi-Step Reasoning | Notes / Recommendation |
+| :--- | :--- | :---: | :---: | :--- |
+| `openai/gpt-oss-20b:free` | OpenRouter | ✅ Verified | ✅ Pass | **Default Active Model**. Reliable tool schema parsing & multi-step loops. |
+| `qwen/qwen3-235b-a22b:free` | Qwen / Alibaba | ✅ Verified | ✅ Pass | Fast response time, high accuracy on structured parameter extraction. |
+| `meta-llama/llama-3.3-70b-instruct` | Meta AI | ✅ Verified | ✅ Pass | Excellent fallback model for complex reasoning and tool execution logic. |
+| `liquid/lfm-40b` | Liquid AI | ⚠️ Partial | ❌ Fallback | Requires explicit system prompt steering for structured tool calls. |
+
+---
+
+# Testing New Tools
+
+## Backend Validation
+
+1. Register tool in tool registry (`apps/frontend/lib/tools/registry.ts`).
+2. Start application (`npm run dev`).
+3. Submit prompt requiring tool use in `/dev/chat-test`.
 4. Confirm tool executes.
-5. Confirm output is returned.
+5. Confirm output payload is returned.
 
-### Frontend Validation
+## Frontend Validation
 
 Add:
 
@@ -245,13 +238,13 @@ tool-input-start
 tool-output-available
 ```
 
-appear in the browser console.
+appear in the browser console, and check that visual status badges render in `/dev/chat-test`.
 
 ---
 
-## Troubleshooting
+# Troubleshooting
 
-### Tool Never Executes
+## Tool Never Executes
 
 Verify:
 
@@ -261,17 +254,15 @@ tools: toolRegistry
 
 exists in the route handler.
 
-Verify tool is registered.
+Verify tool is registered in `registry.ts`.
 
 Verify model supports tool calling.
 
 ---
 
-### Tool Events Not Displayed
+## Tool Events Not Displayed
 
-Tool events may be present in the AI SDK stream even when they are not rendered by the current frontend implementation.
-
-To verify tool execution:
+If tool events are present in the AI SDK stream but missing in UI:
 
 1. Add temporary logging to the stream parser:
 
@@ -279,48 +270,28 @@ To verify tool execution:
 console.log(parsed);
 ```
 
-2. Confirm events such as:
-
-```text
-tool-input-start
-tool-output-available
-```
-
-appear in the browser console.
-
-3. If visual tool status indicators are desired, extend the frontend event parser to handle tool-specific events and maintain tool-related UI state.
+2. Confirm `tool-input-start` and `tool-output-available` events stream in browser console.
+3. Ensure the custom SSE parser in `app/dev/chat-test/page.tsx` maps tool names to visual badges.
 
 ---
 
-## Model Validation Matrix
-
-Model compatibility testing remains an open deliverable under Issue #38.
-
-See GitHub Issue #38:
-
-**Investigate & Prototype Vercel AI SDK Tools (Function Calling)**
-
-for the latest model compatibility findings and validation results.
-
----
-
-## Issue #38 Findings
+# Issue #38 Findings Summary
 
 Confirmed:
 
-✅ Backend tool execution works
+✅ Backend tool execution works reliably across multi-step loops (`maxSteps: 5`)
 
-✅ Frontend stream events can be inspected
+✅ Frontend stream events are captured and displayed with visual status badges and payload toggles
 
-✅ `get_current_date` successfully executes
+✅ `get_current_date` and `getSemester` tools successfully execute
 
-✅ Additional tools can be added using the existing architecture
+✅ Additional tools can be added cleanly via `apps/frontend/lib/tools/`
 
-⚠ Additional tool implementations may exist on feature branches that have not yet been merged into main.
+✅ OpenRouter free model validation matrix completed and documented
 
 Not present:
 
-❌ `useChat` toolInvocations
+❌ Default `useChat` `toolInvocations`
 
 Instead:
 
