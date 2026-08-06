@@ -23,7 +23,7 @@ SYS_DATA_DIR = Path(__file__).resolve().parent.parent
 if str(SYS_DATA_DIR) not in sys.path:
     sys.path.insert(0, str(SYS_DATA_DIR))
 
-from dallasai.db_setup import check_db_status
+from dallasai.database import check_db_status
 from dallasai.main import (
     preprocess_document,
     chunk_markdown,
@@ -48,6 +48,17 @@ REAL_COURSE_FILES = [
     COURSES_DIR / "15115.html",
     COURSES_DIR / "15116.html"
 ]
+
+
+def test_lightweight_unit_pipeline_functions():
+    """Verifies Function 1, 2, and 3 in memory on mock HTML/Markdown string."""
+    clean_md, metadata = preprocess_document("<h1>Test Course</h1>", source_url="file://test.html")
+    assert "Test Course" in clean_md
+    chunks = chunk_markdown(clean_md)
+    assert len(chunks) > 0
+    records = extract_to_json_payload("test.html", chunks, metadata)
+    assert len(records) > 0
+    assert records[0]["chunk_index"] == 0
 
 
 def test_function_1_and_2_real_production_files():
@@ -106,9 +117,11 @@ def test_function_4_embedding_generation_real_files():
         assert len(embedded_records) == len(records)
         
         emb = embedded_records[0]["embedding"]
-        assert isinstance(emb, dict)
-        assert emb["dimension"] == 768
-        assert len(emb["values"]) == 768
+        assert isinstance(emb, list), f"embedding should be a flat list, got {type(emb).__name__}"
+        assert len(emb) == 768
+        assert embedded_records[0]["metadata"]["embedding_model"] == "local-768"
+        assert embedded_records[0]["metadata"]["embedding_dimensions"] == 768
+        assert "scraped_at" in embedded_records[0], "scraped_at field is required"
 
 
 def test_function_5_validation_and_upsert_real_files():
@@ -137,7 +150,9 @@ def test_process_document_end_to_end_real_production_files():
         records = process_document(real_file)
         assert len(records) >= 1
         assert records[0]["metadata"]["doc_type"] in ["syllabus", "course"]
-        assert records[0]["embedding"]["dimension"] == 768
+        assert isinstance(records[0]["embedding"], list)
+        assert len(records[0]["embedding"]) == 768
+        assert "scraped_at" in records[0]
         total_processed_records += len(records)
         
     print(f"\nSUCCESS: Processed {len(all_real_files)} real production files into {total_processed_records} validated vector records!")
