@@ -9,10 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
-    "db:check": "drizzle-kit check",
-    "db:studio": "drizzle-kit studio"
+    "lint": "eslint"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.83",
@@ -39,7 +36,6 @@
     "@types/react-dom": "^19",
     "@types/ws": "^8.18.1",
     "babel-plugin-react-compiler": "1.0.0",
-    "drizzle-kit": "^0.31.10",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "prettier-plugin-tailwindcss": "^0.8.0",
