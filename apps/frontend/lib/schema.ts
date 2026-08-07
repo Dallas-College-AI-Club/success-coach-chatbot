@@ -119,18 +119,17 @@ export const knowledgeEntry = pgTable(
 // Every value written here is PII-scrubbed upstream.
 // ============================================================================
 
-/** Durable onboarding answers — the profile allowlist (registry `profile_keys`). */
+/**
+ * Durable onboarding answers — mirrors the DEPLOYED profile allowlist
+ * (the Alembic contract's ck_cs_profile_allowlist, per review on PR #122).
+ * The documented target (schema.sql + registry `profile_keys`) is 10 keys;
+ * widen this type and the CHECK below in a follow-up once the corresponding
+ * Alembic migration is merged and deployed.
+ */
 export type ChatSessionProfile = Partial<{
   campus: string;
   major: string;
   student_type: string;
-  transfer_direction: string;
-  intl_status: string;
-  target_institution: string;
-  modality_pref: string;
-  dayparts_pref: string[];
-  interest_area: string;
-  oneoff_purpose: string;
 }>;
 
 export const chatSession = pgTable(
@@ -153,13 +152,12 @@ export const chatSession = pgTable(
     archivedAt: timestamp("archived_at", { withTimezone: true }), // set by the weekly archive job
   },
   (t) => [
-    // NOTE known drift: the deployed SQLAlchemy model still allowlists only
-    // {campus, major, student_type}; schema.sql + registry profile_keys say 10.
-    // This mirrors the documented 10-key target — reconcile when the Alembic
-    // fix for the allowlist lands.
+    // Mirrors the DEPLOYED 3-key allowlist (per review on PR #122). schema.sql
+    // + registry profile_keys document a 10-key target — widen in a follow-up
+    // after the corresponding Alembic migration is merged and deployed.
     check(
       "ck_cs_profile_allowlist",
-      sql`profile IS NULL OR profile - 'campus' - 'major' - 'student_type' - 'transfer_direction' - 'intl_status' - 'target_institution' - 'modality_pref' - 'dayparts_pref' - 'interest_area' - 'oneoff_purpose' = '{}'::jsonb`,
+      sql`profile IS NULL OR profile - 'campus' - 'major' - 'student_type' = '{}'::jsonb`,
     ),
     check("ck_cs_history_cap", sql`jsonb_array_length(history) <= 200`),
 
