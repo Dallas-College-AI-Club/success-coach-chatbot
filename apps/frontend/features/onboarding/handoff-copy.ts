@@ -239,7 +239,7 @@ export function authorityNotes(p: OnboardingPayload): string[] {
 export function coachVerifyLine(p: OnboardingPayload): string {
   // Settling in isn't a plan to approve — the coach is who they meet on arrival.
   if (p.goal === "settle_in") {
-    return "Koa helps you get ready to arrive. Your Success Coach takes it from there.";
+    return "Major helps you get ready to arrive. Your Success Coach takes it from there.";
   }
-  return "Koa helps you plan. A Success Coach makes it official.";
+  return "Major helps you plan. A Success Coach makes it official.";
 }

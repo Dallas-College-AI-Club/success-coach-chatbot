@@ -15,18 +15,18 @@ $raw = $env:RAW_ROOT
 $out = $env:FACTS_OUT
 
 if ($Stage -eq "gate") {
-    python -m pipeline.golden_gate --raw-root $raw
+    python -m dallasai.pipeline.golden_gate --raw-root $raw
     if ($LASTEXITCODE -ne 0) { exit 1 }
 }
 if ($Stage -eq "pilot") {
-    python -m pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --limit 20 --out "$here\out\pilot"
-    python -m pipeline.verify_catalog --facts "$here\out\pilot" --raw-root $raw
+    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --limit 20 --out "$here\out\pilot"
+    python -m dallasai.pipeline.verify_catalog --facts "$here\out\pilot" --raw-root $raw
 }
 if ($Stage -eq "bulk") {
-    python -m pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --out $out
-    python -m pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type program_map --out $out
-    python -m pipeline.verify_catalog --facts $out --raw-root $raw
+    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --out $out
+    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type program_map --out $out
+    python -m dallasai.pipeline.verify_catalog --facts $out --raw-root $raw
 }
 if ($Stage -eq "verify") {
-    python -m pipeline.verify_catalog --facts $out --raw-root $raw
+    python -m dallasai.pipeline.verify_catalog --facts $out --raw-root $raw
 }

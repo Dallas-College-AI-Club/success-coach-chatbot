@@ -18,6 +18,8 @@ dependencies = [
   "pypdf>=6.14.2",
   "chromadb>=1.5.9",
   "openai>=2.51.0",
+  "anthropic>=0.40",      # extraction engine (dallasai/pipeline/extract.py)
+  "jsonschema>=4.21",     # facts-schema validation (extract + verifiers)
 ]
 
 [dependency-groups]
@@ -33,7 +35,7 @@ packages = ["dallasai"]
 
 [tool.ruff]
 target-version = "py313"
-src = ["asterism"]
+src = ["dallasai"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
@@ -42,8 +44,7 @@ fixable = ["ALL"]
 [tool.pyright]
 reportPrivateImportUsage = "none"
 enableTypeIgnoreComments = true
-include = ["asterism/*"]
-stubPath = "asterism/*"
+include = ["dallasai"]
 #typeCheckingMode = "basic"
 
 reportReturnType = "warning"

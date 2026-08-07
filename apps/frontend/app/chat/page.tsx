@@ -24,7 +24,7 @@ export default function ChatPage() {
           <SuccessCoachBot className="size-11" />
           <div className="rounded-2xl rounded-tl-sm bg-[#EAF1FB] px-4 py-3 text-[15px] leading-snug">
             <p className="font-semibold text-[#003385]">
-              Hey, I&apos;m Koa 👋
+              Hey, I&apos;m Major 👋
             </p>
             <p className="mt-1.5 text-[#1E2A3A]/70">
               Your Dallas College planning companion. I&apos;m an AI, here to help
@@ -40,7 +40,7 @@ export default function ChatPage() {
           aria-hidden
           className="flex items-center gap-2 rounded-full border border-[#003385]/15 bg-[#F5F7FC] py-1.5 pr-1.5 pl-4 text-sm text-[#1E2A3A]/45"
         >
-          <span className="flex-1">Ask Koa anything…</span>
+          <span className="flex-1">Ask Major anything…</span>
           <span className="flex size-8 items-center justify-center rounded-full bg-[#003385] text-sm text-white">
             ➤
           </span>

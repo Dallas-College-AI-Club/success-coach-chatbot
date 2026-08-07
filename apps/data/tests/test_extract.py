@@ -9,7 +9,8 @@ from pathlib import Path
 import pytest
 from dallasai.pipeline import extract as ex
 
-# --------------------------------------------------------------------------- registry stamps
+# --------------------------------------------------------------------------- registry
+# stamps
 
 
 def test_registry_stamp_accepts_wired_doc_types_and_methods():
@@ -71,33 +72,40 @@ def test_build_prompt_injects_document_and_schema_exactly_once():
     # the template's header comment lists the literal placeholder names; filling
     # them there used to double every prompt's schema + document payload
     marker_doc = "PROBE_DOCUMENT_9f2d1c"
-    prompt = ex.build_prompt(
-        "syllabus", marker_doc, {"course_code": "PROBE 1234"}
-    )
+    prompt = ex.build_prompt("syllabus", marker_doc, {"course_code": "PROBE 1234"})
     assert prompt.count(marker_doc) == 1
     schema_head = json.dumps(ex.load_schema("syllabus"), indent=2)[:80]
     assert prompt.count(schema_head) == 1
     assert prompt.count('"PROBE 1234"') == 1
-    assert "<!--" not in prompt
+    # the TEMPLATE's header comment must be stripped (spliced exemplar files
+    # legitimately carry their own <!-- provenance headers -->)
+    assert not prompt.startswith("<!--")
+    assert "NEVER edit in place" not in prompt
 
 
-def test_build_prompt_guards_unimplemented_examples_placeholder(
-    monkeypatch, tmp_path
-):
+def test_build_prompt_splices_examples_excluding_counterexamples(monkeypatch, tmp_path):
     t = tmp_path / "extract_vX.md"
     t.write_text("{{DOC_TYPE}}\n{{EXAMPLES}}\n{{DOCUMENT}}", encoding="utf-8")
+    ex_dir = tmp_path / "examples" / "syllabus"
+    ex_dir.mkdir(parents=True)
+    (ex_dir / "01-good.md").write_text("GOOD_EXAMPLE_MARKER", encoding="utf-8")
+    bad_dir = ex_dir / "counterexamples"
+    bad_dir.mkdir()
+    (bad_dir / "01-bad.md").write_text("BAD_EXAMPLE_MARKER", encoding="utf-8")
     monkeypatch.setattr(ex, "PROMPT_PATH", t)
-    with pytest.raises(NotImplementedError, match="EXAMPLES"):
-        ex.build_prompt("syllabus", "doc", {})
+    monkeypatch.setattr(ex, "EXAMPLES_DIR", tmp_path / "examples")
+    prompt = ex.build_prompt("syllabus", "doc", {})
+    assert "GOOD_EXAMPLE_MARKER" in prompt
+    # wrong outputs must never enter the prompt as positives
+    assert "BAD_EXAMPLE_MARKER" not in prompt
+    assert "{{EXAMPLES}}" not in prompt
 
 
 # --------------------------------------------------------------------------- validation
 
 
 def test_validate_flags_schema_violations():
-    errs = ex.validate(
-        "syllabus", {"confidence": "very sure"}
-    )  # bad enum value
+    errs = ex.validate("syllabus", {"confidence": "very sure"})  # bad enum value
     assert errs and any("confidence" in e for e in errs)
     assert ex.validate("syllabus", {"confidence": "high"}) is None
 
@@ -108,20 +116,18 @@ def test_extract_manual_rejects_invalid_payload():
 
 
 def test_extract_manual_quarantines_low_confidence():
-    assert (
-        ex.extract_manual("syllabus", {"confidence": "low"}).status
-        == "needs_review"
-    )
+    assert ex.extract_manual("syllabus", {"confidence": "low"}).status == "needs_review"
     assert ex.extract_manual("syllabus", {"confidence": "high"}).status == "ok"
 
 
-# --------------------------------------------------------------------------- extract loop
+# --------------------------------------------------------------------------- extract
+# loop
 
 
 def test_extract_retries_with_errors_then_succeeds(monkeypatch):
     calls = []
 
-    def fake_model(provider, model, prompt, max_tokens=ex.DEFAULT_MAX_TOKENS):
+    def fake_model(provider, model, prompt, max_tokens=ex.DEFAULT_MAX_TOKENS, **kw):
         calls.append(prompt)
         if len(calls) == 1:
             return '{"confidence": "very sure"}'  # fails enum validation
@@ -140,9 +146,7 @@ def test_extract_retries_with_errors_then_succeeds(monkeypatch):
 
 
 def test_extract_exhausted_retries_quarantines(monkeypatch):
-    monkeypatch.setattr(
-        ex, "call_model", lambda *a, **k: '{"confidence": "very sure"}'
-    )
+    monkeypatch.setattr(ex, "call_model", lambda *a, **k: '{"confidence": "very sure"}')
     res = ex.extract(
         "syllabus", "doc text", {}, extractor_setting="lmstudio:test-model"
     )
@@ -154,7 +158,7 @@ def test_extract_exhausted_retries_quarantines(monkeypatch):
 def test_extract_uses_doc_type_token_budget(monkeypatch):
     seen = {}
 
-    def fake_model(provider, model, prompt, max_tokens=ex.DEFAULT_MAX_TOKENS):
+    def fake_model(provider, model, prompt, max_tokens=ex.DEFAULT_MAX_TOKENS, **kw):
         seen["max_tokens"] = max_tokens
         return (
             '{"program_code": "CORE-42", "name": "Core Curriculum", '
@@ -169,7 +173,8 @@ def test_extract_uses_doc_type_token_budget(monkeypatch):
     assert res.status == "ok" and res.attempts == 1
 
 
-# --------------------------------------------------------------------------- quarantine persistence
+# ---------------------------------------------------------------------------
+# quarantine persistence
 
 
 def test_persist_quarantine_writes_full_provenance(tmp_path):
@@ -180,6 +185,7 @@ def test_persist_quarantine_writes_full_provenance(tmp_path):
         validation_errors=None,
         extractor="test-model",
         extraction_method="local_lmstudio",
+        prompt_version=ex.prompt_version("syllabus"),
         schema_version="1",
         attempts=3,
         raw_responses=['{"confidence": "low"}'],
@@ -195,7 +201,7 @@ def test_persist_quarantine_writes_full_provenance(tmp_path):
     assert saved["doc_id"] == "2026SP-ACCT-2301-24"
     assert saved["source"] == str(src) and saved["context"] == ctx
     assert saved["extraction_method"] == "local_lmstudio"
-    assert saved["prompt_version"] == ex.PROMPT_VERSION
+    assert saved["prompt_version"] == ex.prompt_version("syllabus")
     assert saved["attempts"] == 3 and saved["raw_responses"]
 
 
@@ -243,9 +249,7 @@ def test_ollama_sends_num_ctx_sized_to_prompt(monkeypatch):
 
     def fake_post(url, timeout, json):
         sent.update(json)
-        return _FakeResp(
-            {"message": {"content": "{}"}, "prompt_eval_count": 100}
-        )
+        return _FakeResp({"message": {"content": "{}"}, "prompt_eval_count": 100})
 
     monkeypatch.setattr(requests, "post", fake_post)
     ex._call_ollama("test-model", "x" * 3000, max_tokens=16384)
@@ -266,9 +270,5 @@ def test_openai_compatible_tokens_key_per_provider(monkeypatch):
     monkeypatch.setattr(requests, "post", fake_post)
     ex._call_openai_compatible("m", "p", provider="lmstudio", max_tokens=8192)
     ex._call_openai_compatible("m", "p", provider="openai", max_tokens=8192)
-    assert (
-        "max_tokens" in bodies[0] and "max_completion_tokens" not in bodies[0]
-    )
-    assert (
-        "max_completion_tokens" in bodies[1] and "max_tokens" not in bodies[1]
-    )
+    assert "max_tokens" in bodies[0] and "max_completion_tokens" not in bodies[0]
+    assert "max_completion_tokens" in bodies[1] and "max_tokens" not in bodies[1]

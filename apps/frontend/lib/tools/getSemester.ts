@@ -268,6 +268,7 @@ export function createGetSemesterTool(
     },
 
     execute(input: GetSemesterInput): SemesterResult {
+
       const timeZone = input.timeZone ?? defaultTimeZone;
       assertIanaTimeZone(timeZone);
 

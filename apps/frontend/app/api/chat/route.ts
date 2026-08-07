@@ -29,19 +29,6 @@ export async function POST(req: Request) {
                 }
             );
         }
-        if (!activeApiKey) {
-            console.warn('[API Chat Route]: No active OpenRouter API key detected.');
-            return new Response(
-                JSON.stringify({
-                    error: 'Missing API Key',
-                    details: 'An active OpenRouter API Key is required. Please set OPENROUTER_API_KEY in your root .env file to run live tests.',
-                }),
-                {
-                    status: 401,
-                    headers: { 'Content-Type': 'application/json' },
-                }
-            );
-        }
 
         // Create the OpenRouter provider using the resolved API key
         const openrouter = createOpenAI({

@@ -56,7 +56,7 @@ The onboarding was audited across phone, tablet (iPad), and laptop, portrait and
 
 ## 6. Guardrails and grounding (must-honor)
 
-- **Never assert an outcome the college hasn't confirmed** — transfer credit, financial aid, or graduation. Route those to the deciding institution/office and to a Success Coach. This is the interview's standing rule (#42) and the guardrail scope ([#39](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/39)); see also `GUARDRAIL_BENCHMARKS.md`. Every path routes to a Success Coach for verification — the hand-off's closing line, from `coachVerifyLine()`, is *"Koa helps you plan. A Success Coach makes it official."*
+- **Never assert an outcome the college hasn't confirmed** — transfer credit, financial aid, or graduation. Route those to the deciding institution/office and to a Success Coach. This is the interview's standing rule (#42) and the guardrail scope ([#39](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/39)); see also `GUARDRAIL_BENCHMARKS.md`. Every path routes to a Success Coach for verification — the hand-off's closing line, from `coachVerifyLine()`, is *"Major helps you plan. A Success Coach makes it official."*
 - **Ground answers in verified Dallas College catalog data** (RAG over the catalog — #35/#36/#61). `major`/`target_institution` arrive as catalog ids/codes to filter on.
 - **Respect staged capability.** [`shipped-intents.ts`](../../apps/frontend/features/onboarding/shipped-intents.ts) is the single source for which capabilities are live; don't offer an answer the pipeline can't yet ground.
 

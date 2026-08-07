@@ -41,8 +41,8 @@ export const simple: Mode = {
     pickerEmpty: "No match yet. Try a shorter word, or pick “I'm still figuring it out.”",
     completionHeadline: "That's a solid start.",
     restart: "Start over",
-    capabilityTrigger: "What can Koa help with?",
-    capabilityTitle: "What Koa can help with",
-    capabilityDesc: "Koa is a planning tool. Here's the kind of thing you can ask.",
+    capabilityTrigger: "What can Major help with?",
+    capabilityTitle: "What Major can help with",
+    capabilityDesc: "Major is a planning tool. Here's the kind of thing you can ask.",
   },
 };

@@ -47,7 +47,7 @@
     "cv": {
       "scope": "timeless",
       "default_module": "degree_planning",
-      "facts_schema": "facts-cv-v1"
+      "facts_schema": "facts-cv-v2"
     },
     "contact": {
       "scope": "timeless",

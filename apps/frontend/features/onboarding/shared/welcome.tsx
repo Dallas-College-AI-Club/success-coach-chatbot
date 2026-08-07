@@ -10,7 +10,7 @@ import type { Mode } from "@/features/onboarding/skin";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import { useState } from "react";
 
-// The welcome greeter — Koa, a friendly rounded robot in its own warm palette
+// The welcome greeter — Major, a friendly rounded robot in its own warm palette
 // (blue-grey head, mint face screen, orange antenna and side ears). Deliberately
 // its own mascot, distinct from the Dallas-branded SuccessCoachBot used in the
 // chat — keep it separate rather than swapping that component in here.
@@ -74,8 +74,8 @@ export function Welcome({
           <BotAvatar />
           <p className="max-w-xs text-sm text-[#1E2A3A]/70">
             {canPick
-              ? "Hi, I'm Koa! Pick a look, then I'll ask a few quick questions to get you started."
-              : "Hi, I'm Koa! I'll ask a few quick questions to get you started."}
+              ? "Hi, I'm Major! Pick a look, then I'll ask a few quick questions to get you started."
+              : "Hi, I'm Major! I'll ask a few quick questions to get you started."}
           </p>
         </div>
 
