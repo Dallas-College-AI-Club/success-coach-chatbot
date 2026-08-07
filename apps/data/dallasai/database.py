@@ -29,6 +29,12 @@ from collections.abc import Generator
 from pathlib import Path
 from typing import Optional
 
+from dotenv import load_dotenv
+from sqlalchemy import Engine, create_engine, text
+from sqlalchemy.orm import Session, sessionmaker
+
+from dallasai.models import Base
+
 # Auto-inject apps/data directory into sys.path
 SYS_DATA_DIR = Path(__file__).resolve().parent.parent
 if str(SYS_DATA_DIR) not in sys.path:
@@ -40,11 +46,6 @@ if hasattr(sys.stdout, "reconfigure"):
     except Exception:
         pass
 
-from dotenv import load_dotenv
-from sqlalchemy import Engine, create_engine, text
-from sqlalchemy.orm import Session, sessionmaker
-
-from dallasai.models import Base
 
 load_dotenv()
 
@@ -52,7 +53,7 @@ load_dotenv()
 def get_database_url() -> str:
     """
     Retrieves PostgreSQL connection string from environment or .env file.
-    
+
     Precedence:
         1. DATABASE_URL_UNPOOLED (direct Neon connection for heavy Python batch operations)
         2. DATABASE_URL (pooled connection)
@@ -70,7 +71,11 @@ def get_database_url() -> str:
         env_file = SYS_DATA_DIR.parent.parent / ".env"
         if env_file.exists():
             for line in env_file.read_text().splitlines():
-                if line.startswith("DATABASE_URL_UNPOOLED=") or line.startswith("DATABASE_URL=") or line.startswith("NEON_DATABASE_URL="):
+                if (
+                    line.startswith("DATABASE_URL_UNPOOLED=")
+                    or line.startswith("DATABASE_URL=")
+                    or line.startswith("NEON_DATABASE_URL=")
+                ):
                     db_url = line.split("=", 1)[1].strip().strip('"').strip("'")
                     if db_url:
                         break
@@ -110,21 +115,15 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
-def get_db_session(database_url: Optional[str] = None) -> Session:
-    """Creates and returns a new direct SQLAlchemy Session bound to Neon database."""
-    url = database_url or get_database_url()
-    eng = create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 5})
-    SessionMaker = sessionmaker(bind=eng, autoflush=False, autocommit=False)
-    return SessionMaker()
-
-
 def init_db(database_url: Optional[str] = None) -> None:
     """Initializes pgvector extension and creates all ORM tables in Neon PostgreSQL."""
     url = database_url or get_database_url()
     print("🔌 Connecting to Neon PostgreSQL database...")
 
     try:
-        eng = create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 5})
+        eng = create_engine(
+            url, pool_pre_ping=True, connect_args={"connect_timeout": 5}
+        )
 
         # 1. Enable pgvector extension
         with eng.connect() as conn:
@@ -134,7 +133,9 @@ def init_db(database_url: Optional[str] = None) -> None:
 
         # 2. Create tables defined in models.py (KnowledgeEntry, ChatSession)
         Base.metadata.create_all(bind=eng)
-        print("✅ Database tables ('knowledge_entry', 'chat_session') successfully initialized.")
+        print(
+            "✅ Database tables ('knowledge_entry', 'chat_session') successfully initialized."
+        )
     except Exception as err:
         print(f"⚠️ Note: Database initialization step: {err}")
 
@@ -146,50 +147,89 @@ def check_db_status(database_url: Optional[str] = None) -> None:
     print("📊 Querying Neon PostgreSQL database status...\n")
 
     try:
-        eng = create_engine(url, pool_pre_ping=True, connect_args={"connect_timeout": 5})
+        eng = create_engine(
+            url, pool_pre_ping=True, connect_args={"connect_timeout": 5}
+        )
         with eng.connect() as conn:
             # Discover tables in schema
             t_res = conn.execute(
-                text("SELECT table_name FROM information_schema.tables WHERE table_schema='public';")
+                text(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
+                )
             ).fetchall()
             tbl_names = [t[0] for t in t_res]
 
-            print("=========================================================================")
+            print(
+                "========================================================================="
+            )
             print("🐘 Neon PostgreSQL Database Status")
-            print("=========================================================================")
-            print(f"  • Existing Database Tables: {', '.join(tbl_names) if tbl_names else 'None'}")
+            print(
+                "========================================================================="
+            )
+            print(
+                f"  • Existing Database Tables: {', '.join(tbl_names) if tbl_names else 'None'}"
+            )
 
             if "knowledge_entry" in tbl_names:
-                total_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry;")).scalar()
-                syl_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';")).scalar()
-                cat_count = conn.execute(text("SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';")).scalar()
+                total_count = conn.execute(
+                    text("SELECT COUNT(*) FROM knowledge_entry;")
+                ).scalar()
+                syl_count = conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';"
+                    )
+                ).scalar()
+                cat_count = conn.execute(
+                    text(
+                        "SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';"
+                    )
+                ).scalar()
                 recent = conn.execute(
-                    text("SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;")
+                    text(
+                        "SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;"
+                    )
                 ).fetchall()
 
                 print(f"  • Total Knowledge Entries: {total_count}")
                 print(f"  • Syllabi Entries        : {syl_count}")
                 print(f"  • Catalog Course Entries : {cat_count}")
-                print("-------------------------------------------------------------------------")
+                print(
+                    "-------------------------------------------------------------------------"
+                )
                 print("📋 Latest Ingested Entries:")
                 if recent:
                     for r in recent:
-                        print(f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'")
+                        print(
+                            f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'"
+                        )
                 else:
                     print("  (No records found in database yet)")
             elif "embeddings" in tbl_names:
-                emb_count = conn.execute(text("SELECT COUNT(*) FROM embeddings;")).scalar()
+                emb_count = conn.execute(
+                    text("SELECT COUNT(*) FROM embeddings;")
+                ).scalar()
                 print(f"  • Total Embeddings Vector Count: {emb_count}")
 
-            print("=========================================================================\n")
+            print(
+                "=========================================================================\n"
+            )
     except Exception as err:
         print(f"❌ Error connecting to database: {err}")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Neon Database Setup & Verification Helper")
-    parser.add_argument("--init", action="store_true", help="Initialize DDL schema tables in Neon")
-    parser.add_argument("--status", "--check", action="store_true", help="Check database record count and view latest entries")
+    parser = argparse.ArgumentParser(
+        description="Neon Database Setup & Verification Helper"
+    )
+    parser.add_argument(
+        "--init", action="store_true", help="Initialize DDL schema tables in Neon"
+    )
+    parser.add_argument(
+        "--status",
+        "--check",
+        action="store_true",
+        help="Check database record count and view latest entries",
+    )
     args = parser.parse_args()
 
     if args.init:
@@ -198,6 +238,9 @@ if __name__ == "__main__":
         check_db_status()
     else:
         print("Usage:")
-        print("  python3 apps/data/dallasai/database.py --init    # Initialize database tables")
-        print("  python3 apps/data/dallasai/database.py --status  # Check database records & counts")
-
+        print(
+            "  python3 apps/data/dallasai/database.py --init    # Initialize database tables"
+        )
+        print(
+            "  python3 apps/data/dallasai/database.py --status  # Check database records & counts"
+        )

@@ -13,10 +13,8 @@ Description:
 ===============================================================================
 """
 
-import json
 import sys
 from pathlib import Path
-import pytest
 
 # Inject apps/data into Python sys.path
 SYS_DATA_DIR = Path(__file__).resolve().parent.parent
@@ -25,12 +23,12 @@ if str(SYS_DATA_DIR) not in sys.path:
 
 from dallasai.database import check_db_status
 from dallasai.main import (
-    preprocess_document,
     chunk_markdown,
     extract_to_json_payload,
     generate_embeddings,
+    preprocess_document,
+    process_document,
     validate_and_upsert_payload,
-    process_document
 )
 
 # Paths to REAL production sample files
@@ -40,19 +38,21 @@ COURSES_DIR = SYS_DATA_DIR / "sample_data" / "courses"
 REAL_SYLLABUS_FILES = [
     SYLLABI_DIR / "84063.html",
     SYLLABI_DIR / "98296.html",
-    SYLLABI_DIR / "98301.html"
+    SYLLABI_DIR / "98301.html",
 ]
 
 REAL_COURSE_FILES = [
     COURSES_DIR / "15113.html",
     COURSES_DIR / "15115.html",
-    COURSES_DIR / "15116.html"
+    COURSES_DIR / "15116.html",
 ]
 
 
 def test_lightweight_unit_pipeline_functions():
     """Verifies Function 1, 2, and 3 in memory on mock HTML/Markdown string."""
-    clean_md, metadata = preprocess_document("<h1>Test Course</h1>", source_url="file://test.html")
+    clean_md, metadata = preprocess_document(
+        "<h1>Test Course</h1>", source_url="file://test.html"
+    )
     assert "Test Course" in clean_md
     chunks = chunk_markdown(clean_md)
     assert len(chunks) > 0
@@ -66,11 +66,13 @@ def test_function_1_and_2_real_production_files():
     # 1. Test 3 Real Production Syllabi
     for syl_file in REAL_SYLLABUS_FILES:
         raw_html = syl_file.read_text(encoding="utf-8")
-        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{syl_file.name}")
-        
+        clean_md, metadata = preprocess_document(
+            raw_html, source_url=f"file://{syl_file.name}"
+        )
+
         assert metadata["doc_type"] == "syllabus"
         assert len(clean_md) > 100
-        
+
         chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
         assert isinstance(chunks, list)
         assert len(chunks) >= 1
@@ -78,12 +80,14 @@ def test_function_1_and_2_real_production_files():
     # 2. Test 3 Real Production Catalog Courses
     for course_file in REAL_COURSE_FILES:
         raw_html = course_file.read_text(encoding="utf-8")
-        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{course_file.name}")
-        
+        clean_md, metadata = preprocess_document(
+            raw_html, source_url=f"file://{course_file.name}"
+        )
+
         assert metadata["doc_type"] == "course"
         assert "course_code" in metadata
         assert len(clean_md) > 50
-        
+
         chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
         assert isinstance(chunks, list)
         assert len(chunks) >= 1
@@ -92,13 +96,17 @@ def test_function_1_and_2_real_production_files():
 def test_function_3_payload_assembly_real_files():
     """Verifies Function 3 packages real document chunks and metadata into valid JSON payloads."""
     all_real_files = REAL_SYLLABUS_FILES + REAL_COURSE_FILES
-    
+
     for real_file in all_real_files:
         raw_html = real_file.read_text(encoding="utf-8")
-        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        clean_md, metadata = preprocess_document(
+            raw_html, source_url=f"file://{real_file.name}"
+        )
         chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
-        
-        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
+
+        records = extract_to_json_payload(
+            real_file.name, chunks, metadata, document_text=clean_md
+        )
         assert len(records) == len(chunks)
         assert records[0]["source_url"] == f"file://{real_file.name}"
         assert "content_hash" in records[0]
@@ -109,15 +117,21 @@ def test_function_4_embedding_generation_real_files():
     """Verifies Function 4 generates 768-dim vector embeddings for real document payloads."""
     for real_file in REAL_SYLLABUS_FILES[:1] + REAL_COURSE_FILES[:1]:
         raw_html = real_file.read_text(encoding="utf-8")
-        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        clean_md, metadata = preprocess_document(
+            raw_html, source_url=f"file://{real_file.name}"
+        )
         chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
-        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
-        
+        records = extract_to_json_payload(
+            real_file.name, chunks, metadata, document_text=clean_md
+        )
+
         embedded_records = generate_embeddings(records, model_name="local-768")
         assert len(embedded_records) == len(records)
-        
+
         emb = embedded_records[0]["embedding"]
-        assert isinstance(emb, list), f"embedding should be a flat list, got {type(emb).__name__}"
+        assert isinstance(emb, list), (
+            f"embedding should be a flat list, got {type(emb).__name__}"
+        )
         assert len(emb) == 768
         assert embedded_records[0]["metadata"]["embedding_model"] == "local-768"
         assert embedded_records[0]["metadata"]["embedding_dimensions"] == 768
@@ -129,9 +143,13 @@ def test_function_5_validation_and_upsert_real_files():
     all_embedded = []
     for real_file in REAL_SYLLABUS_FILES + REAL_COURSE_FILES:
         raw_html = real_file.read_text(encoding="utf-8")
-        clean_md, metadata = preprocess_document(raw_html, source_url=f"file://{real_file.name}")
+        clean_md, metadata = preprocess_document(
+            raw_html, source_url=f"file://{real_file.name}"
+        )
         chunks = chunk_markdown(clean_md, chunk_size=800, chunk_overlap=100)
-        records = extract_to_json_payload(real_file.name, chunks, metadata, document_text=clean_md)
+        records = extract_to_json_payload(
+            real_file.name, chunks, metadata, document_text=clean_md
+        )
         embedded = generate_embeddings(records, model_name="local-768")
         all_embedded.extend(embedded)
 
@@ -144,7 +162,7 @@ def test_function_5_validation_and_upsert_real_files():
 def test_process_document_end_to_end_real_production_files():
     """Verifies full end-to-end processing across all 6 real production files."""
     all_real_files = REAL_SYLLABUS_FILES + REAL_COURSE_FILES
-    
+
     total_processed_records = 0
     for real_file in all_real_files:
         records = process_document(real_file)
@@ -154,8 +172,10 @@ def test_process_document_end_to_end_real_production_files():
         assert len(records[0]["embedding"]) == 768
         assert "scraped_at" in records[0]
         total_processed_records += len(records)
-        
-    print(f"\nSUCCESS: Processed {len(all_real_files)} real production files into {total_processed_records} validated vector records!")
+
+    print(
+        f"\nSUCCESS: Processed {len(all_real_files)} real production files into {total_processed_records} validated vector records!"
+    )
 
 
 if __name__ == "__main__":
