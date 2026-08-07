@@ -213,3 +213,10 @@ deliveries/
 fresh.json
 dallasai/rows.json
 dallasai/rows-cv-embedded.json
+
+
+# Downloaded Teams / SharePoint datasets
+apps/data/downloaded-dataset/
+
+# Temporary pipeline outputs
+.tmp/

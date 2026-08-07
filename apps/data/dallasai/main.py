@@ -177,11 +177,13 @@ def validate_and_upsert_payload(
         else:
             quarantined_records.append(record)
 
-    upserted_count = 0
     if validated_records:
         try:
-            from dallasai.models.load_catalog_to_neon import load_into_neon
-            upserted_count = load_into_neon(validated_records, db_session=db_session)
+            from dallasai.load_catalog_to_neon import load_into_neon
+            load_into_neon(
+                rows=validated_records,
+                batch_size=100
+            )
         except Exception as err:
             print(f"⚠️ Function 5 Upsert Note: {err}")
 
@@ -189,7 +191,7 @@ def validate_and_upsert_payload(
         "status": "ok" if not quarantined_records else "partial_quarantine",
         "validated_count": len(validated_records),
         "quarantined_count": len(quarantined_records),
-        "upserted_count": upserted_count
+        "upserted_count": len(validated_records) if validated_records else 0
     }
 
 
@@ -367,7 +369,6 @@ def parse_args() -> argparse.Namespace:
         help="Select starting pipeline stage (1: Preprocess HTML/MD, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate & Upsert)."
     )
     return parser.parse_args()
-
 
 
 def main() -> None:
