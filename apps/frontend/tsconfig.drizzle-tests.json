@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "incremental": false,
+    "allowImportingTsExtensions": true
+  },
+  "include": [
+  "lib/schema.ts",
+  "test/Drizzle/drizzle-smoke.ts",
+  "test/Drizzle/drizzle-types.ts",
+  ],
+  "exclude": [
+    "node_modules",
+    ".next"
+  ]
+}
