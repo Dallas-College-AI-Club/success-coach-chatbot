@@ -61,3 +61,8 @@ apps/data/cleaned/2026SP/*
 !apps/data/cleaned/2026SP/98326.md
 !apps/data/cleaned/2026SP/98326_clean.html
 
+# Local data imports
+apps/data/downloaded-dataset/
+
+# Pipeline artifacts
+.tmp/
