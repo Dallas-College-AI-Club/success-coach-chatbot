@@ -21,6 +21,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -37,6 +38,52 @@ from bs4 import BeautifulSoup
 from dallasai.markdown_converter import MarkdownConverter
 from dallasai.pipeline.html_cleaner import HTMLCleaner
 from dallasai.semantic_chunker import SemanticChunker
+
+
+def parse_markdown_frontmatter(markdown_text: str) -> Tuple[Dict[str, Any], str]:
+    """
+    Parse YAML-style frontmatter emitted by MarkdownConverter.
+
+    Returns a tuple of (metadata_dict, clean_markdown_body_without_frontmatter).
+    """
+    if not markdown_text.startswith("---"):
+        return {}, markdown_text
+
+    match = re.match(
+        r"^---\s*\n(.*?)\n---\s*\n",
+        markdown_text,
+        re.DOTALL,
+    )
+
+    if not match:
+        return {}, markdown_text
+
+    metadata: Dict[str, Any] = {}
+    frontmatter_raw = match.group(1)
+    body_md = markdown_text[match.end():]
+
+    for line in frontmatter_raw.splitlines():
+        if ":" not in line:
+            continue
+
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+
+        # Basic type conversions
+        if value.lower() in ("true", "yes"):
+            metadata[key] = True
+        elif value.lower() in ("false", "no"):
+            metadata[key] = False
+        elif value.isdigit():
+            metadata[key] = int(value)
+        else:
+            try:
+                metadata[key] = float(value)
+            except ValueError:
+                metadata[key] = value
+
+    return metadata, body_md
 
 
 def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str = "Processing") -> None:
@@ -100,8 +147,9 @@ def extract_to_json_payload(
     """Function 3: Combines chunks, metadata, and facts into Issue #61 JSON payloads with SHA-256 hashes."""
     from dallasai.pipeline.extract import extract
 
+    doc_type = metadata.get("doc_type", "syllabus")
+
     if facts is None:
-        doc_type = metadata.get("doc_type", "syllabus")
         if document_text and doc_type in ["syllabus", "course", "program_map", "cv"]:
             try:
                 result = extract(doc_type, document_text, context=metadata)
@@ -172,6 +220,7 @@ def validate_and_upsert_payload(
                 schema_errors = validate(doc_type, facts)
             except Exception:
                 schema_errors = None
+
         if facts.get("confidence") in ["high", "medium"] and not schema_errors:
             validated_records.append(record)
         else:
@@ -200,8 +249,9 @@ def _read_and_clean_single_file(file_path: Path) -> Optional[Dict[str, Any]]:
     try:
         raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
         if file_path.suffix.lower() in [".md", ".markdown"]:
-            clean_md = raw_text
-            metadata = {"source_url": f"file://{file_path.name}", "doc_type": "syllabus"}
+            metadata, clean_md = parse_markdown_frontmatter(raw_text)
+            metadata.setdefault("source_url", f"file://{file_path.name}")
+            metadata["doc_type"] = metadata.get("document_type", "syllabus")
         else:
             clean_md, metadata = preprocess_document(raw_text, source_url=str(file_path))
             
@@ -271,10 +321,14 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         for idx, file_path in enumerate(file_iterator, start=1):
             try:
                 raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+                metadata, clean_md = parse_markdown_frontmatter(raw_text)
+                metadata.setdefault("source_url", f"file://{file_path.name}")
+                metadata["doc_type"] = metadata.get("document_type", "syllabus")
+
                 clean_docs.append({
                     "file_path": file_path,
-                    "clean_md": raw_text,
-                    "metadata": {"source_url": f"file://{file_path.name}", "doc_type": "syllabus"}
+                    "clean_md": clean_md,
+                    "metadata": metadata
                 })
             except Exception:
                 pass
