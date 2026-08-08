@@ -11,7 +11,7 @@ import { useEffect } from "react";
 //
 // This is the system's only durable student/session state. The server's
 // `chat_session` table is a PII-scrubbed analytics/eval log, archived weekly
-// and purged (apps/data/db/schema.sql), so continuity is client-side by
+// and purged (apps/data/reference/db/schema.sql), so continuity is client-side by
 // design; nothing here is a cache of anything. Tabs don't sync: the stored
 // state follows the most recent writer.
 
