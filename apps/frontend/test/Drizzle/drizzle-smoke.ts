@@ -1,7 +1,10 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
 import { count, sql as query } from "drizzle-orm";
-import { chatSession, knowledgeEntry } from "../../lib/schema.ts";
+import {
+  chatSession,
+  knowledgeEntry,
+} from "../../lib/schema.ts";
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
@@ -13,8 +16,11 @@ async function main() {
   console.log("Drizzle starting");
 
   const db = drizzle(neon(databaseUrl), {
-  schema: { knowledgeEntry, chatSession },
-});
+    schema: {
+      knowledgeEntry,
+      chatSession,
+    },
+  });
 
   const result = await Promise.race([
     db.execute(query`SELECT 1 AS ok`),
@@ -27,20 +33,44 @@ async function main() {
   ]);
 
   console.log("Drizzle connection: OK", result);
+
   const [knowledgeCount] = await db
-  .select({ total: count() })
-  .from(knowledgeEntry);
+    .select({ total: count() })
+    .from(knowledgeEntry);
 
   const [sessionCount] = await db
-  .select({ total: count() })
-  .from(chatSession);
+    .select({ total: count() })
+    .from(chatSession);
 
-console.log("knowledge_entry rows:", knowledgeCount.total);
-console.log("chat_session rows:", sessionCount.total);
-console.log("No database changes were made.");
+  const [knowledgeSample] = await db
+    .select({
+      courseCode: knowledgeEntry.courseCode,
+    })
+    .from(knowledgeEntry)
+    .limit(1);
+
+  const [sessionSample] = await db
+    .select({
+      messageCount: chatSession.messageCount,
+    })
+    .from(chatSession)
+    .limit(1);
+
+  console.log("knowledge_entry rows:", knowledgeCount.total);
+  console.log("chat_session rows:", sessionCount.total);
+
+  console.log("Generated column reads: OK", {
+    courseCode: knowledgeSample?.courseCode,
+    messageCount: sessionSample?.messageCount,
+  });
+
+  console.log("No database changes were made.");
 }
 
 main().catch((error) => {
-  console.error(error instanceof Error ? error.message : error);
+  console.error(
+    "Drizzle smoke test failed:",
+    error instanceof Error ? error.message : error,
+  );
   process.exitCode = 1;
 });
