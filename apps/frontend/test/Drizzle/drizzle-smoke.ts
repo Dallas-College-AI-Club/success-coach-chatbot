@@ -1,6 +1,11 @@
 import { neon } from "@neondatabase/serverless";
 import { drizzle } from "drizzle-orm/neon-http";
-import { count, sql as query } from "drizzle-orm";
+import {
+  cosineDistance,
+  count,
+  desc,
+  sql as query,
+} from "drizzle-orm";
 import {
   chatSession,
   knowledgeEntry,
@@ -63,6 +68,30 @@ async function main() {
     courseCode: knowledgeSample?.courseCode,
     messageCount: sessionSample?.messageCount,
   });
+
+  const probeEmbedding = [
+    1,
+    ...Array.from({ length: 767 }, () => 0),
+  ];
+
+  const similarity = query<number>`1 - (${cosineDistance(
+  knowledgeEntry.embedding,
+  probeEmbedding,
+  )})`;
+
+  const vectorSample = await db
+    .select({
+      id: knowledgeEntry.id,
+      similarity,
+    })
+    .from(knowledgeEntry)
+    .orderBy(desc(similarity))
+    .limit(1);
+
+  console.log(
+    "Vector similarity query: OK",
+    vectorSample.length > 0,
+  );
 
   console.log("No database changes were made.");
 }
