@@ -9,7 +9,7 @@ import {
 import {
   chatSession,
   knowledgeEntry,
-} from "../../lib/schema.ts";
+} from "../../lib/schema";
 
 async function main() {
   const databaseUrl = process.env.DATABASE_URL;
