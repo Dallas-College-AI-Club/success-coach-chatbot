@@ -335,6 +335,10 @@ export default function ChatTestPage() {
                                     setActiveTool('Checking current date');
                                     break;
 
+                                case "get_course_info":
+                                    setActiveTool("Looking up course information");
+                                    break;
+
                                 default:
                                     setActiveTool(`Running ${parsed.toolName}`);
                             }
