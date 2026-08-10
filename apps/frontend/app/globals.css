@@ -151,15 +151,63 @@
   }
 }
 
-/* The roaming campus mascots sway gently in place beside their drift. */
-@keyframes sway {
+/* The campus mascots hang in a band with nothing under them — campus-critters
+   places each at its own height, so there is no ground plane to push off. The
+   vocabulary is therefore float / breathe / bank, never hop / land / squash:
+   those read as weight only when the eye can infer a floor, and on a floating
+   badge they look like a sticker being shaken.
+   One clock per character (--beat), scattered by --phase so the cast never
+   moves in unison. Breathe shares the float's beat; bank peaks at 68%, i.e.
+   after the float apex at 46-58% — that lag is what reads as mass. Using the
+   individual transform properties (translate/rotate/scale) lets all three
+   animate one element, so no wrapper div is needed. */
+@keyframes critter-float {
   0%,
   100% {
-    transform: rotate(-3deg) translateY(0);
+    translate: 0 7%;
+    animation-timing-function: cubic-bezier(0.35, 0, 0.25, 1);
   }
-  50% {
-    transform: rotate(3deg) translateY(-4px);
+  46% {
+    translate: 0 -6.4%;
+    animation-timing-function: cubic-bezier(0.5, 0, 0.5, 1);
   }
+  58% {
+    translate: 0 -7%;
+    animation-timing-function: cubic-bezier(0.6, 0, 0.3, 1);
+  }
+}
+
+/* Volume change on the same beat: stretch on the rise, settle at the bottom.
+   2-3% is the whole budget — more reads as a wobble, not a breath. */
+@keyframes critter-breathe {
+  0%,
+  100% {
+    scale: 1.022 0.978;
+  }
+  46%,
+  58% {
+    scale: 0.982 1.018;
+  }
+}
+
+@keyframes critter-bank {
+  0%,
+  100% {
+    rotate: -2.6deg;
+  }
+  68% {
+    rotate: 2.6deg;
+  }
+}
+
+.critter {
+  /* Pivot near the visual centre of mass — there are no feet on a floor. */
+  transform-origin: 50% 55%;
+  animation-name: critter-float, critter-breathe, critter-bank;
+  animation-duration: var(--beat);
+  animation-delay: var(--phase);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear, ease-in-out, ease-in-out;
 }
 /* Decorative flourishes — original shapes drawn beside the logos (never over the
    artwork): a lightning spark and sun sparkles. */

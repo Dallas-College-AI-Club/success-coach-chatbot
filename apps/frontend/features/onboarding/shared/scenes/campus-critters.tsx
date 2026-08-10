@@ -3,10 +3,11 @@
 // chat card — which on desktop is a narrow but tall strip. So instead of a bottom
 // row (which would crowd and overlap in the narrow width), they're scattered down
 // the strip at distinct heights in a gentle left-right zigzag: each mascot sits at
-// its own height, so they never pile up, and each drifts and sways on its own beat.
+// its own height, so they never pile up, and each floats on its own beat.
 // Small original flourishes (a lightning spark on the Thunderduck, sparkles by the
-// Sun) are drawn beside the logos. All motion is transform/opacity only, desynced
-// per instance, and gated behind motion-safe.
+// Sun) are drawn beside the logos. All motion is transform/opacity only and
+// desynced per instance — see .critter in globals.css for the float/breathe/bank
+// cycle, and the flourishes below for the motion-safe: opacity blinks.
 import Image from "next/image";
 import { type CSSProperties, type ReactNode } from "react";
 
@@ -37,15 +38,19 @@ const Badge = ({
   />
 );
 
-// A mascot that hovers in place — a gentle vertical drift plus a soft sway.
+// A mascot that hangs in the band — one body on one clock: it floats, breathes
+// with the float, and banks a beat behind it (see .critter in globals.css). The
+// whole character moves together; no part animates on its own, because a single
+// appendage moving on an otherwise rigid body reads as a rendering fault rather
+// than as life. `phase` is negative so each starts mid-cycle — no mount hiccup.
 const Floater = ({
   src,
   alt,
   w,
   h,
   className,
-  drift,
-  sway,
+  beat,
+  phase,
   flourish,
 }: {
   src: string;
@@ -53,21 +58,16 @@ const Floater = ({
   w: number;
   h: number;
   className: string;
-  drift: number;
-  sway: number;
+  beat: number;
+  phase: number;
   flourish?: ReactNode;
 }) => (
   <div
-    className={`absolute h-11 sm:h-12 motion-safe:animate-[drift_var(--dr)_ease-in-out_infinite] ${className}`}
-    style={{ "--dr": `${drift}s` } as CSSProperties}
+    className={`critter absolute h-11 sm:h-12 ${className}`}
+    style={{ "--beat": `${beat}s`, "--phase": `${phase}s` } as CSSProperties}
   >
-    <div
-      className="relative h-full motion-safe:animate-[sway_var(--sw)_ease-in-out_infinite]"
-      style={{ "--sw": `${sway}s` } as CSSProperties}
-    >
-      <Badge src={src} alt={alt} w={w} h={h} />
-      {flourish}
-    </div>
+    <Badge src={src} alt={alt} w={w} h={h} />
+    {flourish}
   </div>
 );
 
@@ -122,8 +122,8 @@ export function CampusCritters() {
         w={143}
         h={143}
         className="top-[2%] left-[7%]"
-        drift={4.5}
-        sway={5}
+        beat={4.5}
+        phase={-0.0}
         flourish={<Sparkles delay={0} />}
       />
       <Floater
@@ -132,8 +132,8 @@ export function CampusCritters() {
         w={297}
         h={161}
         className="top-[16%] right-[3%]"
-        drift={6}
-        sway={4.5}
+        beat={6}
+        phase={-2.3}
       />
       <Floater
         src="/mascots/bee.svg"
@@ -141,8 +141,8 @@ export function CampusCritters() {
         w={189}
         h={183}
         className="top-[30%] left-[9%]"
-        drift={5.5}
-        sway={4}
+        beat={5.5}
+        phase={-4.1}
       />
       <Floater
         src="/mascots/duck.svg"
@@ -150,8 +150,8 @@ export function CampusCritters() {
         w={182}
         h={209}
         className="top-[44%] right-[5%]"
-        drift={5}
-        sway={4.5}
+        beat={5}
+        phase={-1.2}
         flourish={<Lightning delay={-0.4} />}
       />
       <Floater
@@ -160,8 +160,8 @@ export function CampusCritters() {
         w={190}
         h={148}
         className="top-[58%] left-[6%]"
-        drift={5.2}
-        sway={4.2}
+        beat={5.2}
+        phase={-3.4}
       />
       <Floater
         src="/mascots/bear.svg"
@@ -169,8 +169,8 @@ export function CampusCritters() {
         w={183}
         h={224}
         className="top-[72%] right-[7%]"
-        drift={4.8}
-        sway={5}
+        beat={4.8}
+        phase={-0.7}
       />
       <Floater
         src="/mascots/blazer.svg"
@@ -178,8 +178,8 @@ export function CampusCritters() {
         w={223}
         h={174}
         className="bottom-[3%] left-[11%]"
-        drift={5.4}
-        sway={4}
+        beat={5.4}
+        phase={-2.9}
       />
     </div>
   );
