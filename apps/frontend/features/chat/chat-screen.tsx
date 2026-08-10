@@ -91,15 +91,34 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
         if (isToolUIPart(part)) {
           const failed = part.state === "output-error";
           const finished = failed || part.state === "output-available";
+          // Citation rendered FROM the tool output, never from generated
+          // prose: a small model regenerates URLs token-by-token and splices
+          // them (observed live: "martid=" in a cited catalog URL). Taking
+          // the link straight off the result makes garbling impossible.
+          const out = finished && !failed ? (part.output as { source_url?: unknown } | undefined) : undefined;
+          const src =
+            typeof out?.source_url === "string" &&
+            out.source_url.startsWith("https://catalog.dallascollege.edu")
+              ? out.source_url
+              : null;
           return (
-            <span
-              key={i}
-              className={`${skin.chip} self-start ${finished ? "" : "opacity-80"}`}
-            >
-              <span aria-hidden className={skin.chipCheck}>
-                {failed ? "!" : finished ? "✓" : "⋯"}
+            <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
+              <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
+                <span aria-hidden className={skin.chipCheck}>
+                  {failed ? "!" : finished ? "✓" : "⋯"}
+                </span>
+                {chipText(getToolName(part), part.state) + chipArg(part.input)}
               </span>
-              {chipText(getToolName(part), part.state) + chipArg(part.input)}
+              {src && (
+                <a
+                  href={src}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`${skin.link} text-sm`}
+                >
+                  Catalog page ↗
+                </a>
+              )}
             </span>
           );
         }

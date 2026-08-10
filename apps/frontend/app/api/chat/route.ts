@@ -83,7 +83,11 @@ export async function POST(req: Request) {
             stopWhen: stepCountIs(5),
 
             maxOutputTokens: 1000,
-            temperature: 0.7,
+            // Low on purpose: this bot restates tool-returned facts, where
+            // sampling variance is pure downside. At 0.7 the live proof runs
+            // showed variance-shaped artifacts (1-of-8 empty replies, garbage
+            // tokens in the before-runs); see the #146 experiment comment.
+            temperature: 0.2,
         });
 
         if (process.env.NODE_ENV !== 'production') {
