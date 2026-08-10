@@ -12,7 +12,7 @@ import { Welcome } from "@/features/onboarding/shared/welcome";
 import { emit } from "@/features/onboarding/telemetry";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useOnboarding } from "@/features/onboarding/use-onboarding";
-import { MODES } from "@/features/onboarding/variants";
+import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { useEffect, useState } from "react";
 
 // Stays mounted through the whole flow — including the end recap — so the mode's
@@ -68,7 +68,7 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
 
   const complete = (payload: OnboardingPayload, summary: string[]) => {
     console.log("onboarding payload", payload);
-    setDone({ payload, summary });
+    setDone({ summary });
     // Persist locally so a return visit can jump straight to this summary.
     saveSession({ payload, summary, modeId: mode.id });
   };
@@ -76,10 +76,10 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   // Returning student: skip the questions and open their saved summary directly,
   // in the look they used last.
   const resume = (session: SavedSession) => {
-    setMode(modes.find((m) => m.id === session.modeId) ?? modes[0]);
+    setMode(modeFromId(session.modeId));
     // `resumed` tells the shell to recap from the saved summary — the fresh wizard
     // that mounts underneath has no transcript to rebuild the answers from.
-    setDone({ payload: session.payload, summary: session.summary, resumed: true });
+    setDone({ summary: session.summary, resumed: true });
     setStarted(true);
     emit("onboarding_resumed");
   };

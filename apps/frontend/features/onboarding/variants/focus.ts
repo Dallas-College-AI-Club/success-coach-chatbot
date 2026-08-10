@@ -30,6 +30,12 @@ export const focus: Mode = {
     ghostBtn: "h-11 rounded-full px-3 text-[#2B3A4A]/75",
     link: "inline-flex items-center text-[#2B3A4A]/60 underline underline-offset-4 hover:text-[#2B3A4A] pointer-coarse:min-h-11",
     picker: "rounded-xl border border-[#2B3A4A]/20 bg-white/85",
+    surface:
+      "rounded-2xl border border-[#2B3A4A]/12 bg-white/70 shadow-[0_10px_30px_rgba(43,58,74,.08)] backdrop-blur-[1px]",
+    // The hairline border the other modes don't need: at bg-white/70 over the
+    // page's #EDF2F7 the text contrast is fine but the turn boundary is not.
+    bubble:
+      "max-w-[85%] rounded-xl border border-[#2B3A4A]/12 bg-white/70 px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap text-[#2B3A4A] backdrop-blur-[1px] data-[role=user]:border-transparent data-[role=user]:bg-[#2B3A4A] data-[role=user]:text-white",
   },
   copy: {
     reassurance: "No wrong answers. Change anything later.",
@@ -40,6 +46,7 @@ export const focus: Mode = {
     back: "← Back",
     pickerPlaceholder: "Try “nursing,” “business,” or “welding”",
     pickerEmpty: "No match yet. Try a shorter word, or pick “I'm still figuring it out.”",
+    composerPlaceholder: "Ask a question.",
     completionHeadline: "That's a solid start.",
     restart: "Start over",
     capabilityTrigger: "What can Major help with?",

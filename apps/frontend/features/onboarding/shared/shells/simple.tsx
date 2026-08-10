@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import type { WizardProps } from "@/features/onboarding/skin";
+import type { Skin, WizardProps } from "@/features/onboarding/skin";
 import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
 import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import { StepTransition } from "@/features/onboarding/shared/step-transition";
@@ -24,10 +24,12 @@ const MiniBot = () => (
   </svg>
 );
 
-const BotBubble = ({ children }: { children: ReactNode }) => (
+// Palette comes from skin.bubble — the same token the chat's transcript uses,
+// so the wizard and the chat cannot drift apart.
+const BotBubble = ({ skin, children }: { skin: Skin; children: ReactNode }) => (
   <div className="flex items-start gap-2">
     <MiniBot />
-    <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-2.5 text-[15px] leading-snug text-[#2E2555]">
+    <div data-role="assistant" className={skin.bubble}>
       {children}
     </div>
   </div>
@@ -50,28 +52,36 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
     done && !done.resumed ? api.steps : api.steps.slice(0, api.stepIdx)
   ).filter((s) => api.answers[s.id]?.display);
 
-  // Keep the newest message in view as the conversation grows.
+  // Keep the newest message in view as the conversation grows. An explicit
+  // ScrollToOptions.behavior overrides the reduced-motion `scroll-behavior:
+  // auto` from globals.css, so honour the preference here directly.
   useEffect(() => {
     const el = scrollRef.current;
-    if (el) el.scrollTo({ top: el.scrollHeight, behavior: "smooth" });
+    el?.scrollTo({
+      top: el.scrollHeight,
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
   }, [api.stepIdx, done]);
 
   return (
-    <div className="flex h-[min(720px,calc(100dvh_-_8.5rem))] w-full flex-col gap-3 rounded-3xl border border-[#2E2555]/10 bg-white p-3 shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)] sm:p-4">
+    <div className={`${skin.surface} flex h-[min(720px,calc(100dvh_-_8.5rem))] w-full flex-col gap-3 p-3 sm:p-4`}>
       <div
         ref={scrollRef}
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-1"
       >
         {convo.map((s, i) => (
           <div key={s.id} className="flex flex-col gap-3">
-            <BotBubble>{s.prompt}</BotBubble>
+            <BotBubble skin={skin}>{s.prompt}</BotBubble>
             <div className="flex justify-end">
               <button
                 type="button"
                 onClick={() => !done && api.goToStep(i)}
                 title={done ? undefined : "Change this answer"}
-                className={`max-w-[85%] rounded-2xl rounded-br-sm bg-[#2E2555] px-4 py-2.5 text-left text-[15px] leading-snug text-white ${
-                  done ? "cursor-default" : "transition-colors hover:bg-[#241C46]"
+                data-role="user"
+                className={`${skin.bubble} text-left ${
+                  done ? "cursor-default" : "transition-opacity hover:opacity-90"
                 }`}
               >
                 {api.answers[s.id]?.display}
@@ -84,7 +94,7 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
           <div className="flex flex-col gap-3 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 motion-safe:duration-500">
             <div className="flex items-start gap-2">
               <MiniBot />
-              <div className="max-w-[90%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-3 text-[#2E2555]">
+              <div data-role="assistant" className={skin.bubble}>
                 <h2
                   ref={headingRef}
                   tabIndex={-1}
@@ -113,7 +123,7 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
                   </div>
                 )}
                 <div className="mt-2">
-                  <ChatHandoff payload={done.payload} skin={skin} />
+                  <ChatHandoff skin={skin} />
                 </div>
                 <div className="mt-3">
                   <QuickActions skin={skin} />
@@ -138,7 +148,7 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
           >
             <div className="flex items-start gap-2">
               <MiniBot />
-              <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-2.5 text-[#2E2555]">
+              <div data-role="assistant" className={skin.bubble}>
                 <h2
                   ref={headingRef}
                   tabIndex={-1}
@@ -161,18 +171,6 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
       </div>
 
       {!done && <WizardControls api={api} skin={skin} copy={copy} />}
-
-      {!done && (
-        <div
-          aria-hidden
-          className="flex items-center gap-2 rounded-full border border-[#2E2555]/20 bg-white py-1.5 pr-1.5 pl-4 text-sm text-[#2E2555]/45 shadow-[0_1px_2px_rgba(15,61,54,.05)]"
-        >
-          <span className="flex-1">A few quick questions before we chat. Tap an answer above.</span>
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-[#6C5CE7] text-base text-white">
-            ➤
-          </span>
-        </div>
-      )}
     </div>
   );
 };

@@ -12,7 +12,10 @@ import {
     type Tool,
 } from "./types";
 
-export const GET_COURSE_INFO_TOOL_NAME = "get_course_info";
+// Name lives in the client-safe manifest so the UI can label the tool
+// without importing this module (which pulls in the DB client).
+export { GET_COURSE_INFO_TOOL_NAME } from "./names";
+import { GET_COURSE_INFO_TOOL_NAME } from "./names";
 
 export interface GetCourseInfoInput {
     courseCode: string;

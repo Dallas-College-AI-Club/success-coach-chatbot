@@ -29,6 +29,10 @@ export const simple: Mode = {
     ghostBtn: "h-11 px-3 text-[#2E2555]",
     link: "inline-flex items-center text-[#2E2555]/70 underline underline-offset-4 pointer-coarse:min-h-11",
     picker: "rounded-xl border border-[#2E2555]/20 bg-white",
+    surface:
+      "rounded-3xl border border-[#2E2555]/10 bg-white shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)]",
+    bubble:
+      "max-w-[85%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap text-[#2E2555] data-[role=user]:rounded-tl-2xl data-[role=user]:rounded-br-sm data-[role=user]:bg-[#2E2555] data-[role=user]:text-white",
   },
   copy: {
     reassurance: "No wrong answers. You can change anything later.",
@@ -39,6 +43,7 @@ export const simple: Mode = {
     back: "← Back",
     pickerPlaceholder: "Try “nursing,” “business,” or “welding”",
     pickerEmpty: "No match yet. Try a shorter word, or pick “I'm still figuring it out.”",
+    composerPlaceholder: "Ask about your classes…",
     completionHeadline: "That's a solid start.",
     restart: "Start over",
     capabilityTrigger: "What can Major help with?",

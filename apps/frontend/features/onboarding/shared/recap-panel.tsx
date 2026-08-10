@@ -5,21 +5,17 @@ import { ChatHandoff } from "@/features/onboarding/shared/chat-handoff";
 import { QuickActions } from "@/features/onboarding/shared/quick-actions";
 import type { Copy, Skin } from "@/features/onboarding/skin";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
-import type { OnboardingPayload } from "@/features/onboarding/types";
-
 // The end-of-flow panel. It is a HAND-OFF, not a finish line: a brief recap of
-// what the student told me, then the opening of the planning chat (ChatHandoff),
-// where the plan is actually crafted and a coach later verifies it. Rendered in
-// each mode's panel slot so the mode's scene stays behind it.
+// what the student told me, then the door into the planning chat (ChatHandoff),
+// where the payload arrives as the coach's first turn. Rendered in each mode's
+// panel slot so the mode's scene stays behind it.
 export function RecapPanel({
-  payload,
   summary,
   onRestart,
   skin,
   copy,
   className = "",
 }: {
-  payload: OnboardingPayload;
   summary: string[];
   onRestart: () => void;
   skin: Skin;
@@ -52,7 +48,7 @@ export function RecapPanel({
         </div>
       )}
 
-      <ChatHandoff payload={payload} skin={skin} />
+      <ChatHandoff skin={skin} />
 
       <QuickActions skin={skin} />
 

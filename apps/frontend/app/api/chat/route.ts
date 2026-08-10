@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { streamText, stepCountIs } from 'ai';
+import { streamText, stepCountIs, convertToModelMessages, validateUIMessages, type UIMessage } from 'ai';
+import { SYSTEM_PROMPT } from '@/lib/system-prompt';
 import { toolRegistry } from '@/lib/tools/registry';
 
 // Next.js Route Segment Configuration
@@ -7,12 +8,27 @@ export const runtime = 'nodejs';
 
 export async function POST(req: Request) {
     try {
-        const { messages, systemPrompt, context } = await req.json();
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(
-                '[CHAT] incoming messages:',
-                JSON.stringify(messages, null, 2),
+        const body: {
+            messages?: unknown;
+            systemPrompt?: string;
+            context?: { campus?: string; major?: string };
+        } = await req.json();
+        const { systemPrompt, context } = body;
+
+        // The body is untrusted JSON — validate at the boundary instead of
+        // asserting a type over it. Malformed messages get a 400, not a 500
+        // from deep inside the stream.
+        let messages: UIMessage[];
+        try {
+            messages = await validateUIMessages({ messages: body.messages });
+        } catch {
+            return Response.json(
+                { error: 'Invalid request', details: 'messages must be an array of UI messages.' },
+                { status: 400 },
             );
+        }
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[CHAT] incoming turns:', messages.length);
         }
         const activeApiKey = process.env.OPENROUTER_API_KEY;
 
@@ -41,22 +57,24 @@ export async function POST(req: Request) {
             },
         });
 
-        let baseSystemPrompt = systemPrompt || 'You are an academic advisor for Dallas College.';
+        // The governed prompt (lib/system-prompt.ts). A caller-supplied override
+        // is a dev-harness affordance only — in production the system layer is
+        // never client-controlled.
+        let baseSystemPrompt =
+            process.env.NODE_ENV !== 'production' && systemPrompt
+                ? systemPrompt
+                : SYSTEM_PROMPT;
         if (context && (context.campus || context.major)) {
             baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || 'General'}\n- Major/Area of Interest: ${context.major || 'General studies'}`;
         }
 
-        // Clean the message payload to ensure strict compatibility with OpenRouter's API schema
-        const cleanMessages = messages.map((m: { role: string; content?: string }) => ({
-            role: m.role === 'user' ? 'user' : 'assistant',
-            content: String(m.content || ''),
-        }));
-
-        // Call streamText using openai/gpt-oss-20b:free via OpenRouter
-        console.log('[CHAT] Registered tools:', Object.keys(toolRegistry));
+        // UI messages carry `parts` (text + tool calls), not a flat `content`
+        // string. convertToModelMessages is the documented bridge and is ASYNC
+        // in AI SDK v6 — the previous String(m.content) map silently sent empty
+        // turns. Docs: node_modules/ai/docs/04-ai-sdk-ui/02-chatbot.mdx
         const result = streamText({
             model: openrouter.chat('openai/gpt-oss-20b:free'),
-            messages: cleanMessages,
+            messages: await convertToModelMessages(messages),
             system: baseSystemPrompt,
             tools: toolRegistry,
             // Allow multi-step tool execution.
@@ -67,7 +85,9 @@ export async function POST(req: Request) {
             temperature: 0.7,
         });
 
-        console.log('[CHAT] stream response started');
+        if (process.env.NODE_ENV !== 'production') {
+            console.log('[CHAT] stream response started');
+        }
         return result.toUIMessageStreamResponse();
 
     } catch (error: unknown) {

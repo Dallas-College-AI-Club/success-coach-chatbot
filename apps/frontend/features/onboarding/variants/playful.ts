@@ -30,6 +30,14 @@ export const playful: Mode = {
     ghostBtn: "h-11 rounded-full px-4 text-[#1E2A3A]",
     link: "inline-flex items-center font-medium text-[#003385] underline underline-offset-4 pointer-coarse:min-h-11",
     picker: "rounded-2xl border-2 border-[#003385]/20 bg-white",
+    // bg-white/95 + backdrop-blur is load-bearing, not decoration: transcript
+    // text over the animated campus panorama is a WCAG 1.4.3 failure otherwise.
+    surface:
+      "rounded-3xl bg-white/95 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md",
+    // Blue fills the student's turn; red never fills a text surface (white on
+    // red fails AA — see the palette note above).
+    bubble:
+      "max-w-[85%] rounded-2xl rounded-tl-sm border-2 border-[#003385]/12 bg-white px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap text-[#1E2A3A] data-[role=user]:rounded-tl-2xl data-[role=user]:rounded-br-sm data-[role=user]:border-transparent data-[role=user]:bg-[#003385] data-[role=user]:text-white",
   },
   copy: {
     reassurance: "No wrong answers. Tweak anything later 👍",
@@ -40,6 +48,7 @@ export const playful: Mode = {
     back: "← Back",
     pickerPlaceholder: "Try “nursing,” “business,” or “welding”",
     pickerEmpty: "Hmm, no match. Try a shorter word, or “I'm still figuring it out.”",
+    composerPlaceholder: "Ask Major anything 💬",
     completionHeadline: "Woohoo, solid start! 🎉",
     restart: "Start over",
     capabilityTrigger: "What can Major do?",

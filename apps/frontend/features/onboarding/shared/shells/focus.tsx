@@ -31,7 +31,6 @@ export const FocusShell = ({ api, skin, copy, done, onRestart }: WizardProps) =>
       <div className="flex flex-1 flex-col gap-6 sm:min-h-0 sm:overflow-y-auto">
         {done ? (
           <RecapPanel
-            payload={done.payload}
             summary={done.summary}
             onRestart={onRestart}
             skin={skin}
