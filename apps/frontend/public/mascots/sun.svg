@@ -158,9 +158,19 @@
       .st38 {
         fill: #de6320;
       }
+
+      /* --- rig: spin the rays around the sun's center, face stays put --- */
+      #rays {
+        transform-box: view-box;
+        transform-origin: 71.57px 72.34px;
+        animation: sun-spin 16s linear infinite;
+      }
+      @keyframes sun-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #rays { animation: none; } }
     </style>
   </defs>
   <g id="Generative_Object">
+    <g id="rays">
     <g>
       <path class="st2" d="M111.81,45.88l-13.48-13.53c-.38-.38-.48-.9-.33-1.41.1-.36.4-.81.88-.98l6.21-2.25,12.03-4.34,5.23-1.84c.21-.07.47-.02.6.1.11.1.29.37.2.6l-3.24,8.5-5.7,14.76c-.18.46-.66.74-1.04.82-.45.09-.96-.05-1.36-.44Z"/>
       <g>
@@ -272,6 +282,7 @@
         <path class="st17" d="M126.39,53.65l-4.04,4.37c-.22.24-.51.33-.79.28-.32-.06-.52-.23-.66-.58l-4.3-10.2c-.12-.28-.09-.53.04-.75s.41-.35.73-.34l15.02.55-2.36,2.66-3.65,4Z"/>
         <polygon class="st37" points="125.69 52.09 124.67 53.2 123.81 54.13 122.96 55.07 121.95 56.09 118.56 48 129.09 48.4 128.43 49.13 127.46 50.17 126.61 51.1 125.69 52.09"/>
       </g>
+    </g>
     </g>
     <g>
       <circle class="st2" cx="71.57" cy="72.34" r="42.84"/>
