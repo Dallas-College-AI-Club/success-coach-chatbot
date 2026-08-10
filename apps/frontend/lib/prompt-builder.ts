@@ -1,3 +1,15 @@
+// NOT WIRED. Nothing imports this module. The production system prompt is the
+// hand-written string in lib/system-prompt.ts, which route.ts uses.
+//
+// Kept deliberately, unlike the four guardrail validators deleted alongside it
+// (#152): the label resolvers below are correct and reusable, and
+// PromptBuildInput.retrievedContext is the designed integration point for
+// retrieval when that lands.
+//
+// Do not wire buildPrompt() as-is without review — it interpolates user text
+// into the system layer (which RFC-0004 exists to prevent) and omits
+// declineBehavior and citationPolicy from ai-prompts.json entirely, so
+// governed refusal wording would never reach the model.
 import aiPrompts from "../../../src/config/ai-prompts.json";
 import promptTemplates from "../../../src/config/prompt-templates.json";
 
