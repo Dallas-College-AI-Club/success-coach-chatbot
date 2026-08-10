@@ -82,7 +82,10 @@ export async function POST(req: Request) {
             // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
             stopWhen: stepCountIs(5),
 
-            maxOutputTokens: 1000,
+            // 1000 truncated 4 of 10 replies mid-word in live testing — one
+            // cut a transfer-credit hedge to a bare "Just double-"; a truncated
+            // caveat is worse than a short answer (#154 measurement).
+            maxOutputTokens: 2000,
             // Low on purpose: this bot restates tool-returned facts, where
             // sampling variance is pure downside. At 0.7 the live proof runs
             // showed variance-shaped artifacts (1-of-8 empty replies, garbage

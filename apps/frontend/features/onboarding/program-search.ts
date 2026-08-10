@@ -10,9 +10,10 @@
 /** Student vocabulary → substrings of the catalog labels it should surface.
  *  Terms are matched as prefixes ("radio" hits via "radiology"). Keep this
  *  curated and small — every entry is a judgment that students say the term. */
+// Only terms that word-prefix matching does NOT already cover ("nurse" needs
+// no entry — "Nursing".startsWith("nurse") — but "x-ray" and "rn" do).
 const ALIASES: Record<string, string[]> = {
   rn: ["Nursing", "Nurse"],
-  nurse: ["Nursing"],
   "x-ray": ["Radiologic"],
   xray: ["Radiologic"],
   radiology: ["Radiologic"],
