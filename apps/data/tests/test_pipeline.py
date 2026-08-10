@@ -1,6 +1,8 @@
 import re
 from pathlib import Path
 
+import pytest
+
 from dallasai.markdown_converter import MarkdownConverter
 
 # Resolve test directories
@@ -18,9 +20,9 @@ def test_markdown_converter_html_conversion():
     4. Accurately compiles HTML tables into Markdown syntax.
     5. Generates valid YAML frontmatter containing expected keys and inferred course ID.
     """
-    assert SAMPLE_HTML_PATH.exists(), (
-        f"Syllabus test file {SAMPLE_HTML_PATH.name} is missing."
-    )
+    if not SAMPLE_HTML_PATH.exists():
+        # Fixture was never committed (author-machine only) — skip, not fail (#138).
+        pytest.skip(f"fixture {SAMPLE_HTML_PATH.name} not in repo")
 
     with open(SAMPLE_HTML_PATH, "r", encoding="utf-8") as f:
         html_content = f.read()
@@ -85,9 +87,8 @@ def test_markdown_converter_text_conversion():
     4. Prepends correct YAML frontmatter.
     """
     sample_txt = SAMPLE_SYLLABI_DIR / "biol_1406_doe.txt"
-    assert sample_txt.exists(), (
-        f"Sample syllabus file {sample_txt.name} is missing."
-    )
+    if not sample_txt.exists():
+        pytest.skip(f"fixture {sample_txt.name} not in repo")
 
     converter = MarkdownConverter()
     markdown_output = converter.text_to_markdown(sample_txt)
@@ -113,7 +114,8 @@ def test_markdown_converter_pdf_conversion():
     Verifies that PDF text extraction works and creates valid markdown.
     """
     sample_pdf = SAMPLE_SYLLABI_DIR / "sample_syllabus.pdf"
-    assert sample_pdf.exists(), f"Sample PDF file {sample_pdf.name} is missing."
+    if not sample_pdf.exists():
+        pytest.skip(f"fixture {sample_pdf.name} not in repo")
 
     converter = MarkdownConverter()
     markdown_output = converter.pdf_to_markdown(sample_pdf)
@@ -139,9 +141,8 @@ def test_markdown_converter_multiple_html_syllabi():
 
     converter = MarkdownConverter()
     html_files = glob.glob(str(SAMPLE_SYLLABI_DIR / "real_concourse_*.html"))
-    assert len(html_files) >= 5, (
-        "Expected at least 5 real Concourse HTML files."
-    )
+    if len(html_files) < 5:
+        pytest.skip("real_concourse_*.html fixtures not in repo")
 
     for filepath in html_files:
         with open(filepath, "r", encoding="utf-8") as f:

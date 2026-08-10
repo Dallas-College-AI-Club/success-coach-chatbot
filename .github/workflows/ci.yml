@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: pytest (apps/data)
+    runs-on: ubuntu-latest
+    env:
+      # Fail if uv.lock is stale instead of silently re-resolving in CI.
+      UV_LOCKED: "1"
+    defaults:
+      run:
+        working-directory: apps/data
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run pytest tests/ -q
+
+  frontend:
+    name: typecheck + guards (apps/frontend)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/frontend/package-lock.json
+      - run: npm ci
+      - run: npx tsc --noEmit -p tsconfig.json
+      # tsc alone is not enough: an import can type-check yet fail the
+      # bundler's module-root resolution (proven by #136). Build for real.
+      # The stub DATABASE_URL satisfies lib/client.ts's module-scope check;
+      # nothing connects at build time.
+      - run: npx next build
+        env:
+          DATABASE_URL: postgresql://ci:ci@localhost:5432/never-connected
+      # Guard lands with #134; hashFiles makes merge order irrelevant.
+      - name: Course-code normalization guard
+        if: hashFiles('apps/frontend/scripts/check-course-code-normalization.mts') != ''
+        run: npx tsx scripts/check-course-code-normalization.mts
