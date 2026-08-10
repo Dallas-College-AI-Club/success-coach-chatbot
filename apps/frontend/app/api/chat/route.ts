@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, stepCountIs, convertToModelMessages, validateUIMessages, type UIMessage } from 'ai';
+import { FREE_LIMIT_MESSAGE } from '@/lib/chat-errors';
 import { SYSTEM_PROMPT } from '@/lib/system-prompt';
 import { toolRegistry } from '@/lib/tools/registry';
 
@@ -88,7 +89,18 @@ export async function POST(req: Request) {
         if (process.env.NODE_ENV !== 'production') {
             console.log('[CHAT] stream response started');
         }
-        return result.toUIMessageStreamResponse();
+        return result.toUIMessageStreamResponse({
+            // Map known provider failures to student-facing wording; everything
+            // else stays a generic line so internals never reach the client.
+            onError: (error: unknown) => {
+                const m = error instanceof Error ? error.message : String(error);
+                if (m.includes('free-models-per-day') || m.includes('Rate limit')) {
+                    return FREE_LIMIT_MESSAGE;
+                }
+                console.error('[API Chat Route stream error]:', m);
+                return 'An error occurred.';
+            },
+        });
 
     } catch (error: unknown) {
         console.error('[API Chat Route Error]:', error);

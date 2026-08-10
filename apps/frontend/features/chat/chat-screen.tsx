@@ -12,6 +12,7 @@ import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { ChatBackdrop } from "@/features/chat/backdrops";
 import { seedMessages, SEED_ID } from "@/features/chat/seed";
 import { starterPromptsFor } from "@/features/onboarding/handoff-copy";
@@ -207,7 +208,11 @@ function Conversation({
 
         {error && (
           <div className="flex flex-col items-start gap-2">
-            <p className={skin.helper}>Something went wrong reaching Major.</p>
+            {/* Show the message only when it's one of our own mapped strings —
+                equality against the shared allowlist, never reflected text. */}
+            <p className={skin.helper}>
+              {SAFE_CHAT_ERRORS.has(error.message) ? error.message : GENERIC_CHAT_ERROR}
+            </p>
             <Button
               variant="ghost"
               className={skin.ghostBtn}

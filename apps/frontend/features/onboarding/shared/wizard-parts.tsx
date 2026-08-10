@@ -13,6 +13,7 @@ import { ToggleGroup } from "@/components/ui/toggle-group";
 import { AUDIENCE_OPTIONS } from "@/features/onboarding/questions";
 import { CapabilityDialog } from "@/features/onboarding/shared/capability-dialog";
 import { IntlGoalStep } from "@/features/onboarding/shared/intl-goal-step";
+import { keywordsFor, programFilter } from "@/features/onboarding/program-search";
 import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import { TransferStep } from "@/features/onboarding/shared/transfer-step";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
@@ -46,7 +47,10 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
         );
       case "picker":
         return (
-          <Command className={skin.picker}>
+          // Word-prefix filter + student-vocabulary keywords replace cmdk's
+          // scattered-letter default, which drowned real matches in noise
+          // ('art' → 238 results) and missed aliases ('x-ray' → Radiologic).
+          <Command className={skin.picker} filter={programFilter}>
             <CommandInput
               placeholder={copy.pickerPlaceholder}
               aria-label={current.prompt}
@@ -58,6 +62,7 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
                   <CommandItem
                     key={o.id}
                     value={o.label}
+                    keywords={keywordsFor(o.label)}
                     onSelect={() => api.answerOption(current, o.id)}
                   >
                     {o.label}
