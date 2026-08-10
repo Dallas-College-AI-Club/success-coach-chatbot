@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, stepCountIs, convertToModelMessages, validateUIMessages, type UIMessage } from 'ai';
+import { SYSTEM_PROMPT } from '@/lib/system-prompt';
 import { toolRegistry } from '@/lib/tools/registry';
 
 // Next.js Route Segment Configuration
@@ -56,7 +57,13 @@ export async function POST(req: Request) {
             },
         });
 
-        let baseSystemPrompt = systemPrompt || 'You are an academic advisor for Dallas College.';
+        // The governed prompt (lib/system-prompt.ts). A caller-supplied override
+        // is a dev-harness affordance only — in production the system layer is
+        // never client-controlled.
+        let baseSystemPrompt =
+            process.env.NODE_ENV !== 'production' && systemPrompt
+                ? systemPrompt
+                : SYSTEM_PROMPT;
         if (context && (context.campus || context.major)) {
             baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || 'General'}\n- Major/Area of Interest: ${context.major || 'General studies'}`;
         }
