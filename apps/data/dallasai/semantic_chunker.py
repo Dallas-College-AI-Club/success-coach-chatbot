@@ -25,8 +25,8 @@ class SemanticChunker:
         chunk_overlap: int | None = None,
         env_path: Path | None = None,
     ):
-        # Resolve repository paths
-        self.repo_root = Path(__file__).resolve().parent.parent.parent
+        # Resolve repository paths (apps/data — where .env and .tmp/ live)
+        self.repo_root = Path(__file__).resolve().parent.parent
 
         # Load environment variables
         if env_path:

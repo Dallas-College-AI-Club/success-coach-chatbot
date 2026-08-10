@@ -5,8 +5,7 @@ from alembic import context
 from dotenv import load_dotenv
 from sqlalchemy import engine_from_config, pool
 
-from apps.data.dallasai.models.base import Base
-import dallasai.models  # noqa: F401
+from dallasai.models import Base
 
 
 config = context.config

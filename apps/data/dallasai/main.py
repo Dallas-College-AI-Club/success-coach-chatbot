@@ -34,6 +34,11 @@ SYS_DATA_DIR = Path(__file__).resolve().parent.parent
 if str(SYS_DATA_DIR) not in sys.path:
     sys.path.insert(0, str(SYS_DATA_DIR))
 
+from dotenv import load_dotenv
+
+# apps/data/.env — EXTRACTOR, API keys, DB URLs (see .env.example)
+load_dotenv(SYS_DATA_DIR / ".env")
+
 from bs4 import BeautifulSoup
 from dallasai.markdown_converter import MarkdownConverter
 from dallasai.pipeline.html_cleaner import HTMLCleaner
@@ -154,11 +159,12 @@ def extract_to_json_payload(
             try:
                 result = extract(doc_type, document_text, context=metadata)
                 facts = result.data if result.status in ["ok", "needs_review"] and result.data else {}
-            except (Exception, SystemExit):
+            except (Exception, SystemExit) as e:
+                print(f"   [warn] extraction unavailable ({type(e).__name__}): {e}")
                 facts = {}
 
-    if not facts:
-        facts = {"confidence": "high", "policies": {}, "grading": []}
+    # Empty facts must FAIL the Function 5 gate — never fabricate a fallback (issue #128).
+    facts = facts or {}
 
     scraped_at = datetime.now(timezone.utc).isoformat()
 
@@ -226,6 +232,7 @@ def validate_and_upsert_payload(
         else:
             quarantined_records.append(record)
 
+    upserted = 0
     if validated_records:
         try:
             from dallasai.load_catalog_to_neon import load_into_neon
@@ -233,6 +240,7 @@ def validate_and_upsert_payload(
                 rows=validated_records,
                 batch_size=100
             )
+            upserted = len(validated_records)
         except Exception as err:
             print(f"⚠️ Function 5 Upsert Note: {err}")
 
@@ -240,7 +248,7 @@ def validate_and_upsert_payload(
         "status": "ok" if not quarantined_records else "partial_quarantine",
         "validated_count": len(validated_records),
         "quarantined_count": len(quarantined_records),
-        "upserted_count": len(validated_records) if validated_records else 0
+        "upserted_count": upserted
     }
 
 
@@ -382,10 +390,14 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     # STAGE 5: Function 5 - Validation Gate & Output Persistence
     print("\nStage 5/5 ✅ Function 5: Schema Validation Gate & Staging Output")
     generated_json_files = []
+    total_validated = total_quarantined = total_upserted = 0
     stage5_start = time.time()
     valid_iterator = tqdm(embedded_doc_records, desc="Function 5 (Validating)", unit="doc") if has_tqdm else embedded_doc_records
     for idx, (file_path, records) in enumerate(valid_iterator, start=1):
-        _ = validate_and_upsert_payload(records)
+        gate = validate_and_upsert_payload(records)
+        total_validated += gate["validated_count"]
+        total_quarantined += gate["quarantined_count"]
+        total_upserted += gate["upserted_count"]
         output_file = output_dir / f"{file_path.stem}_payload.json"
         output_file.write_text(json.dumps(records, indent=2), encoding="utf-8")
         generated_json_files.append(output_file)
@@ -396,6 +408,7 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
 
     print(f"\n=========================================================================")
     print(f"✅ 5-Stage Ingestion Complete! Created {len(generated_json_files)} JSON payloads in: '{output_dir}'.")
+    print(f"   Gate: {total_validated} validated · {total_quarantined} quarantined · {total_upserted} upserted to Neon")
     print(f"=========================================================================\n")
     return generated_json_files
 

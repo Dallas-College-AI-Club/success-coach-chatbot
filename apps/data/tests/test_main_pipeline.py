@@ -16,6 +16,8 @@ Description:
 import sys
 from pathlib import Path
 
+import pytest
+
 # Inject apps/data into Python sys.path
 SYS_DATA_DIR = Path(__file__).resolve().parent.parent
 if str(SYS_DATA_DIR) not in sys.path:
@@ -138,8 +140,15 @@ def test_function_4_embedding_generation_real_files():
         assert "scraped_at" in embedded_records[0], "scraped_at field is required"
 
 
-def test_function_5_validation_and_upsert_real_files():
-    """Verifies Function 5 schema validation gate for real production document payloads."""
+def test_function_5_validation_and_upsert_real_files(monkeypatch):
+    """Without a configured EXTRACTOR no facts may be fabricated: every record
+    carries empty facts, fails the schema/confidence gate, and is quarantined
+    instead of being upserted (issue #128)."""
+    # setenv("") not delenv: SemanticChunker's load_dotenv would resurrect a
+    # deleted var from a real apps/data/.env; "" survives override=False and
+    # extract.py treats it as unset.
+    monkeypatch.setenv("EXTRACTOR", "")
+
     all_embedded = []
     for real_file in REAL_SYLLABUS_FILES + REAL_COURSE_FILES:
         raw_html = real_file.read_text(encoding="utf-8")
@@ -153,10 +162,31 @@ def test_function_5_validation_and_upsert_real_files():
         embedded = generate_embeddings(records, model_name="local-768")
         all_embedded.extend(embedded)
 
+    assert all(r["facts"] == {} for r in all_embedded), "no facts may be invented"
+
     result = validate_and_upsert_payload(all_embedded)
-    assert result["validated_count"] == len(all_embedded)
-    assert result["quarantined_count"] == 0
+    assert result["validated_count"] == 0
+    assert result["quarantined_count"] == len(all_embedded)
+    assert result["status"] == "partial_quarantine"
+    assert result["upserted_count"] == 0
+
+
+def test_function_5_accepts_valid_facts(monkeypatch):
+    """The gate's accept branch: schema-valid, confident facts validate and
+    reach the loader, and upserted_count reflects the actual upsert."""
+    calls = []
+    import dallasai.load_catalog_to_neon as lcn
+
+    monkeypatch.setattr(
+        lcn, "load_into_neon", lambda rows, batch_size: calls.append(rows)
+    )
+    result = validate_and_upsert_payload(
+        [{"facts": {"confidence": "high"}, "metadata": {"doc_type": "syllabus"}}]
+    )
     assert result["status"] == "ok"
+    assert result["validated_count"] == 1 and result["quarantined_count"] == 0
+    assert result["upserted_count"] == 1
+    assert len(calls) == 1 and len(calls[0]) == 1
 
 
 def test_process_document_end_to_end_real_production_files():
@@ -192,7 +222,11 @@ if __name__ == "__main__":
     print("PASSED test_function_4_embedding_generation_real_files()\n")
 
     print("Testing Function 5 Validation and Upsert Gate on real files...")
-    test_function_5_validation_and_upsert_real_files()
+    _mp = pytest.MonkeyPatch()
+    try:
+        test_function_5_validation_and_upsert_real_files(_mp)
+    finally:
+        _mp.undo()
     print("PASSED test_function_5_validation_and_upsert_real_files()\n")
 
     print("Testing End-to-End process_document() on 6 real production files...")
