@@ -75,11 +75,17 @@ const GlassWing = ({ x, w, h, lit = [] as number[] }: { x: number; w: number; h:
 
 // The panorama is 1200 wide (three landmark stops of ~400). Sky and ground run
 // unbroken across it so panning reads as one continuous campus.
-export const PlayfulScene = () => (
+export const PlayfulScene = ({
+  preserveAspectRatio = "xMidYMid slice",
+}: {
+  /** Overridable so the chat backdrop can bottom-anchor the crop
+   *  (xMidYMax) while the wizard keeps the centred default. */
+  preserveAspectRatio?: string;
+} = {}) => (
   <svg
     viewBox="0 0 1200 400"
     className="h-full w-full"
-    preserveAspectRatio="xMidYMid slice"
+    preserveAspectRatio={preserveAspectRatio}
     role="img"
     aria-hidden
   >
