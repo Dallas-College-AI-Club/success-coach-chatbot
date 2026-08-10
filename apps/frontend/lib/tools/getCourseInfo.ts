@@ -28,8 +28,16 @@ export interface CourseInfoResult {
 
     prerequisites?: unknown[];
     corequisites?: unknown[];
+    // The catalog's verbatim requisite sentence. Requirements the catalog states
+    // in prose ("College level ready in Reading") produce NO structured entry, so
+    // prerequisites can be [] while the course still has a requirement.
+    requisites_raw?: string | null;
 
     campus_locations?: string | null;
+
+    // Citation: the catalog page this came from, and which edition it is.
+    source_url?: string;
+    catalog_year?: string | null;
 }
 
 const DESCRIPTION = [
@@ -46,6 +54,18 @@ const DESCRIPTION = [
     "Input must be a course code such as MATH 2414, BIOL 1406, or ENGL 1302.",
     "",
     "The tool returns verified course facts stored in the knowledge base.",
+    "",
+    "Reporting requisites correctly:",
+    "- `prerequisites` lists only requirements the catalog states as course codes.",
+    "- `requisites_raw` is the catalog's requisite sentence, word for word.",
+    "- A course can have an EMPTY `prerequisites` array and still have a real",
+    "  requirement, because readiness requirements are prose, not course codes",
+    '  (e.g. ENGL 1301: "Required: College level ready in Reading and Writing.").',
+    "- So when `prerequisites` is empty and `requisites_raw` is not, quote",
+    "  `requisites_raw`. Never say a course has no prerequisites in that case.",
+    "- Only say there are no prerequisites when BOTH are empty.",
+    "",
+    "Cite `source_url` (the catalog page) when stating catalog facts.",
 ].join("\n");
 
 const INPUT_SCHEMA: FlexibleSchema<GetCourseInfoInput> = jsonSchema({
@@ -123,6 +143,8 @@ export function createGetCourseInfoTool(): Tool<
                 .select({
                     facts: knowledgeEntry.facts,
                     courseCode: knowledgeEntry.courseCode,
+                    sourceUrl: knowledgeEntry.sourceUrl,
+                    catalogYear: knowledgeEntry.catalogYear,
                 })
                 .from(knowledgeEntry)
                 .where(
@@ -175,9 +197,17 @@ export function createGetCourseInfoTool(): Tool<
                     (facts.corequisites as unknown[] | undefined) ??
                     [],
 
+                requisites_raw:
+                    (facts.requisites_raw as string | null | undefined) ??
+                    null,
+
                 campus_locations:
                     (facts.campus_locations as string | null | undefined) ??
                     null,
+
+                source_url: row.sourceUrl,
+
+                catalog_year: row.catalogYear ?? null,
             };
         },
     });
