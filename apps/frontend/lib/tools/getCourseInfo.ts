@@ -61,11 +61,16 @@ const INPUT_SCHEMA: FlexibleSchema<GetCourseInfoInput> = jsonSchema({
     additionalProperties: false,
 });
 
-function normalizeCourseCode(courseCode: string): string {
+// Mirrors the course_code generated column (schema.sql:96) so a lookup matches
+// what the database stored: split letter->digit (first match only, as Postgres
+// does without the 'g' flag), collapse non-alphanumeric runs, trim, upper.
+// Without this, 'engl-1302' and 'ENGL1302' miss rows stored as 'ENGL 1302'.
+export function normalizeCourseCode(courseCode: string): string {
     return courseCode
+        .replace(/([A-Za-z])([0-9])/, "$1 $2")
+        .replace(/[^A-Za-z0-9]+/g, " ")
         .trim()
-        .toUpperCase()
-        .replace(/\s+/g, " ");
+        .toUpperCase();
 }
 
 export function createGetCourseInfoTool(): Tool<
