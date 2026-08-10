@@ -56,6 +56,37 @@ export const US_SEMESTER_CALENDAR: AcademicCalendar = {
   academicYearStartsWith: "Fall",
 };
 
+/**
+ * Dallas College's five-term calendar, from the official 2026-2027 academic
+ * calendar: https://catalog.dallascollege.edu/content.php?catoid=5&navoid=1339
+ * (retrieved 2026-08-10).
+ *
+ * Start dates are the catalog's published term starts: Fall Aug 24, Winter
+ * Session Dec 11, Spring Jan 19, May Session May 14, Summer Jun 7. The five
+ * terms match the semester vocabulary used across the knowledge base
+ * (fall/winter/spring/may/summer — see term_ord in the knowledge_entry schema).
+ *
+ * Because terms partition the year (see TermDefinition), each term's computed
+ * endDate is the day before the next term starts. With all five terms present
+ * this lands exactly on the catalog's published semester ends for the two long
+ * semesters — Fall ends Dec 10, Spring ends May 13 — and within days for the
+ * short sessions.
+ *
+ * Start dates shift by a few days each catalog year; update this from the new
+ * academic calendar when the next catalog posts (the index of years is at
+ * catoid=5&navoid=1259).
+ */
+export const DALLAS_COLLEGE_CALENDAR: AcademicCalendar = {
+  terms: [
+    { name: "Spring", startMonth: 1, startDay: 19 },
+    { name: "May", startMonth: 5, startDay: 14 },
+    { name: "Summer", startMonth: 6, startDay: 7 },
+    { name: "Fall", startMonth: 8, startDay: 24 },
+    { name: "Winter", startMonth: 12, startDay: 11 },
+  ],
+  academicYearStartsWith: "Fall",
+};
+
 /** A four-term quarter system, included to keep the model genuinely pluggable. */
 export const US_QUARTER_CALENDAR: AcademicCalendar = {
   terms: [
