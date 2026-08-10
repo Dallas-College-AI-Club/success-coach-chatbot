@@ -1,13 +1,11 @@
 import type { ComponentType } from "react";
 import type { OnboardingApi } from "@/features/onboarding/use-onboarding";
-import type { OnboardingPayload } from "@/features/onboarding/types";
 
 /** Set once the flow finishes, so a shell can show the recap in its own scene.
  *  `resumed` marks a returning student who jumped straight here from a saved
- *  session — there is no live transcript, so a shell must recap from `summary`. */
-export type DoneState =
-  | { payload: OnboardingPayload; summary: string[]; resumed?: boolean }
-  | null;
+ *  session — there is no live transcript, so a shell must recap from `summary`.
+ *  (The payload itself lives in the session store; the chat seeds from there.) */
+export type DoneState = { summary: string[]; resumed?: boolean } | null;
 
 export interface WizardProps {
   api: OnboardingApi;
@@ -40,6 +38,13 @@ export interface Skin {
   /** Quiet underline links (later, audience). */
   link: string;
   picker: string;
+  /** The mode's panel — colour, border and shadow only. Geometry stays at the
+   *  call site, exactly as `picker` carries only radius/border/background. */
+  surface: string;
+  /** One conversation turn. The student's turn is the same box inverted, via a
+   *  `data-[role=user]:` chain — the idiom `option` already uses for
+   *  `data-[state=on]:`. One slot, not two. */
+  bubble: string;
 }
 
 // Variant-specific copy. Question prompts stay shared (questions.ts); this covers
@@ -53,6 +58,9 @@ export interface Copy {
   back: string;
   pickerPlaceholder: string;
   pickerEmpty: string;
+  /** The chat composer's placeholder — the one string the chat needs that the
+   *  wizard does not. */
+  composerPlaceholder: string;
   completionHeadline: string;
   restart: string;
   capabilityTrigger: string;

@@ -2,7 +2,8 @@ import { systemClock, type Clock } from "./clock";
 import { jsonSchema } from "ai";
 import { defineTool, isRecord, ToolInputError, type FlexibleSchema, type Tool } from "./types";
 
-export const GET_CURRENT_DATE_TOOL_NAME = "get_current_date";
+export { GET_CURRENT_DATE_TOOL_NAME } from "./names";
+import { GET_CURRENT_DATE_TOOL_NAME } from "./names";
 
 /** Input accepted by the `get_current_date` tool. */
 export interface GetCurrentDateInput {

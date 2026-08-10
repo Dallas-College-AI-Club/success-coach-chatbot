@@ -85,7 +85,6 @@ export const PlayfulShell = ({
           />
           {done ? (
             <RecapPanel
-              payload={done.payload}
               summary={done.summary}
               onRestart={onRestart}
               skin={skin}

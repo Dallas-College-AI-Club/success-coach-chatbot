@@ -51,6 +51,9 @@ interface SessionState {
   /** False until `rehydrate()` has run, so reads can stay SSR-safe. Never persisted. */
   hasHydrated: boolean;
   setSession: (session: SavedSession) => void;
+  /** Update just the saved look. An action (not read-modify-write at call
+   *  sites) so concurrent writers cannot lose each other's fields. */
+  setModeId: (modeId: string) => void;
   /** Unconsumed seam for a future "forget my answers" affordance — a real
    *  privacy need on shared campus machines. No owner issue yet; file one
    *  before wiring it into UI. */
@@ -130,6 +133,8 @@ export const useStudentSession = create<SessionState>()(
       hasHydrated: false,
 
       setSession: (session) => set({ session }),
+      setModeId: (modeId) =>
+        set((s) => (s.session ? { session: { ...s.session, modeId } } : {})),
       resetSession: () => set({ session: null }),
 
       appendMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),

@@ -16,7 +16,8 @@ import { assertIanaTimeZone, describeInstant } from "./getCurrentDate";
 import { jsonSchema } from "ai";
 import { defineTool, isRecord, ToolInputError, type FlexibleSchema, type Tool } from "./types";
 
-export const GET_SEMESTER_TOOL_NAME = "get_semester";
+export { GET_SEMESTER_TOOL_NAME } from "./names";
+import { GET_SEMESTER_TOOL_NAME } from "./names";
 
 /**
  * Dallas College's zone. Mirrors src/config/runtime.json DISPLAY_TIMEZONE —
