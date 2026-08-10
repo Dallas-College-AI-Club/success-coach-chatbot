@@ -12,6 +12,7 @@ import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/button";
+import { ChatBackdrop } from "@/features/chat/backdrops";
 import { seedMessages, SEED_ID } from "@/features/chat/seed";
 import { starterPromptsFor } from "@/features/onboarding/handoff-copy";
 import {
@@ -303,11 +304,15 @@ export function ChatScreen() {
   const starters = session ? starterPromptsFor(session.payload) : [];
 
   return (
-    <main className={`overflow-x-hidden ${mode.fontClass} ${mode.skin.page}`}>
+    <main className={`relative overflow-x-hidden ${mode.fontClass} ${mode.skin.page}`}>
+      {/* The mode's scene continues behind the chat. */}
+      <ChatBackdrop modeId={mode.id} />
       {/* The chat owns its geometry (one width in every mode — skin.shell's
           per-mode widths exist for wizard scenes the chat doesn't render), so
           switching looks repaints the panel without resizing it. */}
-      <div className="mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3">
+      {/* z-10 so the roaming mascots (which carry their own z) pass behind the
+          panel — visible in the gutters, softened under the blurred surface. */}
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AiClubLogo />
