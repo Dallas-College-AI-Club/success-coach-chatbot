@@ -3,20 +3,28 @@ import {
   AcademicCalendarError,
   assertValidCalendar,
   canonicalTermName,
+  DALLAS_COLLEGE_CALENDAR,
   daysBetween,
   MAX_OFFSET,
   parseIsoDate,
   resolveSemester,
   toIsoDate,
-  US_SEMESTER_CALENDAR,
   type AcademicCalendar,
   type SemesterInfo,
 } from "./academicCalendar";
-import { assertIanaTimeZone, describeInstant, hostTimeZone } from "./getCurrentDate";
+import { assertIanaTimeZone, describeInstant } from "./getCurrentDate";
 import { jsonSchema } from "ai";
 import { defineTool, isRecord, ToolInputError, type FlexibleSchema, type Tool } from "./types";
 
 export const GET_SEMESTER_TOOL_NAME = "get_semester";
+
+/**
+ * Dallas College's zone. Mirrors src/config/runtime.json DISPLAY_TIMEZONE —
+ * importing that file directly is not possible here: Turbopack roots the
+ * module graph at apps/frontend (where the lockfile is), and repo-root
+ * src/config is outside it, so the import type-checks but fails `next build`.
+ */
+const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
 
 export interface GetSemesterInput {
   /** Position relative to today: 0 this, 1 next, -1 previous. */
@@ -106,6 +114,10 @@ function buildDescription(calendar: AcademicCalendar): string {
     "",
     "Returns: semester (label such as 'Spring 2027', term, year, startDate, endDate, academicYear),",
     "current, isCurrent, daysUntilStart, daysUntilEnd, asOfDate, asOfSource, and timeZone.",
+    "",
+    "startDate/endDate are calendar-partition boundaries: endDate is the day before the next term",
+    "begins, not the final day of instruction. A term's year is the year it starts — the Winter",
+    "session that begins in December 2026 is 'Winter 2026' even in January 2027.",
   ].join("\n");
 }
 
@@ -167,9 +179,13 @@ function buildInputSchema(calendar: AcademicCalendar): FlexibleSchema<GetSemeste
 export interface GetSemesterOptions {
   /** Source of "now". Defaults to the real system clock. */
   clock?: Clock;
-  /** Zone used to decide today's date when the model does not pass one. */
+  /**
+   * Zone used to decide today's date when the model does not pass one.
+   * Defaults to America/Chicago — NOT the host zone, which is UTC on Vercel
+   * and would misdate Chicago evenings.
+   */
   defaultTimeZone?: string;
-  /** Term definitions. Defaults to `US_SEMESTER_CALENDAR`. */
+  /** Term definitions. Defaults to `DALLAS_COLLEGE_CALENDAR`. */
   calendar?: AcademicCalendar;
 }
 
@@ -186,8 +202,8 @@ export function createGetSemesterTool(
   options: GetSemesterOptions = {},
 ): Tool<GetSemesterInput, SemesterResult> {
   const clock = options.clock ?? systemClock;
-  const defaultTimeZone = options.defaultTimeZone ?? hostTimeZone();
-  const calendar = options.calendar ?? US_SEMESTER_CALENDAR;
+  const defaultTimeZone = options.defaultTimeZone ?? DALLAS_COLLEGE_TIME_ZONE;
+  const calendar = options.calendar ?? DALLAS_COLLEGE_CALENDAR;
 
   // Fail at construction rather than on the first model call: a malformed
   // calendar is a deployment bug, and surfacing it as a tool error would let it
