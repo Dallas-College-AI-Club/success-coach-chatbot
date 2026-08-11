@@ -72,7 +72,6 @@ const DESCRIPTION = [
  * so the AI SDK cannot enforce this schema at runtime — it describes the shape
  * to the model but does not check what comes back. `parseInput` below is
  * therefore the only validation, not a convenience layer on top of the schema.
- * (A Zod schema would validate; see `tests/types.test.ts`.)
  */
 const INPUT_SCHEMA: FlexibleSchema<GetCurrentDateInput> = jsonSchema({
     type: "object",
