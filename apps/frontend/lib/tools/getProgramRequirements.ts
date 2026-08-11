@@ -1,7 +1,7 @@
 import { jsonSchema } from "ai";
 import { and, eq, sql } from "drizzle-orm";
 
-import { db } from "@/lib/client";
+import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
 
 import {
@@ -48,7 +48,8 @@ const DESCRIPTION = [
     "Input is the program name as the user said it; partial names are fine.",
     "",
     "If several programs match, the tool returns ambiguous:true with a list of",
-    "matching program names — ask the user which one they mean and call again.",
+    "matching program names — show the user those names and ask which one they",
+    "mean. Only after they answer, call again with the exact name they chose.",
     "When truncated is true the list is incomplete; ask the user to narrow the",
     "name rather than treating the list as exhaustive.",
     "Never list degree requirements this tool did not return.",
@@ -125,9 +126,28 @@ export function createGetProgramRequirementsTool(): Tool<
             }
 
             const name = sql<string>`${knowledgeEntry.facts}->>'name'`;
-            const needle = `%${squash(input.programName)}%`;
 
-            const rows = await db
+            // Token-AND: every token must appear somewhere in the name, in
+            // ANY order. The previous single contiguous LIKE on the whole
+            // squashed phrase missed every program whose title interleaves a
+            // word the student didn't type: "python certificate" never
+            // matched "Python Developer Certificate" (nor java/web ditto),
+            // and the model was told the program doesn't exist. Superset of
+            // the old predicate — if the concatenation matched, each token
+            // matches — so no previously-reachable program is lost.
+            //
+            // Tokens whose squash is 1–2 chars ("C++"→"c", "C#"→"c") would
+            // LIKE-match nearly every name; those match RAW against the raw
+            // lowercased name instead, so the '+'/'#' the squash deletes
+            // stays discriminating. Capped at 8 tokens to bound the SQL.
+            const tokens = input.programName
+                .toLowerCase()
+                .split(/\s+/)
+                .slice(0, 8)
+                .map((raw) => ({ raw, sq: squash(raw) }))
+                .filter((t) => t.sq);
+
+            const rows = await getDb()
                 .select({
                     name,
                     facts: knowledgeEntry.facts,
@@ -138,7 +158,11 @@ export function createGetProgramRequirementsTool(): Tool<
                 .where(
                     and(
                         eq(knowledgeEntry.docType, "program_map"),
-                        sql`regexp_replace(lower(${name}), '[^a-z0-9]', '', 'g') LIKE ${needle}`,
+                        ...tokens.map(({ raw, sq }) =>
+                            sq.length >= 3
+                                ? sql`regexp_replace(lower(${name}), '[^a-z0-9]', '', 'g') LIKE ${`%${sq}%`}`
+                                : sql`lower(${name}) LIKE ${`%${raw}%`}`,
+                        ),
                     ),
                 )
                 .orderBy(name)
@@ -152,10 +176,30 @@ export function createGetProgramRequirementsTool(): Tool<
             // Certificate" / "C++ Developer Certificate"). An exact
             // case-insensitive name match wins outright so those programs
             // stay reachable instead of being permanently ambiguous.
+            //
+            // A SINGLE match auto-selects only when the tokens appear in the
+            // name IN ORDER. Token-AND matches in any order, so "computer
+            // science" AND-matches "Associate of Science Degree in Computer
+            // Engineering" — "science" from the award words, "computer" from
+            // the subject — and (the catalog having no Computer Science
+            // program map) that was the lone row: auto-selecting would hand
+            // a CS student the Computer Engineering plan as fact. Out-of-
+            // order single matches go back as an ambiguous candidate for the
+            // student to confirm instead.
+            const inOrder = (r: { name: string | null }): boolean => {
+                const hay = squash(r.name ?? "");
+                let at = 0;
+                for (const { sq } of tokens) {
+                    const hit = hay.indexOf(sq, at);
+                    if (hit === -1) return false;
+                    at = hit + sq.length;
+                }
+                return true;
+            };
             const wanted = input.programName.trim().toLowerCase();
             const exact =
                 rows.length === 1
-                    ? rows
+                    ? rows.filter(inOrder)
                     : rows.filter(
                           (r) => r.name?.trim().toLowerCase() === wanted,
                       );

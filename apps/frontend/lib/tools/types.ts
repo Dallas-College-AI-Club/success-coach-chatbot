@@ -75,9 +75,10 @@ export interface ToolSpec<TInput, TOutput> {
     /** Shown to the model; the main thing it reads when deciding whether to call. */
     description: string;
     /**
-     * Zod schema or `jsonSchema({...})`. Sent to the model to shape its call, and
-     * used by the AI SDK to validate input before `execute` when the tool is run
-     * through `generateText`.
+     * Zod schema or `jsonSchema({...})`. ADVERTISED to the model to shape its
+     * call — never enforced: `jsonSchema()` without a `validate` option gives
+     * the SDK nothing to validate with, so input reaches `execute` unchecked.
+     * `parseInput` below is the only runtime validation these tools have.
      */
     inputSchema: FlexibleSchema<TInput>;
     /**
@@ -116,8 +117,12 @@ export function defineTool<TInput, TOutput>(spec: ToolSpec<TInput, TOutput>): To
         description: spec.description,
         inputSchema: spec.inputSchema,
         execute: async (input: TInput) => {
-            // parseInput runs even though the SDK validates against inputSchema
-            // first: the two do different jobs, and this one also canonicalises.
+            // parseInput is the ONLY runtime validation these tools get. The
+            // SDK does none here: `jsonSchema()` without a `validate` option
+            // returns `validate: undefined`, and the SDK's safeValidateTypes
+            // short-circuits to success when validate is null — the schema is
+            // advertised to the model, never enforced. Do not "simplify" this
+            // away, or raw model JSON goes straight to the DB queries.
             const parsed = spec.parseInput(input);
             const output: Awaited<TOutput> = await spec.execute(parsed);
             return output;

@@ -58,12 +58,13 @@ function chipText(name: string, state: string): string {
 }
 
 /** The argument worth showing beside a chip — what makes a wrong lookup
- *  (an unnormalised course code, say) visible instead of silent. */
+ *  (an unnormalised course code or a misspelled program name) visible
+ *  instead of silent. One key per tool; first present wins. */
 function chipArg(input: unknown): string {
-  if (input && typeof input === "object" && "courseCode" in input) {
-    return ` · ${String((input as { courseCode: unknown }).courseCode)}`;
-  }
-  return "";
+  if (!input || typeof input !== "object") return "";
+  const rec = input as Record<string, unknown>;
+  const arg = rec.courseCode ?? rec.programName;
+  return arg == null ? "" : ` · ${String(arg)}`;
 }
 
 function plainText(m: UIMessage): string {
@@ -92,6 +93,10 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
       <span className="sr-only">{isUser ? "You: " : "Major: "}</span>
       {m.parts.map((part, i) => {
         if (isTextUIPart(part)) {
+          // Multi-step turns open with an EMPTY text part when the model goes
+          // straight to a tool call ([text(""), tool, text(answer)]) — painting
+          // it renders a blank styled bubble above the tool chip.
+          if (!part.text) return null;
           return (
             <div
               key={i}

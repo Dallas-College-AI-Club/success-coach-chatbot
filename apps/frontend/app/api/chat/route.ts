@@ -15,12 +15,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const body: {
-      messages?: unknown;
-      systemPrompt?: string;
-      context?: { campus?: string; major?: string };
-    } = await req.json();
-    const { systemPrompt, context } = body;
+    const body: { messages?: unknown } = await req.json();
 
     const model = process.env.LLM_MODEL;
     if (model == null) {
@@ -70,6 +65,19 @@ export async function POST(req: Request) {
       );
     }
 
+    // UIMessage's role union includes "system", and convertToModelMessages
+    // would forward it — letting any caller append to the system layer. The
+    // governed prompt is the ONLY system content this route ever sends.
+    if (messages.some((m) => m.role === "system")) {
+      return Response.json(
+        {
+          error: "Invalid request",
+          details: "system messages are not accepted.",
+        },
+        { status: 400 },
+      );
+    }
+
     if (process.env.NODE_ENV !== "production") {
       console.log("[CHAT] incoming turns:", messages.length);
     }
@@ -101,29 +109,35 @@ export async function POST(req: Request) {
       },
     });
 
-    // The governed prompt (lib/system-prompt.ts). A caller-supplied override
-    // is a dev-harness affordance only — in production the system layer is
-    // never client-controlled.
-    let baseSystemPrompt =
-      process.env.NODE_ENV !== "production" && systemPrompt
-        ? systemPrompt
-        : SYSTEM_PROMPT;
-    if (context && (context.campus || context.major)) {
-      baseSystemPrompt += `\n\nStudent Profile:\n- Dallas College Campus: ${context.campus || "General"}\n- Major/Area of Interest: ${context.major || "General studies"}`;
-    }
-
     // UI messages carry `parts` (text + tool calls), not a flat `content`
     // string. convertToModelMessages is the documented bridge and is ASYNC
     // in AI SDK v6 — the previous String(m.content) map silently sent empty
     // turns. Docs: node_modules/ai/docs/04-ai-sdk-ui/02-chatbot.mdx
+    //
+    // The system layer is server-owned: lib/system-prompt.ts, verbatim. The
+    // former client-supplied `systemPrompt` override lost its only caller
+    // when #161 deleted /dev/chat-test, and the `context` splice never had
+    // one (the transport posts messages only) — both removed.
     const result = streamText({
       model: openrouter.chat(model),
       messages: await convertToModelMessages(messages),
-      system: baseSystemPrompt,
+      system: SYSTEM_PROMPT,
       tools: toolRegistry,
       // Allow multi-step tool execution.
       // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
-      stopWhen: stepCountIs(5),
+      //
+      // 8 with a forced-answer phase, not 5: at stepCountIs(5) a thrashing
+      // model spent every step on tool calls and the turn ended with NO text
+      // ("What classes should I take for Computer Science?" → 9 calls at a
+      // 15-step ceiling, observed 2026-08-10). From step 6 on, toolChoice
+      // "none" forbids further calls, so the final steps cannot be tool
+      // calls — a turn can no longer end mid-tool-chain. ("none", NOT
+      // activeTools: [] — an empty toolset makes the openai adapter omit
+      // the tools field entirely while the history still carries tool
+      // calls, which strict OpenAI-compatible backends reject.)
+      stopWhen: stepCountIs(8),
+      prepareStep: ({ stepNumber }) =>
+        stepNumber >= 6 ? { toolChoice: "none" as const } : undefined,
 
       // 1000 truncated 4 of 10 replies mid-word in live testing — one
       // cut a transfer-credit hedge to a bare "Just double-"; a truncated
