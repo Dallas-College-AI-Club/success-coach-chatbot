@@ -40,6 +40,10 @@ CATALOG_EXPECTED_COUNTS = {
     "section": 16_181,
 }
 
+SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS = {
+    "program_map": 19,
+}
+
 # Required fields that every JSON row must contain.
 REQUIRED_FIELDS = {
     "source_url",
@@ -79,7 +83,11 @@ def parse_datetime(value: str | datetime) -> datetime:
 # ==========================================================
 # Reads the complete JSON dataset and validates every record
 # before anything is written into Neon.
-def load_rows(path: Path) -> list[dict[str, Any]]:
+def load_rows(
+    path: Path,
+    *,
+    allow_supplemental_programs: bool = False,
+) -> list[dict[str, Any]]:
     """Read and validate the complete JSON dataset."""
 
     # Verify that the file exists.
@@ -238,6 +246,7 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
     validate_dataset_counts(
         total_rows=len(rows),
         counts=counts,
+        allow_supplemental_programs=allow_supplemental_programs,
     )
 
     print("\nValidation passed", flush=True)
@@ -267,21 +276,39 @@ def load_rows(path: Path) -> list[dict[str, Any]]:
 def validate_dataset_counts(
     total_rows: int,
     counts: Counter[str],
+    *,
+    allow_supplemental_programs: bool = False,
 ) -> None:
-    """Validate either the catalog dataset or the CV dataset."""
+    """Validate catalog, CV, or an approved supplemental delivery."""
 
     actual_counts = dict(counts)
     doc_types = set(actual_counts)
+
+    if allow_supplemental_programs:
+        expected_total = sum(
+            SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS.values()
+        )
+
+        if (
+            actual_counts
+            != SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS
+            or total_rows != expected_total
+        ):
+            raise ValueError(
+                "The supplemental program counts do not match "
+                "the expected delivery.\n"
+                f"Expected: "
+                f"{SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS}\n"
+                f"Found: {actual_counts}"
+            )
+
+        return
 
     catalog_doc_types = set(
         CATALOG_EXPECTED_COUNTS
     )
 
-    # ------------------------------------------------------
-    # Validate the official catalog delivery.
-    # ------------------------------------------------------
     if doc_types == catalog_doc_types:
-
         if actual_counts != CATALOG_EXPECTED_COUNTS:
             raise ValueError(
                 "The catalog counts do not match the "
@@ -302,12 +329,7 @@ def validate_dataset_counts(
 
         return
 
-    # ------------------------------------------------------
-    # Validate CV deliveries.
-    # Every row should have doc_type = "cv".
-    # ------------------------------------------------------
     if doc_types == {"cv"}:
-
         if total_rows != actual_counts["cv"]:
             raise ValueError(
                 "The CV row count does not match "
@@ -316,7 +338,6 @@ def validate_dataset_counts(
 
         return
 
-    # Unsupported dataset.
     raise ValueError(
         "Unexpected dataset composition.\n"
         "Expected either:\n"
@@ -324,7 +345,6 @@ def validate_dataset_counts(
         "- CV: {'cv': number of CV rows}\n"
         f"Found: {actual_counts}"
     )
-
 
 # ==========================================================
 # Row Transformation
@@ -554,22 +574,19 @@ def load_into_neon(
 def main() -> None:
     """Run validation or load rows into Neon."""
 
-    # Create the command-line parser.
     parser = argparse.ArgumentParser(
         description=(
-            "Validate and load catalog or CV rows "
-            "into the Neon knowledge_entry table."
+            "Validate and load catalog, supplemental program, "
+            "or CV rows into the Neon knowledge_entry table."
         )
     )
 
-    # Required path to the JSON dataset.
     parser.add_argument(
         "json_path",
         type=Path,
         help="Path to the JSON file.",
     )
 
-    # Optional flag that enables database writes.
     parser.add_argument(
         "--load",
         action="store_true",
@@ -579,7 +596,14 @@ def main() -> None:
         ),
     )
 
-    # Controls how many rows are written per transaction.
+    parser.add_argument(
+        "--supplemental-programs",
+        action="store_true",
+        help=(
+            "Accept exactly 19 supplemental program_map rows."
+        ),
+    )
+
     parser.add_argument(
         "--batch-size",
         type=int,
@@ -590,7 +614,6 @@ def main() -> None:
         ),
     )
 
-    # Allows a safe small import test before loading everything.
     parser.add_argument(
         "--limit",
         type=int,
@@ -601,15 +624,24 @@ def main() -> None:
         ),
     )
 
-    # Read the terminal arguments.
     args = parser.parse_args()
 
-    # Always validate the full file before any database write.
+    if (
+        args.supplemental_programs
+        and args.limit is not None
+    ):
+        parser.error(
+            "--limit cannot be used with "
+            "--supplemental-programs."
+        )
+
     rows = load_rows(
-        args.json_path
+        args.json_path,
+        allow_supplemental_programs=(
+            args.supplemental_programs
+        ),
     )
 
-    # Stop after validation unless --load was provided.
     if not args.load:
         print(
             "\nValidation only. "
@@ -618,13 +650,11 @@ def main() -> None:
         )
         return
 
-    # Load the validated rows into Neon.
     load_into_neon(
         rows=rows,
         batch_size=args.batch_size,
         limit=args.limit,
     )
-
 
 # ==========================================================
 # Script Entry Point
