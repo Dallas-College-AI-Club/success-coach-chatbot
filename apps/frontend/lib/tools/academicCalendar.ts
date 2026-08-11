@@ -87,17 +87,6 @@ export const DALLAS_COLLEGE_CALENDAR: AcademicCalendar = {
   academicYearStartsWith: "Fall",
 };
 
-/** A four-term quarter system, included to keep the model genuinely pluggable. */
-export const US_QUARTER_CALENDAR: AcademicCalendar = {
-  terms: [
-    { name: "Winter", startMonth: 1, startDay: 1 },
-    { name: "Spring", startMonth: 3, startDay: 25 },
-    { name: "Summer", startMonth: 6, startDay: 15 },
-    { name: "Fall", startMonth: 9, startDay: 20 },
-  ],
-  academicYearStartsWith: "Fall",
-};
-
 /** One resolved term in a specific year. */
 export interface SemesterInfo {
   /** Human-facing label, e.g. `Spring 2027`. */
@@ -112,15 +101,6 @@ export interface SemesterInfo {
   endDate: string;
   /** Academic year this term belongs to, e.g. `2026-2027`. */
   academicYear: string;
-}
-
-export interface SemesterResolution {
-  /** The term that begins after `asOfDate`. */
-  next: SemesterInfo;
-  /** The term `asOfDate` falls in. Included because it is nearly always useful. */
-  current: SemesterInfo;
-  /** Whole days from `asOfDate` to the first day of `next`. */
-  daysUntilNextStarts: number;
 }
 
 /** Raised for a malformed `AcademicCalendar` or an invalid date. */
@@ -140,29 +120,6 @@ export interface CalendarDate {
 
 const DAYS_IN_MONTH = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31] as const;
 const MS_PER_DAY = 86_400_000;
-
-/**
- * Resolves the current and next term for a given date.
- *
- * @param today - The date to resolve from.
- * @param calendar - Term definitions. Defaults to `US_SEMESTER_CALENDAR`.
- *
- * @example
- * resolveSemesters({ year: 2026, month: 10, day: 15 });
- * // current: "Fall 2026", next: "Spring 2027"
- */
-export function resolveSemesters(
-  today: CalendarDate,
-  calendar: AcademicCalendar = US_SEMESTER_CALENDAR,
-): SemesterResolution {
-  const current = resolveSemester(today, { offset: 0 }, calendar);
-  const next = resolveSemester(today, { offset: 1 }, calendar);
-  return {
-    current,
-    next,
-    daysUntilNextStarts: daysBetween(toIsoDate(today), next.startDate),
-  };
-}
 
 /**
  * Which semester a query refers to.

@@ -31,6 +31,8 @@ import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot"
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
+import { studentProfile, type StudentProfile } from "@/features/chat/profile";
+import { citationHref, citationLabel } from "@/lib/constants";
 import { TOOL_LABELS } from "@/lib/tools/names";
 import { useSavedCourses, type SavedCourse } from "@/features/chat/saved-courses";
 
@@ -91,12 +93,13 @@ function chipText(name: string, state: string): string {
 }
 
 /** The argument worth showing beside a chip — what makes a wrong lookup
- *  (an unnormalised course code, say) visible instead of silent. */
+ *  (an unnormalised course code or a misspelled program name) visible
+ *  instead of silent. One key per tool; first present wins. */
 function chipArg(input: unknown): string {
-  if (input && typeof input === "object" && "courseCode" in input) {
-    return ` · ${String((input as { courseCode: unknown }).courseCode)}`;
-  }
-  return "";
+  if (!input || typeof input !== "object") return "";
+  const rec = input as Record<string, unknown>;
+  const arg = rec.courseCode ?? rec.programName ?? rec.query;
+  return arg == null ? "" : ` · ${String(arg)}`;
 }
 
 function plainText(m: UIMessage): string {
@@ -125,6 +128,10 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
       <span className="sr-only">{isUser ? "You: " : "Major: "}</span>
       {m.parts.map((part, i) => {
         if (isTextUIPart(part)) {
+          // Multi-step turns open with an EMPTY text part when the model goes
+          // straight to a tool call ([text(""), tool, text(answer)]) — painting
+          // it renders a blank styled bubble above the tool chip.
+          if (!part.text) return null;
           return (
             <div
               key={i}
@@ -146,16 +153,10 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // them (observed live: "martid=" in a cited catalog URL). Taking
           // the link straight off the result makes garbling impossible.
           const out = finished && !failed ? (part.output as { source_url?: unknown } | undefined) : undefined;
-          const src =
-            typeof out?.source_url === "string" &&
-            out.source_url.startsWith("https://catalog.dallascollege.edu")
-              ? out.source_url
-              : null;
-          // A saveable course? Then offer to keep it for the printable sheet.
-          const savedCourse =
-            finished && !failed
-              ? toSavedCourse(getToolName(part), part.output)
-              : null;
+          // Accepts every Dallas College citation host — the catalog serves
+          // course/program rows, Concourse serves syllabi and CVs — and
+          // rejects anything else by exact host match.
+          const src = citationHref(out?.source_url);
           return (
             <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
               <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
@@ -171,7 +172,7 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
                   rel="noopener noreferrer"
                   className={`${skin.link} text-sm`}
                 >
-                  Catalog page ↗
+                  {citationLabel(src)}
                 </a>
               )}
               {savedCourse && (
@@ -201,10 +202,12 @@ function Conversation({
   mode,
   seed,
   starters,
+  profile,
 }: {
   mode: Mode;
   seed: UIMessage[];
   starters: string[];
+  profile: StudentProfile | null;
 }) {
   const { skin, copy } = mode;
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
@@ -252,10 +255,11 @@ function Conversation({
   const send = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;
-    sendMessage({ text: t });
-    // Copy the student's own question for their printable sheet — verbatim,
-    // deduped in the store. getState avoids subscribing this component.
     useSavedCourses.getState().addQuestion(t);
+    // The profile rides with every request, not just the first: the route
+    // validates it and puts it in the system prompt, so it survives even if
+    // the seeded opening turn is ever trimmed out of the history.
+    sendMessage({ text: t }, profile ? { body: { profile } } : undefined);
     setInput("");
   };
 
@@ -403,6 +407,7 @@ export function ChatScreen() {
 
   const seed = seedMessages(session);
   const starters = session ? starterPromptsFor(session.payload) : [];
+  const profile = studentProfile(session);
 
   return (
     <main
@@ -441,7 +446,12 @@ export function ChatScreen() {
         {/* Deliberately NOT keyed by mode: the transcript lives in useChat, and
             switching looks must repaint it, not reset it — the wizard's rule
             ("the answers survive because they live in the hook, not the shell"). */}
-        <Conversation mode={mode} seed={seed} starters={starters} />
+        <Conversation
+          mode={mode}
+          seed={seed}
+          starters={starters}
+          profile={profile}
+        />
       </div>
     </main>
   );

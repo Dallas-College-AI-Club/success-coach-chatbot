@@ -124,7 +124,7 @@
         },
         "transferCreditDetermination": {
             "refusalMessage": "I cannot determine or guarantee transfer credit acceptance.",
-            "redirectMessage": "Transfer credit evaluations require official Dallas College review."
+            "redirectMessage": "Transfer credit evaluations require official Dallas College review. Please work with your Success Coach to start an official review."
         },
         "graduationDetermination": {
             "refusalMessage": "I cannot determine or guarantee graduation eligibility.",
@@ -144,7 +144,7 @@
         },
         "employmentOutcomeDetermination": {
             "refusalMessage": "I cannot predict or guarantee job placement, job security, or future salary outcomes.",
-            "redirectMessage": "Please consult official career resources and labor market information."
+            "redirectMessage": "Please consult official career resources and labor market information. For career planning, talk with your Success Coach or Dallas College Career Services."
         },
         "financialAdvice": {
             "refusalMessage": "I cannot provide personal financial advice or investment recommendations.",

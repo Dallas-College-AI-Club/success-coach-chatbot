@@ -1,7 +1,7 @@
 import { jsonSchema } from "ai";
 import { and, eq } from "drizzle-orm";
 
-import { db } from "@/lib/client";
+import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
 
 import {
@@ -142,7 +142,7 @@ export function createGetCourseInfoTool(): Tool<
                 );
             }
 
-            const [row] = await db
+            const [row] = await getDb()
                 .select({
                     facts: knowledgeEntry.facts,
                     courseCode: knowledgeEntry.courseCode,
