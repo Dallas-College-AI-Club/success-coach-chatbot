@@ -40,7 +40,7 @@ export async function POST(req: Request) {
 
     const base_url = process.env.LLM_BASE_URL;
     if (base_url == null) {
-      console.warn("[API Chat Route]: No base url detected.");
+      console.warn("[API Chat Route]: No base URL detected.");
       return new Response(
         JSON.stringify({
           error: "Missing LLM_BASE_URL",
