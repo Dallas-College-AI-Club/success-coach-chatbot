@@ -216,3 +216,95 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ── Success Coach hand-off sheet (/summary) ──────────────────────────────
+   Prints to PDF via window.print(); edit controls are print:hidden. Colour is
+   Dallas College Blue #003385; the masthead band uses print-color-adjust:exact
+   so the colour survives Chrome/Safari printing without "Background graphics". */
+.sheet-scope {
+  --sheet-blue: #003385;
+  --sheet-ink: #171717;
+  --sheet-muted: #6b7280;
+  --sheet-hair: #e5e7eb;
+  --sheet-display: var(--font-bricolage), var(--font-sans), system-ui, sans-serif;
+  background: #eaebee;
+  min-height: 100dvh;
+  color: var(--sheet-ink);
+}
+.sheet-toolbar {
+  position: sticky; top: 0; z-index: 10;
+  display: flex; align-items: center; gap: 12px;
+  background: #22303f; color: #fff; padding: 10px 16px;
+}
+.sheet-back { color: #cbd8e6; font-weight: 600; font-size: 13px; text-decoration: none; }
+.sheet-hint { flex: 1; color: #9fb0c2; font-size: 12px; }
+.sheet-print {
+  border: none; border-radius: 9px; background: #fff; color: #22303f;
+  font-weight: 700; font-size: 13px; padding: 9px 16px; cursor: pointer;
+}
+.sheet-page {
+  width: 8.1in; max-width: 100%; margin: 22px auto; background: #fff;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.14); overflow: hidden;
+}
+.sheet-masthead {
+  display: flex; align-items: center; gap: 16px;
+  background: var(--sheet-blue); color: #fff; padding: 18px 0.6in;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.sheet-dc-logo { height: 54px; width: auto; background: #fff; border-radius: 8px; padding: 5px; }
+.sheet-title { flex: 1; }
+.sheet-title h1 { font-family: var(--sheet-display); font-weight: 800; font-size: 22pt; margin: 0; letter-spacing: -0.02em; }
+.sheet-title p { font-size: 9pt; margin: 3px 0 0; opacity: 0.85; }
+.sheet-meta { text-align: right; font-size: 9pt; }
+.sheet-meta input {
+  background: transparent; border: none; border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+  color: #fff; font: inherit; font-weight: 700; width: 1.5in; text-align: left; outline: none;
+}
+.sheet-meta input::placeholder { color: rgba(255, 255, 255, 0.6); font-weight: 400; }
+.sheet-printed { margin-top: 5px; opacity: 0.85; }
+.sheet-section { padding: 0 0.6in; margin-top: 18px; }
+.sheet-shead { display: flex; align-items: center; gap: 10px; margin: 0 0 9px; }
+.sheet-idx { font-family: var(--sheet-display); font-weight: 800; font-size: 15pt; color: var(--sheet-blue); }
+.sheet-h2 { font-family: var(--sheet-display); font-weight: 700; font-size: 13.5pt; }
+.sheet-add {
+  margin-left: auto; border: 1px dashed var(--sheet-blue); color: var(--sheet-blue);
+  background: #fff; border-radius: 7px; font-size: 11px; font-weight: 600; padding: 4px 9px; cursor: pointer;
+}
+.sheet-answers { margin: 0; padding: 0; list-style: none; }
+.sheet-answers li { font-size: 10.5pt; padding: 3px 0 3px 20px; position: relative; }
+.sheet-answers li::before { content: "✓"; position: absolute; left: 0; color: var(--sheet-blue); font-weight: 700; }
+.sheet-row { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--sheet-hair); break-inside: avoid; }
+.sheet-row-main { flex: 1; }
+.sheet-code { font-family: var(--sheet-display); font-weight: 700; font-size: 12pt; }
+.sheet-req { font-size: 9.5pt; margin: 5px 0 3px; }
+.sheet-cite { font-size: 8.5pt; color: var(--sheet-muted); word-break: break-all; display: block; margin-top: 2px; }
+.sheet-cite a { color: var(--sheet-blue); text-decoration: underline; text-underline-offset: 2px; }
+.sheet-cr { font-size: 9pt; color: var(--sheet-muted); white-space: nowrap; }
+.sheet-note { display: flex; align-items: center; gap: 8px; background: #fffdf2; border: 1px solid #f0e6c0; border-radius: 8px; padding: 6px 10px; margin: 6px 0; }
+.sheet-note input { flex: 1; border: none; background: transparent; font: inherit; font-size: 10pt; outline: none; }
+.sheet-empty { color: #9aa2ac; font-size: 10pt; margin: 4px 0; }
+.sheet-del { border: none; background: none; color: #b0b7c0; font-size: 15px; line-height: 1; cursor: pointer; padding: 0 2px; }
+.sheet-del:hover { color: #e52626; }
+.sheet-editflag { margin: 16px 0.6in 0; padding: 8px 11px; border-left: 3px solid #e52626; background: #fdf3f3; font-size: 9pt; color: #7a2b2b; }
+.sheet-footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 14px; margin: 22px 0 0; padding: 14px 0.6in; border-top: 2px solid var(--sheet-blue); }
+.sheet-promise { font-family: var(--sheet-display); font-weight: 700; font-size: 12pt; margin: 0; }
+.sheet-promise b { color: var(--sheet-blue); }
+.sheet-fmeta { font-size: 8.5pt; color: var(--sheet-muted); margin: 4px 0 0; }
+.sheet-club-logo :where(img) { height: 40px; }
+
+@media print {
+  .sheet-scope { background: #fff; }
+  .sheet-toolbar, .sheet-add, .sheet-del { display: none !important; }
+  .sheet-page { width: auto; max-width: none; margin: 0; box-shadow: none; }
+  .sheet-note { background: transparent; border-color: #ccc; }
+  @page { margin: 1.2cm; }
+}
+.sheet-shint { margin-left: auto; font-size: 8.5pt; color: var(--sheet-muted); font-weight: 400; }
+.sheet-check-item { display: flex; align-items: center; gap: 9px; padding: 4px 0; font-size: 10.5pt; }
+.sheet-checkbox {
+  flex-shrink: 0; width: 15px; height: 15px; border: 1.5px solid var(--sheet-blue);
+  border-radius: 3px; background: #fff; color: var(--sheet-blue); font-size: 11px;
+  font-weight: 800; line-height: 1; display: inline-flex; align-items: center;
+  justify-content: center; cursor: pointer; padding: 0;
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}

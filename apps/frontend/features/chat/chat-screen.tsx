@@ -34,6 +34,39 @@ import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { citationHref, citationLabel } from "@/lib/constants";
 import { TOOL_LABELS } from "@/lib/tools/names";
+import { useSavedCourses, type SavedCourse } from "@/features/chat/saved-courses";
+
+// A get_course_info result the student can keep for their printable sheet.
+// Reads the fields straight off the tool output — real catalog data, never
+// model prose. Returns null for any other tool or an empty/not-found result.
+function toSavedCourse(name: string, output: unknown): SavedCourse | null {
+  if (name !== "get_course_info" || !output || typeof output !== "object") {
+    return null;
+  }
+  const o = output as Record<string, unknown>;
+  if (o.found !== true || typeof o.course_code !== "string") return null;
+  return {
+    course_code: o.course_code,
+    title: typeof o.title === "string" ? o.title : null,
+    credit_hours: typeof o.credit_hours === "number" ? o.credit_hours : null,
+    requisites_raw:
+      typeof o.requisites_raw === "string" ? o.requisites_raw : null,
+    catalog_year: typeof o.catalog_year === "string" ? o.catalog_year : null,
+    source_url: typeof o.source_url === "string" ? o.source_url : undefined,
+  };
+}
+
+function SaveCourseButton({ course, cls }: { course: SavedCourse; cls: string }) {
+  const saved = useSavedCourses((s) =>
+    s.courses.some((c) => c.course_code === course.course_code),
+  );
+  const toggle = useSavedCourses((s) => s.toggle);
+  return (
+    <button type="button" className={cls} onClick={() => toggle(course)}>
+      {saved ? "✓ Saved to my list" : "+ Save to my list"}
+    </button>
+  );
+}
 
 // The planning chat. Deliberately the SAME surface the student just used: the
 // simple shell was already a chat (bot avatar, bubbles, a composer), so this is
@@ -124,6 +157,7 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // course/program rows, Concourse serves syllabi and CVs — and
           // rejects anything else by exact host match.
           const src = citationHref(out?.source_url);
+          const savedCourse = finished && !failed ? toSavedCourse(getToolName(part), part.output) : null;
           return (
             <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
               <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
@@ -141,6 +175,12 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
                 >
                   {citationLabel(src)}
                 </a>
+              )}
+              {savedCourse && (
+                <SaveCourseButton
+                  course={savedCourse}
+                  cls={`${skin.chip} cursor-pointer`}
+                />
               )}
             </span>
           );
@@ -216,6 +256,7 @@ function Conversation({
   const send = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;
+    useSavedCourses.getState().addQuestion(t);
     // The profile rides with every request, not just the first: the route
     // validates it and puts it in the system prompt, so it survives even if
     // the seeded opening turn is ever trimmed out of the history.
@@ -339,6 +380,12 @@ function Conversation({
 export function ChatScreen() {
   // Above every consumer, exactly as OnboardingFlow does it.
   useHydrateSession();
+  // The saved-courses store skips auto-hydration; rehydrate it before the first
+  // write (send() below captures the student's question), or that write would
+  // persist over — and wipe — a returning student's saved courses.
+  useEffect(() => {
+    void useSavedCourses.persist.rehydrate();
+  }, []);
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
   const session = useSavedSession();
@@ -386,7 +433,15 @@ export function ChatScreen() {
               <SuccessCoachWordmark height={46} />
             </Link>
           </div>
-          <ModeSwitcher modes={MODES} current={mode} onSwitch={switchMode} />
+          <div className="flex items-center gap-2">
+            <Link
+              href="/summary"
+              className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+            >
+              🖨 Print for my coach
+            </Link>
+            <ModeSwitcher modes={MODES} current={mode} onSwitch={switchMode} />
+          </div>
         </div>
 
         {/* Deliberately NOT keyed by mode: the transcript lives in useChat, and
