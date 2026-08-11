@@ -1,6 +1,6 @@
 import { FREE_LIMIT_MESSAGE } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
-import { toolRegistry } from "@/lib/tools/registry";
+import { createToolRegistry } from "@/lib/tools/registry";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
@@ -122,22 +122,36 @@ export async function POST(req: Request) {
       model: openrouter.chat(model),
       messages: await convertToModelMessages(messages),
       system: SYSTEM_PROMPT,
-      tools: toolRegistry,
+      tools: createToolRegistry(),
       // Allow multi-step tool execution.
       // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
       //
       // 8 with a forced-answer phase, not 5: at stepCountIs(5) a thrashing
       // model spent every step on tool calls and the turn ended with NO text
       // ("What classes should I take for Computer Science?" → 9 calls at a
-      // 15-step ceiling, observed 2026-08-10). From step 6 on, toolChoice
-      // "none" forbids further calls, so the final steps cannot be tool
-      // calls — a turn can no longer end mid-tool-chain. ("none", NOT
-      // activeTools: [] — an empty toolset makes the openai adapter omit
-      // the tools field entirely while the history still carries tool
-      // calls, which strict OpenAI-compatible backends reject.)
+      // 15-step ceiling, observed 2026-08-10). From step 6 on, tools are
+      // withheld (activeTools: []), so the final steps cannot be tool calls
+      // — a turn can no longer end mid-tool-chain. activeTools, NOT
+      // toolChoice "none": measured live 2026-08-11, OpenRouter's free-tier
+      // routing sent step 7 to a backend that 400s on enforced tool_choice
+      // ("inference-enforced tool_choice requires the pinned Gemma prompt
+      // contract" — provider "Darkbloom"), killing exactly the long turns
+      // this phase exists to save.
+      // The forced step ALSO gets an explicit generation order appended to
+      // the system prompt: with tools silently absent but tool history
+      // present, gpt-oss-20b returned EMPTY completions (measured live —
+      // two turns ended blank at steps 7-8). Telling it the budget is spent
+      // and to answer now gives the step a scripted move.
       stopWhen: stepCountIs(8),
       prepareStep: ({ stepNumber }) =>
-        stepNumber >= 6 ? { toolChoice: "none" as const } : undefined,
+        stepNumber >= 6
+          ? {
+              activeTools: [],
+              system:
+                SYSTEM_PROMPT +
+                "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
+            }
+          : undefined,
 
       // 1000 truncated 4 of 10 replies mid-word in live testing — one
       // cut a transfer-credit hedge to a bare "Just double-"; a truncated

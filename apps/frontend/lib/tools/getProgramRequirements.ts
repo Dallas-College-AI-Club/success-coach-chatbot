@@ -145,6 +145,11 @@ export function createGetProgramRequirementsTool(): Tool<
             // sinks the whole AND ("psychology aa" must not miss the
             // Psychology row). Those tokens are dropped. Capped at 8 tokens
             // to bound the SQL.
+            // "program(s)" is also dropped: zero of the 318 catalog names
+            // contain that word (measured live 2026-08-11 — titles end in
+            // A.A.S./Certificate/Degree), but the model habitually appends
+            // it ("Emergency Medical Services Program") and one absent
+            // token sinks the whole AND.
             const tokens = input.programName
                 .toLowerCase()
                 .split(/\s+/)
@@ -153,6 +158,7 @@ export function createGetProgramRequirementsTool(): Tool<
                 .filter(
                     (t) =>
                         t.sq &&
+                        !/^programs?$/.test(t.sq) &&
                         (t.sq.length >= 3 || /[#+]/.test(t.raw)),
                 );
 
