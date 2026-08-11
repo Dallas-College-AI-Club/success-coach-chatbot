@@ -18,7 +18,7 @@ export const playful: Mode = {
     shell: "mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3",
     sectionLabel: "text-sm font-semibold text-[#E52626]",
     heading: "text-2xl font-bold text-[#003385] outline-none",
-    helper: "text-sm text-[#1E2A3A]/60",
+    helper: "text-sm text-[#1E2A3A]/65",
     option:
       "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-2xl border-2 border-[#003385]/15 bg-white px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#1E2A3A] transition-all hover:border-[#003385] hover:bg-[#003385]/5 focus-visible:ring-2 focus-visible:ring-[#E52626] focus-visible:ring-offset-2 motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#E52626] data-[state=on]:bg-[#E52626]/10 data-[state=on]:ring-2 data-[state=on]:ring-[#E52626]",
     optionCheck:

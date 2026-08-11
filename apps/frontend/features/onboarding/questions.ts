@@ -33,10 +33,15 @@ export const goalQuestion: OnboardingQuestion = {
   ],
 };
 
+/** The picker's escape hatch. Exported because wizard-parts must keep it
+ *  mounted through the search filter — a query matching no program must not
+ *  hide the way out. */
+export const UNSURE_OPTION_ID = "program_unsure";
+
 // --- Q2: program picker ---------------------------------------------------
 const programOptions: QuestionOption[] = [
   ...PROGRAMS.map((p) => ({ id: p.code, label: p.label, contribs: { major: p.code } })),
-  { id: "program_unsure", label: "I'm still figuring it out", contribs: { major: null } },
+  { id: UNSURE_OPTION_ID, label: "I'm still figuring it out", contribs: { major: null } },
 ];
 
 const programQuestion: OnboardingQuestion = {

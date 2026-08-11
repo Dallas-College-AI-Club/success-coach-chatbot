@@ -59,6 +59,8 @@ export function citationHref(raw: unknown): string | null {
   if (url.protocol !== "https:") return null;
   if (!CITATION_HOSTS.has(url.hostname)) return null;
   url.hash = "";
+  url.username = "";
+  url.password = "";
   return url.toString();
 }
 
@@ -68,7 +70,13 @@ export function citationHref(raw: unknown): string | null {
  * document kind the URL cannot confirm.
  */
 export function citationLabel(href: string): string {
-  return href.includes("catalog.dallascollege.edu")
-    ? "Catalog page ↗"
-    : "Source page ↗";
+  // Parse rather than substring-search the href: a Concourse URL whose query
+  // happens to contain the catalog host would otherwise be mislabelled.
+  try {
+    return new URL(href).hostname === "catalog.dallascollege.edu"
+      ? "Catalog page ↗"
+      : "Source page ↗";
+  } catch {
+    return "Source page ↗";
+  }
 }

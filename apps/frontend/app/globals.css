@@ -213,6 +213,9 @@
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    /* Transitions too: the campus panorama pan, the progress-bar width and the
+       mountain climber are transitions, not animations, and were unaffected. */
+    transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
 }

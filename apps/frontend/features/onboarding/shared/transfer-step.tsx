@@ -46,7 +46,15 @@ export const TransferStep = ({
   const dirGroupRef = useRef<HTMLDivElement>(null);
   const schoolPromptRef = useRef<HTMLParagraphElement>(null);
 
+  // Skip the first run: on mount the shell's step heading owns focus, and
+  // stealing it drops the student past the question they were just asked.
+  // Later runs are real answer changes, where moving focus is the point.
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
     if (dir && direction !== "inbound") schoolPromptRef.current?.focus();
     else dirGroupRef.current?.focus();
   }, [dirId, dir, direction]);
@@ -84,6 +92,7 @@ export const TransferStep = ({
         ref={dirGroupRef}
         tabIndex={-1}
         type="single"
+        role="radiogroup"
         aria-label="Which of these sounds like you?"
         value={dirId ?? ""}
         onValueChange={chooseDirection}

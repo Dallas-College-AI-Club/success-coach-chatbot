@@ -22,6 +22,9 @@ import {
 
 // Next.js Route Segment Configuration
 export const runtime = "nodejs";
+// Up to 8 model steps per turn (stopWhen below), so the default 15s ceiling on
+// some hosts can cut a legitimate long turn.
+export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
@@ -56,6 +59,9 @@ export async function POST(req: Request) {
         }
       }
       if (!allowed.has(origin)) {
+        console.warn(
+          `[API Chat Route]: cross-origin POST rejected (origin=${origin.slice(0, 100)})`,
+        );
         return Response.json({ error: "Forbidden origin" }, { status: 403 });
       }
     }
@@ -269,15 +275,6 @@ export async function POST(req: Request) {
     
   } catch (error: unknown) {
     console.error("[API Chat Route Error]:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Failed to generate chat response",
-        details: error instanceof Error ? error.message : String(error),
-      }),
-      {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      },
-    );
+    return Response.json({ error: GENERIC_CHAT_ERROR }, { status: 500 });
   }
 }

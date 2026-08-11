@@ -10,7 +10,10 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup } from "@/components/ui/toggle-group";
-import { AUDIENCE_OPTIONS } from "@/features/onboarding/questions";
+import {
+  AUDIENCE_OPTIONS,
+  UNSURE_OPTION_ID,
+} from "@/features/onboarding/questions";
 import { CapabilityDialog } from "@/features/onboarding/shared/capability-dialog";
 import { IntlGoalStep } from "@/features/onboarding/shared/intl-goal-step";
 import { keywordsFor, programFilter } from "@/features/onboarding/program-search";
@@ -33,6 +36,7 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
         return (
           <ToggleGroup
             type="single"
+            role="radiogroup"
             aria-label={current.prompt}
             value={api.selectedId(current)}
             onValueChange={(id: string) => id && api.answerOption(current, id)}
@@ -58,17 +62,39 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
             <CommandList>
               <CommandEmpty>{copy.pickerEmpty}</CommandEmpty>
               <CommandGroup>
-                {current.options?.map((o) => (
-                  <CommandItem
-                    key={o.id}
-                    value={o.label}
-                    keywords={keywordsFor(o.label)}
-                    onSelect={() => api.answerOption(current, o.id)}
-                  >
-                    {o.label}
-                  </CommandItem>
-                ))}
+                {current.options
+                  ?.filter((o) => o.id !== UNSURE_OPTION_ID)
+                  .map((o) => (
+                    <CommandItem
+                      key={o.id}
+                      value={o.label}
+                      keywords={keywordsFor(o.label)}
+                      onSelect={() => api.answerOption(current, o.id)}
+                    >
+                      {o.label}
+                    </CommandItem>
+                  ))}
               </CommandGroup>
+              {/* "I'm still figuring it out" is the way OUT of the picker, so
+                  it must survive the filter — a query matching no program was
+                  hiding the empty state's own suggested escape. forceMount on
+                  the GROUP, not the item: a force-mounted item is never
+                  registered with cmdk, so its group computes as unmatched and
+                  hides the child anyway. */}
+              {current.options?.some((o) => o.id === UNSURE_OPTION_ID) && (
+                <CommandGroup forceMount>
+                  <CommandItem
+                    value={UNSURE_OPTION_ID}
+                    forceMount
+                    onSelect={() => api.answerOption(current, UNSURE_OPTION_ID)}
+                  >
+                    {
+                      current.options.find((o) => o.id === UNSURE_OPTION_ID)
+                        ?.label
+                    }
+                  </CommandItem>
+                </CommandGroup>
+              )}
             </CommandList>
           </Command>
         );
@@ -102,10 +128,13 @@ export const QuestionBody = ({ api, skin, copy }: Parts) => {
     <div className="flex flex-col gap-4">
       {field()}
 
-      {/* Audience shortcuts sit under the goal question, and only until one is
-          taken — international swaps the step to its own picker, dual-credit
-          jumps away, so the row would be redundant afterward. */}
-      {api.stepIdx === 0 && !api.studentType && (
+      {/* Audience shortcuts sit under the goal question. International swaps
+          the step to its own picker (which carries its own way back), so the
+          row is hidden there. Dual credit keeps it: that branch jumps to step
+          1 with no goal answered, so a student who taps Back lands on a step
+          with no Next and — without this row — no way to re-enter the branch
+          either, short of starting over. */}
+      {api.stepIdx === 0 && api.current.kind !== "intlGoal" && (
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <span className="text-sm opacity-70">{copy.audienceLead}</span>
           {AUDIENCE_OPTIONS.map((aud) => (
@@ -156,6 +185,7 @@ export const AnswerChips = ({ api, skin }: { api: OnboardingApi; skin: Skin }) =
     <>
       {api.answeredChips.length > 0 && (
         <div
+          role="group"
           className="flex flex-wrap items-center gap-2"
           aria-label="Your answers so far — tap to change"
         >

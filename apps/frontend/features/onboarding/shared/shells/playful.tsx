@@ -30,6 +30,7 @@ const ProgressBar = ({ pct, label }: { pct: number; label: string }) => (
     <div
       className="h-3 w-full overflow-hidden rounded-full bg-[#003385]/12 shadow-[inset_0_1px_2px_rgba(0,51,133,.12)]"
       role="progressbar"
+      aria-label="Progress"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(pct)}

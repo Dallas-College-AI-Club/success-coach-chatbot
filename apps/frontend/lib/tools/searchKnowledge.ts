@@ -1,6 +1,12 @@
 // Server-only: this module reads OPENROUTER_API_KEY and opens DB queries, so
 // it must never be bundled into a client component. "server-only" makes that
-// a build error instead of a convention (Next ships the shim; no dependency).
+// a build error instead of a convention.
+//
+// It sits here rather than in lib/client.ts (which would cover all three
+// DB-backed tools) because the package throws outside a react-server
+// condition, and scripts/check-course-code-normalization.mts imports
+// getCourseInfo under plain tsx in CI. The other two tools carry no secret of
+// their own, and Next blanks non-NEXT_PUBLIC_ env vars in client bundles.
 import "server-only";
 
 import { createOpenAI } from "@ai-sdk/openai";
