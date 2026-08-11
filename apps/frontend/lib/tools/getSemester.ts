@@ -19,13 +19,8 @@ import { defineTool, isRecord, ToolInputError, type FlexibleSchema, type Tool } 
 export { GET_SEMESTER_TOOL_NAME } from "./names";
 import { GET_SEMESTER_TOOL_NAME } from "./names";
 
-/**
- * Dallas College's zone. Mirrors src/config/runtime.json DISPLAY_TIMEZONE —
- * importing that file directly is not possible here: Turbopack roots the
- * module graph at apps/frontend (where the lockfile is), and repo-root
- * src/config is outside it, so the import type-checks but fails `next build`.
- */
-export const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
+export { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
+import { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
 
 export interface GetSemesterInput {
   /** Position relative to today: 0 this, 1 next, -1 previous. */

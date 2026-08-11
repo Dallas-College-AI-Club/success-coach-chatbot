@@ -1,5 +1,6 @@
+import { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
 import { createGetCurrentDateTool } from "./getCurrentDate";
-import { createGetSemesterTool, DALLAS_COLLEGE_TIME_ZONE } from "./getSemester";
+import { createGetSemesterTool } from "./getSemester";
 import { toolSet } from "./types";
 import { createGetCourseInfoTool } from "./getCourseInfo";
 import { createGetProgramRequirementsTool } from "./getProgramRequirements";

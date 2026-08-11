@@ -7,11 +7,12 @@ import { type FlexibleSchema, type Tool as AiTool, type ToolSet } from "ai";
  * either a Zod schema or a JSON Schema, and any provider adapter knows how to
  * render it.
  *
- * One difference from the SDK's own record shape drives the code below:
- * **AI SDK tools carry no name.** A name is the key a tool is registered
- * under in a `ToolSet` record. Since this codebase passes tools around as an
- * array, `ExecutableTool` carries the name alongside the definition, and
- * `toolSet()` builds the record when one is needed.
+ * One difference from Anthropic's tool type shapes the code below:
+ *
+ * 1. **AI SDK tools carry no name.** A name is the key a tool is registered
+ *    under in a `ToolSet` record. Since this codebase passes tools around as an
+ *    array, `ExecutableTool` carries the name alongside the definition, and
+ *    `toolSet()` builds the record when one is needed.
  */
 
 /**
@@ -29,7 +30,7 @@ export type AnyToolDefinition = AiTool<any, any>;
 export type { FlexibleSchema };
 
 /**
- * A named tool ready for registration.
+ * A tool the agent loop can execute.
  *
  * Type parameters are erased here so tools with unrelated signatures can sit in
  * one array without `any` or a cast.
@@ -37,7 +38,7 @@ export type { FlexibleSchema };
 export interface ExecutableTool {
     /** The name the model calls this tool by. */
     readonly name: string;
-    /** The AI SDK tool, ready to hand to `streamText` or a provider adapter. */
+    /** The AI SDK tool, ready to hand to `generateText` or a provider adapter. */
     readonly definition: AnyToolDefinition;
 }
 
@@ -45,8 +46,7 @@ export interface ExecutableTool {
  * Author-facing alias for a built tool. The type parameters document the
  * spec's input/output at the factory signature; the built object exposes only
  * `name` + `definition` — the SDK drives `definition.execute`, which runs the
- * parseInput → execute pipeline. (A wider `run`/`parseInput`/`execute` surface
- * existed for an agent loop that was never built; removed 2026-08-11.)
+ * parseInput → execute pipeline.
  */
 export type Tool<TInput, TOutput> = ExecutableTool & {
     /** Phantom field carrying the spec types; never present at runtime. */

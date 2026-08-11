@@ -1,8 +1,14 @@
+// Server-only: this module reads OPENROUTER_API_KEY and opens DB queries, so
+// it must never be bundled into a client component. "server-only" makes that
+// a build error instead of a convention (Next ships the shim; no dependency).
+import "server-only";
+
 import { createOpenAI } from "@ai-sdk/openai";
 import { embed, jsonSchema } from "ai";
 import { cosineDistance, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
+import { EMBED_BASE_URL, EMBED_DIMS, EMBED_MODEL } from "@/lib/constants";
 import { knowledgeEntry } from "@/lib/schema";
 
 import {
@@ -17,20 +23,6 @@ import {
 // without importing this module (which pulls in the DB client).
 export { SEARCH_KNOWLEDGE_TOOL_NAME } from "./names";
 import { SEARCH_KNOWLEDGE_TOOL_NAME } from "./names";
-
-// ── The embedding contract ──────────────────────────────────────────────────
-// These three constants are a CONTRACT with the 20,796 stored vectors, which
-// were produced by apps/data/dallasai/pipeline/embed_rows.py:30-33 with this
-// exact model at this exact width through this exact gateway. They are
-// deliberately NOT read from LLM_BASE_URL / LLM_MODEL: the chat model is a
-// choice (swap it freely, run it on a laptop), but a query vector from any
-// other embedding model is not cosine-comparable with the stored ones —
-// ranking degrades to noise with NO error. Measured live 2026-08-11: a
-// same-model query embeds at distance 0.53 from its target row; a wrong
-// provider-options key alone shifted vectors to a different width entirely.
-const EMBED_BASE_URL = "https://openrouter.ai/api/v1";
-const EMBED_MODEL = "openai/text-embedding-3-small";
-const EMBED_DIMS = 768;
 
 // Distance floor, calibrated against live data 2026-08-11 (cosine distance,
 // 0 = identical). Direct queries land ≤ 0.59 ("college algebra" 0.40,

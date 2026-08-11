@@ -1,4 +1,8 @@
 import {
+  profilePromptBlock,
+  studentProfileSchema,
+} from "@/features/chat/profile";
+import {
   FREE_LIMIT_MESSAGE,
   GENERIC_CHAT_ERROR,
   TRANSIENT_LIMIT_MESSAGE,
@@ -21,10 +25,22 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
+    // Cross-site guard: keeps a third-party page from spending the club's
+    // OpenRouter free-tier quota through a visitor's browser. Origin rather
+    // than Referer — browsers always send Origin on a cross-origin POST,
+    // while Referer is stripped by privacy settings. A same-origin request
+    // from the app sends its own origin; a missing Origin (non-browser
+    // caller) is allowed through so this never blocks a real student.
+    const origin = req.headers.get("origin");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (origin && appUrl && new URL(appUrl).origin !== origin) {
+      return Response.json({ error: "Forbidden origin" }, { status: 403 });
+    }
+
     // Malformed JSON is a caller mistake, not a server failure: without this
     // guard it fell through to the catch-all 500 and leaked the raw parser
     // message, contra the chat-errors contract.
-    let body: { messages?: unknown };
+    let body: { messages?: unknown; profile?: unknown };
     try {
       body = await req.json();
     } catch {
@@ -44,7 +60,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_MODEL",
           details:
-            "An LLM model is required. Set LLM_MODEL in apps/frontend/.env.local (or the deployment's environment variables).",
+            "An LLM model is required. Set LLM_MODEL in apps/frontend/.env (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -60,7 +76,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_BASE_URL",
           details:
-            "An API base URL is required. Set LLM_BASE_URL in apps/frontend/.env.local (or the deployment's environment variables).",
+            "An API base URL is required. Set LLM_BASE_URL in apps/frontend/.env (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -109,7 +125,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing API Key",
           details:
-            "An active OpenRouter API key is required. Set OPENROUTER_API_KEY in apps/frontend/.env.local (or the deployment's environment variables).",
+            "An active OpenRouter API key is required. Set OPENROUTER_API_KEY in apps/frontend/.env (or the deployment's environment variables).",
         }),
         {
           status: 401,
@@ -117,6 +133,15 @@ export async function POST(req: Request) {
         },
       );
     }
+
+    // The onboarding answers, validated before any of them reach the system
+    // layer. A caller can only contribute the six known display fields, each
+    // length-capped; anything else is dropped rather than 400'd, so a stale
+    // client never loses its chat over a schema change.
+    const parsedProfile = studentProfileSchema.safeParse(body.profile);
+    const profileBlock = parsedProfile.success
+      ? profilePromptBlock(parsedProfile.data)
+      : "";
 
     // Create the OpenRouter provider using the resolved API key
     const openrouter = createOpenAI({
@@ -134,14 +159,15 @@ export async function POST(req: Request) {
     // in AI SDK v6 — the previous String(m.content) map silently sent empty
     // turns. Docs: node_modules/ai/docs/04-ai-sdk-ui/02-chatbot.mdx
     //
-    // The system layer is server-owned: lib/system-prompt.ts, verbatim. The
-    // former client-supplied `systemPrompt` override lost its only caller
-    // when #161 deleted /dev/chat-test, and the `context` splice never had
-    // one (the transport posts messages only) — both removed.
+    // The system layer is server-owned: lib/system-prompt.ts, plus the
+    // student profile, which is the only client-supplied part and reaches it
+    // only after passing studentProfileSchema. The free-text `systemPrompt`
+    // override is gone — it lost its only caller when #161 deleted
+    // /dev/chat-test.
     const result = streamText({
       model: openrouter.chat(model),
       messages: await convertToModelMessages(messages),
-      system: SYSTEM_PROMPT,
+      system: SYSTEM_PROMPT + profileBlock,
       tools: createToolRegistry(),
       // Allow multi-step tool execution.
       // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
@@ -169,6 +195,7 @@ export async function POST(req: Request) {
               activeTools: [],
               system:
                 SYSTEM_PROMPT +
+                profileBlock +
                 "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
             }
           : undefined,
