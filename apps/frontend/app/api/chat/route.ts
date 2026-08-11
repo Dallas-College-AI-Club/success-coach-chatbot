@@ -1,5 +1,6 @@
 import { createOpenAI } from '@ai-sdk/openai';
 import { streamText, stepCountIs, convertToModelMessages, validateUIMessages, type UIMessage } from 'ai';
+import { FREE_LIMIT_MESSAGE } from '@/lib/chat-errors';
 import { SYSTEM_PROMPT } from '@/lib/system-prompt';
 import { toolRegistry } from '@/lib/tools/registry';
 
@@ -81,14 +82,32 @@ export async function POST(req: Request) {
             // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
             stopWhen: stepCountIs(5),
 
-            maxOutputTokens: 1000,
-            temperature: 0.7,
+            // 1000 truncated 4 of 10 replies mid-word in live testing — one
+            // cut a transfer-credit hedge to a bare "Just double-"; a truncated
+            // caveat is worse than a short answer (#154 measurement).
+            maxOutputTokens: 2000,
+            // Low on purpose: this bot restates tool-returned facts, where
+            // sampling variance is pure downside. At 0.7 the live proof runs
+            // showed variance-shaped artifacts (1-of-8 empty replies, garbage
+            // tokens in the before-runs); see the #146 experiment comment.
+            temperature: 0.2,
         });
 
         if (process.env.NODE_ENV !== 'production') {
             console.log('[CHAT] stream response started');
         }
-        return result.toUIMessageStreamResponse();
+        return result.toUIMessageStreamResponse({
+            // Map known provider failures to student-facing wording; everything
+            // else stays a generic line so internals never reach the client.
+            onError: (error: unknown) => {
+                const m = error instanceof Error ? error.message : String(error);
+                if (m.includes('free-models-per-day') || m.includes('Rate limit')) {
+                    return FREE_LIMIT_MESSAGE;
+                }
+                console.error('[API Chat Route stream error]:', m);
+                return 'An error occurred.';
+            },
+        });
 
     } catch (error: unknown) {
         console.error('[API Chat Route Error]:', error);
