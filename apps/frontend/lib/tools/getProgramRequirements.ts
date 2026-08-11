@@ -32,6 +32,7 @@ export interface ProgramRequirementsResult {
     total_credits?: string | number | null;
     groups?: unknown[];
     source_url?: string;
+    catalog_year?: string | null;
 }
 
 const DESCRIPTION = [
@@ -51,6 +52,10 @@ const DESCRIPTION = [
     "When truncated is true the list is incomplete; ask the user to narrow the",
     "name rather than treating the list as exhaustive.",
     "Never list degree requirements this tool did not return.",
+    "",
+    "Cite `source_url` and the `catalog_year` (the catalog edition) when stating",
+    "program facts — requirements differ by catalog year and the student needs",
+    "to know which edition this is.",
 ].join("\n");
 
 const INPUT_SCHEMA: FlexibleSchema<GetProgramRequirementsInput> = jsonSchema({
@@ -127,6 +132,7 @@ export function createGetProgramRequirementsTool(): Tool<
                     name,
                     facts: knowledgeEntry.facts,
                     sourceUrl: knowledgeEntry.sourceUrl,
+                    catalogYear: knowledgeEntry.catalogYear,
                 })
                 .from(knowledgeEntry)
                 .where(
@@ -176,6 +182,7 @@ export function createGetProgramRequirementsTool(): Tool<
                     null,
                 groups: Array.isArray(facts.groups) ? facts.groups : [],
                 source_url: row.sourceUrl,
+                catalog_year: row.catalogYear ?? null,
             };
         },
     });
