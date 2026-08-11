@@ -13,7 +13,10 @@ import {
     type Tool,
 } from "./types";
 
-export const SEARCH_KNOWLEDGE_TOOL_NAME = "search_knowledge";
+// Name lives in the client-safe manifest so the UI can label the tool
+// without importing this module (which pulls in the DB client).
+export { SEARCH_KNOWLEDGE_TOOL_NAME } from "./names";
+import { SEARCH_KNOWLEDGE_TOOL_NAME } from "./names";
 
 // ── The embedding contract ──────────────────────────────────────────────────
 // These three constants are a CONTRACT with the 20,796 stored vectors, which

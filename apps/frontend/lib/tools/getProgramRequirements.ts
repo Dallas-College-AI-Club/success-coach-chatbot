@@ -12,7 +12,10 @@ import {
     type Tool,
 } from "./types";
 
-export const GET_PROGRAM_REQUIREMENTS_TOOL_NAME = "get_program_requirements";
+// Name lives in the client-safe manifest so the UI can label the tool
+// without importing this module (which pulls in the DB client).
+export { GET_PROGRAM_REQUIREMENTS_TOOL_NAME } from "./names";
+import { GET_PROGRAM_REQUIREMENTS_TOOL_NAME } from "./names";
 
 export interface GetProgramRequirementsInput {
     programName: string;
@@ -184,7 +187,9 @@ export function createGetProgramRequirementsTool(): Tool<
             const rows = await getDb()
                 .select({
                     name,
-                    programCode: knowledgeEntry.programCode,
+                    // Evaluated once, in SQL — the tie-break below reuses this
+                    // instead of re-implementing the predicate in JS.
+                    codeMentioned: sql<boolean>`${codeMentioned}`,
                     facts: knowledgeEntry.facts,
                     sourceUrl: knowledgeEntry.sourceUrl,
                     catalogYear: knowledgeEntry.catalogYear,
@@ -240,10 +245,7 @@ export function createGetProgramRequirementsTool(): Tool<
             // it is exact by construction ("CORE-42" names one row), and the
             // in-order gate below would wrongly demote it — the tokens of
             // "Core Curriculum (CORE-42)" never appear in the row's name.
-            const codeHits = rows.filter((r) => {
-                const code = squash(r.programCode ?? "");
-                return code.length >= 4 && inputSquash.includes(code);
-            });
+            const codeHits = rows.filter((r) => r.codeMentioned);
             const wanted = input.programName.trim().toLowerCase();
             const exact =
                 codeHits.length === 1

@@ -100,8 +100,7 @@ export interface GetCurrentDateOptions {
  * Builds the `get_current_date` tool.
  *
  * @example
- * const tool = createGetCurrentDateTool();
- * tool.execute({}); // { date: "2026-07-17", ... }
+ * // Driven by the model via the registry; {} → { date: "2026-07-17", ... }
  */
 export function createGetCurrentDateTool(
     options: GetCurrentDateOptions = {},

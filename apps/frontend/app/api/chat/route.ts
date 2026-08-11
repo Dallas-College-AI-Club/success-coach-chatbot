@@ -1,4 +1,8 @@
-import { FREE_LIMIT_MESSAGE, TRANSIENT_LIMIT_MESSAGE } from "@/lib/chat-errors";
+import {
+  FREE_LIMIT_MESSAGE,
+  GENERIC_CHAT_ERROR,
+  TRANSIENT_LIMIT_MESSAGE,
+} from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
 import { createToolRegistry } from "@/lib/tools/registry";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -40,7 +44,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_MODEL",
           details:
-            "An LLM model is required. Please set LLM_MODEL in your root .env file to run live tests.",
+            "An LLM model is required. Set LLM_MODEL in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -56,7 +60,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_BASE_URL",
           details:
-            "An api base url  is required. Please set LLM_BASE_URL in your root .env file to run live tests.",
+            "An API base URL is required. Set LLM_BASE_URL in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -105,7 +109,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing API Key",
           details:
-            "An active OpenRouter API Key is required. Please set OPENROUTER_API_KEY in your root .env file to run live tests.",
+            "An active OpenRouter API key is required. Set OPENROUTER_API_KEY in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 401,
@@ -209,7 +213,7 @@ export async function POST(req: Request) {
           return TRANSIENT_LIMIT_MESSAGE;
         }
         console.error("[API Chat Route stream error]:", m);
-        return "An error occurred.";
+        return GENERIC_CHAT_ERROR;
       },
     });
     

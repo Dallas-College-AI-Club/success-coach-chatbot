@@ -194,10 +194,10 @@ export interface GetSemesterOptions {
  * Builds the `get_semester` tool.
  *
  * @example
- * const tool = createGetSemesterTool();
- * tool.execute({}).semester.label;                        // "Fall 2026"
- * tool.execute({ offset: 1 }).semester.label;             // "Spring 2027"
- * tool.execute({ term: "Spring", offset: 1 }).semester;   // next Spring
+ * // Driven by the model via the registry; input → result shapes:
+ * // {}                              → semester.label "Fall 2026"
+ * // { offset: 1 }                   → semester.label "Spring 2027"
+ * // { term: "Spring", offset: 1 }   → the next Spring
  */
 export function createGetSemesterTool(
   options: GetSemesterOptions = {},
