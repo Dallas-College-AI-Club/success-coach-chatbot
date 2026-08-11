@@ -136,16 +136,29 @@ export function createGetProgramRequirementsTool(): Tool<
             // the old predicate — if the concatenation matched, each token
             // matches — so no previously-reachable program is lost.
             //
-            // Tokens whose squash is 1–2 chars ("C++"→"c", "C#"→"c") would
-            // LIKE-match nearly every name; those match RAW against the raw
-            // lowercased name instead, so the '+'/'#' the squash deletes
-            // stays discriminating. Capped at 8 tokens to bound the SQL.
+            // Tokens whose squash is 1–2 chars split two ways. "C++"/"C#"
+            // carry a discriminating symbol the squash deletes — they match
+            // RAW against the raw lowercased name, so C++ and C# programs
+            // stay distinct. Everything else that short ("aa", "as", "of",
+            // "a.a.") is award shorthand or noise: catalog names spell
+            // awards out ("Associate of Arts"), so requiring '%aa%' just
+            // sinks the whole AND ("psychology aa" must not miss the
+            // Psychology row). Those tokens are dropped. Capped at 8 tokens
+            // to bound the SQL.
             const tokens = input.programName
                 .toLowerCase()
                 .split(/\s+/)
                 .slice(0, 8)
                 .map((raw) => ({ raw, sq: squash(raw) }))
-                .filter((t) => t.sq);
+                .filter(
+                    (t) =>
+                        t.sq &&
+                        (t.sq.length >= 3 || /[#+]/.test(t.raw)),
+                );
+
+            if (tokens.length === 0) {
+                return { found: false };
+            }
 
             const rows = await getDb()
                 .select({
