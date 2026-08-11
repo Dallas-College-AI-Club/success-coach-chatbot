@@ -79,7 +79,11 @@ export function SummarySheet() {
   // trigger them here, after mount, exactly as the chat screen does.
   useHydrateSession();
   useEffect(() => {
-    void useSavedCourses.persist.rehydrate();
+    // `persist` is absent when storage was unavailable as the module
+    // loaded (a browser refusing localStorage). Optional-chain it, exactly as
+    // useHydrateSession does — an unguarded call is a TypeError in a mount
+    // effect, and with no error boundary it takes the whole route down.
+    void useSavedCourses.persist?.rehydrate();
   }, []);
 
   const session = useSavedSession();

@@ -384,7 +384,11 @@ export function ChatScreen() {
   // write (send() below captures the student's question), or that write would
   // persist over — and wipe — a returning student's saved courses.
   useEffect(() => {
-    void useSavedCourses.persist.rehydrate();
+    // `persist` is absent when storage was unavailable as the module
+    // loaded (a browser refusing localStorage). Optional-chain it, exactly as
+    // useHydrateSession does — an unguarded call is a TypeError in a mount
+    // effect, and with no error boundary it takes the whole route down.
+    void useSavedCourses.persist?.rehydrate();
   }, []);
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
