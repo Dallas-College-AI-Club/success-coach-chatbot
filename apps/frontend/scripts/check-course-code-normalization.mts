@@ -8,12 +8,8 @@
  *
  * Run: npx tsx scripts/check-course-code-normalization.mts
  */
-// lib/client.ts (imported transitively) throws at module scope without a
-// DATABASE_URL. This guard never queries, so a placeholder satisfies it and
-// keeps the check runnable in CI with no database.
-process.env.DATABASE_URL ??=
-  "postgresql://guard:guard@localhost:5432/never-connected";
-
+// No env needed: lib/client.ts is lazy (getDb initialises on first query),
+// and this guard never queries.
 const { normalizeCourseCode } = await import("../lib/tools/getCourseInfo");
 
 // input -> what the generated column stores for the same value.

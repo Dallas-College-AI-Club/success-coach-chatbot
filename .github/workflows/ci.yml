@@ -38,8 +38,8 @@ jobs:
       - run: npx tsc --noEmit -p tsconfig.json
       # tsc alone is not enough: an import can type-check yet fail the
       # bundler's module-root resolution (proven by #136). Build for real.
-      # The stub DATABASE_URL satisfies lib/client.ts's module-scope check;
-      # nothing connects at build time.
+      # lib/client.ts is now lazy (getDb), so the stub URL is likely
+      # unnecessary — kept until a build without it is verified green.
       - run: npx next build
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/never-connected

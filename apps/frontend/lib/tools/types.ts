@@ -1,26 +1,19 @@
-import { asSchema, type FlexibleSchema, type Tool as AiTool, type ToolSet } from "ai";
-import type { JSONSchema7 } from "json-schema";
+import { type FlexibleSchema, type Tool as AiTool, type ToolSet } from "ai";
 
 /**
  * Tool definitions in Vercel AI SDK form.
  *
  * The AI SDK's `Tool` is the provider-neutral shape: `inputSchema` accepts
  * either a Zod schema or a JSON Schema, and any provider adapter knows how to
- * render it. Defining tools this way means this module imports nothing from
- * `@anthropic-ai/sdk` — the Anthropic-specific wire format is produced in
- * `chat/client.ts`, at the provider boundary where it belongs.
+ * render it.
  *
- * Two differences from Anthropic's tool type shape the code below:
+ * One difference from Anthropic's tool type shapes the code below:
  *
  * 1. **AI SDK tools carry no name.** A name is the key a tool is registered
  *    under in a `ToolSet` record. Since this codebase passes tools around as an
  *    array, `ExecutableTool` carries the name alongside the definition, and
  *    `toolSet()` builds the record when one is needed.
- * 2. **`inputSchema` is a `FlexibleSchema`, not raw JSON.** Reading the JSON
- *    Schema back out goes through `asSchema`, and is asynchronous, because a
- *    schema is allowed to resolve lazily.
  */
-export type ToolDefinition<TInput = unknown, TOutput = unknown> = AiTool<TInput, TOutput>;
 
 /**
  * A tool definition with its input and output types erased.
@@ -34,7 +27,7 @@ export type ToolDefinition<TInput = unknown, TOutput = unknown> = AiTool<TInput,
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyToolDefinition = AiTool<any, any>;
 
-export type { FlexibleSchema, ToolSet };
+export type { FlexibleSchema };
 
 /**
  * A tool the agent loop can execute.
@@ -47,27 +40,18 @@ export interface ExecutableTool {
     readonly name: string;
     /** The AI SDK tool, ready to hand to `generateText` or a provider adapter. */
     readonly definition: AnyToolDefinition;
-    /** Validates raw model input, then executes. Throws on invalid input. */
-    run(rawInput: unknown): Promise<unknown>;
 }
 
 /**
- * A tool as its author sees it, with types intact.
- *
- * `TOutput` is literally what `execute` returns, so a synchronous tool is
- * `Tool<I, O>` and an async one is `Tool<I, Promise<O>>`. Either way `run`
- * resolves to the awaited value.
+ * Author-facing alias for a built tool. The type parameters document the
+ * spec's input/output at the factory signature; the built object exposes only
+ * `name` + `definition` — the SDK drives `definition.execute`, which runs the
+ * parseInput → execute pipeline.
  */
-export interface Tool<TInput, TOutput> extends ExecutableTool {
-    // `definition` is deliberately not narrowed to `ToolDefinition<TInput, …>`.
-    // `AiTool` is invariant in its type parameters, so a narrowed definition is
-    // not assignable to the erased one and `Tool` could not extend
-    // `ExecutableTool`. Nothing needs the narrowing: the type information that
-    // matters flows through the three members below.
-    parseInput(raw: unknown): TInput;
-    execute(input: TInput): TOutput;
-    run(rawInput: unknown): Promise<Awaited<TOutput>>;
-}
+export type Tool<TInput, TOutput> = ExecutableTool & {
+    /** Phantom field carrying the spec types; never present at runtime. */
+    readonly __spec?: (input: TInput) => TOutput;
+};
 
 export interface ToolSpec<TInput, TOutput> {
     /** Name the model calls this tool by. Must match `^[a-zA-Z0-9_-]{1,64}$`. */
@@ -75,9 +59,10 @@ export interface ToolSpec<TInput, TOutput> {
     /** Shown to the model; the main thing it reads when deciding whether to call. */
     description: string;
     /**
-     * Zod schema or `jsonSchema({...})`. Sent to the model to shape its call, and
-     * used by the AI SDK to validate input before `execute` when the tool is run
-     * through `generateText`.
+     * Zod schema or `jsonSchema({...})`. ADVERTISED to the model to shape its
+     * call — never enforced: `jsonSchema()` without a `validate` option gives
+     * the SDK nothing to validate with, so input reaches `execute` unchecked.
+     * `parseInput` below is the only runtime validation these tools have.
      */
     inputSchema: FlexibleSchema<TInput>;
     /**
@@ -98,9 +83,8 @@ export interface ToolSpec<TInput, TOutput> {
 /**
  * Wires a spec into a `Tool`.
  *
- * The AI SDK tool's own `execute` runs the same `parseInput` → `execute`
- * pipeline as `run`, so these tools behave identically whether driven by this
- * repo's agent loop or handed to `generateText`.
+ * The AI SDK tool's `execute` runs the spec's `parseInput` → `execute`
+ * pipeline, so validation always happens before the tool body.
  */
 export function defineTool<TInput, TOutput>(spec: ToolSpec<TInput, TOutput>): Tool<TInput, TOutput> {
     // Built as a plain object rather than through the SDK's `tool()` helper.
@@ -116,8 +100,12 @@ export function defineTool<TInput, TOutput>(spec: ToolSpec<TInput, TOutput>): To
         description: spec.description,
         inputSchema: spec.inputSchema,
         execute: async (input: TInput) => {
-            // parseInput runs even though the SDK validates against inputSchema
-            // first: the two do different jobs, and this one also canonicalises.
+            // parseInput is the ONLY runtime validation these tools get. The
+            // SDK does none here: `jsonSchema()` without a `validate` option
+            // returns `validate: undefined`, and the SDK's safeValidateTypes
+            // short-circuits to success when validate is null — the schema is
+            // advertised to the model, never enforced. Do not "simplify" this
+            // away, or raw model JSON goes straight to the DB queries.
             const parsed = spec.parseInput(input);
             const output: Awaited<TOutput> = await spec.execute(parsed);
             return output;
@@ -136,12 +124,6 @@ export function defineTool<TInput, TOutput>(spec: ToolSpec<TInput, TOutput>): To
     return {
         name: spec.name,
         definition,
-        parseInput: (raw) => spec.parseInput(raw),
-        execute: (input) => spec.execute(input),
-        async run(rawInput: unknown): Promise<Awaited<TOutput>> {
-            const output: Awaited<TOutput> = await spec.execute(spec.parseInput(rawInput));
-            return output;
-        },
     };
 }
 
@@ -191,28 +173,6 @@ export function toolSet(tools: readonly ExecutableTool[]): ToolSet {
         set[entry.name] = entry.definition;
     }
     return set as ToolSet;
-}
-
-/**
- * Resolves a tool's input schema to plain JSON Schema.
- *
- * Asynchronous because `Schema.jsonSchema` may be a promise: the SDK allows
- * lazy schemas so that unused validators need not be built at startup.
- */
-export async function inputJsonSchema(definition: AnyToolDefinition): Promise<JSONSchema7> {
-    return await asSchema(definition.inputSchema).jsonSchema;
-}
-
-/** Reads a tool's description, resolving the function form to a string. */
-export function describeTool(definition: AnyToolDefinition): string {
-    const { description } = definition;
-    if (typeof description === "string") return description;
-    if (typeof description === "function") {
-        // The dynamic form varies per call; this repo's tools all use fixed strings,
-        // so an empty context is enough to render one for inspection.
-        return (description as (context: unknown) => string)({});
-    }
-    return "";
 }
 
 /** Thrown by `parseInput` when a model sends input that does not match the schema. */

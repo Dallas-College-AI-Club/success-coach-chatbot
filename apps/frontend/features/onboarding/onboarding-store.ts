@@ -5,9 +5,15 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useEffect } from "react";
 
-// The anonymous client store (issue #50). Two domains — the student's onboarding
-// answers and their chat history — plus a client-generated id, persisted to
-// localStorage so a return visit resumes without an account.
+// The anonymous client store (issue #50). One live domain — the student's
+// onboarding answers — plus a client-generated id, persisted to localStorage
+// so a return visit resumes without an account.
+//
+// The chat-messages domain below (ChatMessage, appendMessage, …) is RESERVED,
+// not live: the shipped chat (features/chat) keeps its transcript in the
+// useChat instance and holds it for the session only — refresh re-seeds. No
+// code writes messages here today; if chat persistence ships, it should store
+// the transport's UIMessage[] shape, not extend this provisional one.
 //
 // This is the system's only durable student/session state. The server's
 // `chat_session` table is a PII-scrubbed analytics/eval log, archived weekly

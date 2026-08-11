@@ -19,13 +19,8 @@ import { defineTool, isRecord, ToolInputError, type FlexibleSchema, type Tool } 
 export { GET_SEMESTER_TOOL_NAME } from "./names";
 import { GET_SEMESTER_TOOL_NAME } from "./names";
 
-/**
- * Dallas College's zone. Mirrors src/config/runtime.json DISPLAY_TIMEZONE —
- * importing that file directly is not possible here: Turbopack roots the
- * module graph at apps/frontend (where the lockfile is), and repo-root
- * src/config is outside it, so the import type-checks but fails `next build`.
- */
-const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
+export { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
+import { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
 
 export interface GetSemesterInput {
   /** Position relative to today: 0 this, 1 next, -1 previous. */
@@ -194,10 +189,10 @@ export interface GetSemesterOptions {
  * Builds the `get_semester` tool.
  *
  * @example
- * const tool = createGetSemesterTool();
- * tool.execute({}).semester.label;                        // "Fall 2026"
- * tool.execute({ offset: 1 }).semester.label;             // "Spring 2027"
- * tool.execute({ term: "Spring", offset: 1 }).semester;   // next Spring
+ * // Driven by the model via the registry; input → result shapes:
+ * // {}                              → semester.label "Fall 2026"
+ * // { offset: 1 }                   → semester.label "Spring 2027"
+ * // { term: "Spring", offset: 1 }   → the next Spring
  */
 export function createGetSemesterTool(
   options: GetSemesterOptions = {},
@@ -290,8 +285,11 @@ export function createGetSemesterTool(
       assertIanaTimeZone(timeZone);
 
       // With no asOf, "today" comes from the same clock and the same zone-aware
-      // formatting get_current_date uses, so the two tools can never disagree
-      // about what day it is.
+      // formatting get_current_date uses. The two tools agree about what day
+      // it is because the registry constructs BOTH with this module's
+      // DALLAS_COLLEGE_TIME_ZONE as the default zone — get_current_date's own
+      // fallback is the host zone (UTC on Vercel), which disagrees with
+      // Chicago from ~7pm CT onward.
       const asOfDate = input.asOf ?? describeInstant(clock(), timeZone).date;
       const today = parseIsoDate(asOfDate);
 

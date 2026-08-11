@@ -21,12 +21,12 @@ type HandoffSet = { intro: string; prompts: string[] };
 // {major}/{school}/{interest} resolve from the payload. {school} is a real
 // institution name for the named partner universities — every region bucket
 // stores a category code, so it resolves to a plain phrase instead.
-function majorLabel(p: OnboardingPayload): string {
+export function majorLabel(p: OnboardingPayload): string {
   if (!p.major) return "your program";
   return PROGRAMS.find((prog) => prog.code === p.major)?.label ?? "your program";
 }
 
-function schoolLabel(p: OnboardingPayload): string {
+export function schoolLabel(p: OnboardingPayload): string {
   const t = p.target_institution;
   if (t === "UTD") return "UT Dallas";
   if (t === "UNT") return "UNT Denton";

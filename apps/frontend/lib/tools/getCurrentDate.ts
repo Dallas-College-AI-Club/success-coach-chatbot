@@ -72,7 +72,6 @@ const DESCRIPTION = [
  * so the AI SDK cannot enforce this schema at runtime — it describes the shape
  * to the model but does not check what comes back. `parseInput` below is
  * therefore the only validation, not a convenience layer on top of the schema.
- * (A Zod schema would validate; see `tests/types.test.ts`.)
  */
 const INPUT_SCHEMA: FlexibleSchema<GetCurrentDateInput> = jsonSchema({
     type: "object",
@@ -100,8 +99,7 @@ export interface GetCurrentDateOptions {
  * Builds the `get_current_date` tool.
  *
  * @example
- * const tool = createGetCurrentDateTool();
- * tool.execute({}); // { date: "2026-07-17", ... }
+ * // Driven by the model via the registry; {} → { date: "2026-07-17", ... }
  */
 export function createGetCurrentDateTool(
     options: GetCurrentDateOptions = {},
