@@ -22,7 +22,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import case, func
+from sqlalchemy import bindparam, case, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -40,9 +40,13 @@ CATALOG_EXPECTED_COUNTS = {
     "section": 16_181,
 }
 
-SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS = {
-    "program_map": 19,
-}
+# A supplemental delivery is program_map rows only. Its expected COUNT is
+# supplied by the operator with --expect, not hardcoded: the bug this mode
+# fixes was a hardcoded count rejecting a valid file, so baking in a second
+# number would make the mode work exactly once. Stating the expected count
+# still catches a truncated or double-written file, which is the protection
+# that matters.
+SUPPLEMENTAL_PROGRAM_DOC_TYPE = "program_map"
 
 # Required fields that every JSON row must contain.
 REQUIRED_FIELDS = {
@@ -87,6 +91,7 @@ def load_rows(
     path: Path,
     *,
     allow_supplemental_programs: bool = False,
+    expected_supplemental_rows: int | None = None,
 ) -> list[dict[str, Any]]:
     """Read and validate the complete JSON dataset."""
 
@@ -247,6 +252,7 @@ def load_rows(
         total_rows=len(rows),
         counts=counts,
         allow_supplemental_programs=allow_supplemental_programs,
+        expected_supplemental_rows=expected_supplemental_rows,
     )
 
     print("\nValidation passed", flush=True)
@@ -278,6 +284,7 @@ def validate_dataset_counts(
     counts: Counter[str],
     *,
     allow_supplemental_programs: bool = False,
+    expected_supplemental_rows: int | None = None,
 ) -> None:
     """Validate catalog, CV, or an approved supplemental delivery."""
 
@@ -285,20 +292,25 @@ def validate_dataset_counts(
     doc_types = set(actual_counts)
 
     if allow_supplemental_programs:
-        expected_total = sum(
-            SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS.values()
-        )
+        if expected_supplemental_rows is None:
+            raise ValueError(
+                "A supplemental delivery needs an expected row count "
+                "(pass --expect N)."
+            )
+
+        expected = {
+            SUPPLEMENTAL_PROGRAM_DOC_TYPE: expected_supplemental_rows
+        }
 
         if (
-            actual_counts
-            != SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS
-            or total_rows != expected_total
+            doc_types != {SUPPLEMENTAL_PROGRAM_DOC_TYPE}
+            or total_rows != expected_supplemental_rows
+            or actual_counts != expected
         ):
             raise ValueError(
                 "The supplemental program counts do not match "
                 "the expected delivery.\n"
-                f"Expected: "
-                f"{SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS}\n"
+                f"Expected: {expected}\n"
                 f"Found: {actual_counts}"
             )
 
@@ -473,6 +485,140 @@ def upsert_batch(
 #   • Reduces memory and connection pressure
 #   • Makes progress visible in the terminal
 #   • Allows a failed batch to roll back safely
+FACTS_ONLY_REQUIRED_FIELDS = {
+    "source_url",
+    "chunk_index",
+    "facts",
+    "content_hash",
+}
+
+
+def describe_target() -> str:
+    """Host and database of the configured connection, never the password.
+
+    Loading into the wrong Neon branch is a silent, one-keystroke mistake, and
+    the operator has no other confirmation of where the write is going.
+    """
+    try:
+        url = SessionLocal().get_bind().url
+    except Exception:
+        return "unknown target (could not read the connection URL)"
+    host = url.host or "unknown-host"
+    database = url.database or "unknown-db"
+    return f"{host} / {database}"
+
+
+def load_facts_only_rows(path: Path) -> list[dict[str, Any]]:
+    """Read and validate a facts-only update delivery.
+
+    The file carries no embedding and no chunk_text: the row already exists,
+    its chunk_text is unchanged, and the stored vector was computed from that
+    text, so re-sending 768 floats per row would add ~160 MB for data the
+    database already holds.
+    """
+    if not path.exists():
+        raise FileNotFoundError(f"File not found: {path}")
+
+    with path.open(encoding="utf-8") as handle:
+        rows = json.load(handle)
+
+    if not isinstance(rows, list) or not rows:
+        raise ValueError("Expected a non-empty JSON array.")
+
+    for index, row in enumerate(rows):
+        if not isinstance(row, dict):
+            raise ValueError(f"Row {index} is not an object.")
+        missing = FACTS_ONLY_REQUIRED_FIELDS - set(row)
+        if missing:
+            raise ValueError(
+                f"Row {index} is missing required fields: "
+                f"{sorted(missing)}"
+            )
+        if not isinstance(row["chunk_index"], int):
+            raise ValueError(
+                f"Row {index}: chunk_index must be an integer."
+            )
+
+    keys = {(r["source_url"], r["chunk_index"]) for r in rows}
+    if len(keys) != len(rows):
+        raise ValueError(
+            "Duplicate (source_url, chunk_index) keys in the delivery."
+        )
+
+    print(f"Validated {len(rows):,} facts-only rows.", flush=True)
+    return rows
+
+
+def update_facts_only(
+    rows: list[dict[str, Any]],
+    batch_size: int,
+) -> None:
+    """Update `facts` on rows that already exist. Never inserts.
+
+    Deliberately an UPDATE rather than the upsert: an INSERT ... ON CONFLICT
+    still has to supply every NOT NULL column, including `embedding`, so it
+    could not express "change only these facts". Rows that do not exist are
+    reported and skipped rather than created half-formed.
+    """
+    table = KnowledgeEntry.__table__
+
+    statement = (
+        table.update()
+        .where(
+            table.c.source_url == bindparam("b_source_url"),
+            table.c.chunk_index == bindparam("b_chunk_index"),
+        )
+        .values(
+            facts=bindparam("b_facts"),
+            content_hash=bindparam("b_content_hash"),
+            updated_at=func.now(),
+        )
+    )
+
+    total = len(rows)
+    changed = 0
+
+    print(
+        f"\nUpdating facts on {total:,} rows in "
+        f"{describe_target()} ...",
+        flush=True,
+    )
+
+    with SessionLocal() as session:
+        try:
+            for start in range(0, total, batch_size):
+                window = rows[start : start + batch_size]
+                result = session.execute(
+                    statement,
+                    [
+                        {
+                            "b_source_url": row["source_url"],
+                            "b_chunk_index": row["chunk_index"],
+                            "b_facts": row["facts"],
+                            "b_content_hash": row["content_hash"],
+                        }
+                        for row in window
+                    ],
+                )
+                changed += result.rowcount or 0
+                session.commit()
+                print(
+                    f"  {min(start + batch_size, total):,} / {total:,}",
+                    flush=True,
+                )
+        except Exception:
+            session.rollback()
+            raise
+
+    print(f"\nRows updated: {changed:,}", flush=True)
+    if changed < total:
+        print(
+            f"NOTE: {total - changed:,} rows in the file matched no "
+            "existing row and were skipped. Nothing was inserted.",
+            flush=True,
+        )
+
+
 def load_into_neon(
     rows: list[dict[str, Any]],
     batch_size: int,
@@ -503,8 +649,8 @@ def load_into_neon(
     total = len(selected_rows)
 
     print(
-        f"\nPreparing to load {total:,} rows "
-        "into Neon...",
+        f"\nPreparing to load {total:,} rows into "
+        f"{describe_target()} ...",
         flush=True,
     )
 
@@ -600,7 +746,28 @@ def main() -> None:
         "--supplemental-programs",
         action="store_true",
         help=(
-            "Accept exactly 19 supplemental program_map rows."
+            "Accept a program_map-only delivery. Requires --expect."
+        ),
+    )
+
+    parser.add_argument(
+        "--expect",
+        type=int,
+        default=None,
+        help=(
+            "Number of rows a supplemental delivery should contain, "
+            "e.g. --expect 19. Stating it catches a truncated or "
+            "double-written file."
+        ),
+    )
+
+    parser.add_argument(
+        "--facts-only",
+        action="store_true",
+        help=(
+            "Update `facts` on rows that already exist. The file needs only "
+            "source_url, chunk_index, facts and content_hash — no embeddings, "
+            "so the delivery stays small and nothing is re-embedded."
         ),
     )
 
@@ -635,11 +802,41 @@ def main() -> None:
             "--supplemental-programs."
         )
 
+    if args.supplemental_programs and args.expect is None:
+        parser.error(
+            "--supplemental-programs requires --expect N "
+            "(the number of rows the file should contain)."
+        )
+
+    if args.expect is not None and not args.supplemental_programs:
+        parser.error(
+            "--expect only applies to --supplemental-programs."
+        )
+
+    if args.facts_only:
+        if args.limit is not None or args.supplemental_programs:
+            parser.error(
+                "--facts-only cannot be combined with --limit or "
+                "--supplemental-programs."
+            )
+        facts_rows = load_facts_only_rows(args.json_path)
+        if not args.load:
+            print(
+                f"\nTarget: {describe_target()}"
+                f"\nValidation only. Re-run with --load to update "
+                f"{len(facts_rows):,} rows.",
+                flush=True,
+            )
+            return
+        update_facts_only(rows=facts_rows, batch_size=args.batch_size)
+        return
+
     rows = load_rows(
         args.json_path,
         allow_supplemental_programs=(
             args.supplemental_programs
         ),
+        expected_supplemental_rows=args.expect,
     )
 
     if not args.load:
