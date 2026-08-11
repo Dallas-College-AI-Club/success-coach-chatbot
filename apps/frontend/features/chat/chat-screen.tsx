@@ -118,9 +118,12 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // them (observed live: "martid=" in a cited catalog URL). Taking
           // the link straight off the result makes garbling impossible.
           const out = finished && !failed ? (part.output as { source_url?: unknown } | undefined) : undefined;
+          // Trailing slash: without it "https://catalog.dallascollege.edu.evil.com"
+          // passes the prefix check (needs a poisoned source_url to matter —
+          // last line of defense, not the first).
           const src =
             typeof out?.source_url === "string" &&
-            out.source_url.startsWith("https://catalog.dallascollege.edu")
+            out.source_url.startsWith("https://catalog.dallascollege.edu/")
               ? out.source_url
               : null;
           return (

@@ -8,8 +8,16 @@
 export const FREE_LIMIT_MESSAGE =
   "Major has answered all the questions it can today — the free daily limit is used up. Please try again tomorrow.";
 
+/** Transient 429s: per-minute throttles and shared free-pool congestion.
+ *  Distinct from the daily cap — telling a student to "try again tomorrow"
+ *  for a 60-second throttle loses them for the day (2026-08-11 audit: both
+ *  live stream failures were this case, surfaced as a generic error). */
+export const TRANSIENT_LIMIT_MESSAGE =
+  "Major is briefly over capacity. Give it a minute and ask again.";
+
 export const GENERIC_CHAT_ERROR = "Something went wrong reaching Major.";
 
 export const SAFE_CHAT_ERRORS: ReadonlySet<string> = new Set([
   FREE_LIMIT_MESSAGE,
+  TRANSIENT_LIMIT_MESSAGE,
 ]);

@@ -1,5 +1,5 @@
 import { jsonSchema } from "ai";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
@@ -46,6 +46,9 @@ const DESCRIPTION = [
     '- "What classes are in the Cybersecurity certificate?"',
     "",
     "Input is the program name as the user said it; partial names are fine.",
+    'If the user mentioned a program code (like "CORE-42"), keep it in',
+    "programName exactly as they typed it — codes find programs whose",
+    "catalog title differs from their common name.",
     "",
     "If several programs match, the tool returns ambiguous:true with a list of",
     "matching program names — show the user those names and ask which one they",
@@ -166,9 +169,22 @@ export function createGetProgramRequirementsTool(): Tool<
                 return { found: false };
             }
 
+            // Structural programs are FILED under a code, not a subject name:
+            // the Core Curriculum's map is program_code 'CORE-42' with name
+            // "Core Objectives and Foundational Component Areas" — no token
+            // of "Core Curriculum (CORE-42)" AND-matches that name, so the
+            // row was unreachable despite existing (2026-08-11 live audit).
+            // A row whose squashed code appears in the squashed input matches
+            // regardless of the name tokens. ≥4 chars so two-letter award
+            // shorthand ("AA" inside "drama aa") can't trigger it.
+            const inputSquash = squash(input.programName);
+            const codeSquash = sql`regexp_replace(lower(coalesce(${knowledgeEntry.programCode}, '')), '[^a-z0-9]', '', 'g')`;
+            const codeMentioned = sql`(length(${codeSquash}) >= 4 AND strpos(${inputSquash}, ${codeSquash}) > 0)`;
+
             const rows = await getDb()
                 .select({
                     name,
+                    programCode: knowledgeEntry.programCode,
                     facts: knowledgeEntry.facts,
                     sourceUrl: knowledgeEntry.sourceUrl,
                     catalogYear: knowledgeEntry.catalogYear,
@@ -177,10 +193,15 @@ export function createGetProgramRequirementsTool(): Tool<
                 .where(
                     and(
                         eq(knowledgeEntry.docType, "program_map"),
-                        ...tokens.map(({ raw, sq }) =>
-                            sq.length >= 3
-                                ? sql`regexp_replace(lower(${name}), '[^a-z0-9]', '', 'g') LIKE ${`%${sq}%`}`
-                                : sql`lower(${name}) LIKE ${`%${raw}%`}`,
+                        or(
+                            and(
+                                ...tokens.map(({ raw, sq }) =>
+                                    sq.length >= 3
+                                        ? sql`regexp_replace(lower(${name}), '[^a-z0-9]', '', 'g') LIKE ${`%${sq}%`}`
+                                        : sql`lower(${name}) LIKE ${`%${raw}%`}`,
+                                ),
+                            ),
+                            codeMentioned,
                         ),
                     ),
                 )
@@ -215,13 +236,23 @@ export function createGetProgramRequirementsTool(): Tool<
                 }
                 return true;
             };
+            // A code the student actually typed beats every name heuristic:
+            // it is exact by construction ("CORE-42" names one row), and the
+            // in-order gate below would wrongly demote it — the tokens of
+            // "Core Curriculum (CORE-42)" never appear in the row's name.
+            const codeHits = rows.filter((r) => {
+                const code = squash(r.programCode ?? "");
+                return code.length >= 4 && inputSquash.includes(code);
+            });
             const wanted = input.programName.trim().toLowerCase();
             const exact =
-                rows.length === 1
-                    ? rows.filter(inOrder)
-                    : rows.filter(
-                          (r) => r.name?.trim().toLowerCase() === wanted,
-                      );
+                codeHits.length === 1
+                    ? codeHits
+                    : rows.length === 1
+                      ? rows.filter(inOrder)
+                      : rows.filter(
+                            (r) => r.name?.trim().toLowerCase() === wanted,
+                        );
 
             if (exact.length !== 1) {
                 return {

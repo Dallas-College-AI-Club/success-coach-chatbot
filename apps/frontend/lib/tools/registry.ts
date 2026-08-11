@@ -1,5 +1,5 @@
 import { createGetCurrentDateTool } from "./getCurrentDate";
-import { createGetSemesterTool } from "./getSemester";
+import { createGetSemesterTool, DALLAS_COLLEGE_TIME_ZONE } from "./getSemester";
 import { toolSet } from "./types";
 import { createGetCourseInfoTool } from "./getCourseInfo";
 import { createGetProgramRequirementsTool } from "./getProgramRequirements";
@@ -13,7 +13,10 @@ import { createSearchKnowledgeTool } from "./searchKnowledge";
  */
 export function createToolRegistry() {
     return toolSet([
-        createGetCurrentDateTool(),
+        // Chicago default, same as get_semester's: left to its own fallback
+        // the tool reports the HOST zone — UTC on Vercel — so from ~7pm CT
+        // the two tools disagreed about what day it is (2026-08-11 audit).
+        createGetCurrentDateTool({ defaultTimeZone: DALLAS_COLLEGE_TIME_ZONE }),
         createGetSemesterTool(),
         createGetCourseInfoTool(),
         createGetProgramRequirementsTool(),

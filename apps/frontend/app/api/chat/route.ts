@@ -1,9 +1,11 @@
-import { FREE_LIMIT_MESSAGE } from "@/lib/chat-errors";
+import { FREE_LIMIT_MESSAGE, TRANSIENT_LIMIT_MESSAGE } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
 import { createToolRegistry } from "@/lib/tools/registry";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
+  APICallError,
   convertToModelMessages,
+  RetryError,
   stepCountIs,
   streamText,
   validateUIMessages,
@@ -15,7 +17,21 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request) {
   try {
-    const body: { messages?: unknown } = await req.json();
+    // Malformed JSON is a caller mistake, not a server failure: without this
+    // guard it fell through to the catch-all 500 and leaked the raw parser
+    // message, contra the chat-errors contract.
+    let body: { messages?: unknown };
+    try {
+      body = await req.json();
+    } catch {
+      return Response.json(
+        {
+          error: "Invalid request",
+          details: "request body must be JSON.",
+        },
+        { status: 400 },
+      );
+    }
 
     const model = process.env.LLM_MODEL;
     if (model == null) {
@@ -172,9 +188,25 @@ export async function POST(req: Request) {
       // Map known provider failures to student-facing wording; everything
       // else stays a generic line so internals never reach the client.
       onError: (error: unknown) => {
-        const m = error instanceof Error ? error.message : String(error);
-        if (m.includes("free-models-per-day") || m.includes("Rate limit")) {
+        // The SDK exhausts its built-in retries first, then surfaces a
+        // RetryError WRAPPER ("Failed after 3 attempts…") whose own message
+        // carries neither the HTTP status nor OpenRouter's reason string —
+        // both live in lastError. Unwrap before matching, or genuine 429s
+        // fall to the generic line (both 2026-08-11 live failures did).
+        const cause = RetryError.isInstance(error) ? error.lastError : error;
+        const m = cause instanceof Error ? cause.message : String(cause);
+        // Order matters: the daily cap is ALSO a 429. Its body names the
+        // per-day limit; every other 429 (per-minute throttle, shared
+        // free-pool congestion) is transient and must NOT tell the student
+        // to come back tomorrow.
+        if (m.includes("free-models-per-day")) {
           return FREE_LIMIT_MESSAGE;
+        }
+        if (
+          (APICallError.isInstance(cause) && cause.statusCode === 429) ||
+          m.includes("Rate limit")
+        ) {
+          return TRANSIENT_LIMIT_MESSAGE;
         }
         console.error("[API Chat Route stream error]:", m);
         return "An error occurred.";

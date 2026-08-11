@@ -25,7 +25,7 @@ import { GET_SEMESTER_TOOL_NAME } from "./names";
  * module graph at apps/frontend (where the lockfile is), and repo-root
  * src/config is outside it, so the import type-checks but fails `next build`.
  */
-const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
+export const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
 
 export interface GetSemesterInput {
   /** Position relative to today: 0 this, 1 next, -1 previous. */
@@ -290,8 +290,11 @@ export function createGetSemesterTool(
       assertIanaTimeZone(timeZone);
 
       // With no asOf, "today" comes from the same clock and the same zone-aware
-      // formatting get_current_date uses, so the two tools can never disagree
-      // about what day it is.
+      // formatting get_current_date uses. The two tools agree about what day
+      // it is because the registry constructs BOTH with this module's
+      // DALLAS_COLLEGE_TIME_ZONE as the default zone — get_current_date's own
+      // fallback is the host zone (UTC on Vercel), which disagrees with
+      // Chicago from ~7pm CT onward.
       const asOfDate = input.asOf ?? describeInstant(clock(), timeZone).date;
       const today = parseIsoDate(asOfDate);
 
