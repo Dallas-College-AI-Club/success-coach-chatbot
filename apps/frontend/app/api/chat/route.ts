@@ -164,10 +164,13 @@ export async function POST(req: Request) {
     }
 
     // The onboarding answers, validated before any of them reach the system
-    // layer. A caller can only contribute the six known display fields, each
-    // length-capped; anything else is dropped rather than 400'd, so a stale
-    // client never loses its chat over a schema change.
+    // layer. Every field is checked against the app's own option lists and
+    // fails soft, so an unrecognised value drops that one line rather than the
+    // profile — a stale client never loses its chat over a catalog refresh.
     const parsedProfile = studentProfileSchema.safeParse(body.profile);
+    if (!parsedProfile.success && body.profile !== undefined) {
+      console.warn("[API Chat Route]: profile rejected; continuing without it.");
+    }
     const profileBlock = parsedProfile.success
       ? profilePromptBlock(parsedProfile.data)
       : "";

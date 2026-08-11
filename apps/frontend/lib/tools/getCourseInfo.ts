@@ -68,7 +68,6 @@ const DESCRIPTION = [
     "  `requisites_raw`. Never say a course has no prerequisites in that case.",
     "- Only say there are no prerequisites when BOTH are empty.",
     "",
-    "Cite `source_url` (the catalog page) when stating catalog facts.",
 ].join("\n");
 
 const INPUT_SCHEMA: FlexibleSchema<GetCourseInfoInput> = jsonSchema({

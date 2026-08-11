@@ -2,7 +2,12 @@ import { z } from "zod";
 
 import { PROGRAMS } from "@/features/onboarding/programs";
 import type { SavedSession } from "@/features/onboarding/onboarding-store";
-import { goalQuestion, schoolOptions } from "@/features/onboarding/questions";
+import {
+  AUDIENCE_OPTIONS,
+  goalQuestion,
+  schoolOptions,
+  settleInOption,
+} from "@/features/onboarding/questions";
 
 // The student profile the chat sends with every request. One schema, imported
 // by both sides: the client builds it, the route validates it before any of it
@@ -13,14 +18,36 @@ import { goalQuestion, schoolOptions } from "@/features/onboarding/questions";
 // credits transfer", not the routing token `transfer_check`. A field is
 // omitted rather than guessed: nothing here may become a fact the model
 // repeats back.
+// Every value comes from a closed list the app itself owns, so the schema
+// checks MEMBERSHIP, not length: a free-text field here would be a way to
+// append arbitrary text to the system prompt from localStorage, after the
+// refusal rules. Each field fails soft (`.catch(undefined)`) so one stale
+// value drops that line instead of the whole profile.
+const oneOf = (values: readonly string[]) =>
+  z
+    .string()
+    .refine((v) => values.includes(v))
+    .optional()
+    .catch(undefined);
+
+const GOAL_LABELS = [
+  ...(goalQuestion.options ?? []).map((o) => o.label),
+  settleInOption.label,
+];
+const PROGRAM_LABELS = PROGRAMS.map((p) => p.label);
+const SCHOOL_LABELS = schoolOptions.map((s) => s.label);
+const STUDENT_TYPE_LABELS = AUDIENCE_OPTIONS.map((a) => a.label);
+
 export const studentProfileSchema = z.object({
-  goal: z.string().min(1).max(120).optional(),
-  major: z.string().min(1).max(120).optional(),
-  transferTo: z.string().min(1).max(120).optional(),
-  transferFrom: z.string().min(1).max(120).optional(),
-  studentType: z.string().min(1).max(60).optional(),
-  modality: z.string().min(1).max(60).optional(),
-  dayparts: z.string().min(1).max(60).optional(),
+  goal: oneOf(GOAL_LABELS),
+  major: oneOf(PROGRAM_LABELS),
+  transferTo: oneOf(SCHOOL_LABELS),
+  transferFrom: oneOf(SCHOOL_LABELS),
+  studentType: oneOf(STUDENT_TYPE_LABELS),
+  // Free-form-ish but short and app-generated; capped rather than enumerated
+  // because the option lists live in the question definitions per branch.
+  modality: z.string().min(1).max(60).optional().catch(undefined),
+  dayparts: z.string().min(1).max(80).optional().catch(undefined),
 });
 
 export type StudentProfile = z.infer<typeof studentProfileSchema>;
@@ -28,7 +55,9 @@ export type StudentProfile = z.infer<typeof studentProfileSchema>;
 /** The student's own words for why they came, not the routing token. */
 function goalLabel(goal: string | null): string | undefined {
   if (!goal) return undefined;
-  return goalQuestion.options?.find((o) => o.contribs.goal === goal)?.label;
+  return [...(goalQuestion.options ?? []), settleInOption].find(
+    (o) => o.contribs.goal === goal,
+  )?.label;
 }
 
 /** Exact program title, or nothing. majorLabel() in handoff-copy falls back to
@@ -39,8 +68,15 @@ function programLabel(code: string | null): string | undefined {
   return PROGRAMS.find((p) => p.code === code)?.label;
 }
 
-/** Named partner universities resolve to a real name; the region buckets are
- *  category codes, so they are omitted rather than printed raw. */
+/** The audience label, not the routing token — "a high schooler (dual credit)
+ *  or parent", not `dual_credit`. Omitted when it matches nothing. */
+function studentTypeLabel(t: string | null): string | undefined {
+  if (!t) return undefined;
+  return AUDIENCE_OPTIONS.find((a) => a.studentType === t)?.label;
+}
+
+/** Every school option resolves to its picker label — the named partners to a
+ *  real institution, the region buckets to their plain phrase. */
 function schoolName(code: string | null): string | undefined {
   if (!code) return undefined;
   return schoolOptions.find((s) => s.contribs.target_institution === code)
@@ -76,7 +112,9 @@ export function studentProfile(
     ...(goalLabel(p.goal) ? { goal: goalLabel(p.goal) } : {}),
     ...(programLabel(p.major) ? { major: programLabel(p.major) } : {}),
     ...transfer,
-    ...(p.student_type ? { studentType: p.student_type } : {}),
+    ...(studentTypeLabel(p.student_type)
+      ? { studentType: studentTypeLabel(p.student_type) }
+      : {}),
     ...(p.modality_pref ? { modality: p.modality_pref } : {}),
     ...(dayparts.length ? { dayparts: dayparts.join(", ") } : {}),
   };

@@ -34,14 +34,21 @@ import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { citationHref, citationLabel } from "@/lib/constants";
-import { TOOL_LABELS } from "@/lib/tools/names";
+import {
+  GET_COURSE_INFO_TOOL_NAME,
+  TOOL_LABELS,
+} from "@/lib/tools/names";
 import { useSavedCourses, type SavedCourse } from "@/features/chat/saved-courses";
 
 // A get_course_info result the student can keep for their printable sheet.
 // Reads the fields straight off the tool output — real catalog data, never
 // model prose. Returns null for any other tool or an empty/not-found result.
 function toSavedCourse(name: string, output: unknown): SavedCourse | null {
-  if (name !== "get_course_info" || !output || typeof output !== "object") {
+  if (
+    name !== GET_COURSE_INFO_TOOL_NAME ||
+    !output ||
+    typeof output !== "object"
+  ) {
     return null;
   }
   const o = output as Record<string, unknown>;
@@ -158,11 +165,34 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // prose: a small model regenerates URLs token-by-token and splices
           // them (observed live: "martid=" in a cited catalog URL). Taking
           // the link straight off the result makes garbling impossible.
-          const out = finished && !failed ? (part.output as { source_url?: unknown } | undefined) : undefined;
+          const out =
+            finished && !failed
+              ? (part.output as
+                  | {
+                      source_url?: unknown;
+                      results?: { source_url?: unknown }[];
+                    }
+                  | undefined)
+              : undefined;
           // Accepts every Dallas College citation host — the catalog serves
           // course/program rows, Concourse serves syllabi and CVs — and
           // rejects anything else by exact host match.
-          const src = citationHref(out?.source_url);
+          //
+          // Point-reads put the URL at the top level; search_knowledge puts one
+          // per hit in results[], which the top-level read alone never saw — so
+          // the one tool whose job is provenance showed no link at all. Each
+          // hit gets its own link rather than promoting the first, which would
+          // dress a fuzzy match up as the single authoritative source.
+          const srcs = Array.from(
+            new Set(
+              [
+                citationHref(out?.source_url),
+                ...(Array.isArray(out?.results)
+                  ? out.results.map((r) => citationHref(r?.source_url))
+                  : []),
+              ].filter((u): u is string => !!u),
+            ),
+          );
           const savedCourse = finished && !failed ? toSavedCourse(getToolName(part), part.output) : null;
           return (
             <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
@@ -172,16 +202,17 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
                 </span>
                 {chipText(getToolName(part), part.state) + chipArg(part.input)}
               </span>
-              {src && (
+              {srcs.map((href) => (
                 <a
-                  href={src}
+                  key={href}
+                  href={href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`${skin.link} text-sm`}
                 >
-                  {citationLabel(src)}
+                  {citationLabel(href)}
                 </a>
-              )}
+              ))}
               {savedCourse && (
                 <SaveCourseButton
                   course={savedCourse}
@@ -446,9 +477,14 @@ export function ChatScreen() {
               <SuccessCoachWordmark height={46} />
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* New tab: a client navigation unmounts this screen, and the
+                transcript lives in the useChat instance — printing would
+                otherwise discard the conversation it is printing from. */}
             <Link
               href="/summary"
+              target="_blank"
+              rel="noopener"
               className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
             >
               🖨 Print for my coach

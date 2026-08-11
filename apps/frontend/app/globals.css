@@ -274,7 +274,8 @@
   background: #fff; border-radius: 7px; font-size: 11px; font-weight: 600; padding: 4px 9px; cursor: pointer;
 }
 .sheet-answers { margin: 0; padding: 0; list-style: none; }
-.sheet-answers li { font-size: 10.5pt; padding: 3px 0 3px 20px; position: relative; }
+.sheet-answers li { font-size: 10.5pt; padding: 3px 0 3px 20px; position: relative; display: flex; align-items: center; gap: 8px; }
+.sheet-answers li > span { flex: 1; }
 .sheet-answers li::before { content: "✓"; position: absolute; left: 0; color: var(--sheet-blue); font-weight: 700; }
 .sheet-row { display: flex; gap: 12px; align-items: baseline; padding: 9px 0; border-bottom: 1px solid var(--sheet-hair); break-inside: avoid; }
 .sheet-row-main { flex: 1; }
@@ -298,7 +299,9 @@
 @media print {
   .sheet-scope { background: #fff; }
   .sheet-toolbar, .sheet-add, .sheet-del { display: none !important; }
-  .sheet-page { width: auto; max-width: none; margin: 0; box-shadow: none; }
+  /* overflow:hidden makes the sheet a monolithic scroll container, which
+     cannot break across printed pages — a long class list would clip. */
+  .sheet-page { width: auto; max-width: none; margin: 0; box-shadow: none; overflow: visible; }
   .sheet-note { background: transparent; border-color: #ccc; }
   @page { margin: 1.2cm; }
 }

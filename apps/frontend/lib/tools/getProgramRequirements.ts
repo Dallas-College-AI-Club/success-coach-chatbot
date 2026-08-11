@@ -60,9 +60,10 @@ const DESCRIPTION = [
     "name rather than treating the list as exhaustive.",
     "Never list degree requirements this tool did not return.",
     "",
-    "Cite `source_url` and the `catalog_year` (the catalog edition) when stating",
-    "program facts — requirements differ by catalog year and the student needs",
-    "to know which edition this is.",
+    "State the `catalog_year` (the catalog edition) when giving program",
+    "requirements — they differ by year and the student needs to know which",
+    "edition this is. Do not write out the source URL; the interface shows the",
+    "link itself.",
 ].join("\n");
 
 const INPUT_SCHEMA: FlexibleSchema<GetProgramRequirementsInput> = jsonSchema({

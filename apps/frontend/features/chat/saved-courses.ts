@@ -8,6 +8,10 @@ import { persist } from "zustand/middleware";
 // printable summary (/summary) is grounded by construction. Client-side only:
 // mirrors the fields of CourseInfoResult rather than importing the tool module,
 // which would pull the server-only Drizzle client into the browser bundle.
+//
+// PRIVACY: this persists to localStorage, and `questions` holds the student's
+// own words verbatim. On a shared machine the next person can read them, so
+// `clear()` exists and /summary offers it. Nothing is sent to a server.
 
 export interface SavedCourse {
   course_code: string;
@@ -28,7 +32,14 @@ interface SavedCoursesState {
   remove: (courseCode: string) => void;
   addQuestion: (q: string) => void;
   removeQuestion: (index: number) => void;
+  /** Wipes the list and the questions, including the persisted copy — the
+   *  "forget this" control for a shared or lab machine. */
+  clear: () => void;
 }
+
+/** Cap on retained questions: enough for a real advising conversation, bounded
+ *  so a long session cannot grow the stored transcript without limit. */
+const MAX_QUESTIONS = 40;
 
 function isSavedCourse(v: unknown): v is SavedCourse {
   return (
@@ -60,10 +71,14 @@ export const useSavedCourses = create<SavedCoursesState>()(
       addQuestion: (q) => {
         const text = q.trim();
         if (!text || get().questions.includes(text)) return;
-        set({ questions: [...get().questions, text] });
+        set({ questions: [...get().questions, text].slice(-MAX_QUESTIONS) });
       },
       removeQuestion: (index) =>
         set({ questions: get().questions.filter((_, i) => i !== index) }),
+      clear: () => {
+        set({ courses: [], questions: [] });
+        void useSavedCourses.persist?.clearStorage();
+      },
     }),
     {
       name: "saved-courses",
