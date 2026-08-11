@@ -11,20 +11,24 @@ import {
 import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
+import MarkdownViewer from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { ChatBackdrop } from "@/features/chat/backdrops";
-import { seedMessages, SEED_ID } from "@/features/chat/seed";
+import { SEED_ID, seedMessages } from "@/features/chat/seed";
 import { starterPromptsFor } from "@/features/onboarding/handoff-copy";
 import {
   useHydrateSession,
   useSavedSession,
   useStudentSession,
 } from "@/features/onboarding/onboarding-store";
-import type { Mode, Skin } from "@/features/onboarding/skin";
-import { AiClubLogo, SuccessCoachWordmark } from "@/features/onboarding/shared/brand";
+import {
+  AiClubLogo,
+  SuccessCoachWordmark,
+} from "@/features/onboarding/shared/brand";
 import { ModeSwitcher } from "@/features/onboarding/shared/mode-switcher";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
+import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { TOOL_LABELS } from "@/lib/tools/names";
 
@@ -44,7 +48,10 @@ function prefersReducedMotion(): boolean {
 
 function chipText(name: string, state: string): string {
   const label = TOOL_LABELS[name];
-  if (!label) return state === "output-error" ? `Couldn't run ${name}` : `Checking ${name}`;
+  if (!label)
+    return state === "output-error"
+      ? `Couldn't run ${name}`
+      : `Checking ${name}`;
   if (state === "output-error") return label.failed;
   return state === "output-available" ? label.done : label.running;
 }
@@ -59,7 +66,10 @@ function chipArg(input: unknown): string {
 }
 
 function plainText(m: UIMessage): string {
-  return m.parts.filter(isTextUIPart).map((p) => p.text).join("");
+  return m.parts
+    .filter(isTextUIPart)
+    .map((p) => p.text)
+    .join("");
 }
 
 const CoachRow = ({ children }: { children: ReactNode }) => (
@@ -82,8 +92,15 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
       {m.parts.map((part, i) => {
         if (isTextUIPart(part)) {
           return (
-            <div key={i} data-role={isUser ? "user" : "assistant"} className={skin.bubble}>
-              {part.text}
+            <div
+              key={i}
+              data-role={isUser ? "user" : "assistant"}
+              className={skin.bubble}
+            >
+              <MarkdownViewer
+                content={part.text}
+                className={isUser ? "prose-invert!" : "prose"}
+              />
             </div>
           );
         }
@@ -109,7 +126,7 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
 
   return isUser ? (
     <div className="flex items-start justify-end gap-2">
-      <div className="flex min-w-0 flex-col gap-1.5 items-end">{parts}</div>
+      <div className="flex min-w-0 flex-col items-end gap-1.5">{parts}</div>
     </div>
   ) : (
     <CoachRow>{parts}</CoachRow>
@@ -198,7 +215,10 @@ function Conversation({
             {/* Reserves the box the reply will occupy, so nothing jumps. */}
             <div data-role="assistant" className={`${skin.bubble} min-w-24`}>
               <span className="sr-only">Major is thinking</span>
-              <span aria-hidden className="opacity-60 motion-safe:animate-pulse">
+              <span
+                aria-hidden
+                className="opacity-60 motion-safe:animate-pulse"
+              >
                 Thinking…
               </span>
             </div>
@@ -264,7 +284,11 @@ function Conversation({
             Stop
           </Button>
         ) : (
-          <Button type="submit" className={skin.primaryBtn} disabled={!input.trim()}>
+          <Button
+            type="submit"
+            className={skin.primaryBtn}
+            disabled={!input.trim()}
+          >
             Send
           </Button>
         )}
@@ -304,7 +328,9 @@ export function ChatScreen() {
   const starters = session ? starterPromptsFor(session.payload) : [];
 
   return (
-    <main className={`relative overflow-x-hidden ${mode.fontClass} ${mode.skin.page}`}>
+    <main
+      className={`relative overflow-hidden ${mode.fontClass} ${mode.skin.page}`}
+    >
       {/* The mode's scene continues behind the chat. */}
       <ChatBackdrop modeId={mode.id} />
       {/* The chat owns its geometry (one width in every mode — skin.shell's
