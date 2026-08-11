@@ -1,7 +1,5 @@
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
-import * as schema from "./schema";
-
 // Lazily initialised on first query, NOT at import. The old module-scope
 // throw took down the entire /api/chat bundle (including the pure clock
 // tools) whenever DATABASE_URL was unset, and broke `next build`'s
@@ -14,7 +12,7 @@ function makeDb() {
   if (!url) {
     throw new Error("DATABASE_URL is missing from environment variables");
   }
-  return drizzle(neon(url), { schema });
+  return drizzle(neon(url));
 }
 
 // Cached on globalThis, not a module-local: in dev, HMR re-evaluates modules

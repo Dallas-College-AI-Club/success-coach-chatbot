@@ -15,9 +15,9 @@ export const simple: Mode = {
   skin: {
     page: "flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F6F5FF] p-4 text-[#2E2555] md:p-8 [--ring:#6C5CE7]",
     shell: "mx-auto flex w-full max-w-lg flex-col items-center gap-3",
-    sectionLabel: "text-sm font-medium text-[#2E2555]/60",
+    sectionLabel: "text-sm font-medium text-[#2E2555]/70",
     heading: "text-xl font-semibold text-[#2E2555] outline-none md:text-2xl",
-    helper: "text-sm text-[#2E2555]/60",
+    helper: "text-sm text-[#2E2555]/70",
     option:
       "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#2E2555]/12 bg-[#ECEAFE] px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#2E2555] transition-[border-color,box-shadow,background-color] hover:bg-[#DED8FC] focus-visible:ring-2 focus-visible:ring-[#6C5CE7] focus-visible:ring-offset-2 data-[state=on]:border-[#5B4BD6] data-[state=on]:bg-[#D3CBFA] data-[state=on]:ring-2 data-[state=on]:ring-[#6C5CE7]",
     optionCheck:

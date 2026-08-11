@@ -79,7 +79,11 @@ export function SummarySheet() {
   // trigger them here, after mount, exactly as the chat screen does.
   useHydrateSession();
   useEffect(() => {
-    void useSavedCourses.persist.rehydrate();
+    // `persist` is absent when storage was unavailable as the module
+    // loaded (a browser refusing localStorage). Optional-chain it, exactly as
+    // useHydrateSession does — an unguarded call is a TypeError in a mount
+    // effect, and with no error boundary it takes the whole route down.
+    void useSavedCourses.persist?.rehydrate();
   }, []);
 
   const session = useSavedSession();
@@ -87,6 +91,7 @@ export function SummarySheet() {
   const removeCourse = useSavedCourses((s) => s.remove);
   const questions = useSavedCourses((s) => s.questions);
   const removeQuestion = useSavedCourses((s) => s.removeQuestion);
+  const clearSaved = useSavedCourses((s) => s.clear);
 
   const [name, setName] = useState("");
   const [notes, setNotes] = useState<string[]>([]);
@@ -94,6 +99,12 @@ export function SummarySheet() {
   // Which asked-questions the student wants to raise with their coach again.
   // Print-time annotation, keyed by text so it survives a removal above it.
   const [toAsk, setToAsk] = useState<Set<string>>(() => new Set());
+  // Onboarding answers the student chose not to show their coach. Sheet-local
+  // and keyed by text: this must not edit the saved onboarding session, which
+  // the chat still reads.
+  const [hiddenAnswers, setHiddenAnswers] = useState<Set<string>>(
+    () => new Set(),
+  );
   const toggleAsk = (q: string) =>
     setToAsk((prev) => {
       const next = new Set(prev);
@@ -103,6 +114,12 @@ export function SummarySheet() {
     });
 
   const touch = () => setEdited(true);
+
+  // Sections 01/02 are conditional, so the numbers are counted at render —
+  // hardcoding them made the sheet open at "02" whenever the student had not
+  // asked a question yet.
+  let sectionNo = 0;
+  const nextIdx = () => String(++sectionNo).padStart(2, "0");
   // Client-only value; the printed date carries suppressHydrationWarning below,
   // so a day-boundary difference between SSR and client never warns.
   const printedOn = new Date().toLocaleDateString("en-US", {
@@ -124,6 +141,23 @@ export function SummarySheet() {
           onClick={() => window.print()}
         >
           🖨 Print / Save PDF
+        </button>
+        {/* Shared/lab machines: the saved list and the student's own questions
+            live in localStorage, so there has to be a way to wipe them. */}
+        <button
+          type="button"
+          className="sheet-back"
+          onClick={() => {
+            if (
+              window.confirm(
+                "Clear your saved classes and questions from this browser?",
+              )
+            ) {
+              clearSaved();
+            }
+          }}
+        >
+          Clear my saved data
         </button>
       </div>
 
@@ -150,19 +184,19 @@ export function SummarySheet() {
                 aria-label="Your name"
               />
             </label>
-            <div className="sheet-printed" suppressHydrationWarning>
-              Printed <b>{printedOn}</b>
+            <div className="sheet-printed">
+              Printed <b suppressHydrationWarning>{printedOn}</b>
             </div>
           </div>
         </header>
 
         {questions.length ? (
           <section className="sheet-section">
-            <p className="sheet-shead">
-              <span className="sheet-idx">01</span>
+            <h2 className="sheet-shead">
+              <span className="sheet-idx">{nextIdx()}</span>
               <span className="sheet-h2">Questions I asked Major</span>
               <span className="sheet-shint">✓ the ones to ask your coach</span>
-            </p>
+            </h2>
             {questions.map((q, i) => (
               <div key={q} className="sheet-check-item">
                 <button
@@ -192,25 +226,40 @@ export function SummarySheet() {
           </section>
         ) : null}
 
-        {session ? (
+        {session && session.summary.some((a) => !hiddenAnswers.has(a)) ? (
           <section className="sheet-section">
-            <p className="sheet-shead">
-              <span className="sheet-idx">02</span>
+            <h2 className="sheet-shead">
+              <span className="sheet-idx">{nextIdx()}</span>
               <span className="sheet-h2">What I told Major</span>
-            </p>
+            </h2>
             <ul className="sheet-answers">
-              {session.summary.map((a, i) => (
-                <li key={i}>{a}</li>
-              ))}
+              {session.summary
+                .filter((a) => !hiddenAnswers.has(a))
+                .map((a) => (
+                  <li key={a}>
+                    <span>{a}</span>
+                    <button
+                      type="button"
+                      className="sheet-del"
+                      aria-label={`Remove ${a}`}
+                      onClick={() => {
+                        setHiddenAnswers((prev) => new Set(prev).add(a));
+                        touch();
+                      }}
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
             </ul>
           </section>
         ) : null}
 
         <section className="sheet-section">
-          <p className="sheet-shead">
-            <span className="sheet-idx">03</span>
+          <h2 className="sheet-shead">
+            <span className="sheet-idx">{nextIdx()}</span>
             <span className="sheet-h2">My class list</span>
-          </p>
+          </h2>
           {courses.length ? (
             courses.map((c) => (
               <ClassEntry
@@ -230,8 +279,8 @@ export function SummarySheet() {
         </section>
 
         <section className="sheet-section">
-          <p className="sheet-shead">
-            <span className="sheet-idx">04</span>
+          <h2 className="sheet-shead">
+            <span className="sheet-idx">{nextIdx()}</span>
             <span className="sheet-h2">My notes &amp; questions</span>
             <button
               type="button"
@@ -243,7 +292,7 @@ export function SummarySheet() {
             >
               + Add a note
             </button>
-          </p>
+          </h2>
           {notes.length ? (
             notes.map((n, i) => (
               <div key={i} className="sheet-note">

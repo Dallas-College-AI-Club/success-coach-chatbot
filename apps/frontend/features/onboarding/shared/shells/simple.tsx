@@ -95,16 +95,16 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
             <div className="flex items-start gap-2">
               <MiniBot />
               <div data-role="assistant" className={skin.bubble}>
-                <h2
+                <h1
                   ref={headingRef}
                   tabIndex={-1}
                   className="text-[15px] font-semibold outline-none"
                 >
                   {copy.completionHeadline}
-                </h2>
+                </h1>
                 {done.resumed && done.summary.length > 0 && (
                   <div className="mt-2">
-                    <p className="text-[13px] font-semibold text-[#2E2555]/55">
+                    <p className="text-[13px] font-semibold text-[#2E2555]/70">
                       Here&apos;s what you told me last time
                     </p>
                     <ul className="mt-1.5 flex flex-col gap-1">
@@ -149,15 +149,15 @@ export const SimpleShell = ({ api, skin, copy, done, onRestart }: WizardProps) =
             <div className="flex items-start gap-2">
               <MiniBot />
               <div data-role="assistant" className={skin.bubble}>
-                <h2
+                <h1
                   ref={headingRef}
                   tabIndex={-1}
                   className="text-[15px] leading-snug font-semibold outline-none"
                 >
                   {api.current.prompt}
-                </h2>
+                </h1>
                 {api.stepIdx === 0 && (
-                  <p className="mt-1 text-sm text-[#2E2555]/55">
+                  <p className="mt-1 text-sm text-[#2E2555]/70">
                     {copy.reassurance}
                   </p>
                 )}

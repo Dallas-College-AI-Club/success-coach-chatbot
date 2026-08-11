@@ -3,6 +3,7 @@
 import {
   saveSession,
   useHydrateSession,
+  useStudentSession,
   type SavedSession,
 } from "@/features/onboarding/onboarding-store";
 import type { DoneState, Mode } from "@/features/onboarding/skin";
@@ -84,9 +85,14 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
     emit("onboarding_resumed");
   };
 
+  const setModeId = useStudentSession((s) => s.setModeId);
+
   const switchMode = (m: Mode) => {
     emit("cta_tap", { mode: m.id });
     setMode(m);
+    // Persist it too: a switch on the recap screen was otherwise lost, so the
+    // chat opened in the previously saved look.
+    setModeId(m.id);
   };
 
   // Start over — fresh run, keeping the chosen look. The saved session is

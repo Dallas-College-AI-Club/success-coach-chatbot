@@ -12,6 +12,7 @@ import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import MarkdownViewer from "@/components/markdown-viewer";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { ChatBackdrop } from "@/features/chat/backdrops";
@@ -33,14 +34,21 @@ import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { citationHref, citationLabel } from "@/lib/constants";
-import { TOOL_LABELS } from "@/lib/tools/names";
+import {
+  GET_COURSE_INFO_TOOL_NAME,
+  TOOL_LABELS,
+} from "@/lib/tools/names";
 import { useSavedCourses, type SavedCourse } from "@/features/chat/saved-courses";
 
 // A get_course_info result the student can keep for their printable sheet.
 // Reads the fields straight off the tool output — real catalog data, never
 // model prose. Returns null for any other tool or an empty/not-found result.
 function toSavedCourse(name: string, output: unknown): SavedCourse | null {
-  if (name !== "get_course_info" || !output || typeof output !== "object") {
+  if (
+    name !== GET_COURSE_INFO_TOOL_NAME ||
+    !output ||
+    typeof output !== "object"
+  ) {
     return null;
   }
   const o = output as Record<string, unknown>;
@@ -136,7 +144,12 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
             <div
               key={i}
               data-role={isUser ? "user" : "assistant"}
-              className={skin.bubble}
+              // skin.bubble still carries whitespace-pre-wrap for the wizard's
+              // plain-text bubbles. Markdown does its own block layout, so
+              // here the literal newlines between blocks would render as blank
+              // lines. cn() (tailwind-merge) is required — a string append
+              // loses to stylesheet order.
+              className={cn(skin.bubble, "whitespace-normal")}
             >
               <MarkdownViewer
                 content={part.text}
@@ -152,11 +165,34 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // prose: a small model regenerates URLs token-by-token and splices
           // them (observed live: "martid=" in a cited catalog URL). Taking
           // the link straight off the result makes garbling impossible.
-          const out = finished && !failed ? (part.output as { source_url?: unknown } | undefined) : undefined;
+          const out =
+            finished && !failed
+              ? (part.output as
+                  | {
+                      source_url?: unknown;
+                      results?: { source_url?: unknown }[];
+                    }
+                  | undefined)
+              : undefined;
           // Accepts every Dallas College citation host — the catalog serves
           // course/program rows, Concourse serves syllabi and CVs — and
           // rejects anything else by exact host match.
-          const src = citationHref(out?.source_url);
+          //
+          // Point-reads put the URL at the top level; search_knowledge puts one
+          // per hit in results[], which the top-level read alone never saw — so
+          // the one tool whose job is provenance showed no link at all. Each
+          // hit gets its own link rather than promoting the first, which would
+          // dress a fuzzy match up as the single authoritative source.
+          const srcs = Array.from(
+            new Set(
+              [
+                citationHref(out?.source_url),
+                ...(Array.isArray(out?.results)
+                  ? out.results.map((r) => citationHref(r?.source_url))
+                  : []),
+              ].filter((u): u is string => !!u),
+            ),
+          );
           const savedCourse = finished && !failed ? toSavedCourse(getToolName(part), part.output) : null;
           return (
             <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
@@ -166,16 +202,17 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
                 </span>
                 {chipText(getToolName(part), part.state) + chipArg(part.input)}
               </span>
-              {src && (
+              {srcs.map((href) => (
                 <a
-                  href={src}
+                  key={href}
+                  href={href}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`${skin.link} text-sm`}
                 >
-                  {citationLabel(src)}
+                  {citationLabel(href)}
                 </a>
-              )}
+              ))}
               {savedCourse && (
                 <SaveCourseButton
                   course={savedCourse}
@@ -230,7 +267,7 @@ function Conversation({
       top: el.scrollHeight,
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
-  }, [messages.length, busy]);
+  }, [messages.length, error]);
 
   // Streaming growth pins the bottom — but only when the reader is already
   // there, so scrolling up to re-read is never fought. `auto`, not `smooth`:
@@ -253,14 +290,17 @@ function Conversation({
       ? plainText(last)
       : "";
 
+  // The profile rides with EVERY request — sends and retries alike. Defined
+  // once so a retry cannot silently drop it: the route puts it in the system
+  // prompt, so it survives even if the seeded opening turn is ever trimmed
+  // out of the history.
+  const requestOptions = profile ? { body: { profile } } : undefined;
+
   const send = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;
     useSavedCourses.getState().addQuestion(t);
-    // The profile rides with every request, not just the first: the route
-    // validates it and puts it in the system prompt, so it survives even if
-    // the seeded opening turn is ever trimmed out of the history.
-    sendMessage({ text: t }, profile ? { body: { profile } } : undefined);
+    sendMessage({ text: t }, requestOptions);
     setInput("");
   };
 
@@ -307,7 +347,7 @@ function Conversation({
             <Button
               variant="ghost"
               className={skin.ghostBtn}
-              onClick={() => regenerate()}
+              onClick={() => regenerate(requestOptions)}
             >
               Try again
             </Button>
@@ -348,7 +388,7 @@ function Conversation({
           onChange={(e) => setInput(e.target.value)}
           placeholder={copy.composerPlaceholder}
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] outline-none placeholder:opacity-55"
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-base outline-none placeholder:opacity-55"
         />
         {busy ? (
           <Button
@@ -384,7 +424,11 @@ export function ChatScreen() {
   // write (send() below captures the student's question), or that write would
   // persist over — and wipe — a returning student's saved courses.
   useEffect(() => {
-    void useSavedCourses.persist.rehydrate();
+    // `persist` is absent when storage was unavailable as the module
+    // loaded (a browser refusing localStorage). Optional-chain it, exactly as
+    // useHydrateSession does — an unguarded call is a TypeError in a mount
+    // effect, and with no error boundary it takes the whole route down.
+    void useSavedCourses.persist?.rehydrate();
   }, []);
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
@@ -433,9 +477,14 @@ export function ChatScreen() {
               <SuccessCoachWordmark height={46} />
             </Link>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {/* New tab: a client navigation unmounts this screen, and the
+                transcript lives in the useChat instance — printing would
+                otherwise discard the conversation it is printing from. */}
             <Link
               href="/summary"
+              target="_blank"
+              rel="noopener"
               className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
             >
               🖨 Print for my coach

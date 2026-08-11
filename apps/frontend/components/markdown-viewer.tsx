@@ -1,4 +1,5 @@
 "use client";
+import { citationHref } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -19,12 +20,21 @@ const MarkdownViewer = ({
     >
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
+        // The model writes prose, and remark-gfm autolinks any bare URL in it.
+        // Without this, a hallucinated or spliced address renders as a live
+        // link — the same risk the tool-result citation allowlist exists to
+        // prevent. Same allowlist, so both paths agree on what is citable;
+        // anything else renders as plain text.
+        urlTransform={(url) => citationHref(url) ?? ""}
         components={{
-          a: (node) => (
-            <a href={node.href} target="_blank" rel="noopener noreferrer">
-              {node.children}
-            </a>
-          ),
+          a: (node) =>
+            node.href ? (
+              <a href={node.href} target="_blank" rel="noopener noreferrer">
+                {node.children}
+              </a>
+            ) : (
+              <>{node.children}</>
+            ),
         }}
       >
         {content}
