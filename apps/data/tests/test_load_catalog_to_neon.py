@@ -23,6 +23,7 @@ def test_accepts_exact_supplemental_program_delivery() -> None:
         total_rows=19,
         counts=Counter({"program_map": 19}),
         allow_supplemental_programs=True,
+        expected_supplemental_rows=19,
     )
 
 
@@ -38,6 +39,7 @@ def test_rejects_wrong_supplemental_program_count(
             total_rows=total_rows,
             counts=Counter({"program_map": total_rows}),
             allow_supplemental_programs=True,
+            expected_supplemental_rows=19,
         )
 
 
@@ -54,5 +56,18 @@ def test_rejects_mixed_supplemental_delivery() -> None:
                     "course": 1,
                 }
             ),
+            allow_supplemental_programs=True,
+            expected_supplemental_rows=19,
+        )
+
+
+def test_rejects_supplemental_without_expected_count() -> None:
+    with pytest.raises(
+        ValueError,
+        match="needs an expected row count",
+    ):
+        validate_dataset_counts(
+            total_rows=19,
+            counts=Counter({"program_map": 19}),
             allow_supplemental_programs=True,
         )

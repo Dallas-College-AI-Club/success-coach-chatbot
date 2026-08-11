@@ -40,9 +40,13 @@ CATALOG_EXPECTED_COUNTS = {
     "section": 16_181,
 }
 
-SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS = {
-    "program_map": 19,
-}
+# A supplemental delivery is program_map rows only. Its expected COUNT is
+# supplied by the operator with --expect, not hardcoded: the bug this mode
+# fixes was a hardcoded count rejecting a valid file, so baking in a second
+# number would make the mode work exactly once. Stating the expected count
+# still catches a truncated or double-written file, which is the protection
+# that matters.
+SUPPLEMENTAL_PROGRAM_DOC_TYPE = "program_map"
 
 # Required fields that every JSON row must contain.
 REQUIRED_FIELDS = {
@@ -87,6 +91,7 @@ def load_rows(
     path: Path,
     *,
     allow_supplemental_programs: bool = False,
+    expected_supplemental_rows: int | None = None,
 ) -> list[dict[str, Any]]:
     """Read and validate the complete JSON dataset."""
 
@@ -247,6 +252,7 @@ def load_rows(
         total_rows=len(rows),
         counts=counts,
         allow_supplemental_programs=allow_supplemental_programs,
+        expected_supplemental_rows=expected_supplemental_rows,
     )
 
     print("\nValidation passed", flush=True)
@@ -278,6 +284,7 @@ def validate_dataset_counts(
     counts: Counter[str],
     *,
     allow_supplemental_programs: bool = False,
+    expected_supplemental_rows: int | None = None,
 ) -> None:
     """Validate catalog, CV, or an approved supplemental delivery."""
 
@@ -285,20 +292,25 @@ def validate_dataset_counts(
     doc_types = set(actual_counts)
 
     if allow_supplemental_programs:
-        expected_total = sum(
-            SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS.values()
-        )
+        if expected_supplemental_rows is None:
+            raise ValueError(
+                "A supplemental delivery needs an expected row count "
+                "(pass --expect N)."
+            )
+
+        expected = {
+            SUPPLEMENTAL_PROGRAM_DOC_TYPE: expected_supplemental_rows
+        }
 
         if (
-            actual_counts
-            != SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS
-            or total_rows != expected_total
+            doc_types != {SUPPLEMENTAL_PROGRAM_DOC_TYPE}
+            or total_rows != expected_supplemental_rows
+            or actual_counts != expected
         ):
             raise ValueError(
                 "The supplemental program counts do not match "
                 "the expected delivery.\n"
-                f"Expected: "
-                f"{SUPPLEMENTAL_PROGRAM_EXPECTED_COUNTS}\n"
+                f"Expected: {expected}\n"
                 f"Found: {actual_counts}"
             )
 
@@ -600,7 +612,18 @@ def main() -> None:
         "--supplemental-programs",
         action="store_true",
         help=(
-            "Accept exactly 19 supplemental program_map rows."
+            "Accept a program_map-only delivery. Requires --expect."
+        ),
+    )
+
+    parser.add_argument(
+        "--expect",
+        type=int,
+        default=None,
+        help=(
+            "Number of rows a supplemental delivery should contain, "
+            "e.g. --expect 19. Stating it catches a truncated or "
+            "double-written file."
         ),
     )
 
@@ -635,11 +658,23 @@ def main() -> None:
             "--supplemental-programs."
         )
 
+    if args.supplemental_programs and args.expect is None:
+        parser.error(
+            "--supplemental-programs requires --expect N "
+            "(the number of rows the file should contain)."
+        )
+
+    if args.expect is not None and not args.supplemental_programs:
+        parser.error(
+            "--expect only applies to --supplemental-programs."
+        )
+
     rows = load_rows(
         args.json_path,
         allow_supplemental_programs=(
             args.supplemental_programs
         ),
+        expected_supplemental_rows=args.expect,
     )
 
     if not args.load:
