@@ -63,7 +63,7 @@ function chipText(name: string, state: string): string {
 function chipArg(input: unknown): string {
   if (!input || typeof input !== "object") return "";
   const rec = input as Record<string, unknown>;
-  const arg = rec.courseCode ?? rec.programName;
+  const arg = rec.courseCode ?? rec.programName ?? rec.query;
   return arg == null ? "" : ` · ${String(arg)}`;
 }
 

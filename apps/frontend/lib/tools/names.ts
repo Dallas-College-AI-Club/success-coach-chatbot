@@ -9,9 +9,8 @@
 export const GET_CURRENT_DATE_TOOL_NAME = "get_current_date";
 export const GET_SEMESTER_TOOL_NAME = "get_semester";
 export const GET_COURSE_INFO_TOOL_NAME = "get_course_info";
-/** Lands with PR #140; the label is registered ahead so its chips are never
- *  unlabeled. Harmless while the tool doesn't exist. */
 export const GET_PROGRAM_REQUIREMENTS_TOOL_NAME = "get_program_requirements";
+export const SEARCH_KNOWLEDGE_TOOL_NAME = "search_knowledge";
 
 /** Chip copy per tool, by lifecycle. Driven off OBSERVED execution state —
  *  never model narration. */
@@ -38,5 +37,10 @@ export const TOOL_LABELS: Record<
     running: "Checking program requirements",
     done: "Checked program requirements",
     failed: "Couldn't reach program requirements",
+  },
+  [SEARCH_KNOWLEDGE_TOOL_NAME]: {
+    running: "Searching Dallas College records",
+    done: "Searched the records",
+    failed: "Couldn't search the records",
   },
 };
