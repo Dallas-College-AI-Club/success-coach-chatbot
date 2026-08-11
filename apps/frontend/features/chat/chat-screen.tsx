@@ -157,6 +157,7 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
           // course/program rows, Concourse serves syllabi and CVs — and
           // rejects anything else by exact host match.
           const src = citationHref(out?.source_url);
+          const savedCourse = finished && !failed ? toSavedCourse(getToolName(part), part.output) : null;
           return (
             <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
               <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
