@@ -28,13 +28,36 @@ export async function POST(req: Request) {
     // Cross-site guard: keeps a third-party page from spending the club's
     // OpenRouter free-tier quota through a visitor's browser. Origin rather
     // than Referer — browsers always send Origin on a cross-origin POST,
-    // while Referer is stripped by privacy settings. A same-origin request
-    // from the app sends its own origin; a missing Origin (non-browser
-    // caller) is allowed through so this never blocks a real student.
+    // while Referer is stripped by privacy settings. A missing Origin
+    // (non-browser caller) is allowed through so this never blocks a real
+    // student.
+    //
+    // The request's own host is always allowed, which covers localhost and
+    // every preview deployment without configuration; NEXT_PUBLIC_APP_URL is
+    // an additional allowed origin for the canonical domain. An unparseable
+    // value is ignored rather than thrown — a typo in the env var must not
+    // turn every chat request into a 500.
     const origin = req.headers.get("origin");
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
-    if (origin && appUrl && new URL(appUrl).origin !== origin) {
-      return Response.json({ error: "Forbidden origin" }, { status: 403 });
+    if (origin) {
+      const allowed = new Set<string>();
+      const host = req.headers.get("host");
+      if (host) {
+        allowed.add(`https://${host}`);
+        allowed.add(`http://${host}`);
+      }
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (appUrl) {
+        try {
+          allowed.add(new URL(appUrl).origin);
+        } catch {
+          console.warn(
+            "[API Chat Route]: NEXT_PUBLIC_APP_URL is not a valid URL; ignoring it for the origin check.",
+          );
+        }
+      }
+      if (!allowed.has(origin)) {
+        return Response.json({ error: "Forbidden origin" }, { status: 403 });
+      }
     }
 
     // Malformed JSON is a caller mistake, not a server failure: without this
