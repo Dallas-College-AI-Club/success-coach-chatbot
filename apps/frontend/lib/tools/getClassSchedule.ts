@@ -32,6 +32,10 @@ export interface ScheduleOffering {
     modality: string | null;
     campus: string | null;
     sections: number;
+    /** "MW 10:00 AM-11:20 AM (lecture)" per scheduled meeting. Empty for an
+     *  online section: those have no set meeting time, which is not the same
+     *  as a time we failed to record. */
+    meets: string[];
 }
 
 export interface ClassScheduleResult {
@@ -62,10 +66,13 @@ const DESCRIPTION = [
     "Call this when the user asks who teaches a course, where it is held, whether",
     "it is available online, or which term it runs in.",
     "",
-    "IMPORTANT — what this does NOT include: no meeting days, no start or end",
-    "times, and no seat availability. The records are past terms, not a live",
-    "registration feed, so describe them as what was offered, and send the student",
-    "to the Dallas College class schedule to register or to see meeting times.",
+    "Each offering lists its meeting days and times in `meets`. An EMPTY `meets`",
+    "means the section has no set meeting time — it is online, or the catalog",
+    "says the pattern varies — so say that rather than implying a time exists.",
+    "",
+    "No seat availability, and these are past terms rather than a live",
+    "registration feed: describe them as what was offered and send the student to",
+    "the Dallas College class schedule to register.",
 ].join("\n");
 
 const INPUT_SCHEMA: FlexibleSchema<GetClassScheduleInput> = jsonSchema({
@@ -149,6 +156,12 @@ export function createGetClassScheduleTool(): Tool<
                     modality,
                     campus,
                     sections: sql<number>`count(*)::int`,
+                    // One row per group carries the schedule; sections grouped
+                    // together share an instructor, term, modality and campus,
+                    // so any of their meeting lists represents the group.
+                    meetings: sql<
+                        unknown
+                    >`(array_agg(${knowledgeEntry.facts}->'meetings'))[1]`,
                 })
                 .from(knowledgeEntry)
                 .where(
@@ -236,9 +249,20 @@ export function createGetClassScheduleTool(): Tool<
                     modality: r.modality,
                     campus: r.campus,
                     sections: Number(r.sections),
+                    meets: (Array.isArray(r.meetings) ? r.meetings : [])
+                        .map((m) => {
+                            const rec = (m ?? {}) as Record<string, unknown>;
+                            const days = String(rec.days ?? "").trim();
+                            const from = String(rec.start_time ?? "").trim();
+                            const to = String(rec.end_time ?? "").trim();
+                            if (!days || !from || !to) return "";
+                            const where = rec.room ? ` in ${rec.room}` : "";
+                            return `${days} ${from}-${to} (${rec.type ?? "class"})${where}`;
+                        })
+                        .filter(Boolean),
                 })),
                 ...(rows.length > MAX_OFFERINGS ? { truncated: true } : {}),
-                note: "These are past terms from the published class schedule. No meeting days or times are on record — send the student to the Dallas College class schedule for meeting times and to register.",
+                note: "These are past terms from the published class schedule, not live registration. An empty `meets` means the section has no set meeting time (online, or a schedule the catalog says varies) — not that the time is unknown. Send the student to the Dallas College class schedule to register or to confirm current times.",
             };
         },
     });
