@@ -28,7 +28,7 @@ export function seedMessages(session: SavedSession | null): UIMessage[] {
   const text = session
     ? [
         session.summary.length
-          ? ["Here's what you told me:", ...session.summary.map((s) => `• ${s}`)].join("\n")
+          ? ["Here's what you told me:", ...session.summary.map((s) => `- ${s}`)].join("\n")
           : "",
         ...authorityNotes(session.payload),
         coachVerifyLine(session.payload),

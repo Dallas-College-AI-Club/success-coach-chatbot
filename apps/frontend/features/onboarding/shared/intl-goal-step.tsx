@@ -70,6 +70,7 @@ export const IntlGoalStep = ({
           the goal rows below. */}
       <ToggleGroup
         type="single"
+        role="radiogroup"
         aria-label="Are you new to Dallas College or already studying here?"
         value={statusId}
         onValueChange={(id: string) => id && chooseStatus(id)}
@@ -88,6 +89,7 @@ export const IntlGoalStep = ({
       </ToggleGroup>
       <ToggleGroup
         type="single"
+        role="radiogroup"
         aria-label="What would you like help with?"
         value={selectedGoal}
         onValueChange={(id: string) => id && chooseGoal(id)}

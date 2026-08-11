@@ -12,6 +12,7 @@ import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import MarkdownViewer from "@/components/markdown-viewer";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { ChatBackdrop } from "@/features/chat/backdrops";
@@ -103,7 +104,12 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
             <div
               key={i}
               data-role={isUser ? "user" : "assistant"}
-              className={skin.bubble}
+              // skin.bubble still carries whitespace-pre-wrap for the wizard's
+              // plain-text bubbles. Markdown does its own block layout, so
+              // here the literal newlines between blocks would render as blank
+              // lines. cn() (tailwind-merge) is required — a string append
+              // loses to stylesheet order.
+              className={cn(skin.bubble, "whitespace-normal")}
             >
               <MarkdownViewer
                 content={part.text}
@@ -190,7 +196,7 @@ function Conversation({
       top: el.scrollHeight,
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
-  }, [messages.length, busy]);
+  }, [messages.length, error]);
 
   // Streaming growth pins the bottom — but only when the reader is already
   // there, so scrolling up to re-read is never fought. `auto`, not `smooth`:
@@ -213,13 +219,16 @@ function Conversation({
       ? plainText(last)
       : "";
 
+  // The profile rides with EVERY request — sends and retries alike. Defined
+  // once so a retry cannot silently drop it: the route puts it in the system
+  // prompt, so it survives even if the seeded opening turn is ever trimmed
+  // out of the history.
+  const requestOptions = profile ? { body: { profile } } : undefined;
+
   const send = (text: string) => {
     const t = text.trim();
     if (!t || busy) return;
-    // The profile rides with every request, not just the first: the route
-    // validates it and puts it in the system prompt, so it survives even if
-    // the seeded opening turn is ever trimmed out of the history.
-    sendMessage({ text: t }, profile ? { body: { profile } } : undefined);
+    sendMessage({ text: t }, requestOptions);
     setInput("");
   };
 
@@ -266,7 +275,7 @@ function Conversation({
             <Button
               variant="ghost"
               className={skin.ghostBtn}
-              onClick={() => regenerate()}
+              onClick={() => regenerate(requestOptions)}
             >
               Try again
             </Button>
@@ -307,7 +316,7 @@ function Conversation({
           onChange={(e) => setInput(e.target.value)}
           placeholder={copy.composerPlaceholder}
           autoComplete="off"
-          className="min-w-0 flex-1 bg-transparent py-1.5 text-[15px] outline-none placeholder:opacity-55"
+          className="min-w-0 flex-1 bg-transparent py-1.5 text-base outline-none placeholder:opacity-55"
         />
         {busy ? (
           <Button

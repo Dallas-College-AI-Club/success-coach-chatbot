@@ -16,9 +16,9 @@ export const focus: Mode = {
   skin: {
     page: "flex min-h-dvh w-full flex-col items-center justify-center gap-5 bg-[#EDF2F7] p-4 text-[#2B3A4A] md:p-8 [--ring:#ec5f56]",
     shell: "mx-auto flex w-full max-w-3xl flex-col items-stretch gap-4",
-    sectionLabel: "font-mono text-sm tabular-nums tracking-wide text-[#5E7690]",
+    sectionLabel: "font-mono text-sm tabular-nums tracking-wide text-[#4A6076]",
     heading: "text-3xl font-semibold text-[#2B3A4A] outline-none md:text-4xl",
-    helper: "text-sm text-[#2B3A4A]/55",
+    helper: "text-sm text-[#2B3A4A]/75",
     option:
       "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#2B3A4A]/15 bg-white/60 px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#2B3A4A] backdrop-blur-[1px] transition-all hover:border-[#7C93AC] hover:bg-[#7C93AC]/[0.10] focus-visible:ring-2 focus-visible:ring-[#ec5f56] focus-visible:ring-offset-2 focus-visible:ring-offset-[#EDF2F7] motion-safe:hover:-translate-y-0.5 data-[state=on]:border-[#ec5f56] data-[state=on]:bg-[#ec5f56]/[0.07] data-[state=on]:ring-2 data-[state=on]:ring-[#ec5f56]",
     optionCheck:
@@ -28,7 +28,7 @@ export const focus: Mode = {
     primaryBtn:
       "h-11 rounded-full bg-[#2B3A4A] px-6 font-medium text-white hover:bg-[#212d3a] motion-safe:active:scale-[0.98]",
     ghostBtn: "h-11 rounded-full px-3 text-[#2B3A4A]/75",
-    link: "inline-flex items-center text-[#2B3A4A]/60 underline underline-offset-4 hover:text-[#2B3A4A] pointer-coarse:min-h-11",
+    link: "inline-flex items-center text-[#2B3A4A]/75 underline underline-offset-4 hover:text-[#2B3A4A] pointer-coarse:min-h-11",
     picker: "rounded-xl border border-[#2B3A4A]/20 bg-white/85",
     surface:
       "rounded-2xl border border-[#2B3A4A]/12 bg-white/70 shadow-[0_10px_30px_rgba(43,58,74,.08)] backdrop-blur-[1px]",
