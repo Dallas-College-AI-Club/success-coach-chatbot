@@ -11,6 +11,8 @@ export const GET_SEMESTER_TOOL_NAME = "get_semester";
 export const GET_COURSE_INFO_TOOL_NAME = "get_course_info";
 export const GET_PROGRAM_REQUIREMENTS_TOOL_NAME = "get_program_requirements";
 export const SEARCH_KNOWLEDGE_TOOL_NAME = "search_knowledge";
+export const GET_CLASS_SCHEDULE_TOOL_NAME = "get_class_schedule";
+export const GET_INSTRUCTOR_TOOL_NAME = "get_instructor";
 
 /** Chip copy per tool, by lifecycle. Driven off OBSERVED execution state —
  *  never model narration. */
@@ -42,5 +44,15 @@ export const TOOL_LABELS: Record<
     running: "Searching Dallas College records",
     done: "Searched the records",
     failed: "Couldn't search the records",
+  },
+  [GET_CLASS_SCHEDULE_TOOL_NAME]: {
+    running: "Checking the class schedule",
+    done: "Checked the class schedule",
+    failed: "Couldn't reach the class schedule",
+  },
+  [GET_INSTRUCTOR_TOOL_NAME]: {
+    running: "Looking up the instructor",
+    done: "Looked up the instructor",
+    failed: "Couldn't look up the instructor",
   },
 };

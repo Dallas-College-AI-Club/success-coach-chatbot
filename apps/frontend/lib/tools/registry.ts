@@ -5,6 +5,8 @@ import { toolSet } from "./types";
 import { createGetCourseInfoTool } from "./getCourseInfo";
 import { createGetProgramRequirementsTool } from "./getProgramRequirements";
 import { createSearchKnowledgeTool } from "./searchKnowledge";
+import { createGetClassScheduleTool } from "./getClassSchedule";
+import { createGetInstructorTool } from "./getInstructor";
 
 /**
  * Built PER REQUEST (route.ts calls this inside POST), not as a module
@@ -22,5 +24,7 @@ export function createToolRegistry() {
         createGetCourseInfoTool(),
         createGetProgramRequirementsTool(),
         createSearchKnowledgeTool(),
+        createGetClassScheduleTool(),
+        createGetInstructorTool(),
     ]);
 }
