@@ -12,6 +12,7 @@ def test_main_cli_parser():
     """Verify CLI parser default arguments."""
     sys.argv = ["main.py"]
     args = parse_args()
-    assert args.workers == 1
-    assert args.stage == 2
+    assert args.input is not None
+    assert args.output is not None
+    assert args.no_db is False
 
