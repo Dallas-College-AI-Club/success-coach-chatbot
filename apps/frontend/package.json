@@ -14,6 +14,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^3.0.83",
     "@ai-sdk/react": "^3.0.224",
+    "@huggingface/transformers": "^4.2.0",
     "@neondatabase/serverless": "^1.1.0",
     "ai": "^6.0.222",
     "class-variance-authority": "^0.7.1",
@@ -60,6 +61,8 @@
     "sharp@0.34.5": true,
     "unrs-resolver@1.12.2": true,
     "esbuild@0.28.1": true,
-    "fsevents@2.3.3": true
+    "fsevents@2.3.3": true,
+    "onnxruntime-node@1.24.3": true,
+    "protobufjs@7.6.5": true
   }
 }
