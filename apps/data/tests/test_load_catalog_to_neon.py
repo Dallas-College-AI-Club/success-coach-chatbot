@@ -43,7 +43,7 @@ def test_rejects_wrong_supplemental_program_count(
 ) -> None:
     with pytest.raises(
         ValueError,
-        match="supplemental program_map counts do not match",
+        match="supplemental counts do not match",
     ):
         validate_dataset_counts(
             total_rows=total_rows,
@@ -56,7 +56,7 @@ def test_rejects_wrong_supplemental_program_count(
 def test_rejects_mixed_supplemental_delivery() -> None:
     with pytest.raises(
         ValueError,
-        match="supplemental program_map counts do not match",
+        match="supplemental counts do not match",
     ):
         validate_dataset_counts(
             total_rows=19,
@@ -71,20 +71,6 @@ def test_rejects_mixed_supplemental_delivery() -> None:
         )
 
 
-def test_rejects_delivery_of_a_different_doc_type() -> None:
-    """The count can match while the doc_type does not."""
-    with pytest.raises(
-        ValueError,
-        match="supplemental section counts do not match",
-    ):
-        validate_dataset_counts(
-            total_rows=19,
-            counts=Counter({"program_map": 19}),
-            supplemental_doc_type="section",
-            expected_supplemental_rows=19,
-        )
-
-
 def test_rejects_supplemental_without_expected_count() -> None:
     with pytest.raises(
         ValueError,
@@ -94,4 +80,60 @@ def test_rejects_supplemental_without_expected_count() -> None:
             total_rows=19,
             counts=Counter({"program_map": 19}),
             supplemental_doc_type="program_map",
+        )
+
+
+def test_accepts_exact_supplemental_section_delivery() -> None:
+    validate_dataset_counts(
+        total_rows=12_872,
+        counts=Counter({"section": 12_872}),
+        supplemental_doc_type="section",
+        expected_supplemental_rows=12_872,
+    )
+
+
+@pytest.mark.parametrize("total_rows", [12_871, 12_873])
+def test_rejects_wrong_supplemental_section_count(
+    total_rows: int,
+) -> None:
+    with pytest.raises(
+        ValueError,
+        match="supplemental counts do not match",
+    ):
+        validate_dataset_counts(
+            total_rows=total_rows,
+            counts=Counter({"section": total_rows}),
+            supplemental_doc_type="section",
+            expected_supplemental_rows=12_872,
+        )
+
+
+def test_rejects_mixed_section_and_program_map_delivery() -> None:
+    with pytest.raises(
+        ValueError,
+        match="supplemental counts do not match",
+    ):
+        validate_dataset_counts(
+            total_rows=19,
+            counts=Counter(
+                {
+                    "section": 18,
+                    "program_map": 1,
+                }
+            ),
+            supplemental_doc_type="section",
+            expected_supplemental_rows=19,
+        )
+
+
+def test_rejects_unknown_supplemental_doc_type() -> None:
+    with pytest.raises(
+        ValueError,
+        match="Unknown supplemental doc_type",
+    ):
+        validate_dataset_counts(
+            total_rows=5,
+            counts=Counter({"syllabus": 5}),
+            supplemental_doc_type="syllabus",
+            expected_supplemental_rows=5,
         )
