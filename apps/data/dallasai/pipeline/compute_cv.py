@@ -27,7 +27,12 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-US_STATE = re.compile(r",\s*[A-Z]{2}\b")
+# Real postal codes only: a bare [A-Z]{2} read ", UK" / ", RO" / ", AT"
+# as US states and reported "United States" for London, Bucharest, Vienna.
+US_STATE = re.compile(
+    r",\s*(?:A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|"
+    r"N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b"
+)
 US_STATE_NAMES = re.compile(
     r"\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|"
     r"Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|"

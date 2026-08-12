@@ -14,7 +14,7 @@ Description:
 import datetime
 import re
 from pathlib import Path
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 try:
     from dallasai.pipeline.html_cleaner import HTMLCleaner, SyllabusHTMLCleaner
@@ -359,7 +359,17 @@ class MarkdownConverter:
                      if c.find_parent("table") is table_element]
             cell_texts = []
             for cell in cells:
-                text = " ".join(cell.get_text().split())
+                # <br> carries meaning in schedule cells: plain get_text()
+                # fuses "August 26<br>August 28" into one dead token. Build the
+                # text instead of mutating the tree -- clean_html_str is
+                # serialised from this same soup further down.
+                parts = [
+                    " " if getattr(node, "name", None) == "br" else str(node)
+                    for node in cell.descendants
+                    if isinstance(node, NavigableString)
+                    or getattr(node, "name", None) == "br"
+                ]
+                text = " ".join("".join(parts).split())
                 cell_texts.append(text if text else " ")
 
             if not cell_texts:
