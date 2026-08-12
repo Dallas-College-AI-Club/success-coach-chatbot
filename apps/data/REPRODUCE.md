@@ -152,9 +152,14 @@ keep every comment on its own line.
 | Needs | `ANTHROPIC_API_KEY` | LM Studio or Ollama running locally |
 | Quality | what the shipped corpus used | varies, so pilot and verify matter more |
 
-Same engine, prompts, schemas and verifiers on both. Set `temperature = 0`. On local
-models the code sets `num_ctx`; without it the prompt truncates silently and you get
-wrong JSON that looks right.
+Same engine, prompts, schemas and verifiers on both. Set `temperature = 0`.
+
+The $0 path reads four more variables, all optional with sane defaults (see
+`.env.example`): `OLLAMA_HOST` and `OLLAMA_NUM_CTX` for Ollama, `LLM_BASE_URL` and
+`LLM_API_KEY` for LM Studio or any OpenAI-compatible endpoint. `extract.py` **raises**
+rather than let an over-long prompt truncate, so if it complains about context, raise
+`OLLAMA_NUM_CTX` — do not ignore it. A silently truncated prompt returns JSON that looks
+right and is wrong.
 
 **On the Claude path, know which doc_types are cached.** `CACHED_PROMPT_DOC_TYPES` in
 `extract.py` is `{"cv"}` — and only `cv` runs a template laid out for it. Everything
