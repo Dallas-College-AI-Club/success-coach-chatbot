@@ -20,6 +20,8 @@ dependencies = [
   "openai>=2.51.0",
   "anthropic>=0.40",      # extraction engine (dallasai/pipeline/extract.py)
   "jsonschema>=4.21",     # facts-schema validation (extract + verifiers)
+  "sentence-transformers>=5.7.0",
+  "numpy>=2.5.1",
 ]
 
 [dependency-groups]
