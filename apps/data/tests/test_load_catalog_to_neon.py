@@ -22,8 +22,18 @@ def test_accepts_exact_supplemental_program_delivery() -> None:
     validate_dataset_counts(
         total_rows=19,
         counts=Counter({"program_map": 19}),
-        allow_supplemental_programs=True,
+        supplemental_doc_type="program_map",
         expected_supplemental_rows=19,
+    )
+
+
+def test_accepts_exact_supplemental_section_delivery() -> None:
+    """A term delivery is the reason the mode is not program_map-only."""
+    validate_dataset_counts(
+        total_rows=12_872,
+        counts=Counter({"section": 12_872}),
+        supplemental_doc_type="section",
+        expected_supplemental_rows=12_872,
     )
 
 
@@ -33,12 +43,12 @@ def test_rejects_wrong_supplemental_program_count(
 ) -> None:
     with pytest.raises(
         ValueError,
-        match="supplemental program counts do not match",
+        match="supplemental program_map counts do not match",
     ):
         validate_dataset_counts(
             total_rows=total_rows,
             counts=Counter({"program_map": total_rows}),
-            allow_supplemental_programs=True,
+            supplemental_doc_type="program_map",
             expected_supplemental_rows=19,
         )
 
@@ -46,7 +56,7 @@ def test_rejects_wrong_supplemental_program_count(
 def test_rejects_mixed_supplemental_delivery() -> None:
     with pytest.raises(
         ValueError,
-        match="supplemental program counts do not match",
+        match="supplemental program_map counts do not match",
     ):
         validate_dataset_counts(
             total_rows=19,
@@ -56,7 +66,21 @@ def test_rejects_mixed_supplemental_delivery() -> None:
                     "course": 1,
                 }
             ),
-            allow_supplemental_programs=True,
+            supplemental_doc_type="program_map",
+            expected_supplemental_rows=19,
+        )
+
+
+def test_rejects_delivery_of_a_different_doc_type() -> None:
+    """The count can match while the doc_type does not."""
+    with pytest.raises(
+        ValueError,
+        match="supplemental section counts do not match",
+    ):
+        validate_dataset_counts(
+            total_rows=19,
+            counts=Counter({"program_map": 19}),
+            supplemental_doc_type="section",
             expected_supplemental_rows=19,
         )
 
@@ -69,5 +93,5 @@ def test_rejects_supplemental_without_expected_count() -> None:
         validate_dataset_counts(
             total_rows=19,
             counts=Counter({"program_map": 19}),
-            allow_supplemental_programs=True,
+            supplemental_doc_type="program_map",
         )

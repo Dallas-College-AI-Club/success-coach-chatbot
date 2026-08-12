@@ -23,7 +23,10 @@ Do §1 once, then these six steps in order (each is detailed in its section):
 ```powershell
 # 0. put the new term's schedule CSV in $env:RAW_ROOT\schedule\   (§3)
 # 1. scrape new pages
-python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:RAW_ROOT\schedule\dallas_classes_2026_Fall.csv" --out "$env:RAW_ROOT"
+python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:RAW_ROOT\schedule\dallas_classes_2026_Spring.csv" --out "$env:RAW_ROOT"
+# 1b. build the work list step 2 consumes (nothing earlier creates it)      (§4)
+New-Item -ItemType Directory -Force out | Out-Null
+#     see the one-liner in §4 for the full command
 # 2. extract (PILOT ~20 docs first — iron rule; then the full work list)     (§4)
 python -m dallasai.pipeline.extract_batch --raw-root "$env:RAW_ROOT" --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
 # 3. verify, then adjudicate every flag + review 100% of quarantine          (§5)
@@ -32,7 +35,8 @@ python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw
 python -m dallasai.pipeline.compose_cv --facts out/facts-cv/cv --out out/facts-cv-composed --raw-root "$env:RAW_ROOT" --as-of 2026
 # 5. assemble rows + embed                                                    (§7)
 python -m dallasai.pipeline.assemble_cv_delivery --composed out/facts-cv-composed --out out/delivery-cv --fail-on-acceptance
-python -m dallasai.pipeline.embed_rows --rows out/delivery-cv/rows-cv.json --out out/delivery-cv/rows-cv.embedded.json
+python -m dallasai.pipeline.carry_embeddings out/delivery-cv/rows-cv.json <previous>.embedded.json out/delivery-cv/rows-cv.carried.json
+python -m dallasai.pipeline.embed_rows --rows out/delivery-cv/rows-cv.carried.json --out out/delivery-cv/rows-cv.embedded.json
 # 6. package to SharePoint etl\neon-delivery\ with the audit trail           (§7)
 ```
 
@@ -57,9 +61,11 @@ flowchart TD
     H --> I[(Neon Postgres<br/>knowledge_entry)]
 ```
 
-Every arrow is a file on disk. Any stage can be re-run without re-running
-the ones before it, and every stage is resumable — a killed run continues
-where it stopped.
+Every arrow is a file on disk, and any stage can be re-run without re-running the
+ones before it. **Scrape and extract are resumable** — a killed run continues where it
+stopped. Compose, assemble and embed are atomic full re-runs: `embed_rows` writes its
+output only after the whole loop finishes, so a killed embed run loses every vector
+and re-bills from zero. Shard large embed runs.
 
 ---
 
@@ -93,11 +99,19 @@ them. Playwright + Chromium is only needed for catalog scraping.)
 this shape) and fill your own values:
 
 ```
-ANTHROPIC_API_KEY=sk-ant-...          # your own key — keys are per person, never shared
-OPENROUTER_API_KEY=sk-or-...          # for embeddings
-EXTRACTOR=anthropic:claude-sonnet-5   # provider:model for extraction
-RAW_ROOT=C:\...\_project\raw          # your raw-corpus folder
-FACTS_OUT=...\apps\data\out\facts     # used only by run_catalog.ps1; python CLIs take --out
+# Comments MUST be on their own line — the loader below does not strip a
+# trailing "# ...", so an inline comment becomes part of the value.
+
+# your own key — keys are per person, never shared
+ANTHROPIC_API_KEY=sk-ant-...
+# for embeddings
+OPENROUTER_API_KEY=sk-or-...
+# provider:model for extraction
+EXTRACTOR=anthropic:claude-sonnet-5
+# your raw-corpus folder
+RAW_ROOT=<your raw-corpus folder>
+# used only by run_catalog.ps1; python CLIs take --out
+FACTS_OUT=out\facts
 ```
 
 > ⚠️ **`.env` is gitignored and must stay that way. Never commit or share an
@@ -138,9 +152,9 @@ All tests green = the engine, schemas, and verifiers agree with each other.
 | `rows*.json` / `rows*.embedded.json` | JSON array in the exact `knowledge_entry` shape | assemble / embed | the load contract; the data engineer converts to TypeScript inserts without reshaping |
 | prompts `reference/prompts/extract_v*.md` | Markdown template with `{{PLACEHOLDERS}}` | humans | versioned, never edited in place (see §4) |
 | exemplars `reference/prompts/examples/<doc_type>/*.md` | Markdown: context + correct JSON + why | humans + ratification | spliced into prompts as few-shot examples; `counterexamples/` subfolders are never spliced |
-| schemas `src/config/facts-schemas/*.schema.json` | JSON Schema draft-07, `$comment`-annotated | humans | machine-enforced output shape; comments carry the rules' rationale |
+| schemas `<repo-root>/src/config/facts-schemas/*.schema.json` | JSON Schema draft-07, `$comment`-annotated | humans | machine-enforced output shape; comments carry the rules' rationale |
 | runners `*.ps1` | PowerShell 5.1 | humans | load `.env`, launch resumable/detached runs on the club's Windows machines. `run_catalog.ps1` (catalog stages) and `run_cv_extract.ps1` (one work-list extraction pass; `-Retry` keeps relaunching until a clean exit) |
-| `src/config/metadata-registry.json` | JSON | team decision | the doc_type/stamp contract shared with the app; envelope stamps are validated against it (`validate_registry_stamp`) |
+| `<repo-root>/src/config/metadata-registry.json` | JSON | team decision | the doc_type/stamp contract shared with the app; envelope stamps are validated against it (`validate_registry_stamp`) |
 
 ---
 
@@ -150,14 +164,21 @@ All tests green = the engine, schemas, and verifiers agree with each other.
 an original. Scrapers save raw bytes + a manifest line per page; they are
 idempotent (existing files skip).
 
-**Schedule CSVs — the input everything keys on.** The eConnect class
-schedule exports live at `$env:RAW_ROOT\schedule\dallas_classes_<YYYY>_<Term>.csv`
-(16 columns incl. class_prefix, class_number, section_number, professor,
-syllabus_url, class_name, term_year, meeting_info). They are (a) the
-scrapers' work list, (b) the source of the deterministic **section** rows,
-and (c) the course-title source for CV teaching records. A new term starts
-by producing/obtaining that term's CSV into `schedule\` — without it,
-nothing downstream sees the term.
+**Schedule CSVs — the input everything keys on.** They live at
+`$env:RAW_ROOT\schedule\dallas_classes_<YYYY>_<Term>.csv` (16 columns incl.
+class_prefix, class_number, section_number, professor, syllabus_url,
+class_name, term_year, meeting_info). They are (a) the scrapers' work list,
+(b) the source of the deterministic **section** rows, and (c) the
+course-title source for CV teaching records.
+
+These are **scraped**, by `pipeline/scrape_schedule.py`, from
+`schedule.dallascollege.edu`. They are not eConnect exports — that was a
+misreading of a page title that stood for months and turned a doable scrape
+into a phantom external dependency. There is no bulk export and no public
+API. A new term starts by producing that term's CSV into `schedule\`;
+without it, nothing downstream sees the term. **See
+[`REPRODUCE.md`](REPRODUCE.md) §2** for the command, the column contract,
+and why the host makes this a supervised operation.
 
 **Concourse syllabi + CVs** (plain HTTP; `--worklist` is required and
 repeatable — the term is chosen by WHICH CSV you pass, there is no `--term`
@@ -178,7 +199,7 @@ python -m dallasai.pipeline.catalog_fetch --catoid 5 --catalog-year 2026-2027 --
 ```
 
 > ⚠️ The by-program index misses the academic-transfer degrees — the section
-> indexes (navoid 1262/1263/1261/1224) add ~31 more; backfill with
+> indexes (navoid 1262/1307/1261/1224) add ~31 more; backfill with
 > `catalog_fetch.py --poids-file`. Poids **3388 (CORE-42)** and **3040** must
 > always be fetched and later hand-verified — every degree answer resolves
 > against them.
@@ -237,9 +258,8 @@ numbers students see are computed later in Python (§6).
 
 or directly:
 
-```bash
-python -m dallasai.pipeline.extract_batch --raw-root %RAW_ROOT% --doc-type cv \
-    --paths-file out/worklist.txt --out out/facts-cv --quarantine-dir out/facts-cv-quarantine
+```powershell
+python -m dallasai.pipeline.extract_batch --raw-root "$env:RAW_ROOT" --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
 ```
 
 - `extract_batch` nests envelopes under a `<doc_type>/` subfolder of
@@ -285,12 +305,17 @@ python -c "import json,glob;seen=set();[seen.add(json.loads(l)['raw_path'].repla
 >   consume `max_tokens`** — one large CV burned 15,645/16,384 tokens thinking
 >   and truncated its JSON. Extraction is few-shot mechanical, so
 >   `THINKING_DISABLED_DOC_TYPES` sends `thinking: disabled` for cv (2–3×
->   cheaper, no truncation). Diagnose with `stop_reason == "max_tokens"` +
->   `usage.output_tokens_details.thinking_tokens`.
+>   cheaper, no truncation). `stop_reason` is `"max_tokens"` on truncation, but
+>   neither it nor `usage` is surfaced today — `_call_anthropic` returns only the
+>   concatenated text blocks. To see it, instrument `extract.py:192` to log
+>   `msg.stop_reason` and `msg.usage`.
 > - Claude 5 rejects `temperature` (the code falls back automatically), so
 >   outputs are **sampled** — byte-exact reproducibility across runs is gone
 >   (see the gate note in §5).
-> - **Prompt caching pays for itself ~10×** on input cost, but only works
+> - **Prompt caching is enabled for `cv` only** (`CACHED_PROMPT_DOC_TYPES = {"cv"}`,
+>   `extract.py:149`). The v3 doc_types keep the per-document context near the top, so
+>   their whole template is re-billed on every document — which is the dominant cost on
+>   a syllabus round. Where it applies it **pays for itself ~10×** on input cost, but only works
 >   because v4 keeps the per-document parts (identity context, retry block,
 >   document) at the END of the template — everything above
 >   `## Identity context` is a constant prefix marked with `cache_control`.
@@ -313,14 +338,15 @@ pure Python over the raw source text, so a pass means something.
 promoted to prompt exemplars and therefore can never be tested again).
 Unlike the verifiers, the gate CALLS THE LIVE MODEL — a few cents per run:
 
-```bash
-python -m dallasai.pipeline.golden_gate --raw-root %RAW_ROOT%
+```powershell
+python -m dallasai.pipeline.golden_gate --raw-root "$env:RAW_ROOT"
 ```
 
 Run after EVERY prompt/model/schema change that touches catalog. The
 comparison is **token-exact**: whitespace-only differences are tolerated
 (model sampling stopped being byte-stable when the API alias began thinking
-by default — adjudicated 2026-07-26 — record in the delivery audit trail on SharePoint `etl`), but
+by default — adjudicated 2026-07-26; note the adjudication file itself was never
+written, so this precedent survives only here), but
 any changed word, case, or ordering fails. A red gate blocks catalog bulk.
 
 **When the gate is red:** (1) diff `pipeline_runs/gate/<case>/fresh.json` against
@@ -345,9 +371,10 @@ Known college-side typos are accept-listed in
 python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw-root "$env:RAW_ROOT"
 ```
 
-`--as-of` = the scrape year (resolves "Present" in date math). It must match
-the `--as-of` later given to compose, or the recompute check will flag every
-computed tier. The verifier exits nonzero whenever ANY flag fires — that is
+`--as-of` = the scrape year (resolves "Present" in date math). It is a **fallback**,
+used only when an envelope carries no `computed_as_of` stamp; composed envelopes
+recompute at their own stamped year, so a mismatched `--as-of` is not caught here, and
+on extract-stage facts (the command above) it has no effect at all. The verifier exits nonzero whenever ANY flag fires — that is
 expected on a real corpus; what matters is that every flag ends up
 adjudicated (§5a). Baseline for the delivered 2026-07-27 CV corpus: ~150
 flags, all adjudicated in the delivery's audit trail — NEW flags relative to
@@ -385,10 +412,14 @@ write the corrected facts payload to a JSON file, validate it
 cv you should also confirm `verify_cv.extraction_stage_errors(payload,
 source_text) == []` before replaying), then
 
-```bash
-python -m dallasai.pipeline.extract_batch --raw-root %RAW_ROOT% --doc-type cv \
-    --replay-map out/replay-map.jsonl --out out/facts-cv --quarantine-dir out/facts-cv-quarantine
+```powershell
+python -m dallasai.pipeline.extract_batch --raw-root "$env:RAW_ROOT" --doc-type cv --replay-map out\replay-map.jsonl --out out\facts-cv --quarantine-dir out\facts-cv-quarantine --refresh
 ```
+
+> ⚠️ **`--refresh` is required.** The replay target already exists, and without it
+> `extract_batch` counts the envelope as `skipped_existing` and exits 0 without
+> repairing anything — so the operator believes a flagged profile was fixed when it
+> was not, and the audit trail still shows the machine envelope.
 
 (`replay-map.jsonl`: one `{"raw_path": ..., "facts_file": ...}` per line.)
 Replayed envelopes are stamped `extraction_method: claude_code_session`, so
@@ -411,7 +442,8 @@ What it does, per profile — and why:
 - **computed**: durations as *unions of printed year-ranges* (overlaps never
   double-count; a same-year range counts as one year; "Present" resolves to
   the scrape year, stamped `computed_as_of`), countries, organizations.
-- **teaching_record**: joined from the schedule manifests by *normalized*
+- **teaching_record**: joined from the **syllabus** manifests (`kind == "syllabus"`,
+  `status == 200`) by *normalized*
   professor name (manifests vary case: `GEBHART, KELLY` vs `GEBHART, Kelly`),
   each course carrying its printed class title from `RAW_ROOT/schedule/*.csv`
   — bare codes mean nothing to students.
@@ -420,7 +452,9 @@ What it does, per profile — and why:
   else `historical`; and an undated topic whose evidence quotes a course the
   professor teaches in the latest term upgrades to `current`.
 - **chunk_text** = verified summary (with `{{years_*}}` tokens substituted by
-  the computed values) + "Per published Dallas College class schedules
+  the computed values — **except when a computed value is `None`**, which leaves the
+  literal token in student-facing text and in the vector; 13 of the 2,709 delivered CV
+  rows carry `{{years_teaching_industry_overlap}}` for this reason) + "Per published Dallas College class schedules
   (…): currently teaches COSC 1436 (Programming Fundamentals I); …".
   Never narrates absence — a missing section may be a scrape gap.
 - **Empty shells** (nothing but a name) get
@@ -474,9 +508,10 @@ future live query comes from identical weights:
 python -m dallasai.pipeline.embed_rows --rows out/delivery-cv/rows-cv.json --out out/delivery-cv/rows-cv.embedded.json
 ```
 
-Re-embedding a full CV re-run costs about a dollar, so re-runs simply
-re-embed. (If that ever matters at larger scale: rows whose `content_hash`
-did not change can safely keep their previous vectors.)
+Re-embedding the full CV delivery costs about **$0.013** (2,709 rows ≈ 652k tokens at
+text-embedding-3-small's $0.02/1M) — embedding is not where this pipeline spends money;
+extraction is. Even so, prefer reusing vectors: rows whose `content_hash` did not change
+can keep their previous ones, and `pipeline/carry_embeddings.py` does exactly that.
 
 `embed_rows` fills every row that lacks an `embedding` — `openai/text-embedding-3-small`,
 `dimensions=768`, provider-routing locked to OpenAI, **and it aborts unless
@@ -514,9 +549,18 @@ index can never disagree with the delivery.)
 The handoff docs on SharePoint (`CATALOG_TO_NEON_HANDOFF.md`,
 `CV_TO_NEON_HANDOFF.md`) are the contract. Summary: read
 `load-this/rows*.json` (catalog delivery: `rows.json`; CV delivery:
-`rows-cv.embedded.json` — both carry the `embedding` field), convert to
-TypeScript inserts, upsert on
-`(source_url, chunk_index)`, cast `embedding` to `HALFVEC(768)`. `id` and
+`rows-cv.embedded.json` — both carry the `embedding` field). **The loader ships in
+Python; there is nothing to convert.** Run it from `apps/data`:
+
+```powershell
+python -m dallasai.load_catalog_to_neon <rows>.embedded.json                      # validate + census, no writes
+python -m dallasai.load_catalog_to_neon <rows>.embedded.json --load --batch-size 100
+python -m dallasai.load_catalog_to_neon programs-19.embedded.json --supplemental-programs --expect 19 --load
+python -m dallasai.load_catalog_to_neon <facts-only>.json --facts-only --load
+```
+
+It upserts on `(source_url, chunk_index)` through the ORM's `HALFVEC(768)` column, so
+no manual cast is needed. Always run without `--load` first and read the census. `id` and
 `updated_at` are Postgres-generated; filter columns are GENERATED from
 `metadata`. Everything joins inside the single `knowledge_entry` table —
 `metadata.professor` matches the section rows' spelling by construction, so
@@ -529,8 +573,9 @@ delivery `reference/` folder is the acceptance answer key).
 
 | doc_type | prompt | schema | status |
 |---|---|---|---|
-| course / program_map | v3 (frozen, gold-gated) | facts-*-v1 | **delivered** 2026-07-25, 1,588 + 318 rows |
-| section (schedule CSVs) | deterministic, no LLM | — | **delivered** 2026-07-25, 16,181 rows |
+| course / program_map | v3 (frozen, gold-gated) | facts-*-v1 | **delivered** 2026-07-25, 1,588 + 318 rows. A further **19 programs** — incl. A.A. (poid 3393), A.S. Computer Science (3011) and poid **3040** — shipped 2026-08-11; load with `--supplemental-programs --expect 19` |
+| section — meeting times | deterministic, no LLM | — | **delivered** 2026-08-11, facts-only update over 16,181 rows (5,875 with real meeting times). The 2026-07-25 section rows shipped with `facts = {}` |
+| section (schedule CSVs) | deterministic, no LLM | — | **delivered** 2026-07-25, 16,181 rows (Spring + Summer 2026). **Fall 2026** delivered 2026-08-12, 12,872 rows, load with `--supplemental section --expect 12872`; brings the table to 29,053 |
 | cv | v4 | facts-cv-v2 (rev 7, team-ratified) | **delivered** 2026-07-27, 2,709 rows |
 | syllabus | v3 rules + 5 exemplars + 2 counterexamples ready | facts-syllabus-v1 | **not yet run** — needs verify_syllabus.py, the section↔syllabus merge in assemble (`syllabus`/`syllabus_ref` per `build_knowledge.compose_sections`), and a pilot before bulk |
 
@@ -543,7 +588,8 @@ pattern applies when their rounds come.
 
 **Ratification**: the team (club meeting + advisor) signs off on each
 schema/exemplar set; the record lives in the exemplar artifacts
-(`SharePoint etl (cv2 ratification records)` for facts-cv-v2, ratified 2026-07) and the schema's
+(the `facts-cv-v2.schema.json` `$comment` changelog, `etl/cv-pilot-review/CV_PILOT_REVIEW.html`,
+and the "Known limitations" section of `AUDIT_REPORT-CV.md`) and the schema's
 `$comment` changelog. Material schema changes go to the team, not just a PR.
 
 **CV specifics worth knowing** — the schema is four tiers on purpose:
@@ -569,7 +615,9 @@ mojibake professor names in manifests.
 
 **Model-behavior (guarded in code / prompts):** thinking eats max_tokens;
 temperature rejected → sampling variance; curly-vs-straight quotes are the
-#1 span-check failure — the checker is typography-tolerant but the model is
+#1 span-check failure. Note which checker: `verify_catalog.fold` IS
+typography-tolerant, but `verify_cv._in_source` folds whitespace and doubled text
+ONLY — a curly-vs-straight apostrophe is a genuine CV failure. The model is
 reminded to copy exact characters; "K-12"-style vocabulary that the source
 never prints; pronouns/adjectives/absence-narration in summaries; summary
 word-limit whack-a-mole (target 120, hard fail only above 150); `{{tokens}}`

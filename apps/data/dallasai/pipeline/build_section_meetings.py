@@ -228,8 +228,7 @@ def main() -> None:
         raw = (csv_row.get("meeting_info") or "").strip()
         meetings, recognised = parse_meetings(raw)
         if not recognised:
-            if len(unparsed) < 10:
-                unparsed.append(raw)
+            unparsed.append(raw)
             continue
         if meetings:
             with_times += 1

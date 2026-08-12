@@ -9,10 +9,13 @@ Quality is enforced, not advised: the run aborts unless every vector has exactly
 embedding_model + embedding_dimensions so provenance survives into Postgres and
 a future model swap can target rows precisely.
 
-    OPENROUTER_API_KEY=... python -m pipeline.embed_rows --rows rows.json
-        [--out rows.embedded.json] [--batch 64]
+    OPENROUTER_API_KEY=... python -m dallasai.pipeline.embed_rows --rows rows.json
+        [--out rows.embedded.json] [--batch 64] [--doc-types section]
 
-Resumable: rows that already carry an embedding are skipped.
+Resumable: rows that already carry an embedding are skipped. That also makes
+--doc-types free to re-run on a finished file, which is how a single assembled
+delivery is split into the per-doc_type files the loader accepts — that split
+needs no API key, because it embeds nothing.
 """
 
 from __future__ import annotations
@@ -68,17 +71,31 @@ def main(argv=None) -> None:
     ap.add_argument("--rows", type=Path, required=True)
     ap.add_argument("--out", type=Path, default=None)
     ap.add_argument("--batch", type=int, default=64)
+    ap.add_argument("--doc-types", nargs="+", default=None,
+                    help="Keep only rows with these metadata.doc_type values. "
+                         "A term delivery is section-only; the loader's catalog "
+                         "gate rejects a mixed file.")
     args = ap.parse_args(argv)
-    key = os.environ.get("OPENROUTER_API_KEY") or sys.exit("OPENROUTER_API_KEY not set")
+    key = os.environ.get("OPENROUTER_API_KEY")
 
     rows = json.loads(args.rows.read_text(encoding="utf-8"))
     flat = rows if isinstance(rows, list) else None
     if flat is None:
         sys.exit("--rows must be the composed row LIST (run the compose step first)")
 
+    if args.doc_types:
+        keep = set(args.doc_types)
+        flat = [r for r in flat
+                if (r.get("metadata") or {}).get("doc_type") in keep]
+        if not flat:
+            sys.exit(f"no rows match --doc-types {sorted(keep)}")
+        print(f"filtered to {sorted(keep)}: {len(flat)} rows")
+
     todo = [r for r in flat if not r.get("embedding")]
     print(f"{len(flat)} rows, {len(todo)} need embeddings "
           f"({EMBED_MODEL} @ {DIMS} dims, provider-pinned)")
+    if todo and not key:
+        sys.exit("OPENROUTER_API_KEY not set")
     for i in range(0, len(todo), args.batch):
         chunk = todo[i:i + args.batch]
         vecs = embed_batch([r["chunk_text"] for r in chunk], key)
@@ -88,7 +105,12 @@ def main(argv=None) -> None:
             r["metadata"]["embedding_dimensions"] = DIMS
         print(f"  {min(i + args.batch, len(todo))}/{len(todo)}")
 
+    if args.doc_types and args.out is None:
+        sys.exit("--doc-types writes a SUBSET; pass --out so it cannot "
+                 "overwrite the full delivery")
     dest = args.out or args.rows.with_suffix(".embedded.json")
+    if dest.resolve() == args.rows.resolve():
+        sys.exit(f"refusing to overwrite the input {args.rows} — pick --out")
     dest.write_text(json.dumps(flat, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {dest} — every row embedding verified: {DIMS} dims, unit norm")
 

@@ -163,7 +163,7 @@ def _term_code(term_year: str) -> str:
 
 
 _SESSION_RE = re.compile(
-    r"(Winter Term|Spring First 8 Week Session|Spring Second 8 Week Session|"
+    r"(Winter Term|(?:Spring|Summer|Fall|Winter) (?:First|Second) 8 Week Session|"
     r"Flex Term \w+|Summer Session I{1,2}|May Term|Night Classes)"
 )
 
@@ -352,6 +352,24 @@ class Archiver:
                     f"circuit breaker: {self.consec_errors} consecutive network "
                     f"errors — stopping. Re-run to resume (archived files skip)."
                 )
+            time.sleep(self.delay)
+            return
+        # Concourse answers HTTP 200 with its LOGIN page for documents we may
+        # not read. Archiving that stores an 8 KB form as if it were the
+        # syllabus: _is_fresh then skips it forever and extract_batch feeds it
+        # to the model. Record it as a distinct status and keep it off disk.
+        if b"<title>Login | Concourse" in body:
+            self.n_fail += 1
+            self._record(
+                {
+                    **meta,
+                    "source_url": url,
+                    "raw_path": None,
+                    "status": "login_page",
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            print(f"  LOGIN PAGE (not archived) {url}", file=sys.stderr)
             time.sleep(self.delay)
             return
         # --- disk leg: retried locally, never trips the network breaker ------

@@ -164,7 +164,10 @@ def main(argv: Optional[list[str]] = None) -> None:
     seen: set[str] = set()
     for entry in iter_manifest(args.raw_root, args.manifest_glob):
         doc_type = KIND_TO_DOC_TYPE.get(entry.get("kind", ""))
-        if doc_type is None or entry.get("status") != 200 or not entry.get("raw_path"):
+        # Not gated on status: the fetcher records 202 for pages that only
+        # completed after a JS challenge, and their HTML is complete on disk.
+        # Every genuine failure (404, error, resolve_*) has raw_path=None.
+        if doc_type is None or not entry.get("raw_path"):
             continue
         if args.doc_type and doc_type != args.doc_type:
             continue
