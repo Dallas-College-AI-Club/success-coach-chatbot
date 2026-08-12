@@ -109,7 +109,7 @@ OPENROUTER_API_KEY=sk-or-...
 # provider:model for extraction
 EXTRACTOR=anthropic:claude-sonnet-5
 # your raw-corpus folder
-RAW_ROOT=D:\RaOn\OneDrive - RaOn\-\_project\raw
+RAW_ROOT=<your raw-corpus folder>
 # used only by run_catalog.ps1; python CLIs take --out
 FACTS_OUT=out\facts
 ```
@@ -164,14 +164,21 @@ All tests green = the engine, schemas, and verifiers agree with each other.
 an original. Scrapers save raw bytes + a manifest line per page; they are
 idempotent (existing files skip).
 
-**Schedule CSVs — the input everything keys on.** The eConnect class
-schedule exports live at `$env:RAW_ROOT\schedule\dallas_classes_<YYYY>_<Term>.csv`
-(16 columns incl. class_prefix, class_number, section_number, professor,
-syllabus_url, class_name, term_year, meeting_info). They are (a) the
-scrapers' work list, (b) the source of the deterministic **section** rows,
-and (c) the course-title source for CV teaching records. A new term starts
-by producing/obtaining that term's CSV into `schedule\` — without it,
-nothing downstream sees the term.
+**Schedule CSVs — the input everything keys on.** They live at
+`$env:RAW_ROOT\schedule\dallas_classes_<YYYY>_<Term>.csv` (16 columns incl.
+class_prefix, class_number, section_number, professor, syllabus_url,
+class_name, term_year, meeting_info). They are (a) the scrapers' work list,
+(b) the source of the deterministic **section** rows, and (c) the
+course-title source for CV teaching records.
+
+These are **scraped**, by `pipeline/scrape_schedule.py`, from
+`schedule.dallascollege.edu`. They are not eConnect exports — that was a
+misreading of a page title that stood for months and turned a doable scrape
+into a phantom external dependency. There is no bulk export and no public
+API. A new term starts by producing that term's CSV into `schedule\`;
+without it, nothing downstream sees the term. **See
+[`REPRODUCE.md`](REPRODUCE.md) §2** for the command, the column contract,
+and why the host makes this a supervised operation.
 
 **Concourse syllabi + CVs** (plain HTTP; `--worklist` is required and
 repeatable — the term is chosen by WHICH CSV you pass, there is no `--term`
@@ -568,7 +575,7 @@ delivery `reference/` folder is the acceptance answer key).
 |---|---|---|---|
 | course / program_map | v3 (frozen, gold-gated) | facts-*-v1 | **delivered** 2026-07-25, 1,588 + 318 rows. A further **19 programs** — incl. A.A. (poid 3393), A.S. Computer Science (3011) and poid **3040** — shipped 2026-08-11; load with `--supplemental-programs --expect 19` |
 | section — meeting times | deterministic, no LLM | — | **delivered** 2026-08-11, facts-only update over 16,181 rows (5,875 with real meeting times). The 2026-07-25 section rows shipped with `facts = {}` |
-| section (schedule CSVs) | deterministic, no LLM | — | **delivered** 2026-07-25, 16,181 rows |
+| section (schedule CSVs) | deterministic, no LLM | — | **delivered** 2026-07-25, 16,181 rows (Spring + Summer 2026). **Fall 2026** delivered 2026-08-12, 12,872 rows, load with `--supplemental section --expect 12872`; brings the table to 29,053 |
 | cv | v4 | facts-cv-v2 (rev 7, team-ratified) | **delivered** 2026-07-27, 2,709 rows |
 | syllabus | v3 rules + 5 exemplars + 2 counterexamples ready | facts-syllabus-v1 | **not yet run** — needs verify_syllabus.py, the section↔syllabus merge in assemble (`syllabus`/`syllabus_ref` per `build_knowledge.compose_sections`), and a pilot before bulk |
 
