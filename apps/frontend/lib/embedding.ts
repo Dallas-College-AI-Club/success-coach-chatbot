@@ -5,12 +5,12 @@ import {
 } from "@huggingface/transformers";
 
 const globalExtractor = globalThis as unknown as {
-  __extractor?: FeatureExtractionPipeline;
+  __extractorPromise?: Promise<FeatureExtractionPipeline>;
 };
 
 async function getExtractor(): Promise<FeatureExtractionPipeline> {
-  if (!globalExtractor.__extractor) {
-    globalExtractor.__extractor = await pipeline(
+  if (!globalExtractor.__extractorPromise) {
+    globalExtractor.__extractorPromise = pipeline(
       "feature-extraction",
       "Xenova/all-MiniLM-L6-v2",
       {
@@ -18,7 +18,7 @@ async function getExtractor(): Promise<FeatureExtractionPipeline> {
       },
     );
   }
-  return globalExtractor.__extractor;
+  return globalExtractor.__extractorPromise;
 }
 
 export async function embedText(text: string): Promise<DataArray> {
