@@ -11,6 +11,11 @@ Project: Success Coach Chatbot (Issue #91 / Issue #128 Harmonization)
   - Function 3: JSON Payload Assembly (extract_to_json_payload)
   - Function 4: Vector Embedding Generator (generate_embeddings)
   - Function 5: Validation Gate & Database Upsert (validate_and_upsert_payload)
+
+Strict Dependency Policy:
+  - Requires sentence-transformers and psycopg (v3). Refuses dummy zero vectors.
+  - If required dependencies are missing, raises an explicit exception instructing
+    the developer to execute 'uv sync' in apps/data.
 ===============================================================================
 """
 
@@ -29,14 +34,38 @@ MAIN_DIR = Path(__file__).resolve().parent
 SYS_DATA_DIR = MAIN_DIR.parent / "apps" / "data" if MAIN_DIR.name == ".tmp" else MAIN_DIR.parent
 if str(SYS_DATA_DIR) not in sys.path:
     sys.path.insert(0, str(SYS_DATA_DIR))
+if str(MAIN_DIR) not in sys.path:
+    sys.path.insert(0, str(MAIN_DIR))
 
 from dotenv import load_dotenv
 load_dotenv(SYS_DATA_DIR / ".env")
 
 from bs4 import BeautifulSoup
-from dallasai.embedding import embed
-from dallasai.markdown_converter import MarkdownConverter
-from dallasai.semantic_chunker import SemanticChunker
+
+try:
+    if MAIN_DIR.name == ".tmp" and (MAIN_DIR / "embedding.py").exists():
+        import embedding
+        embed = embedding.embed
+    else:
+        from dallasai.embedding import embed
+except (ImportError, ModuleNotFoundError) as err:
+    raise ImportError(
+        "Required dependencies (sentence-transformers) are not installed or failed to import. "
+        "Please run 'uv sync' in the 'apps/data' directory to install required dependencies."
+    ) from err
+
+try:
+    if MAIN_DIR.name == ".tmp" and (MAIN_DIR / "markdown_converter.py").exists():
+        from markdown_converter import MarkdownConverter
+    else:
+        from dallasai.markdown_converter import MarkdownConverter
+    if MAIN_DIR.name == ".tmp" and (MAIN_DIR / "semantic_chunker.py").exists():
+        from semantic_chunker import SemanticChunker
+    else:
+        from dallasai.semantic_chunker import SemanticChunker
+except (ImportError, ModuleNotFoundError) as err:
+    from dallasai.markdown_converter import MarkdownConverter
+    from dallasai.semantic_chunker import SemanticChunker
 
 VALID_DOC_TYPES = {"course", "section", "program_map", "syllabus", "cv"}
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
@@ -132,7 +161,14 @@ def generate_embeddings(records: List[Dict[str, Any]], embedder: Optional[Any] =
     """Function 4: Populates 384-dim vector embeddings via all-MiniLM-L6-v2."""
     fn = embedder or embed
     for idx, r in enumerate(records):
-        vec = fn(r["chunk_text"])
+        try:
+            vec = fn(r["chunk_text"])
+        except Exception as err:
+            raise RuntimeError(
+                f"Failed generating vector embedding at index {idx} in {r.get('source_url')}. "
+                f"Ensure dependencies are installed via 'uv sync'. Details: {err}"
+            ) from err
+
         vec_list = vec.tolist() if hasattr(vec, "tolist") else list(vec)
 
         if not vec_list or all(v == 0.0 for v in vec_list):
