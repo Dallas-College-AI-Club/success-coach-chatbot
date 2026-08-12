@@ -308,14 +308,17 @@ ERROR  failed to fetch <PREFIX>: Playwright: WAF challenge did not clear
 ```
 
 The operator must stop, wait 5–10 minutes, and re-run the identical command with
-`--resume`. Measured: **80 of 164 prefixes / 7,907 rows** across several cycles — expect
-roughly a dozen stop-wait-resume rounds for a full term, not one run. Anyone writing
+`--resume`. Measured on the Fall 2026 run: **113 of 164 prefixes / 9,513 rows** after several
+cycles — expect roughly a dozen stop-wait-resume rounds for a full term, not one run. Anyone writing
 "just run the scraper" into a runbook has not run it.
 
 ```powershell
 cd "$env:RAW_ROOT\schedule"     # it writes to the CURRENT directory
-python -m dallasai.pipeline.scrape_schedule --term Fall --year 2026 --force --resume --delay 2
+python -m dallasai.pipeline.scrape_schedule --term Fall --year 2026 --force --resume --delay 5
 ```
+
+**Use `--delay 5`** (the built-in default). Lower values make the WAF escalate sooner and
+the run stalls; at 5 it keeps going much further before needing a resume.
 
 `--output` defaults to `dallas_classes_{year}_{term}.csv` with **no directory component**,
 so run it from `raw\schedule\` or the file lands wherever you happened to be. Always pass
@@ -406,10 +409,10 @@ Invariants beyond having the columns:
 
 ### Fall 2026 — current status
 
-Fall 2026 acquisition is **in progress** — a partial CSV exists and the data is clean
-(16 columns matching Spring 2026, zero blanks in `class_name`, `credit_hours`,
-`location`, `syllabus_url`, `professor`, `meeting_info`; `syllabus_url` 100% Concourse).
-It is not yet at full prefix coverage — see the gate above.
+Fall 2026 acquisition is **in progress**. `dallas_classes_2026_Fall.csv` exists with
+**9,513 rows across 113 of 164 prefixes** — below the gate, so keep resuming. The data
+itself is clean: all rows `term_year = Fall 2026`, and **zero blanks** in `class_name`,
+`credit_hours`, `location`, `syllabus_url`, `professor` and `meeting_info`.
 
 Fall 2026 **is published**: registration opened 2026-03-02 and classes begin
 **2026-08-24** (8-week halves Aug 24 – Oct 15 and Oct 19 – Dec 10; measured once from a
