@@ -165,9 +165,10 @@ def compute(facts: dict, as_of: int) -> dict:
     dp = facts.get("derived_profile") or {}
     if dp.get("summary"):
         for tok in SUMMARY_TOKENS:
-            val = facts["computed"][tok]
-            if val is not None:
-                dp["summary"] = dp["summary"].replace("{{%s}}" % tok, str(val))
+            # A computed None means zero years. Skipping the substitution left a
+            # literal {{token}} in the text that gets embedded and quoted back.
+            val = facts["computed"].get(tok) or 0
+            dp["summary"] = dp["summary"].replace("{{%s}}" % tok, str(val))
     return facts
 
 
@@ -206,7 +207,12 @@ def course_titles(raw_root: Path) -> dict[str, str]:
     import csv
 
     titles: dict[str, str] = {}
-    for p in sorted((raw_root / "schedule").glob("*.csv")):
+    # Alphabetical order sorts Summer after Fall, so last-wins delivered the
+    # OLDEST title for a year. Sort by (year, season) instead.
+    season = {"Spring": 1, "Summer": 2, "Fall": 3}
+    for p in sorted((raw_root / "schedule").glob("*.csv"),
+                    key=lambda q: (q.stem.rsplit("_", 2)[-2],
+                                   season.get(q.stem.rsplit("_", 1)[-1], 0))):
         with open(p, encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f):
                 code = (

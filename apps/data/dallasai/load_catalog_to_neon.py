@@ -42,12 +42,11 @@ CATALOG_EXPECTED_COUNTS = {
 
 # A supplemental delivery is rows of ONE doc_type, named by --supplemental
 # (program_map is only the --supplemental-programs shorthand). Its expected
-# COUNT is
-# supplied by the operator with --expect, not hardcoded: the bug this mode
-# fixes was a hardcoded count rejecting a valid file, so baking in a second
-# number would make the mode work exactly once. Stating the expected count
-# still catches a truncated or double-written file, which is the protection
-# that matters.
+# COUNT is supplied by the operator with --expect, not hardcoded: the bug this
+# mode fixes was a hardcoded count rejecting a valid file, so baking in a
+# second number would make the mode work exactly once. Stating the expected
+# count still catches a truncated or double-written file, which is the
+# protection that matters.
 SUPPLEMENTAL_PROGRAM_DOC_TYPE = "program_map"
 
 # Required fields that every JSON row must contain.
@@ -445,21 +444,13 @@ def upsert_batch(
                 else_=table.c.facts,
             ),
 
-            "metadata": case(
-                (
-                    content_changed,
-                    excluded.metadata,
-                ),
-                else_=table.c.metadata,
-            ),
+            # NOT gated on content_changed. content_hash covers chunk_text,
+            # facts and compose-time metadata only -- it is computed before the
+            # embedding exists and before enrich/embed add their stamps. Gating
+            # these two on it discarded every re-embed while reporting success.
+            "metadata": excluded.metadata,
 
-            "embedding": case(
-                (
-                    content_changed,
-                    excluded.embedding,
-                ),
-                else_=table.c.embedding,
-            ),
+            "embedding": excluded.embedding,
 
             "content_hash": case(
                 (

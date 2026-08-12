@@ -333,7 +333,10 @@ class MarkdownConverter:
             parent_name = element.parent.name.lower() if element.parent else "ul"
             if parent_name == "ol":
                 siblings = [sib for sib in element.parent.children if sib.name == "li"]
-                idx = siblings.index(element) + 1 if element in siblings else 1
+                # identity, not equality: BeautifulSoup compares tags by
+                # value, so duplicate <li> markup reused an earlier ordinal
+                idx = next((n for n, s in enumerate(siblings, 1)
+                            if s is element), 1)
                 return f"{idx}. {child_markdown.strip()}\n"
             return f"- {child_markdown.strip()}\n"
 
@@ -345,13 +348,15 @@ class MarkdownConverter:
 
     def _convert_table_to_markdown(self, table_element) -> str:
         """Converts HTML <table> element into Markdown pipe table."""
-        rows = table_element.find_all("tr")
+        rows = [r for r in table_element.find_all("tr")
+                if r.find_parent("table") is table_element]
         if not rows:
             return ""
 
         markdown_rows = []
         for i, row in enumerate(rows):
-            cells = row.find_all(["th", "td"])
+            cells = [c for c in row.find_all(["th", "td"])
+                     if c.find_parent("table") is table_element]
             cell_texts = []
             for cell in cells:
                 text = " ".join(cell.get_text().split())

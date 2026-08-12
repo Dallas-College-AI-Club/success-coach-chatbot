@@ -354,6 +354,24 @@ class Archiver:
                 )
             time.sleep(self.delay)
             return
+        # Concourse answers HTTP 200 with its LOGIN page for documents we may
+        # not read. Archiving that stores an 8 KB form as if it were the
+        # syllabus: _is_fresh then skips it forever and extract_batch feeds it
+        # to the model. Record it as a distinct status and keep it off disk.
+        if b"<title>Login | Concourse" in body:
+            self.n_fail += 1
+            self._record(
+                {
+                    **meta,
+                    "source_url": url,
+                    "raw_path": None,
+                    "status": "login_page",
+                    "fetched_at": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+            print(f"  LOGIN PAGE (not archived) {url}", file=sys.stderr)
+            time.sleep(self.delay)
+            return
         # --- disk leg: retried locally, never trips the network breaker ------
         try:
             self._write_bytes(dest, body)

@@ -139,7 +139,10 @@ class HTMLCleaner:
         )
         for element in container.find_all(["h1", "h2", "h3", "h4", "div"]):
             text = element.get_text(strip=True)
-            if cutoff_pattern.search(text):
+            # match, not search: a div's text spans every descendant, so a body
+            # sentence mentioning "Institutional Policies" used to decompose the
+            # section and everything after it.
+            if cutoff_pattern.match(text):
                 parent_item = element.find_parent(class_=re.compile(r"syl-item"))
                 target_elem = parent_item if parent_item else element
                 siblings = list(target_elem.find_next_siblings())
