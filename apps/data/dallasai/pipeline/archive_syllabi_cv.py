@@ -163,7 +163,7 @@ def _term_code(term_year: str) -> str:
 
 
 _SESSION_RE = re.compile(
-    r"(Winter Term|Spring First 8 Week Session|Spring Second 8 Week Session|"
+    r"(Winter Term|(?:Spring|Summer|Fall|Winter) (?:First|Second) 8 Week Session|"
     r"Flex Term \w+|Summer Session I{1,2}|May Term|Night Classes)"
 )
 
