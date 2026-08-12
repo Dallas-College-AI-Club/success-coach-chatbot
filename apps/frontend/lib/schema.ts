@@ -78,6 +78,11 @@ export const knowledgeEntry = pgTable(
     // professor is display-only; instructor_slug is the stable join key
     professor: text("professor").generatedAlwaysAs(sql`metadata->>'professor'`),
     instructorSlug: text("instructor_slug").generatedAlwaysAs(sql`metadata->>'instructor_slug'`),
+    // squashed program name for indexable substring matching in
+    // get_program_requirements (issue #148)
+    programNameSquashed: text("program_name_squashed").generatedAlwaysAs(
+      sql`regexp_replace(lower(facts->>'name'), '[^a-z0-9]', '', 'g')`,
+    ),
     // keyword leg of hybrid search
     chunkTsv: tsvector("chunk_tsv").generatedAlwaysAs(sql`to_tsvector('english', chunk_text)`),
 
@@ -110,6 +115,7 @@ export const knowledgeEntry = pgTable(
     index("ix_ke_term").on(t.year, t.semester),
     index("ix_ke_instructor").on(t.instructorSlug),
     index("ix_ke_event_start").on(t.eventStartsAt).where(sql`doc_type = 'event'`),
+    index("ix_ke_program_name_squashed").using("gin", t.programNameSquashed.op("gin_trgm_ops")),
   ],
 );
 
