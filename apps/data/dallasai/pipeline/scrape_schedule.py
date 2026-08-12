@@ -115,7 +115,7 @@ from bs4 import BeautifulSoup, NavigableString
 # --------------------------------------------------------------------------- #
 
 BASE_URL = "https://schedule.dallascollege.edu"
-DEFAULT_TERM = "Summer"
+DEFAULT_TERM = "Fall"
 DEFAULT_DELAY = 5
 
 # A descriptive User-Agent (politeness + identifies the crawler).
