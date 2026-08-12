@@ -708,7 +708,12 @@ class Fetcher:
                         if r2 is not None:
                             status = r2.status
                     except Exception:
-                        pass
+                        # Best-effort nudge. The reload races the challenge's
+                        # own reload, so a timeout here is expected and not
+                        # informative: keep the previous status and let the
+                        # poll below decide. A genuine block still surfaces
+                        # as WafBlocked once max_wait is exhausted.
+                        log.debug("  nudge reload failed; continuing to poll")
                     nudged = True
                 page.wait_for_timeout(1000)
             html = safe_content()
