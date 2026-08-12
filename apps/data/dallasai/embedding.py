@@ -11,4 +11,4 @@ def get_model() -> SentenceTransformer:
 
 def embed(data: str) -> np.ndarray:
     model = get_model()
-    return model.encode(data, normalize_embeddings=True).numpy()
+    return model.encode(data, normalize_embeddings=True)  # type:ignore
