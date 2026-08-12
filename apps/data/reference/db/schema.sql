@@ -17,6 +17,7 @@
 -- ============================================================================
 
 CREATE EXTENSION IF NOT EXISTS vector;   -- pgvector (Neon ships 0.8+)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;  -- trigram GIN index for substring name matching
 
 -- Filtered vector search: let HNSW scans keep iterating until enough rows
 -- match the WHERE clause (pgvector 0.8+). Set once at database level because
@@ -124,6 +125,12 @@ CREATE TABLE knowledge_entry (
     professor       text GENERATED ALWAYS AS (metadata->>'professor') STORED,
     instructor_slug text GENERATED ALWAYS AS (metadata->>'instructor_slug') STORED,
 
+    -- squashed program name for indexable substring matching in
+    -- get_program_requirements (issue #148); same normalization the tool
+    -- applies to the student's input at query time
+    program_name_squashed text GENERATED ALWAYS AS
+                    (regexp_replace(lower(facts->>'name'), '[^a-z0-9]', '', 'g')) STORED,
+
     -- keyword leg of hybrid search
     chunk_tsv     tsvector GENERATED ALWAYS AS (to_tsvector('english', chunk_text)) STORED,
 
@@ -165,6 +172,8 @@ CREATE INDEX ix_ke_program    ON knowledge_entry (program_code, doc_type, catalo
 CREATE INDEX ix_ke_doc_mod    ON knowledge_entry (doc_type, module);
 CREATE INDEX ix_ke_term       ON knowledge_entry (year, semester);
 CREATE INDEX ix_ke_instructor ON knowledge_entry (instructor_slug);
+CREATE INDEX ix_ke_program_name_squashed ON knowledge_entry
+    USING gin (program_name_squashed gin_trgm_ops);
 CREATE INDEX ix_ke_event_start ON knowledge_entry (event_starts_at) WHERE doc_type = 'event';
 -- No index on content_hash: the ingest upsert probes (source_url, chunk_index).
 

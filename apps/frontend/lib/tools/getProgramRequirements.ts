@@ -260,7 +260,7 @@ export function createGetProgramRequirementsTool(): Tool<
                             and(
                                 ...tokens.map(({ raw, sq }) =>
                                     sq.length >= 3
-                                        ? sql`regexp_replace(lower(${name}), '[^a-z0-9]', '', 'g') LIKE ${`%${sq}%`}`
+                                        ? sql`${knowledgeEntry.programNameSquashed} LIKE ${`%${sq}%`}`
                                         : sql`lower(${name}) LIKE ${`%${raw}%`}`,
                                 ),
                             ),
