@@ -192,8 +192,11 @@ def _objectivity_flags(facts: dict, src: str) -> list[str]:
     for path, prose in _derived_prose(facts):
         low = prose.lower()
         for w in BANNED_ADJECTIVES:
-            if re.search(rf"\b{re.escape(w)}\b", low) and not _in_source(
-                w, src.lower()
+            # Word-boundary both sides. _in_source is a substring test for
+            # multi-word spans; against a single adjective it let "expertise"
+            # license "expert" and "compassionate" license "passionate".
+            if re.search(rf"\b{re.escape(w)}\b", low) and not re.search(
+                rf"\b{re.escape(w)}\b", src, re.IGNORECASE
             ):
                 flags.append(f"adjective-ban: {path}: {w!r}")
         for phrase in BANNED_COMPARISONS:

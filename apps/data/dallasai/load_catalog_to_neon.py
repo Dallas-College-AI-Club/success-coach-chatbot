@@ -289,7 +289,14 @@ def validate_dataset_counts(
     supplemental_doc_type: str | None = None,
     expected_supplemental_rows: int | None = None,
 ) -> None:
-    """Validate catalog, CV, or an approved supplemental delivery."""
+    """Validate catalog, CV, or an approved supplemental delivery.
+
+    A supplemental delivery is a single-doc_type batch whose expected row
+    count the operator states with --expect. It exists because the catalog
+    gate below accepts exactly one frozen snapshot, so any incremental
+    delivery -- a new term's sections, backfilled programs -- is otherwise
+    rejected before a row is written.
+    """
 
     actual_counts = dict(counts)
     doc_types = set(actual_counts)
@@ -449,21 +456,13 @@ def upsert_batch(
                 else_=table.c.facts,
             ),
 
-            "metadata": case(
-                (
-                    content_changed,
-                    excluded.metadata,
-                ),
-                else_=table.c.metadata,
-            ),
+            # NOT gated on content_changed. content_hash covers chunk_text,
+            # facts and compose-time metadata only -- it is computed before the
+            # embedding exists and before enrich/embed add their stamps. Gating
+            # these two on it discarded every re-embed while reporting success.
+            "metadata": excluded.metadata,
 
-            "embedding": case(
-                (
-                    content_changed,
-                    excluded.embedding,
-                ),
-                else_=table.c.embedding,
-            ),
+            "embedding": excluded.embedding,
 
             "content_hash": case(
                 (
@@ -766,6 +765,12 @@ def main() -> None:
     )
 
     parser.add_argument(
+        "--supplemental-programs",
+        action="store_true",
+        help="Shorthand for --supplemental program_map.",
+    )
+
+    parser.add_argument(
         "--expect",
         type=int,
         default=None,
@@ -853,8 +858,8 @@ def main() -> None:
 
     if not args.load:
         print(
-            "\nValidation only. "
-            "Neon was not modified.",
+            f"\nTarget: {describe_target()}"
+            "\nValidation only. Neon was not modified.",
             flush=True,
         )
         return

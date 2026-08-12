@@ -109,7 +109,7 @@ def compose_course(cf: dict, source_url: str, catalog_year: str) -> dict:
     cc = norm_course_code(cf.get("course_code", ""))
     meta = {"doc_type": "course", "module": "degree_planning", "course_code": cc,
             "subject": cc.split(" ")[0] if cc else None, "catalog_year": catalog_year}
-    text = (f"{cc} — {cf.get('title','')} ({cf.get('credit_hours','?')} cr). "
+    text = (f"{cc} — {cf.get('title') or ''} ({cf.get('credit_hours') or '?'} cr). "
             f"{cf.get('description','') or ''} "
             f"Prerequisites: {cf.get('requisites_raw') or 'none stated'}. "
             + ("Texas Common Course Number (generally transfers to Texas public universities - verify with the receiving school). "
@@ -122,8 +122,8 @@ def compose_program(pf: dict, source_url: str, catalog_year: str) -> dict:
             "program_code": (pf.get("program_code") or "").upper(),
             "catalog_year": catalog_year}
     groups = pf.get("groups", [])
-    text = (f"{pf.get('name','')} ({pf.get('award_type','')}), "
-            f"{pf.get('total_credits','?')} credit hours. Requirement groups: "
+    text = (f"{pf.get('name') or ''} ({pf.get('award_type') or 'award type not stated'}), "
+            f"{pf.get('total_credits') or '?'} credit hours. Requirement groups: "
             + "; ".join(g.get("name", "") for g in groups))
     return _row(f"{source_url}#{catalog_year}#facts", 0, text.strip(), pf, meta)
 

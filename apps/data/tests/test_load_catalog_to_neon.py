@@ -27,6 +27,16 @@ def test_accepts_exact_supplemental_program_delivery() -> None:
     )
 
 
+def test_accepts_exact_supplemental_section_delivery() -> None:
+    """A term delivery is the reason the mode is not program_map-only."""
+    validate_dataset_counts(
+        total_rows=12_872,
+        counts=Counter({"section": 12_872}),
+        supplemental_doc_type="section",
+        expected_supplemental_rows=12_872,
+    )
+
+
 @pytest.mark.parametrize("total_rows", [18, 20])
 def test_rejects_wrong_supplemental_program_count(
     total_rows: int,

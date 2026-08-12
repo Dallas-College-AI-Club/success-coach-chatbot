@@ -76,7 +76,7 @@ A long document produces several prose chunks plus one fact row.
 
 | Source | Gives us | How we read it |
 |---|---|---|
-| **Class schedule** (eConnect, `schedule.dallascollege.edu`) | every section: course, professor, meeting times, campus, dates, credits | exported as a CSV per term (the site itself is bot-walled; the CSV is produced by the team's exporter) |
+| **Class schedule** (`schedule.dallascollege.edu`) | every section: course, professor, meeting times, campus, dates, credits | **scraped** to a CSV per term by `pipeline/scrape_schedule.py`. Not an eConnect export — that name came from the page title. The host refuses automation (403 to self-identifying clients, WAF challenge otherwise), so see REPRODUCE.md §2 before running it |
 | **Syllabus pages** (Concourse / HB 2504, `campusconcourse.com`) | grading, policies, schedule, materials for each section | plain download (public, server-rendered HTML) |
 | **Instructor CV pages** (Concourse) | each professor's background | plain download |
 | **Course catalog** (Acalog, `catalog.dallascollege.edu`) | course descriptions, prerequisites, and full degree plans | **headless browser** (the catalog is behind a JavaScript challenge) |
@@ -306,9 +306,9 @@ cp .env.example .env          # then set EXTRACTOR / ANTHROPIC_API_KEY / DATABAS
 **Acquire raw files** (schedule CSVs go in `apps/data/raw/schedule/` first):
 
 ```bash
-python -m pipeline.run_archive_today                       # all terms present
-python -m pipeline.run_archive_today 2025_Fall 2025_Spring # only these terms
-python -m pipeline.run_archive_today 2026_Summer --refresh-before 2026-07-12T00:00:00
+python -m dallasai.pipeline.run_archive_today                       # all terms present
+python -m dallasai.pipeline.run_archive_today 2025_Fall 2025_Spring # only these terms
+python -m dallasai.pipeline.run_archive_today 2026_Summer --refresh-before 2026-07-12T00:00:00
 ```
 
 The acquirer is **safe to re-run**: files already downloaded are skipped, it retries transient
@@ -316,18 +316,24 @@ failures on its own, and if the site starts refusing it backs off and resumes ra
 hammering. `--refresh-before` re-downloads anything older than a given moment (to catch
 last-minute syllabus edits).
 
-**Parse, embed, and load** run per stage and are each idempotent — re-running with unchanged
-input costs nothing, and unchanged rows are never needlessly rewritten:
+**Extract, assemble, embed and load** run per stage. Extract is resumable (an existing
+envelope is skipped); assemble, embed and load are full re-runs, and the load skips rows
+whose `content_hash` is unchanged:
 
 ```bash
-python -m pipeline.extract --all-pending     # documents → facts + chunks (uses EXTRACTOR)
-python -m pipeline.embed   --pending          # chunks → vectors
-python -m pipeline.load                        # → knowledge_entry
+python -m dallasai.pipeline.extract_batch --raw-root "$RAW_ROOT" --doc-type course --out out/facts
+python -m dallasai.pipeline.assemble_delivery --raw-root "$RAW_ROOT" --facts out/facts --terms 2026SP --out out/delivery --fail-on-acceptance
+python -m dallasai.pipeline.carry_embeddings out/delivery/rows.json <previous>.embedded.json out/delivery/rows.carried.json
+python -m dallasai.pipeline.embed_rows --rows out/delivery/rows.carried.json --out out/delivery/rows.embedded.json
+python -m dallasai.load_catalog_to_neon out/delivery/rows.embedded.json --load --batch-size 100
 ```
 
-To re-extract everything after improving a prompt — on Claude or on a local model — just set
-`EXTRACTOR` and re-run `extract`; because the raw archive never changes, the knowledge base
-can always be rebuilt from scratch.
+**[`apps/data/REPRODUCE.md`](../apps/data/REPRODUCE.md) is the step-by-step runbook** — it
+covers each doc_type, the pilot-before-bulk rule, and the $0 local-model path. This section
+is an overview, not a substitute for it.
+
+To re-extract after improving a prompt — on Claude or on a local model — set `EXTRACTOR` and
+re-run; because the raw archive never changes, the knowledge base can always be rebuilt.
 
 ---
 

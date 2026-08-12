@@ -27,7 +27,12 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
-US_STATE = re.compile(r",\s*[A-Z]{2}\b")
+# Real postal codes only: a bare [A-Z]{2} read ", UK" / ", RO" / ", AT"
+# as US states and reported "United States" for London, Bucharest, Vienna.
+US_STATE = re.compile(
+    r",\s*(?:A[LKZR]|C[AOT]|D[EC]|FL|GA|HI|I[DLNA]|K[SY]|LA|M[EDAINSOT]|"
+    r"N[EVHJMYCD]|O[HKR]|PA|RI|S[CD]|T[NX]|UT|V[TA]|W[AVIY])\b"
+)
 US_STATE_NAMES = re.compile(
     r"\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|"
     r"Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|"
@@ -165,9 +170,10 @@ def compute(facts: dict, as_of: int) -> dict:
     dp = facts.get("derived_profile") or {}
     if dp.get("summary"):
         for tok in SUMMARY_TOKENS:
-            val = facts["computed"][tok]
-            if val is not None:
-                dp["summary"] = dp["summary"].replace("{{%s}}" % tok, str(val))
+            # A computed None means zero years. Skipping the substitution left a
+            # literal {{token}} in the text that gets embedded and quoted back.
+            val = facts["computed"].get(tok) or 0
+            dp["summary"] = dp["summary"].replace("{{%s}}" % tok, str(val))
     return facts
 
 
@@ -206,7 +212,12 @@ def course_titles(raw_root: Path) -> dict[str, str]:
     import csv
 
     titles: dict[str, str] = {}
-    for p in sorted((raw_root / "schedule").glob("*.csv")):
+    # Alphabetical order sorts Summer after Fall, so last-wins delivered the
+    # OLDEST title for a year. Sort by (year, season) instead.
+    season = {"Spring": 1, "Summer": 2, "Fall": 3}
+    for p in sorted((raw_root / "schedule").glob("*.csv"),
+                    key=lambda q: (q.stem.rsplit("_", 2)[-2],
+                                   season.get(q.stem.rsplit("_", 1)[-1], 0))):
         with open(p, encoding="utf-8-sig", newline="") as f:
             for row in csv.DictReader(f):
                 code = (

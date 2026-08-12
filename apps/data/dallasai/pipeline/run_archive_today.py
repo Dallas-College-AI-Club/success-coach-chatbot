@@ -22,14 +22,23 @@ MAX_BREAKER_TRIPS consecutive trips (logged, then on to the next step).
 from __future__ import annotations
 
 import argparse
+import os
 import time
 from pathlib import Path
 
-from apps.data.dallasai.pipeline import archive_syllabi_cv as A
+try:
+    from dallasai.pipeline import archive_syllabi_cv as A
+except ModuleNotFoundError:
+    from apps.data.dallasai.pipeline import archive_syllabi_cv as A
 
-# Raw corpus lives in apps/data/raw/ (gitignored, OneDrive-shared). Portable:
-# this file is apps/data/pipeline/run_archive_today.py, so parent.parent = apps/data.
-DATA = Path(__file__).resolve().parent.parent / "raw"
+# Raw corpus lives in apps/data/raw/ (gitignored, OneDrive-shared). This file is
+# apps/data/dallasai/pipeline/run_archive_today.py, so apps/data is three parents
+# up — not two. Prefer $RAW_ROOT when it is set, which is what every other stage
+# keys on.
+DATA = Path(
+    os.environ.get("RAW_ROOT")
+    or Path(__file__).resolve().parent.parent.parent / "raw"
+)
 SCHEDULE_DIR = DATA / "schedule"
 DELAY = "2"
 
