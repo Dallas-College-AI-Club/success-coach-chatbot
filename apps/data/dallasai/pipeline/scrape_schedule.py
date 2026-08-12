@@ -121,7 +121,8 @@ DEFAULT_DELAY = 5
 # A descriptive User-Agent (politeness + identifies the crawler).
 USER_AGENT = (
     "DallasCollegeScheduleScraper/1.0 "
-    "(student schedule project; contact: treysweeney@gmail.com) "
+    "(student project; "
+    "https://github.com/Dallas-College-AI-Club/success-coach-chatbot) "
     "python-requests"
 )
 
