@@ -185,20 +185,30 @@ def load_md_file(path: Path) -> Tuple[str, Dict[str, Any]]:
     return body, meta
 
 
+def find_dataset_files(input_dir: Path) -> List[Path]:
+    """Find all .md, .markdown, and .html files recursively in input_dir."""
+    if input_dir.is_file():
+        return [input_dir]
+    files: List[Path] = []
+    for p in input_dir.rglob("*"):
+        if p.is_file() and p.suffix.lower() in [".md", ".markdown", ".html"]:
+            if not any(part.startswith(".") for part in p.parts):
+                files.append(p)
+    return files
+
+
 def process_directory(input_dir: Path, output_dir: Path, load_db: bool = True) -> List[Dict[str, Any]]:
-    """Directory Pipeline Orchestrator (Processes files and generates deliverable rows.json)."""
+    """Directory Pipeline Orchestrator (Processes files recursively and generates deliverable rows.json)."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    md_files = list(input_dir.glob("*.md")) + list(input_dir.glob("*.markdown"))
-    html_files = list(input_dir.glob("*.html"))
-    files = md_files if md_files else html_files
+    files = find_dataset_files(input_dir)
     all_rows: List[Dict[str, Any]] = []
 
     print(f"\n=========================================================================")
-    print(f"Starting 5-Function Orchestrator: {len(files)} files -> {output_dir}")
+    print(f"Starting 5-Function Orchestrator: {len(files)} dataset files -> {output_dir}")
     print(f"Model: {MODEL_NAME} ({DIMS} dims) | Database Upsert: {load_db}")
     print(f"=========================================================================\n")
 
-    for f in files:
+    for idx, f in enumerate(files, start=1):
         if f.suffix.lower() in [".md", ".markdown"]:
             body, meta = load_md_file(f)
         else:
@@ -212,12 +222,15 @@ def process_directory(input_dir: Path, output_dir: Path, load_db: bool = True) -
 
         (output_dir / f"{f.stem}_payload.json").write_text(json.dumps(records, indent=2), encoding="utf-8")
 
+        if idx % 10 == 0 or idx == len(files):
+            print(f"Processed {idx}/{len(files)} files ({len(all_rows)} total chunk records)...")
+
     # Generate single deliverable rows.json for team handoff
     rows_json_path = output_dir / "rows.json"
     rows_json_path.write_text(json.dumps(all_rows, indent=2), encoding="utf-8")
 
     print(f"\n=========================================================================")
-    print(f"Ingestion Complete! Total {len(all_rows)} rows created.")
+    print(f"Ingestion Complete! Total {len(all_rows)} rows processed and upserted.")
     print(f"Deliverable output generated at: '{rows_json_path}'")
     print(f"=========================================================================\n")
     return all_rows
@@ -225,7 +238,7 @@ def process_directory(input_dir: Path, output_dir: Path, load_db: bool = True) -
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Simplified 5-Function Data Processing CLI (< 200 lines)")
-    parser.add_argument("-i", "--input", type=Path, default=SYS_DATA_DIR / "sample_data" / "syllabi", help="Input directory")
+    parser.add_argument("-i", "--input", type=Path, default=SYS_DATA_DIR / "sample_data", help="Input directory")
     parser.add_argument("-o", "--output", type=Path, default=SYS_DATA_DIR.parent.parent / ".tmp" / "deliverable_output", help="Output directory")
     parser.add_argument("--no-db", action="store_true", help="Run extraction & payload creation without uploading to Neon DB")
     return parser.parse_args()

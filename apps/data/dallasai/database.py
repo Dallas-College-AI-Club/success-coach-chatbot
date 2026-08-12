@@ -88,9 +88,11 @@ def get_database_url() -> str:
         pgdb = os.getenv("PGDATABASE", "chatbot_test")
         db_url = f"postgresql://{pguser}:{pgpass}@{pghost}:{pgport}/{pgdb}"
 
-    # Force the psycopg (v3) dialect — same rewrite as alembic/env.py; the
-    # project ships psycopg v3, not psycopg2 (SQLAlchemy's bare-URL default).
-    return db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    try:
+        import psycopg
+        return db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    except ImportError:
+        return db_url.replace("postgresql://", "postgresql+psycopg2://", 1)
 
 
 DATABASE_URL = get_database_url()
