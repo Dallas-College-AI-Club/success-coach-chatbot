@@ -40,13 +40,16 @@ CATALOG_EXPECTED_COUNTS = {
     "section": 16_181,
 }
 
-# A supplemental delivery is program_map rows only. Its expected COUNT is
+# A supplemental delivery is single-doc_type rows only (e.g. a term's worth
+# of section rows, or a batch of program_map rows). Its expected COUNT is
 # supplied by the operator with --expect, not hardcoded: the bug this mode
 # fixes was a hardcoded count rejecting a valid file, so baking in a second
 # number would make the mode work exactly once. Stating the expected count
 # still catches a truncated or double-written file, which is the protection
-# that matters.
-SUPPLEMENTAL_PROGRAM_DOC_TYPE = "program_map"
+# that matters. The doc_type itself must be one already known to the
+# catalog, so a typo in --supplemental fails loudly instead of silently
+# accepting an arbitrary string.
+SUPPLEMENTAL_DOC_TYPES = frozenset(CATALOG_EXPECTED_COUNTS)
 
 # Required fields that every JSON row must contain.
 REQUIRED_FIELDS = {
@@ -90,7 +93,7 @@ def parse_datetime(value: str | datetime) -> datetime:
 def load_rows(
     path: Path,
     *,
-    allow_supplemental_programs: bool = False,
+    supplemental_doc_type: str | None = None,
     expected_supplemental_rows: int | None = None,
 ) -> list[dict[str, Any]]:
     """Read and validate the complete JSON dataset."""
@@ -251,7 +254,7 @@ def load_rows(
     validate_dataset_counts(
         total_rows=len(rows),
         counts=counts,
-        allow_supplemental_programs=allow_supplemental_programs,
+        supplemental_doc_type=supplemental_doc_type,
         expected_supplemental_rows=expected_supplemental_rows,
     )
 
@@ -283,7 +286,7 @@ def validate_dataset_counts(
     total_rows: int,
     counts: Counter[str],
     *,
-    allow_supplemental_programs: bool = False,
+    supplemental_doc_type: str | None = None,
     expected_supplemental_rows: int | None = None,
 ) -> None:
     """Validate catalog, CV, or an approved supplemental delivery."""
@@ -291,7 +294,13 @@ def validate_dataset_counts(
     actual_counts = dict(counts)
     doc_types = set(actual_counts)
 
-    if allow_supplemental_programs:
+    if supplemental_doc_type is not None:
+        if supplemental_doc_type not in SUPPLEMENTAL_DOC_TYPES:
+            raise ValueError(
+                f"Unknown supplemental doc_type: {supplemental_doc_type!r}. "
+                f"Expected one of: {sorted(SUPPLEMENTAL_DOC_TYPES)}"
+            )
+
         if expected_supplemental_rows is None:
             raise ValueError(
                 "A supplemental delivery needs an expected row count "
@@ -299,16 +308,16 @@ def validate_dataset_counts(
             )
 
         expected = {
-            SUPPLEMENTAL_PROGRAM_DOC_TYPE: expected_supplemental_rows
+            supplemental_doc_type: expected_supplemental_rows
         }
 
         if (
-            doc_types != {SUPPLEMENTAL_PROGRAM_DOC_TYPE}
+            doc_types != {supplemental_doc_type}
             or total_rows != expected_supplemental_rows
             or actual_counts != expected
         ):
             raise ValueError(
-                "The supplemental program counts do not match "
+                "The supplemental counts do not match "
                 "the expected delivery.\n"
                 f"Expected: {expected}\n"
                 f"Found: {actual_counts}"
@@ -355,6 +364,8 @@ def validate_dataset_counts(
         "Expected either:\n"
         f"- Catalog: {CATALOG_EXPECTED_COUNTS}\n"
         "- CV: {'cv': number of CV rows}\n"
+        f"- Supplemental (one of {sorted(SUPPLEMENTAL_DOC_TYPES)}): "
+        "pass --supplemental <doc_type> --expect N\n"
         f"Found: {actual_counts}"
     )
 
@@ -743,10 +754,14 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "--supplemental-programs",
-        action="store_true",
+        "--supplemental",
+        dest="supplemental_doc_type",
+        choices=sorted(SUPPLEMENTAL_DOC_TYPES),
+        default=None,
         help=(
-            "Accept a program_map-only delivery. Requires --expect."
+            "Accept a single-doc_type delivery (e.g. a term's worth of "
+            "section rows, or a batch of program_map rows). Requires "
+            "--expect."
         ),
     )
 
@@ -794,30 +809,29 @@ def main() -> None:
     args = parser.parse_args()
 
     if (
-        args.supplemental_programs
+        args.supplemental_doc_type is not None
         and args.limit is not None
     ):
         parser.error(
-            "--limit cannot be used with "
-            "--supplemental-programs."
+            "--limit cannot be used with --supplemental."
         )
 
-    if args.supplemental_programs and args.expect is None:
+    if args.supplemental_doc_type is not None and args.expect is None:
         parser.error(
-            "--supplemental-programs requires --expect N "
+            "--supplemental requires --expect N "
             "(the number of rows the file should contain)."
         )
 
-    if args.expect is not None and not args.supplemental_programs:
+    if args.expect is not None and args.supplemental_doc_type is None:
         parser.error(
-            "--expect only applies to --supplemental-programs."
+            "--expect only applies to --supplemental."
         )
 
     if args.facts_only:
-        if args.limit is not None or args.supplemental_programs:
+        if args.limit is not None or args.supplemental_doc_type is not None:
             parser.error(
                 "--facts-only cannot be combined with --limit or "
-                "--supplemental-programs."
+                "--supplemental."
             )
         facts_rows = load_facts_only_rows(args.json_path)
         if not args.load:
@@ -833,9 +847,7 @@ def main() -> None:
 
     rows = load_rows(
         args.json_path,
-        allow_supplemental_programs=(
-            args.supplemental_programs
-        ),
+        supplemental_doc_type=args.supplemental_doc_type,
         expected_supplemental_rows=args.expect,
     )
 
