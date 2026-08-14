@@ -219,6 +219,8 @@ def generate_embeddings(
         vector_values = (
             embedder_func(chunk_text) if callable(embedder_func) else [0.0] * 768
         )
+        if hasattr(vector_values, "tolist"):
+            vector_values = vector_values.tolist()
         record["embedding"] = vector_values
         record["metadata"]["embedding_model"] = model_name
         record["metadata"]["embedding_dimensions"] = len(vector_values)
