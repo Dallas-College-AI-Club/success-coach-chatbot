@@ -101,6 +101,66 @@ def infer_doc_type(path_str: str, text: str) -> str:
     return "syllabus"
 
 
+def resolve_canonical_url(
+    source_url: str = "",
+    doc_type: str = "syllabus",
+    metadata: Optional[Dict[str, Any]] = None,
+    raw_html: str = "",
+    file_name: str = "",
+) -> str:
+    """Resolves local file paths or fallbacks to web-accessible Dallas College HTTPS URLs."""
+    meta = metadata or {}
+
+    if source_url and (source_url.startswith("http://") or source_url.startswith("https://")):
+        return source_url
+
+    meta_url = meta.get("source_url") or meta.get("canonical_url") or meta.get("url")
+    if meta_url and (str(meta_url).startswith("http://") or str(meta_url).startswith("https://")):
+        return str(meta_url)
+
+    if raw_html:
+        try:
+            soup = BeautifulSoup(raw_html[:4000], "html.parser")
+            canon = soup.find("link", attrs={"rel": re.compile(r"canonical", re.I)})
+            if canon and canon.get("href") and canon["href"].startswith("http"):
+                return canon["href"]
+            og_url = soup.find("meta", attrs={"property": re.compile(r"og:url", re.I)})
+            if og_url and og_url.get("content") and og_url["content"].startswith("http"):
+                return og_url["content"]
+        except Exception:
+            pass
+
+    stem = Path(source_url or file_name).stem if (source_url or file_name) else ""
+    numeric_id_match = re.search(r"(\d+)", stem)
+    numeric_id = numeric_id_match.group(1) if numeric_id_match else ""
+
+    if doc_type == "course":
+        coid = meta.get("coid") or numeric_id
+        if coid:
+            return f"https://catalog.dallascollege.edu/preview_course_nopop.php?catoid=5&coid={coid}"
+        return "https://catalog.dallascollege.edu"
+
+    if doc_type == "program_map":
+        poid = meta.get("poid") or numeric_id
+        if poid:
+            return f"https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid={poid}"
+        return "https://catalog.dallascollege.edu"
+
+    if doc_type == "syllabus":
+        concourse_id = meta.get("concourse_id") or numeric_id
+        if concourse_id and concourse_id != "UNKNOWN":
+            return f"https://concourse.dallascollege.edu/syllabus/view/{concourse_id}"
+        return "https://concourse.dallascollege.edu"
+
+    if doc_type == "cv":
+        cv_id = meta.get("cv_id") or numeric_id
+        if cv_id and cv_id != "UNKNOWN":
+            return f"https://concourse.dallascollege.edu/cv/view/{cv_id}"
+        return "https://concourse.dallascollege.edu"
+
+    return "https://www.dallascollege.edu"
+
+
 # FUNCTION 1: Preprocessing & HTML DOM Cleaning (Separated)
 def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[str, Any]]:
     """Function 1: Cleans HTML DOM and extracts Markdown & canonical metadata."""
@@ -115,7 +175,8 @@ def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[
     else:
         meta = conv.extract_metadata_from_html(soup_clean, clean_md, source_url=source_url)
 
-    meta.update({"doc_type": dt, "source_url": source_url or "file://document.html", "module": "degree_planning"})
+    canonical_url = resolve_canonical_url(source_url=source_url, doc_type=dt, metadata=meta, raw_html=raw_html)
+    meta.update({"doc_type": dt, "source_url": canonical_url, "module": "degree_planning"})
     return clean_md, meta
 
 
@@ -137,7 +198,8 @@ def extract_to_json_payload(
 ) -> List[Dict[str, Any]]:
     """Function 3: Combines chunks, metadata, and facts into canonical JSON payloads."""
     scraped_at = datetime.now(timezone.utc).isoformat()
-    src = meta.get("source_url") or f"file://{file_name}"
+    dt = meta.get("doc_type", "syllabus")
+    src = resolve_canonical_url(source_url=meta.get("source_url", ""), doc_type=dt, metadata=meta, file_name=file_name)
     recs: List[Dict[str, Any]] = []
 
     for idx, text in enumerate(chunks):
@@ -214,9 +276,14 @@ def load_md_file(path: Path) -> Tuple[str, Dict[str, Any]]:
     """Fast load pre-processed .md files (Separates preprocessing from extraction)."""
     raw = path.read_text(encoding="utf-8", errors="ignore")
     meta, body = parse_frontmatter(raw)
-    meta.setdefault("source_url", f"file://{path.name}")
-    if "doc_type" not in meta:
-        meta["doc_type"] = infer_doc_type(str(path), raw)
+    dt = meta.get("doc_type") or infer_doc_type(str(path), raw)
+    meta["doc_type"] = dt
+    meta["source_url"] = resolve_canonical_url(
+        source_url=meta.get("source_url", ""),
+        doc_type=dt,
+        metadata=meta,
+        file_name=path.name,
+    )
     meta.setdefault("module", "degree_planning")
     return body, meta
 
