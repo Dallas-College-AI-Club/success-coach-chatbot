@@ -216,6 +216,7 @@ export function createSearchKnowledgeTool(): Tool<
         return { found: true, results };
       } catch (error) {
         console.error(error);
+        return { found: false };
       }
     },
   });

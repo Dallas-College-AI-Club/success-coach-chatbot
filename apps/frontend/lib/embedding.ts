@@ -1,24 +1,10 @@
-import { FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
+// Server-only entry point for the local MiniLM embedder.
+//
+// The actual implementation lives in ./embedding-core so CLI tooling
+// (scripts/probe-search.mts) can import it under plain tsx without the
+// "server-only" package throwing on the react-server condition check.
+// Production code paths (chat route, tools) MUST import from here — the
+// guard turns any accidental client-component import into a build error.
+import "server-only";
 
-const globalExtractor = globalThis as unknown as {
-  __extractorPromise?: Promise<FeatureExtractionPipeline>;
-};
-
-async function getExtractor(): Promise<FeatureExtractionPipeline> {
-  if (!globalExtractor.__extractorPromise) {
-    globalExtractor.__extractorPromise = pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2",
-      {
-        dtype: "int8",
-      },
-    );
-  }
-  return globalExtractor.__extractorPromise;
-}
-
-export async function embedText(text: string): Promise<number[]> {
-  const extractor = await getExtractor();
-  const output = await extractor(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data);
-}
+export { embedText } from "./embedding-core";
