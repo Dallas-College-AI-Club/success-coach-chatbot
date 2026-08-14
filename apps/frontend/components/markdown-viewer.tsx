@@ -14,7 +14,7 @@ const MarkdownViewer = ({
   return (
     <div
       className={cn(
-        "prose prose-li:my-1 prose-p:my-0.5 prose-li:list-item prose-ul:flex prose-ul:flex-col prose-ul:my-1.5 prose-headings:my-0 overflow-x-auto",  
+        "prose prose-li:my-1 prose-p:my-0.5 prose-li:list-item prose-ul:flex prose-ul:flex-col prose-ul:my-1.5 prose-headings:my-0 prose-table:block prose-table:overflow-x-auto",  
         className,
       )}
     >
