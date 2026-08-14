@@ -7,18 +7,21 @@
 // the DB client (same rule as lib/tools/names.ts).
 
 /**
- * The embedding contract — with the vectors already in knowledge_entry,
- * written by apps/data/dallasai/pipeline/embed_rows.py with this model, at
- * this width, through this gateway. Deliberately not LLM_BASE_URL /
- * LLM_MODEL: the chat model is a choice, but a query vector from a different
- * embedding model is not cosine-comparable with the stored ones — ranking
- * degrades to noise with no error. Changing any of these three means
- * re-embedding the corpus first.
+ * The embedding contract. The vectors in knowledge_entry are written by
+ * apps/data/dallasai/pipeline/embed_rows.py using
+ * `sentence-transformers/all-MiniLM-L6-v2` (Python, full-float). Query
+ * vectors at request time come from apps/frontend/lib/embedding.ts using
+ * `Xenova/all-MiniLM-L6-v2` (Node.js, int8 ONNX) — same weights, different
+ * runtime. Cosine similarity between the two runtimes is stable to ~0.98
+ * despite the int8 quantization drift.
+ *
+ * Deliberately not LLM_BASE_URL / LLM_MODEL: the chat model is a choice,
+ * but a query vector from a different embedding model is not cosine-
+ * comparable with the stored ones — ranking degrades to noise with no
+ * error. Changing this width means re-embedding the corpus first.
  */
-export const EMBED_BASE_URL = "https://openrouter.ai/api/v1";
-export const EMBED_MODEL = "openai/text-embedding-3-small";
-/** Must equal the halfvec width in lib/schema.ts and in the Alembic DDL. */
-export const EMBED_DIMS = 768;
+/** Must equal the halfvec width in lib/schema.ts and in the DB DDL. */
+export const EMBED_DIMS = 384;
 
 /**
  * Dallas College's zone: every "today" the tools resolve is Dallas local
