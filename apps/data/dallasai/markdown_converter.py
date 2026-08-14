@@ -137,8 +137,16 @@ class MarkdownConverter:
                 campus_locations = next_sib.get_text().strip()
 
         doc_id = Path(source_url).stem if source_url else ""
+        numeric_id = re.search(r"(\d+)", doc_id).group(1) if re.search(r"(\d+)", doc_id) else ""
+        if source_url and (source_url.startswith("http://") or source_url.startswith("https://")):
+            canon_url = source_url
+        elif numeric_id:
+            canon_url = f"https://catalog.dallascollege.edu/preview_course_nopop.php?catoid=5&coid={numeric_id}"
+        else:
+            canon_url = "https://catalog.dallascollege.edu"
+
         return {
-            "source_url": source_url or f"catalog_course:{doc_id}.html",
+            "source_url": canon_url,
             "extracted_date": datetime.datetime.now().isoformat(),
             "document_type": "course",
             "course_code": course_code,
@@ -270,7 +278,11 @@ class MarkdownConverter:
             doc_id = Path(source_url.split("?")[0]).stem
         else:
             doc_id = Path(source_url).stem if source_url else ""
-            local_ref = f"local_file:{doc_id}.html" if doc_id else (source_url or "local_file:unknown.html")
+            numeric_id = re.search(r"(\d+)", doc_id).group(1) if re.search(r"(\d+)", doc_id) else ""
+            if numeric_id:
+                local_ref = f"https://concourse.dallascollege.edu/syllabus/view/{numeric_id}"
+            else:
+                local_ref = "https://concourse.dallascollege.edu"
 
         return {
             "source_url": local_ref,
