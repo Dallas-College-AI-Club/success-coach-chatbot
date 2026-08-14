@@ -99,7 +99,7 @@ export const PROGRAMS: Program[] = [
   { code: "3200", label: "Commercial Electrical Technology Occupational Skills Award" },
   { code: "2827", label: "Computed Tomography Advanced Technical Certificate" },
   { code: "3010", label: "Computer Engineering (A.S. transfer → UTD)" },
-  { code: "3011", label: "Computer Science (A.S. transfer → UTD)" },
+  { code: "3011", label: "Associate of Science Degree in Computer Science (Richland/UTD)" },
   { code: "3013", label: "Computer-Aided Design and Drafting A.A.S." },
   { code: "2924", label: "Construction Management A.A.S." },
   { code: "2925", label: "Construction Technology A.A.S." },
