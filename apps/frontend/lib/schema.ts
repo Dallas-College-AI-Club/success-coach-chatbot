@@ -19,8 +19,19 @@
  */
 import { sql } from "drizzle-orm";
 import {
-  pgTable, bigint, integer, smallint, text, timestamp,
-  jsonb, uuid, halfvec, customType, index, unique, check,
+  bigint,
+  check,
+  customType,
+  halfvec,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  unique,
+  uuid,
 } from "drizzle-orm/pg-core";
 
 // Drizzle has no native tsvector type; generated + never written by TS code.
@@ -38,13 +49,17 @@ const tsvector = customType<{ data: string }>({
 export const knowledgeEntry = pgTable(
   "knowledge_entry",
   {
-    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    id: bigint("id", { mode: "number" })
+      .generatedAlwaysAsIdentity()
+      .primaryKey(),
 
     // provenance / citation / idempotent ingest ------------------------------
     sourceUrl: text("source_url").notNull(), // citation URL or pseudo-URI (#facts, #<catalog_year>, …)
     chunkIndex: integer("chunk_index").notNull().default(0),
     contentHash: text("content_hash").notNull(), // deliberately NON-unique
-    scrapedAt: timestamp("scraped_at", { withTimezone: true }).notNull().defaultNow(),
+    scrapedAt: timestamp("scraped_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
 
     // payload -----------------------------------------------------------------
     chunkText: text("chunk_text").notNull(),
@@ -56,7 +71,7 @@ export const knowledgeEntry = pgTable(
       .default(sql`'{}'::jsonb`),
     // 768 dims frozen project-wide: must match the embedding model used by BOTH
     // the Python pipeline (ingest) and the Next.js API route (queries).
-    embedding: halfvec("embedding", { dimensions: 768 }).notNull(),
+    embedding: halfvec("embedding", { dimensions: 384 }).notNull(),
 
     // promoted filter surface (GENERATED from metadata ⇒ cannot drift) ---------
     docType: text("doc_type").generatedAlwaysAs(sql`metadata->>'doc_type'`),
@@ -65,30 +80,48 @@ export const knowledgeEntry = pgTable(
     courseCode: text("course_code").generatedAlwaysAs(
       sql`upper(trim(regexp_replace(regexp_replace(metadata->>'course_code', '([A-Za-z])([0-9])', '\\1 \\2'), '[^A-Za-z0-9]+', ' ', 'g')))`,
     ),
-    programCode: text("program_code").generatedAlwaysAs(sql`upper(metadata->>'program_code')`),
-    year: integer("year").generatedAlwaysAs(sql`((metadata->>'year'))::integer`),
-    semester: text("semester").generatedAlwaysAs(sql`lower(metadata->>'semester')`),
+    programCode: text("program_code").generatedAlwaysAs(
+      sql`upper(metadata->>'program_code')`,
+    ),
+    year: integer("year").generatedAlwaysAs(
+      sql`((metadata->>'year'))::integer`,
+    ),
+    semester: text("semester").generatedAlwaysAs(
+      sql`lower(metadata->>'semester')`,
+    ),
     termOrd: smallint("term_ord").generatedAlwaysAs(
       sql`(((metadata->>'year'))::integer * 10 + CASE lower(metadata->>'semester') WHEN 'spring' THEN 1 WHEN 'may' THEN 2 WHEN 'summer' THEN 3 WHEN 'fall' THEN 4 WHEN 'winter' THEN 5 END)::smallint`,
     ),
-    catalogYear: text("catalog_year").generatedAlwaysAs(sql`metadata->>'catalog_year'`),
-    eventStartsAt: timestamp("event_starts_at", { withTimezone: true }).generatedAlwaysAs(
+    catalogYear: text("catalog_year").generatedAlwaysAs(
+      sql`metadata->>'catalog_year'`,
+    ),
+    eventStartsAt: timestamp("event_starts_at", {
+      withTimezone: true,
+    }).generatedAlwaysAs(
       sql`to_timestamp((metadata->>'event_start_epoch')::bigint)`,
     ),
     // professor is display-only; instructor_slug is the stable join key
     professor: text("professor").generatedAlwaysAs(sql`metadata->>'professor'`),
-    instructorSlug: text("instructor_slug").generatedAlwaysAs(sql`metadata->>'instructor_slug'`),
+    instructorSlug: text("instructor_slug").generatedAlwaysAs(
+      sql`metadata->>'instructor_slug'`,
+    ),
     // squashed program name for indexable substring matching in
     // get_program_requirements (issue #148)
     programNameSquashed: text("program_name_squashed").generatedAlwaysAs(
       sql`regexp_replace(lower(facts->>'name'), '[^a-z0-9]', '', 'g')`,
     ),
     // keyword leg of hybrid search
-    chunkTsv: tsvector("chunk_tsv").generatedAlwaysAs(sql`to_tsvector('english', chunk_text)`),
+    chunkTsv: tsvector("chunk_tsv").generatedAlwaysAs(
+      sql`to_tsvector('english', chunk_text)`,
+    ),
 
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     // bumped only when content_hash changes; scraped_at bumps on every verification
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
   },
   (t) => [
     unique("uq_knowledge_entry_source_chunk").on(t.sourceUrl, t.chunkIndex),
@@ -114,8 +147,13 @@ export const knowledgeEntry = pgTable(
     index("ix_ke_doc_mod").on(t.docType, t.module),
     index("ix_ke_term").on(t.year, t.semester),
     index("ix_ke_instructor").on(t.instructorSlug),
-    index("ix_ke_event_start").on(t.eventStartsAt).where(sql`doc_type = 'event'`),
-    index("ix_ke_program_name_squashed").using("gin", t.programNameSquashed.op("gin_trgm_ops")),
+    index("ix_ke_event_start")
+      .on(t.eventStartsAt)
+      .where(sql`doc_type = 'event'`),
+    index("ix_ke_program_name_squashed").using(
+      "gin",
+      t.programNameSquashed.op("gin_trgm_ops"),
+    ),
   ],
 );
 
@@ -153,8 +191,12 @@ export const chatSession = pgTable(
     messageCount: integer("message_count")
       .generatedAlwaysAs(sql`jsonb_array_length(history)`)
       .notNull(),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
     archivedAt: timestamp("archived_at", { withTimezone: true }), // set by the weekly archive job
   },
   (t) => [
@@ -168,7 +210,9 @@ export const chatSession = pgTable(
     check("ck_cs_history_cap", sql`jsonb_array_length(history) <= 200`),
 
     index("ix_cs_student").on(t.studentId),
-    index("ix_cs_archive").on(t.updatedAt).where(sql`archived_at IS NULL`),
+    index("ix_cs_archive")
+      .on(t.updatedAt)
+      .where(sql`archived_at IS NULL`),
   ],
 );
 
