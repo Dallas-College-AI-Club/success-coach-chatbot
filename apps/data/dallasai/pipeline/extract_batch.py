@@ -34,6 +34,10 @@ from collections import Counter
 from pathlib import Path
 from typing import Iterator, Optional
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from .extract import (
     extract,
     extract_manual,

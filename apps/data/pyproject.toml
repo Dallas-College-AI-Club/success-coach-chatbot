@@ -7,7 +7,7 @@ requires-python = ">=3.13"
 dependencies = [
   "alembic>=1.18.5",
   "pgvector>=0.5.0",
-  "psycopg>=3.3.4",
+  "psycopg[binary]>=3.3.4",
   "python-dotenv>=1.2.2",
   "sqlalchemy>=2.0.51",
   "requests>=2.31",       # scrapers (pipeline/archive_syllabi_cv.py)
@@ -22,6 +22,7 @@ dependencies = [
   "jsonschema>=4.21",     # facts-schema validation (extract + verifiers)
   "sentence-transformers>=5.7.0",
   "numpy>=2.5.1",
+  "html-to-markdown>=3.10.6",
 ]
 
 [dependency-groups]

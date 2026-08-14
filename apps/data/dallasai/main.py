@@ -20,14 +20,14 @@ Usage (Run from project root):
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 import time
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+from dallasai.embedding import embed
 
 # Auto-inject apps/data directory into Python path
 SYS_DATA_DIR = Path(__file__).resolve().parent.parent
@@ -40,8 +40,8 @@ from dotenv import load_dotenv
 load_dotenv(SYS_DATA_DIR / ".env")
 
 from bs4 import BeautifulSoup
+
 from dallasai.markdown_converter import MarkdownConverter
-from dallasai.pipeline.html_cleaner import HTMLCleaner
 from dallasai.semantic_chunker import SemanticChunker
 
 
@@ -65,7 +65,7 @@ def parse_markdown_frontmatter(markdown_text: str) -> Tuple[Dict[str, Any], str]
 
     metadata: Dict[str, Any] = {}
     frontmatter_raw = match.group(1)
-    body_md = markdown_text[match.end():]
+    body_md = markdown_text[match.end() :]
 
     for line in frontmatter_raw.splitlines():
         if ":" not in line:
@@ -91,14 +91,16 @@ def parse_markdown_frontmatter(markdown_text: str) -> Tuple[Dict[str, Any], str]
     return metadata, body_md
 
 
-def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str = "Processing") -> None:
+def _render_ascii_bar(
+    current: int, total: int, start_time: float, prefix: str = "Processing"
+) -> None:
     """Renders an ASCII progress bar with live speed (doc/s) and ETA."""
     pct = int((current / total) * 100) if total > 0 else 100
     bar = "█" * (pct // 5) + "░" * (20 - (pct // 5))
     elapsed = max(time.time() - start_time, 0.001)
     speed = current / elapsed
     eta_seconds = int((total - current) / speed) if speed > 0 else 0
-    
+
     elapsed_str = f"{int(elapsed // 60):02d}:{int(elapsed % 60):02d}"
     eta_str = f"{int(eta_seconds // 60):02d}:{int(eta_seconds % 60):02d}"
     sys.stdout.write(
@@ -107,12 +109,16 @@ def _render_ascii_bar(current: int, total: int, start_time: float, prefix: str =
     sys.stdout.flush()
 
 
-def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[str, Any]]:
+def preprocess_document(
+    raw_html: str, source_url: str = ""
+) -> Tuple[str, Dict[str, Any]]:
     """Function 1: Cleans HTML DOM and extracts Markdown & metadata (Issue #90)."""
     converter = MarkdownConverter()
-    clean_md, clean_html = converter.clean_html_and_markdown(raw_html, source_url=source_url)
+    clean_md, clean_html = converter.clean_html_and_markdown(
+        raw_html, source_url=source_url
+    )
     soup = BeautifulSoup(clean_html, "html.parser")
-    
+
     raw_soup = BeautifulSoup(raw_html, "html.parser")
     is_catalog_course = (
         raw_soup.find(id="course_preview_title") is not None
@@ -122,17 +128,23 @@ def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[
     )
 
     if is_catalog_course:
-        metadata = converter.extract_catalog_course_metadata(raw_soup, source_url=source_url)
+        metadata = converter.extract_catalog_course_metadata(
+            raw_soup, source_url=source_url
+        )
         metadata["doc_type"] = "course"
     else:
-        metadata = converter.extract_metadata_from_html(soup, clean_md, source_url=source_url)
+        metadata = converter.extract_metadata_from_html(
+            soup, clean_md, source_url=source_url
+        )
         metadata["doc_type"] = metadata.get("document_type", "syllabus")
 
     return clean_md, metadata
 
 
 # FUNCTION 2: Semantic Markdown Chunking
-def chunk_markdown(clean_md: str, chunk_size: int = 800, chunk_overlap: int = 100) -> List[str]:
+def chunk_markdown(
+    clean_md: str, chunk_size: int = 800, chunk_overlap: int = 100
+) -> List[str]:
     """Function 2: Breaks Clean Markdown into semantically meaningful section chunks."""
     if not clean_md.strip():
         return []
@@ -147,7 +159,7 @@ def extract_to_json_payload(
     chunks: List[str],
     metadata: Dict[str, Any],
     facts: Optional[Dict[str, Any]] = None,
-    document_text: str = ""
+    document_text: str = "",
 ) -> List[Dict[str, Any]]:
     """Function 3: Combines chunks, metadata, and facts into Issue #61 JSON payloads with SHA-256 hashes."""
     from dallasai.pipeline.extract import extract
@@ -158,7 +170,11 @@ def extract_to_json_payload(
         if document_text and doc_type in ["syllabus", "course", "program_map", "cv"]:
             try:
                 result = extract(doc_type, document_text, context=metadata)
-                facts = result.data if result.status in ["ok", "needs_review"] and result.data else {}
+                facts = (
+                    result.data
+                    if result.status in ["ok", "needs_review"] and result.data
+                    else {}
+                )
             except (Exception, SystemExit) as e:
                 print(f"   [warn] extraction unavailable ({type(e).__name__}): {e}")
                 facts = {}
@@ -179,7 +195,7 @@ def extract_to_json_payload(
             "chunk_text": chunk_text,
             "metadata": metadata,
             "facts": facts,
-            "embedding": []
+            "embedding": [],
         }
         records.append(record)
     return records
@@ -188,11 +204,11 @@ def extract_to_json_payload(
 # FUNCTION 4: Pluggable Vector Embedding Generator
 def generate_embeddings(
     records: List[Dict[str, Any]],
-    embedder_func: Optional[Any] = None,
-    model_name: str = "local-768"
+    embedder_func: Optional[Any] = embed,
+    model_name: str = "local-768",
 ) -> List[Dict[str, Any]]:
     """Function 4: Populates 768-dim float vector list into record['embedding'].
-    
+
     Output format matches upstream embed_rows.py (branch 99):
       record['embedding'] = [float, float, ...]  (flat list, 768 dims)
       record['metadata']['embedding_model'] = model_name
@@ -200,7 +216,9 @@ def generate_embeddings(
     """
     for record in records:
         chunk_text = record.get("chunk_text", "")
-        vector_values = embedder_func(chunk_text) if callable(embedder_func) else [0.0] * 768
+        vector_values = (
+            embedder_func(chunk_text) if callable(embedder_func) else [0.0] * 768
+        )
         record["embedding"] = vector_values
         record["metadata"]["embedding_model"] = model_name
         record["metadata"]["embedding_dimensions"] = len(vector_values)
@@ -209,8 +227,7 @@ def generate_embeddings(
 
 # FUNCTION 5: Schema Validation Gate & Database Upsert
 def validate_and_upsert_payload(
-    records: List[Dict[str, Any]],
-    db_session: Optional[Any] = None
+    records: List[Dict[str, Any]], db_session: Optional[Any] = None
 ) -> Dict[str, Any]:
     """Function 5: Schema validation gate & Neon PostgreSQL database upserts."""
     from dallasai.pipeline.extract import validate
@@ -236,10 +253,8 @@ def validate_and_upsert_payload(
     if validated_records:
         try:
             from dallasai.load_catalog_to_neon import load_into_neon
-            load_into_neon(
-                rows=validated_records,
-                batch_size=100
-            )
+
+            load_into_neon(rows=validated_records, batch_size=100)
             upserted = len(validated_records)
         except Exception as err:
             print(f"⚠️ Function 5 Upsert Note: {err}")
@@ -248,7 +263,7 @@ def validate_and_upsert_payload(
         "status": "ok" if not quarantined_records else "partial_quarantine",
         "validated_count": len(validated_records),
         "quarantined_count": len(quarantined_records),
-        "upserted_count": upserted
+        "upserted_count": upserted,
     }
 
 
@@ -261,13 +276,11 @@ def _read_and_clean_single_file(file_path: Path) -> Optional[Dict[str, Any]]:
             metadata.setdefault("source_url", f"file://{file_path.name}")
             metadata["doc_type"] = metadata.get("document_type", "syllabus")
         else:
-            clean_md, metadata = preprocess_document(raw_text, source_url=str(file_path))
-            
-        return {
-            "file_path": file_path,
-            "clean_md": clean_md,
-            "metadata": metadata
-        }
+            clean_md, metadata = preprocess_document(
+                raw_text, source_url=str(file_path)
+            )
+
+        return {"file_path": file_path, "clean_md": clean_md, "metadata": metadata}
     except Exception:
         return None
 
@@ -278,32 +291,39 @@ def process_document(file_path: Path) -> List[Dict[str, Any]]:
     if not res:
         return []
     chunks = chunk_markdown(res["clean_md"])
-    records = extract_to_json_payload(res["file_path"].name, chunks, res["metadata"], document_text=res["clean_md"])
+    records = extract_to_json_payload(
+        res["file_path"].name, chunks, res["metadata"], document_text=res["clean_md"]
+    )
     records = generate_embeddings(records)
     _ = validate_and_upsert_payload(records)
     return records
 
 
-def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start_stage: int = 2) -> List[Path]:
+def process_directory(
+    input_dir: Path, output_dir: Path, workers: int = 1, start_stage: int = 2
+) -> List[Path]:
     """DIRECTORY PIPELINE ORCHESTRATOR (5 STAGES WITH INDIVIDUAL PROGRESS BARS)"""
     if not input_dir.exists():
         raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Gather Markdown (.md) or HTML (.html) files
     input_files = list(input_dir.glob("*.md")) + list(input_dir.glob("*.markdown"))
     if not input_files:
         input_files = list(input_dir.glob("*.html"))
-        
+
     total_files = len(input_files)
-    
-    print(f"\n=========================================================================")
-    print(f"🚀 Starting 5-Function Ingestion Engine: {total_files} files (Stage {start_stage} ➔ 5)")
-    print(f"=========================================================================\n")
+
+    print("\n=========================================================================")
+    print(
+        f"🚀 Starting 5-Function Ingestion Engine: {total_files} files (Stage {start_stage} ➔ 5)"
+    )
+    print("=========================================================================\n")
 
     try:
         from tqdm import tqdm
+
         has_tqdm = True
     except ImportError:
         has_tqdm = False
@@ -313,7 +333,11 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     if start_stage <= 1:
         print("Stage 1/5 🧹 Function 1: Preprocessing & HTML Cleaning")
         stage1_start = time.time()
-        file_iterator = tqdm(input_files, desc="Function 1 (Preprocessing)", unit="doc") if has_tqdm else input_files
+        file_iterator = (
+            tqdm(input_files, desc="Function 1 (Preprocessing)", unit="doc")
+            if has_tqdm
+            else input_files
+        )
         for idx, file_path in enumerate(file_iterator, start=1):
             res = _read_and_clean_single_file(file_path)
             if res:
@@ -323,9 +347,15 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         if not has_tqdm and total_files > 0:
             print()
     else:
-        print("Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown! (Fast disk load)")
+        print(
+            "Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown! (Fast disk load)"
+        )
         stage1_start = time.time()
-        file_iterator = tqdm(input_files, desc="Fast Loading (.md Files)", unit="doc") if has_tqdm else input_files
+        file_iterator = (
+            tqdm(input_files, desc="Fast Loading (.md Files)", unit="doc")
+            if has_tqdm
+            else input_files
+        )
         for idx, file_path in enumerate(file_iterator, start=1):
             try:
                 raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
@@ -333,11 +363,9 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
                 metadata.setdefault("source_url", f"file://{file_path.name}")
                 metadata["doc_type"] = metadata.get("document_type", "syllabus")
 
-                clean_docs.append({
-                    "file_path": file_path,
-                    "clean_md": clean_md,
-                    "metadata": metadata
-                })
+                clean_docs.append(
+                    {"file_path": file_path, "clean_md": clean_md, "metadata": metadata}
+                )
             except Exception:
                 pass
             if not has_tqdm:
@@ -349,7 +377,11 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     print("\nStage 2/5 ✂️  Function 2: Semantic Markdown Chunking")
     file_docs = []
     stage2_start = time.time()
-    chunk_iterator = tqdm(clean_docs, desc="Function 2 (Chunking)", unit="doc") if has_tqdm else clean_docs
+    chunk_iterator = (
+        tqdm(clean_docs, desc="Function 2 (Chunking)", unit="doc")
+        if has_tqdm
+        else clean_docs
+    )
     for idx, doc in enumerate(chunk_iterator, start=1):
         chunks = chunk_markdown(doc["clean_md"])
         doc["chunks"] = chunks
@@ -363,10 +395,17 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     print("\nStage 3/5 📄 Function 3: JSON Payload Extraction")
     extracted_doc_records = []
     stage3_start = time.time()
-    extract_iterator = tqdm(file_docs, desc="Function 3 (Payloads)", unit="doc") if has_tqdm else file_docs
+    extract_iterator = (
+        tqdm(file_docs, desc="Function 3 (Payloads)", unit="doc")
+        if has_tqdm
+        else file_docs
+    )
     for idx, doc in enumerate(extract_iterator, start=1):
         records = extract_to_json_payload(
-            doc["file_path"].name, doc["chunks"], doc["metadata"], document_text=doc["clean_md"]
+            doc["file_path"].name,
+            doc["chunks"],
+            doc["metadata"],
+            document_text=doc["clean_md"],
         )
         extracted_doc_records.append((doc["file_path"], records))
         if not has_tqdm:
@@ -378,12 +417,18 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     print("\nStage 4/5 🧠 Function 4: Pluggable 768-dim Vector Embeddings")
     embedded_doc_records = []
     stage4_start = time.time()
-    embed_iterator = tqdm(extracted_doc_records, desc="Function 4 (Embedding)", unit="doc") if has_tqdm else extracted_doc_records
+    embed_iterator = (
+        tqdm(extracted_doc_records, desc="Function 4 (Embedding)", unit="doc")
+        if has_tqdm
+        else extracted_doc_records
+    )
     for idx, (file_path, records) in enumerate(embed_iterator, start=1):
         records = generate_embeddings(records)
         embedded_doc_records.append((file_path, records))
         if not has_tqdm:
-            _render_ascii_bar(idx, len(extracted_doc_records), stage4_start, "Embedding")
+            _render_ascii_bar(
+                idx, len(extracted_doc_records), stage4_start, "Embedding"
+            )
     if not has_tqdm and extracted_doc_records:
         print()
 
@@ -392,7 +437,11 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
     generated_json_files = []
     total_validated = total_quarantined = total_upserted = 0
     stage5_start = time.time()
-    valid_iterator = tqdm(embedded_doc_records, desc="Function 5 (Validating)", unit="doc") if has_tqdm else embedded_doc_records
+    valid_iterator = (
+        tqdm(embedded_doc_records, desc="Function 5 (Validating)", unit="doc")
+        if has_tqdm
+        else embedded_doc_records
+    )
     for idx, (file_path, records) in enumerate(valid_iterator, start=1):
         gate = validate_and_upsert_payload(records)
         total_validated += gate["validated_count"]
@@ -402,14 +451,20 @@ def process_directory(input_dir: Path, output_dir: Path, workers: int = 1, start
         output_file.write_text(json.dumps(records, indent=2), encoding="utf-8")
         generated_json_files.append(output_file)
         if not has_tqdm:
-            _render_ascii_bar(idx, len(embedded_doc_records), stage5_start, "Validating")
+            _render_ascii_bar(
+                idx, len(embedded_doc_records), stage5_start, "Validating"
+            )
     if not has_tqdm and embedded_doc_records:
         print()
 
-    print(f"\n=========================================================================")
-    print(f"✅ 5-Stage Ingestion Complete! Created {len(generated_json_files)} JSON payloads in: '{output_dir}'.")
-    print(f"   Gate: {total_validated} validated · {total_quarantined} quarantined · {total_upserted} upserted to Neon")
-    print(f"=========================================================================\n")
+    print("\n=========================================================================")
+    print(
+        f"✅ 5-Stage Ingestion Complete! Created {len(generated_json_files)} JSON payloads in: '{output_dir}'."
+    )
+    print(
+        f"   Gate: {total_validated} validated · {total_quarantined} quarantined · {total_upserted} upserted to Neon"
+    )
+    print("=========================================================================\n")
     return generated_json_files
 
 
@@ -417,30 +472,47 @@ def parse_args() -> argparse.Namespace:
     """CLI flags parser."""
     parser = argparse.ArgumentParser(description="5-Function Data Processing CLI")
     parser.add_argument(
-        "-i", "--input", type=Path, required=False,
+        "-i",
+        "--input",
+        type=Path,
+        required=False,
         default=Path(__file__).resolve().parent.parent / "sample_data" / "syllabi",
-        help="Path to directory containing input Markdown or HTML files."
+        help="Path to directory containing input Markdown or HTML files.",
     )
     parser.add_argument(
-        "-o", "--output", type=Path, required=False,
-        default=Path(__file__).resolve().parent.parent.parent.parent / ".tmp" / "chunk_ready",
-        help="Path to temporary output staging directory."
+        "-o",
+        "--output",
+        type=Path,
+        required=False,
+        default=Path(__file__).resolve().parent.parent.parent.parent
+        / ".tmp"
+        / "chunk_ready",
+        help="Path to temporary output staging directory.",
     )
     parser.add_argument(
-        "-w", "--workers", type=int, required=False,
+        "-w",
+        "--workers",
+        type=int,
+        required=False,
         default=1,
-        help="Number of CPU worker processes (default: 1)."
+        help="Number of CPU worker processes (default: 1).",
     )
     parser.add_argument(
-        "-s", "--stage", type=int, choices=[1, 2, 3, 4, 5], default=2,
-        help="Select starting pipeline stage (1: Preprocess HTML/MD, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate & Upsert)."
+        "-s",
+        "--stage",
+        type=int,
+        choices=[1, 2, 3, 4, 5],
+        default=2,
+        help="Select starting pipeline stage (1: Preprocess HTML/MD, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate & Upsert).",
     )
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    process_directory(args.input, args.output, workers=args.workers, start_stage=args.stage)
+    process_directory(
+        args.input, args.output, workers=args.workers, start_stage=args.stage
+    )
 
 
 if __name__ == "__main__":
