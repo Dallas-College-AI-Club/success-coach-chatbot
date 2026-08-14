@@ -12,10 +12,13 @@ import Link from "next/link";
 import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 
 import MarkdownViewer from "@/components/markdown-viewer";
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { ChatBackdrop } from "@/features/chat/backdrops";
+import { studentProfile, type StudentProfile } from "@/features/chat/profile";
+import {
+  useSavedCourses,
+  type SavedCourse,
+} from "@/features/chat/saved-courses";
 import { SEED_ID, seedMessages } from "@/features/chat/seed";
 import { starterPromptsFor } from "@/features/onboarding/handoff-copy";
 import {
@@ -32,13 +35,10 @@ import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot"
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
-import { studentProfile, type StudentProfile } from "@/features/chat/profile";
+import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { citationHref, citationLabel } from "@/lib/constants";
-import {
-  GET_COURSE_INFO_TOOL_NAME,
-  TOOL_LABELS,
-} from "@/lib/tools/names";
-import { useSavedCourses, type SavedCourse } from "@/features/chat/saved-courses";
+import { GET_COURSE_INFO_TOOL_NAME, TOOL_LABELS } from "@/lib/tools/names";
+import { cn } from "@/lib/utils";
 
 // A get_course_info result the student can keep for their printable sheet.
 // Reads the fields straight off the tool output — real catalog data, never
@@ -64,7 +64,13 @@ function toSavedCourse(name: string, output: unknown): SavedCourse | null {
   };
 }
 
-function SaveCourseButton({ course, cls }: { course: SavedCourse; cls: string }) {
+function SaveCourseButton({
+  course,
+  cls,
+}: {
+  course: SavedCourse;
+  cls: string;
+}) {
   const saved = useSavedCourses((s) =>
     s.courses.some((c) => c.course_code === course.course_code),
   );
@@ -193,9 +199,15 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
               ].filter((u): u is string => !!u),
             ),
           );
-          const savedCourse = finished && !failed ? toSavedCourse(getToolName(part), part.output) : null;
+          const savedCourse =
+            finished && !failed
+              ? toSavedCourse(getToolName(part), part.output)
+              : null;
           return (
-            <span key={i} className="flex flex-wrap items-center gap-1.5 self-start">
+            <span
+              key={i}
+              className="flex flex-wrap items-center gap-1.5 self-start"
+            >
               <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
                 <span aria-hidden className={skin.chipCheck}>
                   {failed ? "!" : finished ? "✓" : "⋯"}
@@ -342,7 +354,9 @@ function Conversation({
             {/* Show the message only when it's one of our own mapped strings —
                 equality against the shared allowlist, never reflected text. */}
             <p className={skin.helper}>
-              {SAFE_CHAT_ERRORS.has(error.message) ? error.message : GENERIC_CHAT_ERROR}
+              {SAFE_CHAT_ERRORS.has(error.message)
+                ? error.message
+                : GENERIC_CHAT_ERROR}
             </p>
             <Button
               variant="ghost"
@@ -433,6 +447,14 @@ export function ChatScreen() {
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
   const session = useSavedSession();
+
+  const mountedRef = useRef(false);
+  const clearCourses = useSavedCourses((state) => state.clear);
+  useEffect(() => {
+    if (mountedRef.current) return;
+    mountedRef.current = true;
+    clearCourses();
+  }, [clearCourses]);
 
   // The saved look is derived from the store; `pickedId` only covers a switch
   // before any session exists (a cold visit that never onboarded).
