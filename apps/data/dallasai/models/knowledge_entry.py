@@ -69,7 +69,7 @@ class KnowledgeEntry(Base):
     )
 
     embedding: Mapped[list[float]] = mapped_column(
-        HALFVEC(768),
+        HALFVEC(384),
         nullable=False,
     )
 
