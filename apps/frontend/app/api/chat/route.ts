@@ -169,7 +169,9 @@ export async function POST(req: Request) {
     // profile — a stale client never loses its chat over a catalog refresh.
     const parsedProfile = studentProfileSchema.safeParse(body.profile);
     if (!parsedProfile.success && body.profile !== undefined) {
-      console.warn("[API Chat Route]: profile rejected; continuing without it.");
+      console.warn(
+        "[API Chat Route]: profile rejected; continuing without it.",
+      );
     }
     const profileBlock = parsedProfile.success
       ? profilePromptBlock(parsedProfile.data)
@@ -275,7 +277,6 @@ export async function POST(req: Request) {
         return GENERIC_CHAT_ERROR;
       },
     });
-    
   } catch (error: unknown) {
     console.error("[API Chat Route Error]:", error);
     return Response.json({ error: GENERIC_CHAT_ERROR }, { status: 500 });

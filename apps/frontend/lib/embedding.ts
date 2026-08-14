@@ -1,8 +1,4 @@
-import {
-  DataArray,
-  FeatureExtractionPipeline,
-  pipeline,
-} from "@huggingface/transformers";
+import { FeatureExtractionPipeline, pipeline } from "@huggingface/transformers";
 
 const globalExtractor = globalThis as unknown as {
   __extractorPromise?: Promise<FeatureExtractionPipeline>;
@@ -21,8 +17,8 @@ async function getExtractor(): Promise<FeatureExtractionPipeline> {
   return globalExtractor.__extractorPromise;
 }
 
-export async function embedText(text: string): Promise<DataArray> {
+export async function embedText(text: string): Promise<number[]> {
   const extractor = await getExtractor();
   const output = await extractor(text, { pooling: "mean", normalize: true });
-  return output.data;
+  return Array.from(output.data);
 }

@@ -69,7 +69,7 @@ class KnowledgeEntry(Base):
     )
 
     embedding: Mapped[list[float]] = mapped_column(
-        HALFVEC(768),
+        HALFVEC(384),
         nullable=False,
     )
 
@@ -145,6 +145,14 @@ class KnowledgeEntry(Base):
     instructor_slug: Mapped[str | None] = mapped_column(
         Text,
         Computed("metadata->>'instructor_slug'", persisted=True),
+    )
+
+    program_name_squashed: Mapped[str | None] = mapped_column(
+        Text,
+        Computed(
+            "regexp_replace(lower(facts->>'name'), '[^a-z0-9]', '', 'g')",
+            persisted=True,
+        ),
     )
 
     chunk_tsv = mapped_column(
@@ -236,5 +244,11 @@ class KnowledgeEntry(Base):
             "ix_ke_event_start",
             "event_starts_at",
             postgresql_where=text("doc_type = 'event'"),
+        ),
+        Index(
+            "ix_ke_program_name_squashed",
+            "program_name_squashed",
+            postgresql_using="gin",
+            postgresql_ops={"program_name_squashed": "gin_trgm_ops"},
         ),
     )

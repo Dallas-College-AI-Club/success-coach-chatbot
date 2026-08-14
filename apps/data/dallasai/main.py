@@ -26,12 +26,23 @@ import hashlib
 import json
 import re
 import sys
+<<<<<<< HEAD
+=======
+import time
+>>>>>>> upstream/main
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+<<<<<<< HEAD
 MAIN_DIR = Path(__file__).resolve().parent
 SYS_DATA_DIR = MAIN_DIR.parent / "apps" / "data" if MAIN_DIR.name == ".tmp" else MAIN_DIR.parent
+=======
+from dallasai.embedding import embed
+
+# Auto-inject apps/data directory into Python path
+SYS_DATA_DIR = Path(__file__).resolve().parent.parent
+>>>>>>> upstream/main
 if str(SYS_DATA_DIR) not in sys.path:
     sys.path.insert(0, str(SYS_DATA_DIR))
 if str(MAIN_DIR) not in sys.path:
@@ -41,7 +52,6 @@ from dotenv import load_dotenv
 load_dotenv(SYS_DATA_DIR / ".env")
 
 from bs4 import BeautifulSoup
-
 try:
     if MAIN_DIR.name == ".tmp" and (MAIN_DIR / "embedding.py").exists():
         import embedding
@@ -181,7 +191,13 @@ def preprocess_document(raw_html: str, source_url: str = "") -> Tuple[str, Dict[
 
 
 # FUNCTION 2: Semantic Markdown Chunking
+<<<<<<< HEAD
 def chunk_markdown(clean_md: str, size: int = 800, overlap: int = 100) -> List[str]:
+=======
+def chunk_markdown(
+    clean_md: str, chunk_size: int = 800, chunk_overlap: int = 100
+) -> List[str]:
+>>>>>>> upstream/main
     """Function 2: Breaks Clean Markdown into semantically meaningful section chunks."""
     if not clean_md.strip():
         return []
@@ -193,10 +209,38 @@ def chunk_markdown(clean_md: str, size: int = 800, overlap: int = 100) -> List[s
 def extract_to_json_payload(
     file_name: str,
     chunks: List[str],
+<<<<<<< HEAD
     meta: Dict[str, Any],
     facts: Optional[Dict[str, Any]] = None
 ) -> List[Dict[str, Any]]:
     """Function 3: Combines chunks, metadata, and facts into canonical JSON payloads."""
+=======
+    metadata: Dict[str, Any],
+    facts: Optional[Dict[str, Any]] = None,
+    document_text: str = "",
+) -> List[Dict[str, Any]]:
+    """Function 3: Combines chunks, metadata, and facts into Issue #61 JSON payloads with SHA-256 hashes."""
+    from dallasai.pipeline.extract import extract
+
+    doc_type = metadata.get("doc_type", "syllabus")
+
+    if facts is None:
+        if document_text and doc_type in ["syllabus", "course", "program_map", "cv"]:
+            try:
+                result = extract(doc_type, document_text, context=metadata)
+                facts = (
+                    result.data
+                    if result.status in ["ok", "needs_review"] and result.data
+                    else {}
+                )
+            except (Exception, SystemExit) as e:
+                print(f"   [warn] extraction unavailable ({type(e).__name__}): {e}")
+                facts = {}
+
+    # Empty facts must FAIL the Function 5 gate — never fabricate a fallback (issue #128).
+    facts = facts or {}
+
+>>>>>>> upstream/main
     scraped_at = datetime.now(timezone.utc).isoformat()
     dt = meta.get("doc_type", "syllabus")
     src = resolve_canonical_url(source_url=meta.get("source_url", ""), doc_type=dt, metadata=meta, file_name=file_name)
@@ -210,6 +254,7 @@ def extract_to_json_payload(
             "chunk_index": idx,
             "content_hash": h,
             "scraped_at": scraped_at,
+<<<<<<< HEAD
             "chunk_text": text,
             "metadata": meta,
             "facts": facts or {},
@@ -241,11 +286,49 @@ def generate_embeddings(records: List[Dict[str, Any]], embedder: Optional[Any] =
         r["embedding"] = vec_list
         r["metadata"]["embedding_model"] = MODEL_NAME
         r["metadata"]["embedding_dimensions"] = DIMS
+=======
+            "chunk_text": chunk_text,
+            "metadata": metadata,
+            "facts": facts,
+            "embedding": [],
+        }
+        records.append(record)
+    return records
+
+
+# FUNCTION 4: Pluggable Vector Embedding Generator
+def generate_embeddings(
+    records: List[Dict[str, Any]],
+    embedder_func: Optional[Any] = embed,
+    model_name: str = "local-768",
+) -> List[Dict[str, Any]]:
+    """Function 4: Populates 768-dim float vector list into record['embedding'].
+
+    Output format matches upstream embed_rows.py (branch 99):
+      record['embedding'] = [float, float, ...]  (flat list, 768 dims)
+      record['metadata']['embedding_model'] = model_name
+      record['metadata']['embedding_dimensions'] = 768
+    """
+    for record in records:
+        chunk_text = record.get("chunk_text", "")
+        vector_values = (
+            embedder_func(chunk_text) if callable(embedder_func) else [0.0] * 768
+        )
+        record["embedding"] = vector_values
+        record["metadata"]["embedding_model"] = model_name
+        record["metadata"]["embedding_dimensions"] = len(vector_values)
+>>>>>>> upstream/main
     return records
 
 
 # FUNCTION 5: Schema Validation Gate & Database Upsert
+<<<<<<< HEAD
 def validate_and_upsert_payload(records: List[Dict[str, Any]], load_to_db: bool = True) -> Dict[str, Any]:
+=======
+def validate_and_upsert_payload(
+    records: List[Dict[str, Any]], db_session: Optional[Any] = None
+) -> Dict[str, Any]:
+>>>>>>> upstream/main
     """Function 5: Schema validation gate & Neon PostgreSQL database upserts."""
     valid, quant = [], []
     for r in records:
@@ -259,12 +342,19 @@ def validate_and_upsert_payload(records: List[Dict[str, Any]], load_to_db: bool 
     if valid and load_to_db:
         try:
             from dallasai.load_catalog_to_neon import load_into_neon
+<<<<<<< HEAD
             load_into_neon(rows=valid, batch_size=100)
             upserted = len(valid)
+=======
+
+            load_into_neon(rows=validated_records, batch_size=100)
+            upserted = len(validated_records)
+>>>>>>> upstream/main
         except Exception as err:
             print(f"Function 5 Upsert Note: {err}")
 
     return {
+<<<<<<< HEAD
         "status": "ok" if not quant else "partial_quarantine",
         "validated_count": len(valid),
         "quarantined_count": len(quant),
@@ -344,12 +434,265 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("-i", "--input", type=Path, default=SYS_DATA_DIR / "sample_data", help="Input directory")
     parser.add_argument("-o", "--output", type=Path, default=SYS_DATA_DIR.parent.parent / ".tmp" / "deliverable_output", help="Output directory")
     parser.add_argument("--no-db", action="store_true", help="Run extraction & payload creation without uploading to Neon DB")
+=======
+        "status": "ok" if not quarantined_records else "partial_quarantine",
+        "validated_count": len(validated_records),
+        "quarantined_count": len(quarantined_records),
+        "upserted_count": upserted,
+    }
+
+
+def _read_and_clean_single_file(file_path: Path) -> Optional[Dict[str, Any]]:
+    """Function 1: Preprocesses document into clean Markdown and metadata."""
+    try:
+        raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+        if file_path.suffix.lower() in [".md", ".markdown"]:
+            metadata, clean_md = parse_markdown_frontmatter(raw_text)
+            metadata.setdefault("source_url", f"file://{file_path.name}")
+            metadata["doc_type"] = metadata.get("document_type", "syllabus")
+        else:
+            clean_md, metadata = preprocess_document(
+                raw_text, source_url=str(file_path)
+            )
+
+        return {"file_path": file_path, "clean_md": clean_md, "metadata": metadata}
+    except Exception:
+        return None
+
+
+def process_document(file_path: Path) -> List[Dict[str, Any]]:
+    """Single document pipeline execution across 5 functions."""
+    res = _read_and_clean_single_file(file_path)
+    if not res:
+        return []
+    chunks = chunk_markdown(res["clean_md"])
+    records = extract_to_json_payload(
+        res["file_path"].name, chunks, res["metadata"], document_text=res["clean_md"]
+    )
+    records = generate_embeddings(records)
+    _ = validate_and_upsert_payload(records)
+    return records
+
+
+def process_directory(
+    input_dir: Path, output_dir: Path, workers: int = 1, start_stage: int = 2
+) -> List[Path]:
+    """DIRECTORY PIPELINE ORCHESTRATOR (5 STAGES WITH INDIVIDUAL PROGRESS BARS)"""
+    if not input_dir.exists():
+        raise FileNotFoundError(f"Input directory does not exist: {input_dir}")
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Gather Markdown (.md) or HTML (.html) files
+    input_files = list(input_dir.glob("*.md")) + list(input_dir.glob("*.markdown"))
+    if not input_files:
+        input_files = list(input_dir.glob("*.html"))
+
+    total_files = len(input_files)
+
+    print("\n=========================================================================")
+    print(
+        f"🚀 Starting 5-Function Ingestion Engine: {total_files} files (Stage {start_stage} ➔ 5)"
+    )
+    print("=========================================================================\n")
+
+    try:
+        from tqdm import tqdm
+
+        has_tqdm = True
+    except ImportError:
+        has_tqdm = False
+
+    # STAGE 1: Function 1 - Preprocessing (HTML -> Markdown)
+    clean_docs = []
+    if start_stage <= 1:
+        print("Stage 1/5 🧹 Function 1: Preprocessing & HTML Cleaning")
+        stage1_start = time.time()
+        file_iterator = (
+            tqdm(input_files, desc="Function 1 (Preprocessing)", unit="doc")
+            if has_tqdm
+            else input_files
+        )
+        for idx, file_path in enumerate(file_iterator, start=1):
+            res = _read_and_clean_single_file(file_path)
+            if res:
+                clean_docs.append(res)
+            if not has_tqdm:
+                _render_ascii_bar(idx, total_files, stage1_start, "Preprocessing")
+        if not has_tqdm and total_files > 0:
+            print()
+    else:
+        print(
+            "Stage 1/5 ⏩ Function 1 Skipped: Input files are pre-converted Markdown! (Fast disk load)"
+        )
+        stage1_start = time.time()
+        file_iterator = (
+            tqdm(input_files, desc="Fast Loading (.md Files)", unit="doc")
+            if has_tqdm
+            else input_files
+        )
+        for idx, file_path in enumerate(file_iterator, start=1):
+            try:
+                raw_text = file_path.read_text(encoding="utf-8", errors="ignore")
+                metadata, clean_md = parse_markdown_frontmatter(raw_text)
+                metadata.setdefault("source_url", f"file://{file_path.name}")
+                metadata["doc_type"] = metadata.get("document_type", "syllabus")
+
+                clean_docs.append(
+                    {"file_path": file_path, "clean_md": clean_md, "metadata": metadata}
+                )
+            except Exception:
+                pass
+            if not has_tqdm:
+                _render_ascii_bar(idx, total_files, stage1_start, "Fast Loading .md")
+        if not has_tqdm and total_files > 0:
+            print()
+
+    # STAGE 2: Function 2 - Semantic Markdown Chunking
+    print("\nStage 2/5 ✂️  Function 2: Semantic Markdown Chunking")
+    file_docs = []
+    stage2_start = time.time()
+    chunk_iterator = (
+        tqdm(clean_docs, desc="Function 2 (Chunking)", unit="doc")
+        if has_tqdm
+        else clean_docs
+    )
+    for idx, doc in enumerate(chunk_iterator, start=1):
+        chunks = chunk_markdown(doc["clean_md"])
+        doc["chunks"] = chunks
+        file_docs.append(doc)
+        if not has_tqdm:
+            _render_ascii_bar(idx, len(clean_docs), stage2_start, "Chunking")
+    if not has_tqdm and clean_docs:
+        print()
+
+    # STAGE 3: Function 3 - JSON Payload Extraction
+    print("\nStage 3/5 📄 Function 3: JSON Payload Extraction")
+    extracted_doc_records = []
+    stage3_start = time.time()
+    extract_iterator = (
+        tqdm(file_docs, desc="Function 3 (Payloads)", unit="doc")
+        if has_tqdm
+        else file_docs
+    )
+    for idx, doc in enumerate(extract_iterator, start=1):
+        records = extract_to_json_payload(
+            doc["file_path"].name,
+            doc["chunks"],
+            doc["metadata"],
+            document_text=doc["clean_md"],
+        )
+        extracted_doc_records.append((doc["file_path"], records))
+        if not has_tqdm:
+            _render_ascii_bar(idx, len(file_docs), stage3_start, "Payloads")
+    if not has_tqdm and file_docs:
+        print()
+
+    # STAGE 4: Function 4 - Vector Embeddings
+    print("\nStage 4/5 🧠 Function 4: Pluggable 768-dim Vector Embeddings")
+    embedded_doc_records = []
+    stage4_start = time.time()
+    embed_iterator = (
+        tqdm(extracted_doc_records, desc="Function 4 (Embedding)", unit="doc")
+        if has_tqdm
+        else extracted_doc_records
+    )
+    for idx, (file_path, records) in enumerate(embed_iterator, start=1):
+        records = generate_embeddings(records)
+        embedded_doc_records.append((file_path, records))
+        if not has_tqdm:
+            _render_ascii_bar(
+                idx, len(extracted_doc_records), stage4_start, "Embedding"
+            )
+    if not has_tqdm and extracted_doc_records:
+        print()
+
+    # STAGE 5: Function 5 - Validation Gate & Output Persistence
+    print("\nStage 5/5 ✅ Function 5: Schema Validation Gate & Staging Output")
+    generated_json_files = []
+    total_validated = total_quarantined = total_upserted = 0
+    stage5_start = time.time()
+    valid_iterator = (
+        tqdm(embedded_doc_records, desc="Function 5 (Validating)", unit="doc")
+        if has_tqdm
+        else embedded_doc_records
+    )
+    for idx, (file_path, records) in enumerate(valid_iterator, start=1):
+        gate = validate_and_upsert_payload(records)
+        total_validated += gate["validated_count"]
+        total_quarantined += gate["quarantined_count"]
+        total_upserted += gate["upserted_count"]
+        output_file = output_dir / f"{file_path.stem}_payload.json"
+        output_file.write_text(json.dumps(records, indent=2), encoding="utf-8")
+        generated_json_files.append(output_file)
+        if not has_tqdm:
+            _render_ascii_bar(
+                idx, len(embedded_doc_records), stage5_start, "Validating"
+            )
+    if not has_tqdm and embedded_doc_records:
+        print()
+
+    print("\n=========================================================================")
+    print(
+        f"✅ 5-Stage Ingestion Complete! Created {len(generated_json_files)} JSON payloads in: '{output_dir}'."
+    )
+    print(
+        f"   Gate: {total_validated} validated · {total_quarantined} quarantined · {total_upserted} upserted to Neon"
+    )
+    print("=========================================================================\n")
+    return generated_json_files
+
+
+def parse_args() -> argparse.Namespace:
+    """CLI flags parser."""
+    parser = argparse.ArgumentParser(description="5-Function Data Processing CLI")
+    parser.add_argument(
+        "-i",
+        "--input",
+        type=Path,
+        required=False,
+        default=Path(__file__).resolve().parent.parent / "sample_data" / "syllabi",
+        help="Path to directory containing input Markdown or HTML files.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=Path,
+        required=False,
+        default=Path(__file__).resolve().parent.parent.parent.parent
+        / ".tmp"
+        / "chunk_ready",
+        help="Path to temporary output staging directory.",
+    )
+    parser.add_argument(
+        "-w",
+        "--workers",
+        type=int,
+        required=False,
+        default=1,
+        help="Number of CPU worker processes (default: 1).",
+    )
+    parser.add_argument(
+        "-s",
+        "--stage",
+        type=int,
+        choices=[1, 2, 3, 4, 5],
+        default=2,
+        help="Select starting pipeline stage (1: Preprocess HTML/MD, 2: Chunk Markdown [default], 3: Extract Payload, 4: Embed, 5: Validate & Upsert).",
+    )
+>>>>>>> upstream/main
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
+<<<<<<< HEAD
     process_directory(args.input, args.output, load_db=not args.no_db)
+=======
+    process_directory(
+        args.input, args.output, workers=args.workers, start_stage=args.stage
+    )
+>>>>>>> upstream/main
 
 
 if __name__ == "__main__":
