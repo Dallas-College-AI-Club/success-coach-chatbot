@@ -10,6 +10,11 @@ Description:
     engine creation, session management, DDL table initialization, and status
     checking for the data ingestion pipeline.
 
+    Strict Dependency & Driver Policy:
+    Always uses 'postgresql+psycopg://' (psycopg v3). Does NOT fall back to
+    psycopg2 or bare driver URLs. If psycopg v3 is missing, instructs the
+    developer to run 'uv sync' in apps/data.
+
 Usage:
     - Initialize tables:
       python3 apps/data/dallasai/database.py --init
@@ -60,6 +65,8 @@ def get_database_url() -> str:
         3. NEON_DATABASE_URL
         4. Root .env fallback lookup
         5. Individual PG* environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE)
+
+    Enforces psycopg v3 ('postgresql+psycopg://') dialect exclusively.
     """
     db_url = (
         os.getenv("DATABASE_URL_UNPOOLED")
@@ -88,17 +95,27 @@ def get_database_url() -> str:
         pgdb = os.getenv("PGDATABASE", "chatbot_test")
         db_url = f"postgresql://{pguser}:{pgpass}@{pghost}:{pgport}/{pgdb}"
 
-    # Force the psycopg (v3) dialect — same rewrite as alembic/env.py; the
-    # project ships psycopg v3, not psycopg2 (SQLAlchemy's bare-URL default).
-    return db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    # Force the psycopg (v3) dialect strictly — no fallback to psycopg2.
+    if db_url.startswith("postgresql://"):
+        return db_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return db_url
 
 
 DATABASE_URL = get_database_url()
 
-engine: Engine = create_engine(
-    DATABASE_URL,
-    pool_pre_ping=True,
-)
+try:
+    engine: Engine = create_engine(
+        DATABASE_URL,
+        pool_pre_ping=True,
+    )
+except ModuleNotFoundError as err:
+    if "psycopg" in str(err):
+        raise ModuleNotFoundError(
+            "psycopg (v3) is required for PostgreSQL connections, but it is not installed. "
+            "Please run 'uv sync' in the 'apps/data' directory to install required dependencies."
+        ) from err
+    raise err
+
 
 SessionLocal = sessionmaker(
     bind=engine,
