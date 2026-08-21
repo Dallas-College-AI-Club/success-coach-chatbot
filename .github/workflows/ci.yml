@@ -47,3 +47,6 @@ jobs:
       - name: Course-code normalization guard
         if: hashFiles('apps/frontend/scripts/check-course-code-normalization.mts') != ''
         run: npx tsx scripts/check-course-code-normalization.mts
+      - name: Sheet question filter guard
+        if: hashFiles('apps/frontend/scripts/check-sheet-question-filter.mts') != ''
+        run: npx tsx scripts/check-sheet-question-filter.mts

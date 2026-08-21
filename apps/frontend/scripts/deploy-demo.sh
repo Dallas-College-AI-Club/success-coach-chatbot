@@ -49,15 +49,17 @@ npx vercel env add DATABASE_URL production || true
 
 echo
 echo "==> 5/6  Deploying to production"
-npx vercel --prod
+# vercel prints the deployment URL as its last stdout line.
+DEPLOY_URL=$(npx vercel --prod | tail -1)
+echo "    deployed: ${DEPLOY_URL}"
 
 echo
 echo "==> 6/6  Claiming the short alias"
-if npx vercel alias set "$(npx vercel inspect --json 2>/dev/null | node -pe 'JSON.parse(require("fs").readFileSync(0,"utf8")).url' 2>/dev/null || echo "")" "${ALIAS}.vercel.app" 2>/dev/null; then
+if npx vercel alias set "$DEPLOY_URL" "${ALIAS}.vercel.app"; then
   echo "    https://${ALIAS}.vercel.app"
 else
-  echo "    Alias step needs the deployment URL from above. Run manually:"
-  echo "      npx vercel alias set <deployment-url> ${ALIAS}.vercel.app"
+  echo "    Alias failed — run manually:"
+  echo "      npx vercel alias set ${DEPLOY_URL} ${ALIAS}.vercel.app"
 fi
 
 echo

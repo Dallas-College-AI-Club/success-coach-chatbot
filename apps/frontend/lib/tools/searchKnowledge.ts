@@ -13,6 +13,7 @@ import { jsonSchema } from "ai";
 import { cosineDistance, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
+import { SEARCHABLE_DOC_TYPES } from "@/lib/constants";
 import { knowledgeEntry } from "@/lib/schema";
 
 import { embedText } from "@/lib/embedding";
@@ -58,13 +59,16 @@ export interface SearchKnowledgeHit {
   text: string;
   /** Provenance for the model's citation. */
   source_url: string;
-  /** 'course' | 'program_map' — tells the model which point-read to call next. */
+  /** 'course' | 'program_map' | 'resource' — tells the model which
+   *  point-read to call next (resource hits have none; their text is the
+   *  answer). */
   doc_type: string | null;
-  /** Exact catalog program name (program_map hits) — the string to pass to
-   *  get_program_requirements VERBATIM. Structured because a small model
-   *  paraphrases names it extracts from prose ("Emergency Medical Services
-   *  Program" for "Emergency Medical Services/Paramedic A.A.S.", observed
-   *  live) and the exact-lookup then misses. */
+  /** Exact catalog program name (program_map hits — the string to pass to
+   *  get_program_requirements VERBATIM) or the resource row's display name.
+   *  Structured because a small model paraphrases names it extracts from
+   *  prose ("Emergency Medical Services Program" for "Emergency Medical
+   *  Services/Paramedic A.A.S.", observed live) and the exact-lookup then
+   *  misses. */
   name?: string | null;
   /** Exact course code (course hits) — the string for get_course_info. */
   course_code?: string | null;
@@ -94,8 +98,7 @@ const DESCRIPTION = [
   "tutoring, and Success Coach contact info.",
   "",
   "Call this tool when you do not know the exact course code or catalog program",
-  "name, when get_course_info or get_program_requirements found nothing, or for",
-  "any tuition, deadline, aid, or student-resource question.",
+  "name, or when get_course_info or get_program_requirements found nothing.",
   "",
   "Examples:",
   '- "what do I need for the python certificate" (you do not know the catalog name yet)',
@@ -183,15 +186,17 @@ export function createSearchKnowledgeTool(): Tool<
       const distance = cosineDistance(knowledgeEntry.embedding, embedding);
 
       // ORDER BY the RAW ascending distance — the only form pgvector's
-      // HNSW ordering-operator scan matches (ix_ke_embedding). Wrapping
-      // it (desc(1 - d)) returns identical rows via a 20k-row seq scan.
+      // HNSW ordering-operator scan matches. Wrapping it (desc(1 - d))
+      // returns identical rows via a full-corpus seq scan.
       //
-      // inArray, not ne('section'): measured live, the unscoped corpus
-      // returns five instructor CVs and zero programs for a program
-      // query — 2,709 dense CV rows out-compete 318 short program rows,
-      // and cv has no point-read tool to complete the hop. course +
-      // program_map are the two doc_types the follow-up tools can
-      // verify. Widen only alongside a tool that can read the type.
+      // Scope to SEARCHABLE_DOC_TYPES (see lib/constants.ts for the
+      // membership rule): measured live, the unscoped corpus returns five
+      // instructor CVs and zero programs for a program query — 2,709 dense
+      // CV rows out-compete 318 short program rows, and cv has no
+      // point-read tool to complete the hop. The demo database carries a
+      // partial HNSW index with this same predicate (created 2026-08-21,
+      // not yet in the Alembic DDL — mirror it there) so excluded rows stay
+      // out of the candidate list instead of being post-filtered away.
       try {
         const rows = await getDb()
           .select({
@@ -203,31 +208,23 @@ export function createSearchKnowledgeTool(): Tool<
             distance,
           })
           .from(knowledgeEntry)
-          .where(
-            // "resource" (2026-08-21): small curated student-resources corpus
-            // — tuition rates, withdraw deadlines, financial aid contacts,
-            // student care. Loaded with source URLs from dallascollege.edu;
-            // widened here alongside the prompt update that tells the model
-            // these topics are now answerable. The partial HNSW index
-            // (ix_ke_embedding_search3) carries the same three-type
-            // predicate so section/cv rows keep out of the candidate list.
-            inArray(knowledgeEntry.docType, ["course", "program_map", "resource"]),
-          )
+          .where(inArray(knowledgeEntry.docType, SEARCHABLE_DOC_TYPES))
           .orderBy(distance)
           .limit(FETCH);
 
         const results = rows
           .filter((r) => Number(r.distance) <= OFF_CORPUS_FLOOR)
           .slice(0, TOP_K)
-          .map((r) => ({
-            text: r.text,
-            source_url: r.sourceUrl,
-            doc_type: r.docType,
-            // Resource rows also carry a display name in facts; only course
-            // rows key on course_code instead.
-            name: r.docType === "course" ? null : r.name,
-            course_code: r.docType === "course" ? r.courseCode : null,
-          }));
+          .map((r) => {
+            const isCourse = r.docType === "course";
+            return {
+              text: r.text,
+              source_url: r.sourceUrl,
+              doc_type: r.docType,
+              name: isCourse ? null : r.name,
+              course_code: isCourse ? r.courseCode : null,
+            };
+          });
 
         if (results.length === 0) {
           return { found: false };

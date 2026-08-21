@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
+
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
 // printable summary (/summary) is grounded by construction. Client-side only:
@@ -40,42 +42,6 @@ interface SavedCoursesState {
 /** Cap on retained questions: enough for a real advising conversation, bounded
  *  so a long session cannot grow the stored transcript without limit. */
 const MAX_QUESTIONS = 40;
-
-/** The sheet's "Questions I asked" list is a checklist for the coach visit,
- *  but addQuestion sees EVERY typed message — including option picks ("1",
- *  "First one, Tri To"), acks ("yes", "thanks"), and answers to Major's own
- *  clarifying questions ("I live in Dallas County…"). Printed, those read as
- *  noise (live demo feedback, 2026-08-21).
- *
- *  Deliberately a BLOCKLIST, not an is-it-a-question allowlist: a junk line
- *  that slips through is one tap to delete on the sheet, but a real question
- *  silently dropped is invisible to the student — so only reject shapes we
- *  know are conversational filler. Exported for tests. */
-export function isSheetWorthyQuestion(text: string): boolean {
-  const t = text.trim();
-  if (t.length < 4) return false;
-  // Bare option picks: "1", "2.", "3)"
-  if (/^\d+[.)]?$/.test(t)) return false;
-  // Ordinal picks, with or without a trailing name: "first one, Tri To"
-  if (/^(the\s+)?(first|second|third|last)(\s+one)?\b.{0,20}$/i.test(t))
-    return false;
-  // Acknowledgements and greetings
-  if (
-    /^(yes|no|ok|okay|sure|yeah|yep|nope|thanks?|thank you|got it|cool|nice|hi|hello|hey)\b.{0,10}$/i.test(
-      t,
-    )
-  )
-    return false;
-  // Answers to Major's clarifying questions, not questions themselves
-  if (/^i\s+(live|am)\b/i.test(t)) return false;
-  if (/^i'?m\s+(in|from|taking|planning)\b/i.test(t)) return false;
-  if (/^(i\s+)?(don'?t|do not)\s+know\b/i.test(t)) return false;
-  if (/^option\s*\d/i.test(t)) return false;
-  // Two-word fragments with no question mark ("for printing")
-  if (t.length <= 12 && !t.includes("?") && t.split(/\s+/).length <= 2)
-    return false;
-  return true;
-}
 
 function isSavedCourse(v: unknown): v is SavedCourse {
   return (

@@ -1,19 +1,16 @@
 /**
- * Regression guard for the /summary "Questions I asked" filter.
+ * Regression guard for the /summary "Questions I asked" filter
+ * (features/chat/sheet-questions.ts — see there for why it is a blocklist).
  *
- * isSheetWorthyQuestion keeps conversational filler off the printed hand-off
- * sheet: option picks ("1", "First one, Tri To"), acks ("yes", "thanks"), and
- * answers to Major's own clarifying questions ("I live in Dallas County…") —
- * all observed on real printed sheets during the 2026-08-21 workshop demo.
- * The filter is a deliberate blocklist: junk kept is one tap to delete on the
- * sheet, but a real question silently dropped is invisible to the student. If
- * a KEEP case fails here, students are losing coach-visit questions.
+ * Both directions matter, but KEEP failures are the dangerous ones: a real
+ * question the filter drops never reaches the printed sheet and nobody sees
+ * it happen.
  *
- * Pure — no database, no network — so CI can run it on every push.
+ * Pure — no database, no network — so CI runs it on every push.
  *
  * Run: npx tsx scripts/check-sheet-question-filter.mts
  */
-const { isSheetWorthyQuestion } = await import("../features/chat/saved-courses");
+const { isSheetWorthyQuestion } = await import("../features/chat/sheet-questions");
 
 // Messages that must NOT reach the printed sheet.
 const REJECT = [
@@ -47,21 +44,20 @@ const KEEP = [
   "When is the last day to drop a class this fall?",
   "nursing program requirements?",
   "i want to become a nurse. which program should i look at?",
+  // "I am/I'm" only rejects with a clarifying-answer keyword (in/from/
+  // taking/planning) — real first-person questions must survive.
+  "i am wondering what classes to take",
 ];
 
 let failures = 0;
-for (const q of REJECT) {
-  if (isSheetWorthyQuestion(q)) {
-    console.error(`FAIL should-reject: ${JSON.stringify(q)}`);
+const check = (q: string, keep: boolean) => {
+  if (isSheetWorthyQuestion(q) !== keep) {
+    console.error(`FAIL should-${keep ? "keep" : "reject"}: ${JSON.stringify(q)}`);
     failures++;
   }
-}
-for (const q of KEEP) {
-  if (!isSheetWorthyQuestion(q)) {
-    console.error(`FAIL should-keep: ${JSON.stringify(q)}`);
-    failures++;
-  }
-}
+};
+REJECT.forEach((q) => check(q, false));
+KEEP.forEach((q) => check(q, true));
 
 if (failures > 0) {
   console.error(`${failures} failure(s) across ${REJECT.length + KEEP.length} cases`);
