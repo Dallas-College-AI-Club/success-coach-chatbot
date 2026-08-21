@@ -30,18 +30,24 @@ export interface InstructorResult {
     name?: string | null;
     /** The instructor's professional record, composed from their published CV. */
     background?: string;
-    /** Courses they appear against in the published class schedule. */
+    /** One entry per course+term from the published class schedule, with the
+     *  offering formats: "COSC 1436 — Fall 2026 (hybrid at RLC; online)".
+     *  This IS the instructor's term schedule — no follow-up lookups. */
     teaches?: string[];
     source_url?: string;
 }
 
 const DESCRIPTION = [
     "Returns a Dallas College instructor's professional background — degrees,",
-    "where they teach, what they have taught — plus the courses they appear",
-    "against in the published class schedule.",
+    "where they teach, what they have taught — plus their schedule from the",
+    "published class listings: one `teaches` entry per course PER TERM with the",
+    "offering formats, e.g. \"COSC 1436 — Fall 2026 (hybrid at RLC; online)\".",
     "",
     "Call this when the user asks who an instructor is, what their background or",
-    "credentials are, or what they teach.",
+    "credentials are, or what they teach — including in a specific term. The",
+    "`teaches` list IS their term schedule: answer from it directly, and never",
+    "re-derive it course-by-course with get_class_schedule (that path attributes",
+    "other instructors' courses to them).",
     "",
     "Input is the name as the user said it; first name, last name, or both.",
     "If several instructors match, the tool returns ambiguous:true with the names —",
@@ -156,9 +162,24 @@ export function createGetInstructorTool(): Tool<
             }
 
             const [row] = rows;
-            // Their teaching, from the same join key the pipeline stamps.
+            // Their teaching, from the same join key the pipeline stamps —
+            // per TERM with modality/campus, not a bare course list. A bare
+            // list forced the model to re-derive "what does X teach this
+            // term" course-by-course through get_class_schedule, and it
+            // cross-referenced wrong: measured live (2026-08-21), it
+            // attributed two other instructors' courses to a professor,
+            // dropped one of his real ones, and called a hybrid schedule
+            // "all online". With the term on every entry, the tool result
+            // IS the term schedule.
             const taught = await getDb()
-                .selectDistinct({ courseCode: knowledgeEntry.courseCode })
+                .selectDistinct({
+                    courseCode: knowledgeEntry.courseCode,
+                    year: knowledgeEntry.year,
+                    semester: knowledgeEntry.semester,
+                    termOrd: knowledgeEntry.termOrd,
+                    modality: sql<string | null>`${knowledgeEntry.metadata}->>'modality'`,
+                    campus: sql<string | null>`${knowledgeEntry.metadata}->>'campus'`,
+                })
                 .from(knowledgeEntry)
                 .where(
                     and(
@@ -166,16 +187,37 @@ export function createGetInstructorTool(): Tool<
                         eq(slug, row.slug ?? ""),
                     ),
                 )
-                .orderBy(knowledgeEntry.courseCode)
-                .limit(MAX_COURSES);
+                .orderBy(
+                    sql`${knowledgeEntry.termOrd} DESC NULLS LAST`,
+                    knowledgeEntry.courseCode,
+                )
+                .limit(MAX_COURSES * 3);
+
+            // One line per course+term; offerings aggregated ("hybrid at
+            // RLC; online"). Campus repeats the modality word for online
+            // rows, so it is only shown when it adds information.
+            const label = (sem: string | null, yr: number | null) =>
+                sem && yr
+                    ? `${sem[0].toUpperCase()}${sem.slice(1)} ${yr}`
+                    : "term unknown";
+            const grouped = new Map<string, Set<string>>();
+            for (const t of taught) {
+                if (!t.courseCode) continue;
+                const key = `${t.courseCode} — ${label(t.semester, t.year)}`;
+                const offering =
+                    t.campus && t.campus.toLowerCase() !== (t.modality ?? "").toLowerCase()
+                        ? `${t.modality ?? "format unlisted"} at ${t.campus}`
+                        : (t.modality ?? "format unlisted");
+                (grouped.get(key) ?? grouped.set(key, new Set()).get(key)!).add(offering);
+            }
 
             return {
                 found: true,
                 name: row.name,
                 background: row.text,
-                teaches: taught
-                    .map((t) => t.courseCode)
-                    .filter((c): c is string => !!c),
+                teaches: [...grouped.entries()]
+                    .slice(0, MAX_COURSES)
+                    .map(([key, offerings]) => `${key} (${[...offerings].join("; ")})`),
                 source_url: row.sourceUrl,
             };
         },
