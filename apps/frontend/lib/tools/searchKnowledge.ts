@@ -215,7 +215,14 @@ export function createSearchKnowledgeTool(): Tool<
         }
         return { found: true, results };
       } catch (error) {
+        // A retrieval outage must not end the turn: the tool loop treats an
+        // undefined return as a malformed result, and `next build` rejects
+        // the implicit-undefined path outright (TS2366). Report "nothing
+        // found" instead — the model then gives the standard fallback rather
+        // than inventing an answer, which is the same behaviour as a genuine
+        // zero-hit search.
         console.error(error);
+        return { found: false };
       }
     },
   });
