@@ -87,24 +87,32 @@ export interface SearchKnowledgeResult {
 const MAX_CALLS_PER_TURN = 2;
 
 const DESCRIPTION = [
-  "Searches verified Dallas College course and program records by meaning and",
-  "returns the closest matching entries.",
+  "Searches verified Dallas College course, program, and student-resource",
+  "records by meaning and returns the closest matching entries. Student",
+  "resources cover tuition rates, academic-calendar deadlines (withdraw/drop",
+  "dates, breaks), financial aid contacts, housing/food/transit assistance,",
+  "tutoring, and Success Coach contact info.",
   "",
   "Call this tool when you do not know the exact course code or catalog program",
-  "name, or when get_course_info or get_program_requirements found nothing.",
+  "name, when get_course_info or get_program_requirements found nothing, or for",
+  "any tuition, deadline, aid, or student-resource question.",
   "",
   "Examples:",
   '- "what do I need for the python certificate" (you do not know the catalog name yet)',
   '- "which classes cover databases"',
   '- "is there a program for becoming a paramedic"',
+  '- "how much does a class cost" / "last day to drop"',
   "",
   "Search ONCE per question — rewording the same query does not find different",
   "records. Use the results you get.",
   "",
-  "Results are short summaries for FINDING the right record — never answer a",
-  "requirements question from them. Each result carries the exact identifier:",
-  "pass a result's `name` to get_program_requirements, or its `course_code` to",
-  "get_course_info, copied EXACTLY — do not retype or shorten them.",
+  "Course and program results are short summaries for FINDING the right record",
+  "— never answer a requirements question from them. Each result carries the",
+  "exact identifier: pass a result's `name` to get_program_requirements, or its",
+  "`course_code` to get_course_info, copied EXACTLY — do not retype or shorten",
+  "them. Student-resource results (doc_type \"resource\") are different: they",
+  "have no follow-up tool — their text IS the verified answer, so quote the",
+  "figures and dates from it directly.",
   "",
   "If this tool finds nothing, the information is not in the verified records —",
   "give the standard fallback and do not guess.",
@@ -195,7 +203,16 @@ export function createSearchKnowledgeTool(): Tool<
             distance,
           })
           .from(knowledgeEntry)
-          .where(inArray(knowledgeEntry.docType, ["course", "program_map"]))
+          .where(
+            // "resource" (2026-08-21): small curated student-resources corpus
+            // — tuition rates, withdraw deadlines, financial aid contacts,
+            // student care. Loaded with source URLs from dallascollege.edu;
+            // widened here alongside the prompt update that tells the model
+            // these topics are now answerable. The partial HNSW index
+            // (ix_ke_embedding_search3) carries the same three-type
+            // predicate so section/cv rows keep out of the candidate list.
+            inArray(knowledgeEntry.docType, ["course", "program_map", "resource"]),
+          )
           .orderBy(distance)
           .limit(FETCH);
 
@@ -206,7 +223,9 @@ export function createSearchKnowledgeTool(): Tool<
             text: r.text,
             source_url: r.sourceUrl,
             doc_type: r.docType,
-            name: r.docType === "program_map" ? r.name : null,
+            // Resource rows also carry a display name in facts; only course
+            // rows key on course_code instead.
+            name: r.docType === "course" ? null : r.name,
             course_code: r.docType === "course" ? r.courseCode : null,
           }));
 
