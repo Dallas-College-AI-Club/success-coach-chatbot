@@ -29,11 +29,14 @@ export const EMBED_DIMS = 768;
  * CV rows out-compete short program rows and strand the model with hits it
  * cannot verify.
  *
- * Must match the partial HNSW index predicate over knowledge_entry(embedding)
- * — a wider list here without the index leaves those rows reachable only by
- * post-filtering the full-corpus scan, which crowds real hits out of the
- * candidate list (measured 2026-08-21: a cloud-computing query fell from 3
- * usable hits to 1 after unrelated rows joined the corpus).
+ * Search runs as an EXACT scan: the btree on doc_type narrows to the ~1.9k
+ * searchable rows, then distances sort (measured 61ms over a 33k-row corpus,
+ * 2026-08-21). The demo DB deliberately carries NO HNSW index — approximate
+ * scans reproducibly missed the small resource cluster (true rank-1 hits at
+ * distance 0.53 absent from the candidate list even at ef_search=150), and
+ * at this scale exactness costs nothing. Revisit only if the searchable
+ * corpus grows by an order of magnitude — and then verify recall for every
+ * doc_type before trusting an index.
  */
 export const SEARCHABLE_DOC_TYPES = ["course", "program_map", "resource"];
 

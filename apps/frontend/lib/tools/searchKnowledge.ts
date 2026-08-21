@@ -185,18 +185,13 @@ export function createSearchKnowledgeTool(): Tool<
 
       const distance = cosineDistance(knowledgeEntry.embedding, embedding);
 
-      // ORDER BY the RAW ascending distance — the only form pgvector's
-      // HNSW ordering-operator scan matches. Wrapping it (desc(1 - d))
-      // returns identical rows via a full-corpus seq scan.
-      //
       // Scope to SEARCHABLE_DOC_TYPES (see lib/constants.ts for the
-      // membership rule): measured live, the unscoped corpus returns five
-      // instructor CVs and zero programs for a program query — 2,709 dense
-      // CV rows out-compete 318 short program rows, and cv has no
-      // point-read tool to complete the hop. The demo database carries a
-      // partial HNSW index with this same predicate (created 2026-08-21,
-      // not yet in the Alembic DDL — mirror it there) so excluded rows stay
-      // out of the candidate list instead of being post-filtered away.
+      // membership rule AND the exact-scan posture): measured live, the
+      // unscoped corpus returns five instructor CVs and zero programs for a
+      // program query — 2,709 dense CV rows out-compete 318 short program
+      // rows, and cv has no point-read tool to complete the hop. The demo
+      // DB has no vector index on purpose; the btree on doc_type narrows
+      // the sort to the searchable rows and results are exact.
       try {
         const rows = await getDb()
           .select({
