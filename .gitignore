@@ -66,3 +66,4 @@ apps/data/downloaded-dataset/
 
 # Pipeline artifacts
 .tmp/
+.env*

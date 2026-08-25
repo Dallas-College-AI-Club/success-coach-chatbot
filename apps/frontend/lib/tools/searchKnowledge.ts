@@ -13,6 +13,7 @@ import { jsonSchema } from "ai";
 import { cosineDistance, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
+import { SEARCHABLE_DOC_TYPES } from "@/lib/constants";
 import { knowledgeEntry } from "@/lib/schema";
 
 import { embedText } from "@/lib/embedding";
@@ -58,13 +59,16 @@ export interface SearchKnowledgeHit {
   text: string;
   /** Provenance for the model's citation. */
   source_url: string;
-  /** 'course' | 'program_map' — tells the model which point-read to call next. */
+  /** 'course' | 'program_map' | 'resource' — tells the model which
+   *  point-read to call next (resource hits have none; their text is the
+   *  answer). */
   doc_type: string | null;
-  /** Exact catalog program name (program_map hits) — the string to pass to
-   *  get_program_requirements VERBATIM. Structured because a small model
-   *  paraphrases names it extracts from prose ("Emergency Medical Services
-   *  Program" for "Emergency Medical Services/Paramedic A.A.S.", observed
-   *  live) and the exact-lookup then misses. */
+  /** Exact catalog program name (program_map hits — the string to pass to
+   *  get_program_requirements VERBATIM) or the resource row's display name.
+   *  Structured because a small model paraphrases names it extracts from
+   *  prose ("Emergency Medical Services Program" for "Emergency Medical
+   *  Services/Paramedic A.A.S.", observed live) and the exact-lookup then
+   *  misses. */
   name?: string | null;
   /** Exact course code (course hits) — the string for get_course_info. */
   course_code?: string | null;
@@ -87,8 +91,11 @@ export interface SearchKnowledgeResult {
 const MAX_CALLS_PER_TURN = 2;
 
 const DESCRIPTION = [
-  "Searches verified Dallas College course and program records by meaning and",
-  "returns the closest matching entries.",
+  "Searches verified Dallas College course, program, and student-resource",
+  "records by meaning and returns the closest matching entries. Student",
+  "resources cover tuition rates, academic-calendar deadlines (withdraw/drop",
+  "dates, breaks), financial aid contacts, housing/food/transit assistance,",
+  "tutoring, and Success Coach contact info.",
   "",
   "Call this tool when you do not know the exact course code or catalog program",
   "name, or when get_course_info or get_program_requirements found nothing.",
@@ -97,14 +104,18 @@ const DESCRIPTION = [
   '- "what do I need for the python certificate" (you do not know the catalog name yet)',
   '- "which classes cover databases"',
   '- "is there a program for becoming a paramedic"',
+  '- "how much does a class cost" / "last day to drop"',
   "",
   "Search ONCE per question — rewording the same query does not find different",
   "records. Use the results you get.",
   "",
-  "Results are short summaries for FINDING the right record — never answer a",
-  "requirements question from them. Each result carries the exact identifier:",
-  "pass a result's `name` to get_program_requirements, or its `course_code` to",
-  "get_course_info, copied EXACTLY — do not retype or shorten them.",
+  "Course and program results are short summaries for FINDING the right record",
+  "— never answer a requirements question from them. Each result carries the",
+  "exact identifier: pass a result's `name` to get_program_requirements, or its",
+  "`course_code` to get_course_info, copied EXACTLY — do not retype or shorten",
+  "them. Student-resource results (doc_type \"resource\") are different: they",
+  "have no follow-up tool — their text IS the verified answer, so quote the",
+  "figures and dates from it directly.",
   "",
   "If this tool finds nothing, the information is not in the verified records —",
   "give the standard fallback and do not guess.",
@@ -174,16 +185,13 @@ export function createSearchKnowledgeTool(): Tool<
 
       const distance = cosineDistance(knowledgeEntry.embedding, embedding);
 
-      // ORDER BY the RAW ascending distance — the only form pgvector's
-      // HNSW ordering-operator scan matches (ix_ke_embedding). Wrapping
-      // it (desc(1 - d)) returns identical rows via a 20k-row seq scan.
-      //
-      // inArray, not ne('section'): measured live, the unscoped corpus
-      // returns five instructor CVs and zero programs for a program
-      // query — 2,709 dense CV rows out-compete 318 short program rows,
-      // and cv has no point-read tool to complete the hop. course +
-      // program_map are the two doc_types the follow-up tools can
-      // verify. Widen only alongside a tool that can read the type.
+      // Scope to SEARCHABLE_DOC_TYPES (see lib/constants.ts for the
+      // membership rule AND the exact-scan posture): measured live, the
+      // unscoped corpus returns five instructor CVs and zero programs for a
+      // program query — 2,709 dense CV rows out-compete 318 short program
+      // rows, and cv has no point-read tool to complete the hop. The demo
+      // DB has no vector index on purpose; the btree on doc_type narrows
+      // the sort to the searchable rows and results are exact.
       try {
         const rows = await getDb()
           .select({
@@ -195,20 +203,23 @@ export function createSearchKnowledgeTool(): Tool<
             distance,
           })
           .from(knowledgeEntry)
-          .where(inArray(knowledgeEntry.docType, ["course", "program_map"]))
+          .where(inArray(knowledgeEntry.docType, SEARCHABLE_DOC_TYPES))
           .orderBy(distance)
           .limit(FETCH);
 
         const results = rows
           .filter((r) => Number(r.distance) <= OFF_CORPUS_FLOOR)
           .slice(0, TOP_K)
-          .map((r) => ({
-            text: r.text,
-            source_url: r.sourceUrl,
-            doc_type: r.docType,
-            name: r.docType === "program_map" ? r.name : null,
-            course_code: r.docType === "course" ? r.courseCode : null,
-          }));
+          .map((r) => {
+            const isCourse = r.docType === "course";
+            return {
+              text: r.text,
+              source_url: r.sourceUrl,
+              doc_type: r.docType,
+              name: isCourse ? null : r.name,
+              course_code: isCourse ? r.courseCode : null,
+            };
+          });
 
         if (results.length === 0) {
           return { found: false };

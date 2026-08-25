@@ -21,6 +21,26 @@ export const EMBED_MODEL = "openai/text-embedding-3-small";
 export const EMBED_DIMS = 768;
 
 /**
+ * The doc_types search_knowledge reads. A type belongs here only if either a
+ * point-read tool can verify its hits (course → get_course_info, program_map
+ * → get_program_requirements) or its chunk text is itself the verified answer
+ * (resource — the curated student-resources corpus, which has no follow-up
+ * tool by design). section and cv stay out: measured live (2026-08-11), dense
+ * CV rows out-compete short program rows and strand the model with hits it
+ * cannot verify.
+ *
+ * Search runs as an EXACT scan: the btree on doc_type narrows to the ~1.9k
+ * searchable rows, then distances sort (measured 61ms over a 33k-row corpus,
+ * 2026-08-21). The demo DB deliberately carries NO HNSW index — approximate
+ * scans reproducibly missed the small resource cluster (true rank-1 hits at
+ * distance 0.53 absent from the candidate list even at ef_search=150), and
+ * at this scale exactness costs nothing. Revisit only if the searchable
+ * corpus grows by an order of magnitude — and then verify recall for every
+ * doc_type before trusting an index.
+ */
+export const SEARCHABLE_DOC_TYPES = ["course", "program_map", "resource"];
+
+/**
  * Dallas College's zone: every "today" the tools resolve is Dallas local
  * time, not the server's. Mirrors DISPLAY_TIMEZONE in src/config/runtime.json,
  * which cannot be imported here — the bundler roots the module graph at

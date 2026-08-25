@@ -3,6 +3,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
+
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
 // printable summary (/summary) is grounded by construction. Client-side only:
@@ -71,6 +73,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
       addQuestion: (q) => {
         const text = q.trim();
         if (!text || get().questions.includes(text)) return;
+        if (!isSheetWorthyQuestion(text)) return;
         set({ questions: [...get().questions, text].slice(-MAX_QUESTIONS) });
       },
       removeQuestion: (index) =>
