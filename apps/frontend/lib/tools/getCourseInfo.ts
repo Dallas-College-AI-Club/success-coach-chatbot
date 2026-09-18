@@ -40,6 +40,14 @@ export const INPUT_SCHEMA = z.object({
     ),
 });
 
+export function normalizeCourseCode(courseCode: string): string {
+  return courseCode
+    .replace(/([A-Za-z])([0-9])/, "$1 $2")
+    .replace(/[^A-Za-z0-9]+/g, " ")
+    .trim()
+    .toUpperCase();
+}
+
 export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   if (process.env.NODE_ENV !== "production") {
     console.log("[TOOL] get_course_info invoked");
@@ -55,7 +63,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     .from(knowledgeEntry)
     .where(
       and(
-        eq(knowledgeEntry.courseCode, input.courseCode),
+        eq(knowledgeEntry.courseCode, normalizeCourseCode(input.courseCode)),
         eq(knowledgeEntry.docType, "course"),
       ),
     )
