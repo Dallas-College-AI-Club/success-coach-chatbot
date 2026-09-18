@@ -1,30 +1,46 @@
-import { DALLAS_COLLEGE_TIME_ZONE } from "@/lib/constants";
-import { createGetCurrentDateTool } from "./getCurrentDate";
-import { createGetSemesterTool } from "./getSemester";
-import { toolSet } from "./types";
-import { createGetCourseInfoTool } from "./getCourseInfo";
-import { createGetProgramRequirementsTool } from "./getProgramRequirements";
-import { createSearchKnowledgeTool } from "./searchKnowledge";
-import { createGetClassScheduleTool } from "./getClassSchedule";
-import { createGetInstructorTool } from "./getInstructor";
+import { tool } from "ai";
+import * as getClassSchedule from "./getClassSchedule";
+import * as getCourseInfo from "./getCourseInfo";
+import * as currentDateTool from "./getCurrentDate";
+import * as getInstructor from "./getInstructor";
+import * as getProgramRequirements from "./getProgramRequirements";
+import * as getSemesterTool from "./getSemester";
+import * as searchKnowledge from "./searchKnowledge";
 
-/**
- * Built PER REQUEST (route.ts calls this inside POST), not as a module
- * singleton: search_knowledge carries a per-turn call cap in its closure,
- * and a shared instance would count calls across every user's requests.
- * Construction is five object literals — there is nothing worth caching.
- */
-export function createToolRegistry() {
-    return toolSet([
-        // Chicago default, same as get_semester's: left to its own fallback
-        // the tool reports the HOST zone — UTC on Vercel — so from ~7pm CT
-        // the two tools disagreed about what day it is (2026-08-11 audit).
-        createGetCurrentDateTool({ defaultTimeZone: DALLAS_COLLEGE_TIME_ZONE }),
-        createGetSemesterTool(),
-        createGetCourseInfoTool(),
-        createGetProgramRequirementsTool(),
-        createSearchKnowledgeTool(),
-        createGetClassScheduleTool(),
-        createGetInstructorTool(),
-    ]);
-}
+export const TOOL_REGISTRY = {
+  get_current_date: tool({
+    description: currentDateTool.DESCRIPTION,
+    inputSchema: currentDateTool.INPUT_SCHEMA,
+    execute: currentDateTool.EXECUTE,
+  }),
+  get_semester: tool({
+    description: getSemesterTool.DESCRIPTION,
+    inputSchema: getSemesterTool.INPUT_SCHEMA,
+    execute: getSemesterTool.EXECUTE,
+  }),
+  get_instructor: tool({
+    description: getInstructor.DESCRIPTION,
+    inputSchema: getInstructor.INPUT_SCHEMA,
+    execute: getInstructor.EXECUTE,
+  }),
+  get_class_schedule: tool({
+    description: getClassSchedule.DESCRIPTION,
+    inputSchema: getClassSchedule.INPUT_SCHEMA,
+    execute: getClassSchedule.EXECUTE,
+  }),
+  get_course_info: tool({
+    description: getCourseInfo.DESCRIPTION,
+    inputSchema: getCourseInfo.INPUT_SCHEMA,
+    execute: getCourseInfo.EXECUTE,
+  }),
+  get_program_requirements: tool({
+    description: getProgramRequirements.DESCRIPTION,
+    inputSchema: getProgramRequirements.INPUT_SCHEMA,
+    execute: getProgramRequirements.EXECUTE,
+  }),
+  search_knowledge: tool({
+    description: searchKnowledge.DESCRIPTION,
+    inputSchema: searchKnowledge.INPUT_SCHEMA,
+    execute: searchKnowledge.EXECUTE,
+  }),
+};
