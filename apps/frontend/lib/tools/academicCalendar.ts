@@ -181,7 +181,10 @@ export function resolveSemester(
   assertValidCalendarDate(today);
 
   const { offset = 0, year } = query;
-  const term = query.term === undefined ? undefined : canonicalTermName(query.term, calendar);
+  const term =
+    query.term === undefined
+      ? undefined
+      : canonicalTermName(query.term, calendar);
 
   if (year !== undefined) {
     if (term === undefined) {
@@ -198,7 +201,9 @@ export function resolveSemester(
     assertValidYear(year);
     // A one-year window still needs its neighbour to compute the end date.
     const timeline = materialiseTimeline(calendar, year, 1);
-    const found = timeline.find((entry) => entry.term === term && entry.year === year);
+    const found = timeline.find(
+      (entry) => entry.term === term && entry.year === year,
+    );
     if (!found) {
       throw new AcademicCalendarError(`No ${term} term exists in ${year}.`);
     }
@@ -214,8 +219,13 @@ export function resolveSemester(
   const todayIso = toIsoDate(today);
   // Radius scales with the offset so even a filtered timeline (one instance of
   // the term per year) always reaches far enough. +2 covers the boundary years.
-  const timeline = materialiseTimeline(calendar, today.year, Math.abs(offset) + 2);
-  const candidates = term === undefined ? timeline : timeline.filter((e) => e.term === term);
+  const timeline = materialiseTimeline(
+    calendar,
+    today.year,
+    Math.abs(offset) + 2,
+  );
+  const candidates =
+    term === undefined ? timeline : timeline.filter((e) => e.term === term);
 
   if (offset === 0) {
     const containing = candidates.find(
@@ -223,7 +233,9 @@ export function resolveSemester(
     );
     if (!containing) {
       // Only reachable with a term filter: today sits in some other term.
-      const actual = timeline.find((e) => e.startDate <= todayIso && todayIso <= e.endDate);
+      const actual = timeline.find(
+        (e) => e.startDate <= todayIso && todayIso <= e.endDate,
+      );
       throw new AcademicCalendarError(
         `No ${term} term is in progress on ${todayIso}` +
           (actual ? `; the current term is ${actual.label}` : "") +
@@ -261,9 +273,14 @@ function pick(
 }
 
 /** Matches a model-supplied term name case-insensitively, or explains what is valid. */
-export function canonicalTermName(name: string, calendar: AcademicCalendar): string {
+export function canonicalTermName(
+  name: string,
+  calendar: AcademicCalendar,
+): string {
   const wanted = name.trim().toLowerCase();
-  const match = calendar.terms.find((term) => term.name.toLowerCase() === wanted);
+  const match = calendar.terms.find(
+    (term) => term.name.toLowerCase() === wanted,
+  );
   if (!match) {
     throw new AcademicCalendarError(
       `Unknown term ${JSON.stringify(name)}. This calendar defines: ` +
@@ -275,7 +292,9 @@ export function canonicalTermName(name: string, calendar: AcademicCalendar): str
 
 function assertValidYear(year: number): void {
   if (!Number.isInteger(year) || year < 1 || year > 9999) {
-    throw new AcademicCalendarError(`Invalid year ${year}; expected an integer 1-9999.`);
+    throw new AcademicCalendarError(
+      `Invalid year ${year}; expected an integer 1-9999.`,
+    );
   }
 }
 
@@ -291,7 +310,11 @@ function materialiseTimeline(
   const years: number[] = [];
   // One extra year at each end: the first entry's end date depends on nothing,
   // but the last entry's depends on the instance after it.
-  for (let year = centerYear - radius - 1; year <= centerYear + radius + 1; year++) {
+  for (
+    let year = centerYear - radius - 1;
+    year <= centerYear + radius + 1;
+    year++
+  ) {
     years.push(year);
   }
 
@@ -309,14 +332,21 @@ interface MaterialisedStart {
   isoDate: string;
 }
 
-function materialiseStarts(calendar: AcademicCalendar, years: number[]): MaterialisedStart[] {
+function materialiseStarts(
+  calendar: AcademicCalendar,
+  years: number[],
+): MaterialisedStart[] {
   const starts: MaterialisedStart[] = [];
   for (const year of years) {
     for (const definition of calendar.terms) {
       starts.push({
         definition,
         year,
-        isoDate: toIsoDate({ year, month: definition.startMonth, day: definition.startDay }),
+        isoDate: toIsoDate({
+          year,
+          month: definition.startMonth,
+          day: definition.startDay,
+        }),
       });
     }
   }
@@ -346,10 +376,18 @@ function describeTerm(
  * the same calendar year, and in AY `Y-1..Y` otherwise. So with Fall opening
  * the year: Fall 2026, Spring 2027 and Summer 2027 all report `2026-2027`.
  */
-function academicYearFor(start: MaterialisedStart, calendar: AcademicCalendar): string {
-  const opener = calendar.terms.find((t) => t.name === calendar.academicYearStartsWith)!;
+function academicYearFor(
+  start: MaterialisedStart,
+  calendar: AcademicCalendar,
+): string {
+  const opener = calendar.terms.find(
+    (t) => t.name === calendar.academicYearStartsWith,
+  )!;
   const openerKey = monthDayKey(opener.startMonth, opener.startDay);
-  const termKey = monthDayKey(start.definition.startMonth, start.definition.startDay);
+  const termKey = monthDayKey(
+    start.definition.startMonth,
+    start.definition.startDay,
+  );
   const first = termKey >= openerKey ? start.year : start.year - 1;
   return `${first}-${first + 1}`;
 }
@@ -374,11 +412,17 @@ export function assertValidCalendar(calendar: AcademicCalendar): void {
       throw new AcademicCalendarError("Term names cannot be empty.");
     }
     if (names.has(term.name)) {
-      throw new AcademicCalendarError(`Duplicate term name: ${JSON.stringify(term.name)}.`);
+      throw new AcademicCalendarError(
+        `Duplicate term name: ${JSON.stringify(term.name)}.`,
+      );
     }
     names.add(term.name);
 
-    if (!Number.isInteger(term.startMonth) || term.startMonth < 1 || term.startMonth > 12) {
+    if (
+      !Number.isInteger(term.startMonth) ||
+      term.startMonth < 1 ||
+      term.startMonth > 12
+    ) {
       throw new AcademicCalendarError(
         `Term ${JSON.stringify(term.name)} has startMonth ${term.startMonth}; expected an integer 1-12.`,
       );
@@ -388,7 +432,11 @@ export function assertValidCalendar(calendar: AcademicCalendar): void {
     // simply not exist in three years out of four, and silently sliding it to
     // Feb 28 or Mar 1 would be this module inventing policy. Rejected instead.
     const maxDay = DAYS_IN_MONTH[term.startMonth - 1]!;
-    if (!Number.isInteger(term.startDay) || term.startDay < 1 || term.startDay > maxDay) {
+    if (
+      !Number.isInteger(term.startDay) ||
+      term.startDay < 1 ||
+      term.startDay > maxDay
+    ) {
       throw new AcademicCalendarError(
         `Term ${JSON.stringify(term.name)} has startDay ${term.startDay}; expected an integer 1-${maxDay} ` +
           `for month ${term.startMonth}${term.startMonth === 2 ? " (Feb 29 is not a valid term start)" : ""}.`,
@@ -417,10 +465,14 @@ export function assertValidCalendar(calendar: AcademicCalendar): void {
 export function assertValidCalendarDate(date: CalendarDate): void {
   const { year, month, day } = date;
   if (!Number.isInteger(year) || year < 1 || year > 9999) {
-    throw new AcademicCalendarError(`Invalid year ${year}; expected an integer 1-9999.`);
+    throw new AcademicCalendarError(
+      `Invalid year ${year}; expected an integer 1-9999.`,
+    );
   }
   if (!Number.isInteger(month) || month < 1 || month > 12) {
-    throw new AcademicCalendarError(`Invalid month ${month}; expected an integer 1-12.`);
+    throw new AcademicCalendarError(
+      `Invalid month ${month}; expected an integer 1-12.`,
+    );
   }
   const maxDay = daysInMonth(year, month);
   if (!Number.isInteger(day) || day < 1 || day > maxDay) {

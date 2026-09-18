@@ -8,7 +8,7 @@ import {
   TRANSIENT_LIMIT_MESSAGE,
 } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
-import { createToolRegistry } from "@/lib/tools/registry";
+import { TOOL_REGISTRY } from "@/lib/tools/registry";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   APICallError,
@@ -202,7 +202,7 @@ export async function POST(req: Request) {
       model: openrouter.chat(model),
       messages: await convertToModelMessages(messages),
       system: SYSTEM_PROMPT + profileBlock,
-      tools: createToolRegistry(),
+      tools: TOOL_REGISTRY,
       // Allow multi-step tool execution.
       // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
       //
