@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Local audit payloads and one-off verification scripts are not app code.
+    ".tmp/**",
   ]),
 ]);
 

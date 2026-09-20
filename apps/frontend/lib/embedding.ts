@@ -1,18 +1,5 @@
-import {
-  env as transformersEnv,
-  FeatureExtractionPipeline,
-  pipeline,
-} from "@huggingface/transformers";
-
-// transformers.js caches the downloaded MiniLM weights under its own package
-// directory (node_modules/@huggingface/transformers/.cache/). That path is
-// READ-ONLY inside a Vercel serverless function, so the first search_knowledge
-// call fails there while working fine locally. /tmp is the one writable
-// location a function gets. Guarded on VERCEL so local dev keeps the
-// package-local cache and does not re-download on every run.
-if (process.env.VERCEL) {
-  transformersEnv.cacheDir = "/tmp/transformers-cache";
-}
+import type { FeatureExtractionPipeline } from "@huggingface/transformers";
+import contract from "./embedding-contract.json";
 
 const globalExtractor = globalThis as unknown as {
   __extractorPromise?: Promise<FeatureExtractionPipeline>;
@@ -27,6 +14,13 @@ const globalExtractor = globalThis as unknown as {
 const RETRY_COOLDOWN_MS = 30_000;
 
 async function loadExtractor(): Promise<FeatureExtractionPipeline> {
+  if (
+    contract.dtype !== "int8" ||
+    contract.pooling !== "mean" ||
+    contract.normalize !== true
+  ) {
+    throw new Error("Unsupported shared embedding contract");
+  }
   // Dynamic import, not top-level: transformers.js drags in the native
   // onnxruntime binding, and a top-level import puts that load on EVERY
   // /api/chat request's module graph — measured live on Vercel
@@ -47,8 +41,8 @@ async function loadExtractor(): Promise<FeatureExtractionPipeline> {
     env.cacheDir = "/tmp/transformers-cache";
   }
 
-  return pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    dtype: "int8",
+  return pipeline("feature-extraction", contract.model, {
+    dtype: contract.dtype,
   });
 }
 
@@ -81,6 +75,18 @@ function getExtractor(): Promise<FeatureExtractionPipeline> {
 
 export async function embedText(text: string): Promise<number[]> {
   const extractor = await getExtractor();
-  const output = await extractor(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data);
+  const output = await extractor(text, {
+    pooling: "mean",
+    normalize: contract.normalize,
+  });
+  const vector = Array.from(output.data);
+  const norm = Math.hypot(...vector);
+  if (
+    vector.length !== contract.dimensions ||
+    !vector.every(Number.isFinite) ||
+    Math.abs(norm - 1) > 0.01
+  ) {
+    throw new Error("Embedding violates the shared model contract");
+  }
+  return vector;
 }

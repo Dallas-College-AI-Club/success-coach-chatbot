@@ -152,59 +152,6 @@
   }
 }
 
-/* The roaming campus mascots sway gently in place beside their drift. */
-@keyframes sway {
-  0%,
-  100% {
-    transform: rotate(-3deg) translateY(0);
-  }
-  50% {
-    transform: rotate(3deg) translateY(-4px);
-  }
-}
-/* Decorative flourishes — original shapes drawn beside the logos (never over the
-   artwork): a lightning spark and sun sparkles. */
-@keyframes zap {
-  0%,
-  56%,
-  100% {
-    opacity: 0;
-    transform: scale(0.7);
-  }
-  61%,
-  71% {
-    opacity: 1;
-    transform: scale(1);
-  }
-  66% {
-    opacity: 0.3;
-  }
-}
-@keyframes sparkle {
-  0%,
-  100% {
-    opacity: 0;
-    transform: scale(0.3);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* Playful "dopamine gradient" scene: stars twinkle over the drifting colour blobs. */
-@keyframes twinkle {
-  0%,
-  100% {
-    opacity: 0.2;
-    transform: scale(0.8);
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.15);
-  }
-}
-
 /* Reduced-motion backstop: clamp transforms/animations, keep colour + opacity
    fades so essential feedback survives (WCAG 2.3.3 "reduce, not none"). */
 @media (prefers-reduced-motion: reduce) {

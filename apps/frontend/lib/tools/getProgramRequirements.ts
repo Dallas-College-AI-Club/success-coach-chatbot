@@ -2,8 +2,13 @@ import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
-
 import { PROGRAMS } from "@/features/onboarding/programs";
+import {
+  courseDetailsFromRow,
+  programCourseCode,
+  scopeProgramGroups,
+  type CourseDetails,
+} from "@/lib/course-details";
 
 import z from "zod";
 
@@ -21,7 +26,7 @@ export const DESCRIPTION = [
   '- "What are the requirements for the Nursing field of study?"',
   '- "What classes are in the Cybersecurity certificate?"',
   "",
-  "Pass ONLY the program name, not the student's whole question.",
+  "Pass the program name, not the student's whole question. The server enforces curriculum-semester scope from the student's explicit request. Do not split a whole-program request into semester-by-semester calls. Curriculum semesters are not Fall/Spring terms.",
   "Input is the program name as the user said it; partial names are fine.",
   'If the user mentioned a program code (like "CORE-42"), keep it in',
   "programName exactly as they typed it — codes find programs whose",
@@ -49,8 +54,19 @@ export const DESCRIPTION = [
 ].join("\n");
 
 export const INPUT_SCHEMA = z.object({
+  semesters: z
+    .array(z.number().int().min(1).max(99))
+    .min(1)
+    .max(99)
+    .optional()
+    .describe(
+      "Only the requested curriculum semester numbers; omit for the full plan.",
+    ),
   programName: z
-    .enum(PROGRAMS.map((v) => v["label"]))
+    .string()
+    .trim()
+    .min(1)
+    .max(200)
     .describe(
       "Program name as the user phrased it, e.g. 'Associate of Science', 'Nursing', 'Cybersecurity certificate'.",
     ),
@@ -84,6 +100,8 @@ export interface ProgramRequirementsResult {
   /** Real catalog title per course code in this plan, so the model never
    *  supplies one itself. */
   course_titles?: Record<string, string>;
+  /** Complete catalog fields for the UI's expandable, saveable course rows. */
+  course_details?: CourseDetails[];
 }
 
 const MAX_MATCHES = 12;
@@ -93,10 +111,19 @@ const MAX_AREA_COURSES = 40;
 
 export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   if (process.env.NODE_ENV !== "production") {
-    console.log("[TOOL] get_current_date invoked");
+    console.log("[TOOL] get_program_requirements invoked");
   }
   INPUT_SCHEMA.parse(input);
   const name = sql<string>`${knowledgeEntry.facts}->>'name'`;
+  // Picker labels are sometimes shortened. Their catalog IDs are exact;
+  // a starter for a chosen program must not resolve to a similar award.
+  const pickedProgram = PROGRAMS.find(
+    (program) =>
+      program.label.toLowerCase() === input.programName.trim().toLowerCase(),
+  );
+  const pickerMatch = pickedProgram
+    ? sql`(${knowledgeEntry.sourceUrl} ~ ${`[?&]poid=${pickedProgram.code}([&#]|$)`})`
+    : sql`false`;
 
   // Token-AND: every token must appear somewhere in the name, in
   // ANY order. The previous single contiguous LIKE on the whole
@@ -176,7 +203,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   // shorthand ("AA" inside "drama aa") can't trigger it.
   const inputSquash = squash(aliased ?? input.programName);
   const codeSquash = sql`regexp_replace(lower(coalesce(${knowledgeEntry.programCode}, '')), '[^a-z0-9]', '', 'g')`;
-  const codeMentioned = sql`(length(${codeSquash}) >= 4 AND strpos(${inputSquash}, ${codeSquash}) > 0)`;
+  const codeMentioned = sql`(${pickerMatch} OR (length(${codeSquash}) >= 4 AND strpos(${inputSquash}, ${codeSquash}) > 0))`;
 
   const rows = await getDb()
     .select({
@@ -193,16 +220,18 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     .where(
       and(
         eq(knowledgeEntry.docType, "program_map"),
-        or(
-          and(
-            ...tokens.map(({ raw, sq }) =>
-              sq.length >= 3
-                ? sql`${knowledgeEntry.programNameSquashed} LIKE ${`%${sq}%`}`
-                : sql`lower(${name}) LIKE ${`%${raw}%`}`,
+        pickedProgram
+          ? pickerMatch
+          : or(
+              and(
+                ...tokens.map(({ raw, sq }) =>
+                  sq.length >= 3
+                    ? sql`${knowledgeEntry.programNameSquashed} LIKE ${`%${sq}%`}`
+                    : sql`lower(${name}) LIKE ${`%${raw}%`}`,
+                ),
+              ),
+              codeMentioned,
             ),
-          ),
-          codeMentioned,
-        ),
       ),
     )
     .orderBy(name)
@@ -261,11 +290,13 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   const [row] = exact;
   const facts = (row.facts ?? {}) as Record<string, unknown>;
   const rawGroups = Array.isArray(facts.groups) ? facts.groups : [];
+  const requested = [...new Set(input.semesters ?? [])];
+  const selectedGroups = scopeProgramGroups(rawGroups, requested);
 
   // The catalog repeats one exclusion sentence once per forbidden
   // pair -- 11 copies of the same 368 characters in a single group,
   // 81% of this payload. Collapse by sentence, keep every pair.
-  const groups = rawGroups.map((g) => {
+  const groups = selectedGroups.map((g) => {
     const grp = (g ?? {}) as Record<string, unknown>;
     const excl = Array.isArray(grp.exclusions) ? grp.exclusions : [];
     if (excl.length < 2) return grp;
@@ -318,6 +349,9 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
           and(
             eq(knowledgeEntry.docType, "program_map"),
             eq(knowledgeEntry.programCode, CORE_PROGRAM_CODE),
+            row.catalogYear
+              ? eq(knowledgeEntry.catalogYear, row.catalogYear)
+              : undefined,
           ),
         )
         .limit(1);
@@ -378,8 +412,8 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     for (const c of Array.isArray((g as Record<string, unknown>).courses)
       ? ((g as Record<string, unknown>).courses as unknown[])
       : []) {
-      const t = String(c).trim();
-      if (/^[A-Z]{3,4} \d{4}$/.test(t)) codes.add(t);
+      const code = programCourseCode(c);
+      if (code) codes.add(code);
     }
   }
   for (const a of componentAreas ?? []) {
@@ -387,28 +421,40 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   }
 
   let courseTitles: Record<string, string> | undefined;
+  let courseDetails: CourseDetails[] | undefined;
   if (codes.size > 0) {
     try {
-      const titleRows = await getDb()
+      const courseRows = await getDb()
         .select({
-          code: knowledgeEntry.courseCode,
-          title: sql<string | null>`${knowledgeEntry.facts}->>'title'`,
+          courseCode: knowledgeEntry.courseCode,
+          facts: knowledgeEntry.facts,
+          sourceUrl: knowledgeEntry.sourceUrl,
+          catalogYear: knowledgeEntry.catalogYear,
         })
         .from(knowledgeEntry)
         .where(
           and(
             eq(knowledgeEntry.docType, "course"),
             inArray(knowledgeEntry.courseCode, [...codes]),
+            // A course from another edition must not enrich this plan.
+            ...(row.catalogYear
+              ? [eq(knowledgeEntry.catalogYear, row.catalogYear)]
+              : []),
           ),
         );
       const map: Record<string, string> = {};
-      for (const t of titleRows) {
-        if (t.code && t.title) map[t.code] = t.title;
+      const details = new Map<string, CourseDetails>();
+      for (const result of courseRows) {
+        const course = courseDetailsFromRow(result);
+        if (!course || details.has(course.course_code)) continue;
+        details.set(course.course_code, course);
+        if (course.title) map[course.course_code] = course.title;
       }
       if (Object.keys(map).length) courseTitles = map;
+      if (details.size) courseDetails = [...details.values()];
     } catch (err) {
       console.error(
-        "[TOOL] get_program_requirements: course-title lookup failed:",
+        "[TOOL] get_program_requirements: course-detail lookup failed:",
         err instanceof Error ? err.message : String(err),
       );
     }
@@ -421,9 +467,22 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     total_credits:
       (facts.total_credits as string | number | null | undefined) ?? null,
     groups,
+    ...(requested.length
+      ? {
+          requested_semesters: requested,
+          semester_scope_found: groups.length > 0,
+          ...(groups.length
+            ? {}
+            : {
+                scope_note:
+                  "This catalog record does not identify the requested semester. Do not assign courses to it or substitute the entire plan.",
+              }),
+        }
+      : {}),
     source_url: row.sourceUrl,
     catalog_year: row.catalogYear ?? null,
     ...(componentAreas?.length ? { component_areas: componentAreas } : {}),
     ...(courseTitles ? { course_titles: courseTitles } : {}),
+    ...(courseDetails ? { course_details: courseDetails } : {}),
   };
 };

@@ -11,7 +11,7 @@ can't compile without all of it — see the feature [`README`](../README.md).
 | File | Mode | Interaction | Font |
 |---|---|---|---|
 | `simple.ts` | Simple | A chat — the bot asks each question; your answers sit back as bubbles | Manrope (app default) |
-| `playful.ts` | Playful | A campus stroll in the official Dallas College colors — the seven campus mascots roam the scene as the view moves per question (background polish in progress) | Nunito |
+| `playful.ts` | Playful | Seven campus mascots explore a full viewport field behind the centered questions | Nunito |
 | `focus.ts` | Focus | Calm — a marker climbs a mountain trail one leg per answer, flag at the summit on the last | Space Grotesk |
 
 Shells live in `../shared/shells/`; their scene art lives in `../shared/scenes/`.
@@ -27,12 +27,16 @@ brand images use the club's own artwork when present and fall back to coded
 versions otherwise — the club logo is `public/logo.png` (links to the club site)
 and the cover is `public/title.png`.
 
-The roaming mascots live in `../shared/scenes/campus-critters.tsx` — all seven
-campus mascots (SVGs in `public/mascots/`: the Suns, Eagles, Bees, Thunderducks,
-Lions, Bears, and Blazers) float in a side band at staggered heights, each with a
-gentle drift and sway (motion keyframes in `globals.css`). After starting, the
-header wordmark returns to the welcome page and the switcher changes the look at
-any time, keeping the answers.
+The decorative field lives in `../shared/scenes/playful-field.tsx` and is shared
+with the chat. `campus-critters.tsx` loads the animation engine only when Playful
+mounts. The approved WebP cast in `public/mascots/playground-v9/` uses local limb
+and wing articulation, distinct facial expressions, blinks, two ground lanes,
+and flights with uniform perspective scaling. The artwork remains intact.
+Reduced motion pauses the scene; hidden pages stop drawing. The scene never owns
+question controls or chat layout. See `docs/PLAYFUL_MASCOTS.md` at the repository
+root for the artwork lock, design constraints, and validation commands.
+After starting, the header wordmark returns to the welcome page and the switcher
+changes the look at any time, keeping the answers.
 
 ## Lock to a single UX
 

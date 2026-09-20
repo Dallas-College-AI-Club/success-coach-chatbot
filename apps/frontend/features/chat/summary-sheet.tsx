@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { citationHref } from "@/lib/constants";
 import { useEffect, useState } from "react";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
@@ -19,15 +20,8 @@ import {
 // property of what this component reads, not a promise. window.print() turns it
 // into a PDF; the on-screen edit controls are print:hidden.
 
-function cleanUrl(u?: string | null): string {
-  const href = (u ?? "").split("#")[0];
-  // Only ever emit an http(s) link — the store persists whatever was saved, so
-  // a stray javascript:/data: URL must never become a live href.
-  return /^https?:\/\//i.test(href) ? href : "";
-}
-
 function Cite({ label, url }: { label: string; url?: string | null }) {
-  const href = cleanUrl(url);
+  const href = citationHref(url);
   if (!href) return <span className="sheet-cite">{label}</span>;
   return (
     <span className="sheet-cite">
@@ -49,8 +43,10 @@ function ClassEntry({
   return (
     <div className="sheet-row">
       <div className="sheet-row-main">
-        <span className="sheet-code">{course.course_code}</span>{" "}
-        {course.title}
+        <span className="sheet-code">{course.course_code}</span> {course.title}
+        {course.description ? (
+          <div className="sheet-req">{course.description}</div>
+        ) : null}
         {course.requisites_raw ? (
           <div className="sheet-req">&ldquo;{course.requisites_raw}&rdquo;</div>
         ) : null}
@@ -322,7 +318,9 @@ export function SummarySheet() {
               </div>
             ))
           ) : (
-            <p className="sheet-empty">(add a note or a question for your coach)</p>
+            <p className="sheet-empty">
+              (add a note or a question for your coach)
+            </p>
           )}
         </section>
 
@@ -336,8 +334,7 @@ export function SummarySheet() {
         <footer className="sheet-footer">
           <div>
             <p className="sheet-promise">
-              Major helps you plan.{" "}
-              <b>A Success Coach makes it official.</b>
+              Major helps you plan. <b>A Success Coach makes it official.</b>
             </p>
             <p className="sheet-fmeta">
               Prepared with Major · Book a coach →

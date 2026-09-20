@@ -22,7 +22,7 @@ jobs:
       - run: uv run pytest tests/ -q
 
   frontend:
-    name: typecheck + guards (apps/frontend)
+    name: frontend verification
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -35,18 +35,6 @@ jobs:
           cache: npm
           cache-dependency-path: apps/frontend/package-lock.json
       - run: npm ci
-      - run: npx tsc --noEmit -p tsconfig.json
-      # tsc alone is not enough: an import can type-check yet fail the
-      # bundler's module-root resolution (proven by #136). Build for real.
-      # lib/client.ts is now lazy (getDb), so the stub URL is likely
-      # unnecessary — kept until a build without it is verified green.
-      - run: npx next build
+      - run: npm run verify
         env:
           DATABASE_URL: postgresql://ci:ci@localhost:5432/never-connected
-      # Guard lands with #134; hashFiles makes merge order irrelevant.
-      - name: Course-code normalization guard
-        if: hashFiles('apps/frontend/scripts/check-course-code-normalization.mts') != ''
-        run: npx tsx scripts/check-course-code-normalization.mts
-      - name: Sheet question filter guard
-        if: hashFiles('apps/frontend/scripts/check-sheet-question-filter.mts') != ''
-        run: npx tsx scripts/check-sheet-question-filter.mts

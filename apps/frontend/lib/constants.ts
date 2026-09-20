@@ -3,22 +3,14 @@
 // override would not be a setting, it would be a way to silently break a
 // working system.
 //
-// No imports on purpose: client components import this without dragging in
-// the DB client (same rule as lib/tools/names.ts).
+// Client-safe: the shared JSON contract does not import the database runtime.
 
-/**
- * The embedding contract — with the vectors already in knowledge_entry,
- * written by apps/data/dallasai/pipeline/embed_rows.py with this model, at
- * this width, through this gateway. Deliberately not LLM_BASE_URL /
- * LLM_MODEL: the chat model is a choice, but a query vector from a different
- * embedding model is not cosine-comparable with the stored ones — ranking
- * degrades to noise with no error. Changing any of these three means
- * re-embedding the corpus first.
- */
-export const EMBED_BASE_URL = "https://openrouter.ai/api/v1";
-export const EMBED_MODEL = "openai/text-embedding-3-small";
-/** Must equal the halfvec width in lib/schema.ts and in the Alembic DDL. */
-export const EMBED_DIMS = 768;
+/** The query encoder contract is reusable by data ingestion. Changing it
+ * requires reviewed corpus re-embedding, not a metadata-only correction. */
+import embeddingContract from "./embedding-contract.json";
+export const EMBED_MODEL = embeddingContract.model;
+/** Must equal the halfvec width in lib/schema.ts and the generated SQL baseline. */
+export const EMBED_DIMS = embeddingContract.dimensions;
 
 /**
  * The doc_types search_knowledge reads. A type belongs here only if either a
@@ -56,6 +48,8 @@ export const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
 const CITATION_HOSTS: ReadonlySet<string> = new Set([
   "catalog.dallascollege.edu",
   "dallascollege.campusconcourse.com",
+  "www.dallascollege.edu",
+  "dallascollege.edu",
 ]);
 
 /**

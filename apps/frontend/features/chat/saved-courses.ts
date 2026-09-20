@@ -1,9 +1,10 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
+import { readCourseDetails } from "@/lib/course-details";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -19,7 +20,9 @@ export interface SavedCourse {
   course_code: string;
   title?: string | null;
   credit_hours?: number | null;
+  description?: string | null;
   requisites_raw?: string | null;
+  campus_locations?: string | null;
   catalog_year?: string | null;
   source_url?: string;
 }
@@ -43,20 +46,14 @@ interface SavedCoursesState {
  *  so a long session cannot grow the stored transcript without limit. */
 const MAX_QUESTIONS = 40;
 
-function isSavedCourse(v: unknown): v is SavedCourse {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    typeof (v as SavedCourse).course_code === "string"
-  );
-}
-
 export const useSavedCourses = create<SavedCoursesState>()(
   persist(
     (set, get) => ({
       courses: [],
       questions: [],
-      toggle: (course) => {
+      toggle: (raw) => {
+        const course = readCourseDetails(raw);
+        if (!course) return;
         const has = get().courses.some(
           (c) => c.course_code === course.course_code,
         );
@@ -85,6 +82,29 @@ export const useSavedCourses = create<SavedCoursesState>()(
     }),
     {
       name: "saved-courses",
+      storage: createJSONStorage(() => ({
+        getItem: (name) => {
+          try {
+            return localStorage.getItem(name);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value);
+          } catch {
+            /* In-memory notes remain usable when storage is full or blocked. */
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            /* Storage may be unavailable. */
+          }
+        },
+      })),
       partialize: (s) => ({ courses: s.courses, questions: s.questions }),
       // Hydrate on the client after mount (see SummarySheet), never during the
       // server render — so the first client paint matches SSR and React never
@@ -97,12 +117,27 @@ export const useSavedCourses = create<SavedCoursesState>()(
           | { courses?: unknown; questions?: unknown }
           | undefined;
         const courses = Array.isArray(p?.courses)
-          ? p.courses.filter(isSavedCourse)
+          ? p.courses.flatMap((raw) => {
+              const course = readCourseDetails(raw);
+              return course ? [course] : [];
+            })
           : [];
         const questions = Array.isArray(p?.questions)
           ? p.questions.filter((q): q is string => typeof q === "string")
           : [];
-        return { ...current, courses, questions };
+        return {
+          ...current,
+          courses: [
+            ...new Map(
+              courses.map((course) => [course.course_code, course]),
+            ).values(),
+          ],
+          questions: [
+            ...new Set(
+              questions.map((q) => q.trim()).filter(isSheetWorthyQuestion),
+            ),
+          ].slice(-MAX_QUESTIONS),
+        };
       },
     },
   ),

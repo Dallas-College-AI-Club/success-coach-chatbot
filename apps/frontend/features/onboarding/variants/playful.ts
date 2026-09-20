@@ -14,7 +14,7 @@ export const playful: Mode = {
   fontClass: nunito.className,
   Wizard: PlayfulShell,
   skin: {
-    page: "flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F2EFE6] p-4 text-[#1E2A3A] md:p-8 [--ring:#E52626]",
+    page: "relative isolate flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#dcecf0] p-4 text-[#1E2A3A] md:p-8 [--ring:#E52626]",
     shell: "mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3",
     sectionLabel: "text-sm font-semibold text-[#E52626]",
     heading: "text-2xl font-bold text-[#003385] outline-none",
@@ -47,12 +47,14 @@ export const playful: Mode = {
     done: "Finish 🎉",
     back: "← Back",
     pickerPlaceholder: "Try “nursing,” “business,” or “welding”",
-    pickerEmpty: "Hmm, no match. Try a shorter word, or “I'm still figuring it out.”",
+    pickerEmpty:
+      "Hmm, no match. Try a shorter word, or “I'm still figuring it out.”",
     composerPlaceholder: "Ask Major anything 💬",
     completionHeadline: "Woohoo, solid start! 🎉",
     restart: "Start over",
     capabilityTrigger: "What can Major do?",
     capabilityTitle: "What Major can help with",
-    capabilityDesc: "Major's a planning tool. Here's the kind of stuff you can ask.",
+    capabilityDesc:
+      "Major's a planning tool. Here's the kind of stuff you can ask.",
   },
 };

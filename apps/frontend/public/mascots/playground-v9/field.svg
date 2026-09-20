@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" preserveAspectRatio="none">
+<defs>
+<linearGradient id="sky" x2=".15" y2="1"><stop stop-color="#c8e0ec"/><stop offset=".75" stop-color="#e7efe3"/><stop offset="1" stop-color="#f5efda"/></linearGradient>
+<linearGradient id="meadow" x2="0" y2="1"><stop stop-color="#c5dba6"/><stop offset="1" stop-color="#9ac180"/></linearGradient>
+<linearGradient id="front" x2="0" y2="1"><stop stop-color="#a1c788"/><stop offset="1" stop-color="#8ab776"/></linearGradient>
+<g id="tuft" stroke="#739d63" stroke-width="2" stroke-linecap="round" fill="none"><path d="M0 0q-1-8-5-10M0 0q1-11 6-14M0 0q5-5 9-5"/></g>
+<g id="flower"><path d="M0 0q-4-13 0-26" fill="none" stroke="#72945c" stroke-width="2"/><path d="M-1-8q-12 0-9-8 9 0 9 8" fill="#86a967"/><g fill="#f7f2dc"><ellipse cy="-29" rx="4" ry="8"/><ellipse cy="-29" rx="4" ry="8" transform="rotate(72 0 -25)"/><ellipse cy="-29" rx="4" ry="8" transform="rotate(144 0 -25)"/><ellipse cy="-29" rx="4" ry="8" transform="rotate(216 0 -25)"/><ellipse cy="-29" rx="4" ry="8" transform="rotate(288 0 -25)"/></g><circle cy="-25" r="4" fill="#e6bc57"/></g>
+<g id="tree"><path d="M0 0q-12-84 0-179M-3-73q-43-42-51-89M-3-106q31-34 44-63" fill="none" stroke="#8e9e78" stroke-width="9" stroke-linecap="round"/><path d="M-21-117c-44 8-78-20-66-51-35-26-4-66 24-64-1-41 50-68 76-42 32-26 77 2 73 30 42 14 43 60 12 73 14 33-18 63-51 51-23 27-51 15-68 3Z" fill="#acc894"/><path d="M-22-230c-28-9-41 2-50 15 15 2 29-1 38-9M15-181c27-5 41-20 47-39-25 3-38 15-47 39M-21-133q-30-16-34-49 28 12 34 49" fill="#95b983" opacity=".7"/></g>
+</defs>
+<rect width="1440" height="1000" fill="url(#sky)"/>
+<g fill="#fff" opacity=".33"><path d="M50 152c42-31 63-1 82-16 40-27 60-12 97 5 26-5 63 3 68 17H50Z"/><path d="M953 108c36-25 55-1 73-12 40-23 59-9 88 5 30-5 53 0 61 11H953Z"/></g>
+
+<path d="M0 551q174-86 376 8T797 537t643 19v444H0Z" fill="#c5d8c4"/>
+<path d="M0 610q260-117 542-23t489-19 409 35v397H0Z" fill="#cbdcb3"/>
+<path d="M0 679q233-71 529-18t471-15 440 2v352H0Z" fill="url(#meadow)"/>
+<g opacity=".68"><use href="#tree" transform="translate(106 693) scale(.76)"/><use href="#tree" transform="translate(1374 700) scale(.85)"/></g>
+<path d="M834 639c-28 55-244 70-352 93-254 53 167 93 387 127 189 29 226 72 145 141h164c-29-85-134-108-370-145-189-30-431-50-324-86 96-33 345-64 350-130Z" fill="#e9e5bf" opacity=".77"/>
+<path d="M0 890q189-38 345 3t366 65q254 39 729-57v99H0Z" fill="url(#front)" opacity=".65"/>
+<g opacity=".45"><use href="#tuft" transform="translate(63 829)"/><use href="#tuft" transform="translate(288 760) scale(.7)"/><use href="#tuft" transform="translate(1123 785) scale(.8)"/><use href="#tuft" transform="translate(1320 922)"/><use href="#tuft" transform="translate(152 982) scale(1.2)"/><use href="#tuft" transform="translate(1240 658) scale(.65)"/></g>
+<g opacity=".8"><use href="#flower" transform="translate(130 713) scale(.58)"/><use href="#flower" transform="translate(158 724) scale(.4)"/><use href="#flower" transform="translate(1320 801) scale(.5)"/><use href="#flower" transform="translate(1296 814) scale(.35)"/><use href="#flower" transform="translate(56 984) scale(.75)"/><use href="#flower" transform="translate(81 987) scale(.48)"/></g>
+<g fill="#739868" opacity=".26"><ellipse cx="128" cy="938" rx="13" ry="3"/><ellipse cx="1301" cy="700" rx="8" ry="2"/><ellipse cx="403" cy="681" rx="5" ry="1.5"/></g>
+</svg>
