@@ -1,1 +1,9 @@
-Generic single-database configuration.
+Historical Alembic scaffold; no migrations have been committed.
+
+Fresh databases use the reviewed SQLAlchemy baseline via:
+  python -m dallasai.database --schema
+  python -m dallasai.database --init
+
+Existing databases require a separately reviewed migration. Do not use
+alembic upgrade head as a substitute for initializing or verifying the schema.
+See ../REPRODUCE.md for the supported data pipeline.

@@ -3,7 +3,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
+import {
+  isSheetWorthyQuestion,
+  summarizeSheetQuestion,
+} from "@/features/chat/sheet-questions";
 import { readCourseDetails } from "@/lib/course-details";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
@@ -13,8 +16,8 @@ import { readCourseDetails } from "@/lib/course-details";
 // which would pull the server-only Drizzle client into the browser bundle.
 //
 // PRIVACY: this persists to localStorage, and `questions` holds the student's
-// own words verbatim. On a shared machine the next person can read them, so
-// `clear()` exists and /summary offers it. Nothing is sent to a server.
+// typed words or concise starter questions. On a shared machine others can read
+// them, so `clear()` exists and /summary offers it. Nothing is sent to a server.
 
 export interface SavedCourse {
   course_code: string;
@@ -29,9 +32,7 @@ export interface SavedCourse {
 
 interface SavedCoursesState {
   courses: SavedCourse[];
-  /** The student's own questions, copied verbatim as they ask them in chat —
-   *  real text they typed, so the sheet's "Questions I asked" list is grounded
-   *  the same way the class list is. */
+  /** Typed questions or contextual starter labels, without model instructions. */
   questions: string[];
   toggle: (course: SavedCourse) => void;
   remove: (courseCode: string) => void;
@@ -68,7 +69,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
           courses: get().courses.filter((c) => c.course_code !== courseCode),
         }),
       addQuestion: (q) => {
-        const text = q.trim();
+        const text = summarizeSheetQuestion(q);
         if (!text || get().questions.includes(text)) return;
         if (!isSheetWorthyQuestion(text)) return;
         set({ questions: [...get().questions, text].slice(-MAX_QUESTIONS) });
@@ -134,7 +135,9 @@ export const useSavedCourses = create<SavedCoursesState>()(
           ],
           questions: [
             ...new Set(
-              questions.map((q) => q.trim()).filter(isSheetWorthyQuestion),
+              questions
+                .map(summarizeSheetQuestion)
+                .filter(isSheetWorthyQuestion),
             ),
           ].slice(-MAX_QUESTIONS),
         };

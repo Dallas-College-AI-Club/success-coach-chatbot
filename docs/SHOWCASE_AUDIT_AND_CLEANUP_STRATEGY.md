@@ -27,13 +27,156 @@ Local evidence: `club-project/local/success-coach-pr190/apps/frontend/.tmp/190-{
 
 ## Earlier audit checkpoints
 
+## Current local follow-up — issue #191
+
+**Local evidence location:** the source workspace contains publishable files only. Dependencies and `.tmp` audit artifacts live in the sibling `club-project/local/success-coach-chatbot` runtime copy, excluded from Git. Credentials live separately in `_minjoo_local-only/success-coach-chatbot.env.local`; the launcher loads this project's file explicitly. Evidence paths below refer to the runtime copy. Codex attachments and disposable caches were deleted.
+
+**September 20, 2026.** Owner approved outstanding strategy items **1, 3, 4 and 5**, with **2 tabled**, and explicitly required approval before committing. Branch `bugfix/191-planning-data-integrity` is based on PR #190 head `84c32b4`. This checkpoint supersedes earlier “deferred” labels only for the selected scope. No #191 commit/push/PR or database import has been made. See the [executive decision table](SHOWCASE_EXECUTIVE_DECISIONS.md#next-pr-review--issue-191--september-20-2026) for methods, alternatives and approval/comment fields.
+
+**Latest scope decision:** decision **05 — Exhaustive faculty expertise search** is part of this PR. Decision **11 — Syllabus integration** is reserved for the next PR. Start that work by reviewing the saved tests and methodologies in the owner's Dallas College AI Club “Project - Success Coach Chatbot” folder; do not treat this PR's schedule repairs as syllabus integration.
+
+### Final touched-file audit
+
+**Additional audit iteration:** the following defects and inefficiencies were found and repaired after the previous checkpoint. Existing source gaps and approval boundaries below still apply.
+
+| Finding | Fix / acceptance evidence |
+|---|---|
+| Fall repair builder accessed a deferred review hash after closing its database session, raising `DetachedInstanceError`. | Load the hash in the original query. A real ORM regression reproduces the failure; a new read-only rehearsal prepares and validates all 12,872 Fall rows with their review hashes. |
+| “Failed A and finished B,” “passed A and transferred B,” and “completed A and did not pass B” lost or mixed statuses. | Recognize independent completion/enrollment predicates and distinguish negative assertions from questions. A 675-case matrix covers 15 phrases in both course positions with `and`, commas and `but`; all pass after repair. |
+| An unknown course before a known code could still produce exact remaining credits; clarification was hidden in collapsed details. | Withhold exact arithmetic for unmatched lists in either order and show a visible clarification request. Structured output explicitly marks provisional history; model instructions ask for clarification first. |
+| Two missing catalog editions were treated as a matching edition for shared credits. | Preserve course-code overlap but return unknown shared credits until an explicit matching edition exists. |
+| Legacy structured corequisite text lost its parent heading. | Reconstruct category labels before classifying raw text; required concurrent enrollment remains separate from prior preparation. |
+| Broad search could truncate a long CV before the supporting evidence. Empty exhaustive-faculty searches skipped broad recovery. | Return bounded excerpts around literal matches, separate disjoint passages, and perform one broad recovery after zero faculty matches. Related candidates remain distinct from exhaustive evidence results. |
+| Composition hardcoded catalog ID 5/current edition and compared schedule dates lexically. | Read catalog identifiers from source URLs, reject unidentified catalog editions, compare timezone-aware receipt instants, and preserve date-only provenance explicitly. |
+| History repeatedly rebuilt title regexes; planning repeatedly scanned arrays; composition read the schedule twice; non-text edits triggered unnecessary embedding work. | One compiled title matcher per assessment, maps/sets for course and choice membership, one CSV read, and vector reuse keyed to validated text SHA-256. Changed text still requires embedding; new facts/metadata are retained. |
+
+**Follow-up evidence:** `apps/frontend/.tmp/191-audit-followup-final.log`, `191-audit-followup-data.json`, `191-audit-followup-chat.json`, `191-followup-schedule.json`, `191-followup-schedule-source-check.json`, and `apps/data/.tmp/191-audit-followup-backend-final.log`. The initial chat harness mistakenly checked `sections` rather than `offerings`; its failed assertion remains recorded. Independent source comparison verified the original nine-section response. This was a test defect, not a missing schedule. An early ad hoc runner referenced the former credential path; the current launcher correctly uses the renamed project-specific file, and read-only requests succeed.
+
+**Final confirmations:** `191-audit-followup-final-chat.json` records four passing targeted requests after the fixes, following the eight initial scenarios. `191-followup-secret-check.json` records zero secret matches, staged files or ignored workspace artifacts. Browser tests cover first-typed-question starter removal, corrected history and course details, visible clarification, and all three themes at a 390 px viewport with no horizontal overflow; the viewport was restored. A model reply still sometimes defers clarification to its final sentence or repeats a course list, so the visible application guidance remains authoritative. No shared database write, deployment, commit or push occurred.
+
+| Reproduced failure | Correction and evidence |
+|---|---|
+| “Completed A and will take B” or comma-separated statuses applied one status to both courses. Hypothetical/postfix questions could rewrite real history. | Preserve statement boundaries and question punctuation; hypothetical clauses do not update history. Regression tests and a three-turn live correction conversation pass. |
+| Whole-program arithmetic/comparison omitted prerequisite and required-support groups whenever semester groups existed. | Retain explicit prerequisites/support requirements while keeping elective/track tables out of mandatory-course arithmetic. All 337 plans exercised: 96 exact, 241 unresolved. Archived HTML confirms the six newly reconciled plans and Medical Assisting's prerequisite group. All 41 previously flagged group-sum cases remain unresolved. |
+| Required wording nested under a concurrent-requisite heading became a prerequisite. | Preserve the parent category and recommended/required distinction. Unit cases cover nested labels and singular/plural headings; 1,573 individual-course requisite records exercised. |
+| “Full Medical Assisting Certificate checklist, including prerequisites before Semester 1” returned only Semester 1. | A named full checklist takes precedence over contextual semester wording. The same live question now returns all five groups, including ENGL 1301 and the speech choice. Explicit first-semester requests stay scoped. |
+| Missing raw sources left stale active facts; an empty replay map could call paid extraction; catalog years could collide on one output filename. | Quarantine stale envelopes, reject empty replay, and preflight output identities before extraction. Overlapping catalog filenames require separate output directories. All three regressions were observed failing before repair. |
+| A reviewed facts-only repair could overwrite a newer target. | Require the reviewed `expected_content_hash` in producer and loader. A stale/missing target rolls back every batch. Real isolated SQLite transactions verify rollback, in addition to mocked failure tests. No shared Neon write was made. Regenerate older proposals before loading. |
+| Malformed embedding metadata/text could raise incidental errors or produce an invalid delivery. | Validate row/metadata/text shapes before embedding; retain the shared encoder's dimension, finite-value and normalization checks. No new encoder or dependency. |
+| Faculty source/date attribution depended on database row order; a 50-name model summary encouraged partial-list prose. | Stable grouping retains every supporting source, preserves its timestamp precision, and never merges same-name people with different education evidence. Large model summaries now carry counts/coverage; the UI still receives every profile. A final live mathematics answer reports 292 matches concisely. |
+| A relocated configuration could be shadowed by inherited environment settings. | One private `.env.local` per project, explicit child-process environment loading, and removal of obsolete copies. The first launcher rehearsal exposed a Windows precedence problem; explicit environment construction fixed it. Live database/model requests pass with a deliberately wrong inherited database URL. No local Vercel link exists. |
+
+**Latest verification:** 117 frontend checks; 124 backend tests passed, four existing integration skips and one existing Chroma deprecation warning. Frontend lint, TypeScript, production build, touched-file Ruff checks and normal Git whitespace checks pass. Eight live read-only faculty queries match all expected source identities across 2,709 indexed CVs: ML/LLM OR 15 profiles, AND one, Python 28, mathematics 292, C++ 11, cybersecurity 26, nursing 145, unsupported topic zero. Browser Show more reaches all 292 mathematics profiles and retires the starter buttons after submission. Seven live conversation cases plus two final corrected cases exercise the new fixes. Counts describe tested cases, not proof that arbitrary model prose is bug-free.
+
+**New local evidence:** `apps/frontend/.tmp/191-audit-0920-data.json`, `191-audit-0920-chat.json`, `191-audit-0920-final-chat.json`, and `191-audit-0920-verified-chat.json`. The initial failed scope case and configuration rehearsal are retained; final corrected cases pass. Data queries were read-only. No source files or dependencies were added merely for this audit's scratch scripts.
+
+| Workstream | Implemented correction | Evidence / acceptance boundary |
+|---|---|---|
+| Planning and history | Pure status parsing, prerequisite classification, unique completed-credit arithmetic, conservative choice allocation, exact two-program set comparison, status-aware rows/follow-ups. Force fresh structured lookups for explicit semester/history/detail questions when their subject is known. | Python Certificate: 18 published credits, 6 completed → 12 unfinished; correcting MATH 1314 to withdrawn and ITSE 1329 to in progress → 15 unfinished. Pending transfer, hypothetical, failed, nearly completed and third-party statements cannot grant completed credits. Unknown titles and complex rules block an exact total. |
+| Required vs recommended | Preserve original catalog statement while displaying separate categories. Resolve reported prerequisite titles through referenced course records. Avoid sending the legacy extracted prerequisite array as a mandatory-requirement signal to the model. | ITSE 2370 records recommend ITSE 1370. A fresh “completed Intro to Python” statement maps to ITSE 1370; no enrollment decision is made. Placement/grades/consent remain unknown. |
+| Exact program comparison | Compare only the selected pair's explicit fixed requirements; exclude OR alternatives and elective lists; disclose unreconciled requirements. | Python Developer Certificate vs Software Development A.A.S.: ITSE 1329, ITSE 1350 and MATH 1314, 9 shared required credits. Neither model arithmetic nor a third program's history determines this list. |
+| Embedding and setup | One MiniLM 384/int8/mean/normalized contract, shared encoder, text hash/provenance validation, import-safe legacy parser, retired legacy DB writes, generated non-destructive baseline, explicit read-only status/export. | New 86-course/34-option deliveries embed locally and pass strict validation. Three legacy vectors have cosine 0.9885–0.9894 to current MiniLM but incorrect OpenAI/768 stamps; origin is not proven, so no silent relabelling or live re-embedding. |
+| Loader and verification | Count manifests replace frozen corpus totals; invalid vectors/dates/identities/negative or nonfinite values rejected. Empty golden/catalog/CV runs fail. Catalog title checking and explicit diagnostic waivers; fingerprints detect changed source, prompt, schema, extractor and provenance. Latest archive identity wins. | Rollback regression covers a missing target in a later facts-only batch: zero commits for the entire delivery. Full-row imports still commit batches and require idempotent recovery after partial failure; this limitation is documented. |
+| Source reconciliation | Compare 1,693 archived course pages with 1,588 indexed course rows; distinguish numeric courses from `XXXX` options; retain original manifests/source hashes. | 105 gaps: **86 courses + 19 option pages**; 15 indexed options need reclassification. 120 proposed rows validated, zero quarantine in this subset. Nothing imported. 153 distinct schedule codes still need catalog sources across saved terms. |
+| Schedule reproducibility/freshness | Fresh composition attaches source meeting facts; facts-only proposals require explicit terms, preserve existing non-schedule facts, reject partial parses and retain raw text. v2 schema includes raw meeting text. | Read-only producer rehearsal: 12,872 matched Fall targets, 6,520 with parsed times, 6,352 without; all pass v2 validation after normalizing 158 unknown modalities to null. Existing approved Fall import is not rerun. Saved source dates appear in schedule output. Unknown/partial clock times remain unknown, including raw-only patterns; no asynchronous inference. |
+| Faculty evidence | Query all saved evidence with AND/OR, bounded keyword expansion and acronym context; no top-k cap. Repeat name+education profiles group with all source links retained. Lists load 50 visible rows at a time. | Independent 2,709-CV scan: ML OR LLM = 17 rows / 15 profiles; BOTH = 1 profile. All 28 returned excerpts match saved HTML. Mathematics = 293 rows / 292 profiles, all reached by browser Show more. Zero-match queries still disclose corpus coverage. |
+
+**Automated verification:** frontend demo/boundary/mascot/planning suite 79 passed; backend 124 passed, 4 existing skipped, one existing Chroma deprecation warning. Lint, typecheck and optimized build pass. Another 12 course-normalization and 26 print-sheet checks pass. SQL baseline equals generated model DDL; no shared-database DDL was attempted.
+
+**Conversation stress:** 13 successful production-mode GPT-4.1-mini requests, 1.0–6.9 seconds in this run; eight related turns plus independent ambiguity, unknown-course, first-semester/elective, impossible-expertise and fresh title-history cases. Three independent turns ran concurrently. Model tool choices, scope, structured arithmetic and nonempty/error-free streams were asserted. Earlier trials exposed (and led to fixes for) semester splitting and stale-history reuse. This is scenario coverage, not a guarantee of arbitrary model correctness or a capacity SLA. Generated prose still sometimes repeats lists or uses awkward requisite labels; source-backed cards retain the distinction, and long explanations stay collapsed.
+
+**Browser verification:** actual app, all three themes; completed-course separation; recommended preparation and reported history in Show more; save-to-notes → printable course details; all 292 mathematics profiles accessible through 50/100/150/200/250/292 visible counts, with no remaining pagination control at the end. Every faculty source stays with its named profile instead of an unlabeled citation strip.
+
+### Additional audit and latest starter decision
+
+All starter buttons now disappear when the first user question is submitted, whether typed or clicked. `handoff-copy.ts` supplies both the onboarding preview and chat starters; the obsolete follow-up suggestion module is deleted. Questions use the selected program, goal, combined online/evening/weekend preferences, transfer direction and target school, interest area, or single-course purpose. Missing selections trigger clarification. The schedule starter checks **one identified first-semester course**, not a complete timetable. No onboarding choice establishes eligibility or transfer acceptance.
+
+| Reproduced issue | Fix and verification |
+|---|---|
+| Mixed status sentences applied one completion state too broadly; uncertainty could preserve previously earned credit. | Split distinct status clauses, retain explicit unknown status, honor later corrections, and prevent exact credit arithmetic for partially recognized history. Live totals move 12 → 15 → unknown → 9 for a scoped second-semester checklist. |
+| A duplicated elective option could satisfy more credits than one course earns. | Deduplicate option codes before evaluating an exhaustive equal-credit choice; overlapping allocations remain unresolved. |
+| Who-teaches discovery could stop at historical snippets and omit the complete roster. | Force the schedule lookup when course/section discovery resolves one code; ignore CV-only hints and preserve ambiguity. Fresh unspecified teaching questions use the current Dallas term; explicit/historical requests retain their terms. |
+| Repeated imports could retain stale SQLite filters and attach FTS text to the wrong row. | Upsert all authoritative filters/hash/dates, rebuild the offline FTS index transactionally, and close the connection on failure. Verified against a real temporary SQLite database. |
+| Same course/section identifiers across terms could attach the wrong schedule details. | Join and deduplicate by course, section **and term**, taking the latest source receipt consistently. |
+| Corpus reconciliation could re-propose an already imported catalog-option page. | Include indexed catalog-option identities when reconciling the archive; regression covers a second run. |
+| Noncredit headings falsely failed title verification; C++/C# highlights missed punctuation. | Accept the printed noncredit suffix while still rejecting a wrong title; use literal keyword boundaries that include punctuation without highlighting Java inside JavaScript. |
+
+**Additional conversation evidence:** 35 API turns in batches of three, including eight continuing turns; six follow-up turns and five targeted instructor/schedule regressions after the fixes. Checks cover all seven goal paths, five interest areas, three single-course purposes, dual credit, inbound/outbound transfer, combined availability preferences, missing identifiers, no-result recovery, exhaustive AND/OR faculty results and program/course/faculty/schedule topic changes. These are scenario and small-concurrency tests, not a public capacity certification. A first-run broad-recovery assertion inspected the model's requested flag rather than the server-enforced search scope; independent output inspection and a fresh request verified the recovery path. Raw evidence retains that initial test failure.
+
+**Independent data agreement:** 49 returned program groups, 126 course-detail instances and six resource results match the read-only snapshot. Five schedule responses match all 48 returned section rows and complete instructor rosters directly against Neon, including source identities, dates and meeting times. The new browser run verifies all starters disappear during and after both first-click and first-typed requests, remain absent when changing themes, and course/elective details and saved print notes still work. Test-added course notes were removed afterward.
+
+**Whole saved catalog:** checked 1,588 course rows and 337 program rows against archived HTML. After fixing the noncredit-heading false alarm, 44 records retain diagnostic flags: one title difference, two previously adjudicated description normalizations, and 41 program group-sum warnings. This is a mechanical source check, not a new fetch or complete semantic certification. All 337 programs were exercised with the saved course facts: 96 support an exact initial checklist total; 241 conservatively require review after restoring prerequisite/support groups. All 41 group-sum warnings return an unresolved remaining total.
+
+| Data finding | Why / recommended action | Alternative / approval |
+|---|---|---|
+| MRKG 1366 saved title ends at “Marketing”; printed heading continues “MarketingMarketing Management, General.” [Source](https://catalog.dallascollege.edu/preview_course_nopop.php?catoid=5&coid=16431) | Source itself appears malformed. Review the official heading, preserve verbatim evidence, and regenerate/validate the affected row and embedding before an approved import. Do not silently claim the shortened title is exact. | Keep the current display only with an explicit, reviewed normalization record. [ ] Approve exact-source correction [ ] Approve annotated normalization. Comment: ____ |
+| TECA 1354 and MUAP 2263 description differences | Existing July adjudications document repaired run-together words and a missing leading letter. Retain the diagnostics and adjudication; do not broadly exempt these sources from future validation. | Reproduce the source typos verbatim. No new Neon write is required for this review. |
+| 41 program group sums differ from published totals | Tracks, alternative paths and overlapping groups require interpretation. Preserve the printed total and requirement text; do not sum every listed option as mandatory. Review source groups before any data repair. | Continue displaying the catalog checklist with unresolved credit allocation, as implemented. This does not prevent browsing the plan. |
+
+<details>
+<summary>Program group-sum review list (41 saved records)</summary>
+
+| Program / source | Published credits | Sum of stored groups |
+|---|---:|---:|
+| [Associate of Science Degree in Computer Science (Richland/UTD)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3011) | 60 | 62 |
+| [Rising Construction Technology Occupational Skills Award](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3177) | 9 | 12 |
+| [Advanced Architectural Drafting Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2769) | 29 | 32 |
+| [Architectural Drafting Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2776) | 18 | 21 |
+| [Auto Body Technology Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2786) | 47 | 53 |
+| [Associate of Science Degree in Biomedical Engineering (Richland/UTD)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2792) | 60 | 71 |
+| [Business Operations Generalist Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2799) | 18 | 21 |
+| [Business Operations Specialist Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2800) | 30 | 36 |
+| [Chassis Service Technician Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2808) | 18 | 21 |
+| [Welding Applications A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2829) | 60 | 120 |
+| [Welding Applications Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2830) | 51 | 87 |
+| [Transmission Service Technician Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2840) | 18 | 21 |
+| [Mortgage Banking A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2853) | 60 | 75 |
+| [Associate of Science Degree in Mechanical Engineering (Richland/UTD)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2868) | 60 | 67 |
+| [Logistics and Supply Chain Management A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2873) | 60 | 69 |
+| [Interactive Simulation and Game Technology A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2897) | 60 | 138 |
+| [Hospitality Management A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2899) | 60 | 132 |
+| [Human Resources Assistant Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2900) | 18 | 21 |
+| [Human Resources Associate Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2901) | 18 | 21 |
+| [Criminal Justice and Public Safety A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2922) | 60 | 75 |
+| [Construction Management A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2924) | 60 | 96 |
+| [Construction Technology A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2925) | 60 | 180 |
+| [Substance Abuse Counseling A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2935) | 60 | 66 |
+| [Software Development A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2939) | 60 | 84 |
+| [Social Work Associate - Generalist A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2942) | 60 | 66 |
+| [Builder/Contractor Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2960) | 29 | 47 |
+| [Associate of Science Degree in Pre-Mechanical Engineering](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2972) | 60 | 77 |
+| [Game Development Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=2998) | 18 | 72 |
+| [Cyber Security A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3003) | 60 | 180 |
+| [Associate of Science Degree in Computer Engineering (Richland/UTD)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3010) | 60 | 63 |
+| [Computer-Aided Design and Drafting A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3013) | 60 | 73 |
+| [Designate Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3017) | 30 | 33 |
+| [Associate of Science Degree in Electrical Engineering (Richland/PVAMU)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3030) | 60 | 68 |
+| [Associate of Science Degree in Electrical Engineering (Richland/UTD)](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3032) | 60 | 65 |
+| [Electronics and Climate Controls Technician Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3036) | 18 | 21 |
+| [Plumbing Technology A.A.S.](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3155) | 60 | 72 |
+| [Power Sports Certificate](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3171) | 28 | 31 |
+| [Associate of Arts in Teaching Degree EC-6](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3449) | 60 | 67 |
+| [Associate of Arts in Teaching Degree - Leading to Initial Texas Teacher Certification in Foreign Language, EC-12](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3450) | 60 | 73 |
+| [Associate of Arts in Teaching Degree - Leading to Initial Texas Teacher Certification in Mathematics, 8-12](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3451) | 60 | 72 |
+| [Occupational Skills Award in Professional Accountancy](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3790) | 12 | 21 |
+
+</details>
+
+**Developer cleanup:** one `npm run verify` command now covers lint, typechecking, regressions and the production build locally and in CI. Touched files had dead imports, duplicate validation, stale paths/counts/comments and obsolete documentation removed. Existing modules retain their responsibilities; no new runtime dependency was introduced. The cleanup rule is recorded in `CONTRIBUTING.md` for future changes.
+
+**Local evidence (ignored):** `apps/frontend/.tmp/191-db-final-snapshot.json`, `191-conversations.json`, `191-faculty-source-check.json`, `191-stress-2.json`, `191-stress-final.json`, `191-discovery-regression.json`, `191-term-regression.json`, `191-stress-source-check.json`, `191-schedule-source-check.json`, `191-all-plans.json`, and `191-corpus-final/{report,missing-courses,option-pages}.json` plus validated `.embedded.json` proposals. Credentials and these artifacts are excluded from the proposed Git diff. [REPRODUCE.md](../apps/data/REPRODUCE.md) documents supported commands, reviewed counts, source timestamps, rollback and import boundaries.
+
+**Still outstanding:** user commit approval, PR #190 review/merge dependency, separate data-import authorization, sources for the remaining 153 section codes, full legacy-corpus re-embedding if desired, disposable-database deployment rehearsal, and the explicitly tabled public-app protections. Syllabus ingestion, live registration, official eligibility/transfer decisions, deployment identity and device/capacity certification remain outside this PR.
+
+---
+
 **Audit baseline September 19, 2026; final showcase review September 20.**
 
 <a id="final-review-checkpoint"></a>
 
 ## Final review checkpoint — issue #189
 
-**Current status supersedes the dated local checkpoints below.** The owner expanded the original two-change scope to include schedule repair/grouping, broad recovery, complete course-instructor rosters, inline CVs/highlights, reliability fixes, coordinated Playful mascots, documentation and a commit/PR. The approved Fall facts import is already applied. Branch: `bugfix/189-showcase-demo-polish`; [issue #189](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/189) is on the Success Coach Kanban. Merge and deployment remain separate. The original findings below describe the baseline; they are not all claims about the changed branch.
+**Historical #189 status; the #191 checkpoint above governs current local work.** The owner expanded the original two-change scope to include schedule repair/grouping, broad recovery, complete course-instructor rosters, inline CVs/highlights, reliability fixes, coordinated Playful mascots, documentation and a commit/PR. The approved Fall facts import is already applied. Branch: `bugfix/189-showcase-demo-polish`; [issue #189](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/189) is on the Success Coach Kanban. Merge and deployment remain separate. The original findings below describe the baseline; they are not all claims about the changed branch.
 
 | Requested outcome | Implemented and verified behavior | Boundary |
 |---|---|---|

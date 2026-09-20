@@ -166,6 +166,7 @@ export function recoveryToolChoice(
         "get_program_requirements",
         "get_class_schedule",
         "get_instructor",
+        "search_faculty_expertise",
       ].includes(result.toolName) &&
       isRecord(result.output) &&
       result.output.found === false,

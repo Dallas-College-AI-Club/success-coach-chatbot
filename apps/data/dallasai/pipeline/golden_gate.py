@@ -71,11 +71,12 @@ def main(argv=None) -> None:
     )
     args = ap.parse_args(argv)
 
-    n_fail = 0
+    n_fail = n_checked = 0
     for case_dir in sorted(p for p in args.gate_dir.iterdir() if p.is_dir()):
         case = case_dir.name
         if case.startswith("_") or not (case_dir / "expected.json").exists():
             continue  # retired fixtures, adjudication records, scratch dirs
+        n_checked += 1
         doc_type = "course" if case.startswith("course-") else "program_map"
         rel_file = case_dir / "rel.txt"
         rel = (
@@ -115,9 +116,14 @@ def main(argv=None) -> None:
                 )
         else:
             print(f"[gate ok]   {case} (attempts={res.attempts})")
+    if n_checked == 0:
+        raise SystemExit(
+            "No golden fixtures were checked; bulk extraction remains blocked"
+        )
     if n_fail:
         print(
-            f"\n{n_fail} case(s) FAILED — do NOT bulk-run until reconciled and re-verified."
+            f"\n{n_fail} case(s) FAILED — "
+            "do NOT bulk-run until reconciled and re-verified."
         )
         sys.exit(1)
     print("\nGOLDEN GATE GREEN — pilot/bulk unlocked.")

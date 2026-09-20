@@ -40,6 +40,8 @@ export function schoolLabel(p: OnboardingPayload): string {
 
 export interface StarterQuestion {
   label: string;
+  /** Concise print question with context; otherwise use the button label. */
+  note?: string;
   /** Complete question sent on click; never relies on an unstated "it". */
   prompt: string;
 }
@@ -78,13 +80,19 @@ function coursePlan(
       : first
         ? "Which classes would I start with?"
         : "Review my program's course checklist",
-    prompt: `Show the published course plan for ${name}${first ? ", only semester 1" : ""}, grouped by semester or requirement, with course codes and credits.`,
+    note: first
+      ? `Which courses are in semester 1 of ${name}?`
+      : example
+        ? `What would I study in ${name} (example program)?`
+        : `Which courses are required for ${name}?`,
+    prompt: `Look up the published course plan for ${name}${first ? ", only semester 1" : ""}. The course cards already show the requested checklist and its credits. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.`,
   };
 }
 
 function coursePrerequisites(name: string): StarterQuestion {
   return {
     label: "What do I need before starting?",
+    note: `What are the required prerequisites and recommended preparation for semester 1 of ${name}?`,
     prompt: `What prerequisites and recommended preparation does the catalog list for the first-semester courses in ${name}? Keep required prerequisites separate from recommendations.`,
   };
 }
@@ -103,7 +111,8 @@ function scheduleQuestion(
     label: preference
       ? `Does a starting course have ${preference} options?`
       : "When does a starting course meet?",
-    prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Keep the explanation brief; the section list supplies the details. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
+    note: `When does a first-semester course in ${program} meet${preference ? `, and are there ${preference} options` : ""}?`,
+    prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Use the schedule cards to show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Reply with a brief summary, without repeating the section list. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
   };
 }
 
@@ -189,6 +198,7 @@ function selectHandoff(p: OnboardingPayload): Handoff {
         program ? plan : courseQuestion("prerequisite"),
         {
           label: "Get course details for a transfer review",
+          note: `Which Dallas College course details should I collect for a transfer review ${transferringIn ? "into Dallas College" : `at ${school}`}?`,
           prompt: `I ${transferringIn ? "want to bring previous credits into Dallas College" : `want to take Dallas College credits to ${school}`}. Help me collect Dallas College catalog descriptions, credits and prerequisites for a transfer review. Ask which Dallas College course codes I want to compare; do not assume a course equivalence or accepted credit.`,
         },
         COACH,
@@ -212,9 +222,12 @@ function selectHandoff(p: OnboardingPayload): Handoff {
         "Review the published course plan before an official graduation review. You could ask:",
       questions: [
         {
-          label: "Review my graduation checklist",
+          label: "Help me check which courses I still need",
+          note: program
+            ? `Which courses do I still need for ${program}, given my completed, current and transfer courses?`
+            : "Which courses do I still need to graduate?",
           prompt: program
-            ? `Show the published course checklist for ${program}. Help me identify questions to review with my Success Coach. Do not calculate remaining credits or confirm graduation eligibility.`
+            ? `Show the published course checklist for ${program}. Ask which courses I have completed, am taking, or need reviewed as transfer credit before calculating what remains. Keep my reported history separate from an official graduation audit.`
             : "Help me review what I still need to graduate. First ask which Dallas College program I am in and which courses I have completed; do not assume a program or an official graduation result.",
         },
         plan,

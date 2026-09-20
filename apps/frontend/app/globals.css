@@ -201,7 +201,7 @@
   background: var(--sheet-blue); color: #fff; padding: 18px 0.6in;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-.sheet-dc-logo { height: 54px; width: auto; background: #fff; border-radius: 8px; padding: 5px; }
+.sheet-bot { height: 64px; width: 64px; background: #fff; border-radius: 12px; padding: 4px; }
 .sheet-title { flex: 1; }
 .sheet-title h1 { font-family: var(--sheet-display); font-weight: 800; font-size: 22pt; margin: 0; letter-spacing: -0.02em; }
 .sheet-title p { font-size: 9pt; margin: 3px 0 0; opacity: 0.85; }

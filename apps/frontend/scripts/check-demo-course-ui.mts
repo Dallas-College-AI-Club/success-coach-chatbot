@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assessRequisites } from "../lib/planning";
 import { test } from "node:test";
 import { useSavedCourses } from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
@@ -166,6 +167,33 @@ test("the complete instructor roster is independent of the section page, with ex
   assert.equal(compact.instructor_profiles, undefined);
   assert.deepEqual(compact.instructors, output.instructors);
   assert.equal(output.instructor_profiles.length, 1);
+});
+
+test("schedule summaries count unassigned sections and keep page counts separate from totals", () => {
+  const output = {
+    total_sections: 942,
+    offset: 100,
+    truncated: true,
+    offerings: [
+      ...Array.from({ length: 9 }, () => ({
+        modality: "online",
+        professor: null,
+      })),
+      ...Array.from({ length: 5 }, () => ({ modality: "hybrid" })),
+      { modality: "in_person" },
+      { modality: "in_person" },
+      { modality: null },
+    ],
+  };
+  const result = scheduleResultForModel(output) as Record<string, unknown>;
+  assert.deepEqual(result.loaded_section_counts, {
+    scope: "loaded_page",
+    total: 17,
+    by_modality: { online: 9, hybrid: 5, in_person: 2, unknown: 1 },
+  });
+  assert.equal(result.total_sections, 942);
+  assert.equal(result.truncated, true);
+  assert.equal("loaded_section_counts" in output, false);
 });
 
 test("related CV candidates stay qualified, with long backgrounds behind show more", () => {
@@ -537,6 +565,7 @@ test("every picker program yields a named course-plan prompt; missing programs n
   for (const program of PROGRAMS) {
     const first = starterQuestionsFor({ ...profile, major: program.code })[0];
     assert.ok(first.prompt.includes(program.label), program.code);
+    assert.deepEqual(requestedSemesters(first.prompt), [1], program.code);
     assert.ok(INPUT_SCHEMA.safeParse({ programName: program.label }).success);
   }
   const unknown = starterQuestionsFor({ ...profile, major: "missing" });
@@ -776,19 +805,19 @@ test("failed and ambiguous tool results never become course cards", () => {
 });
 
 test("legacy requisite groups preserve concurrent enrollment labels", () => {
-  const detail = courseDetailsFromRow({
+  const course = courseDetailsFromRow({
     courseCode: "ITSE 2370",
-    sourceUrl: "https://catalog.dallascollege.edu/",
     catalogYear: "2026-2027",
+    sourceUrl: "https://example.edu/course",
     facts: {
       prerequisites: [{ raw_text: "Recommended: ITSE 1370." }],
       corequisites: [{ raw_text: "Required: MATH 1314." }],
     },
   });
-  assert.equal(
-    detail?.requisites_raw,
-    "Prerequisites: Recommended: ITSE 1370.\nCorequisites: Required: MATH 1314.",
-  );
+  const result = assessRequisites(course!.requisites_raw, {});
+  assert.deepEqual(result.required, []);
+  assert.deepEqual(result.recommended, ["Recommended: ITSE 1370."]);
+  assert.deepEqual(result.corequisites, ["Corequisites: Required: MATH 1314."]);
 });
 
 test("restored notes are validated, unique and bounded just like newly saved notes", () => {
@@ -859,11 +888,59 @@ test("the printable sheet uses the same official citation policy as chat", () =>
     );
     initial.courses = [course];
     const official = renderToStaticMarkup(createElement(SummarySheet));
+    assert.match(official, /<svg[^>]+sheet-bot/);
+    assert.doesNotMatch(official, /dallas-college\.svg|sheet-dc-logo/);
     assert.ok(official.includes("catalog.dallascollege.edu"));
     assert.doesNotMatch(official, /#2026-2027#facts/);
   } finally {
     initial.courses = previous;
   }
+});
+
+test("print questions keep starter context without instructions and repair existing notes", () => {
+  const merge = useSavedCourses.persist.getOptions().merge!;
+  for (const goal of [
+    "first_semester_plan",
+    "transfer_check",
+    "graduation_check",
+    "schedule_fit",
+  ] as const) {
+    for (const program of PROGRAMS) {
+      for (const q of starterQuestionsFor({
+        ...profile,
+        goal,
+        major: program.code,
+      })) {
+        const note = q.note ?? q.label;
+        assert.doesNotMatch(
+          note,
+          /course cards|Reply in|do not|without repeating|Use the schedule/,
+        );
+        if (/^Look up the published course plan/.test(q.prompt)) {
+          assert.ok(note.includes(program.label), note);
+          assert.deepEqual(
+            requestedSemesters(note),
+            requestedSemesters(q.prompt),
+          );
+          const restored = merge(
+            { questions: [q.prompt, note] },
+            useSavedCourses.getState(),
+          );
+          assert.deepEqual(restored.questions, [note]);
+        }
+      }
+    }
+  }
+  const typed =
+    "I finished ITSE 1370. What can I take next, and can I study only on weekends?";
+  const restored = merge({ questions: [typed] }, useSavedCourses.getState());
+  assert.deepEqual(restored.questions, [typed]);
+  const screenshot =
+    "Look up the published course plan for Accounting Assistant Certificate. The course cards already show the requested checklist and its credits. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.";
+  assert.deepEqual(
+    merge({ questions: [screenshot] }, useSavedCourses.getState()).questions,
+    ["Which courses are required for Accounting Assistant Certificate?"],
+  );
 });
 
 test("semester ranges and unavailable numbered semesters never substitute the full plan", () => {

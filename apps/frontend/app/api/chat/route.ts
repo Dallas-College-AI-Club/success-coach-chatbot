@@ -209,6 +209,9 @@ export async function POST(req: Request) {
       .filter((message) => message.role === "assistant")
       .flatMap((message) => message.parts);
     const toolContext = {
+      facultySearch: previousTools.some(
+        (part) => part.type === "tool-search_faculty_expertise",
+      ),
       programKnown:
         Boolean(parsedProfile.success && parsedProfile.data.major) ||
         previousTools.some(

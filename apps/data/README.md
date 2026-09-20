@@ -43,11 +43,10 @@ Every stage runs as a module from `apps/data/`:
 uv run python -m dallasai.pipeline.<module>
 ```
 
-> **Do not run `python -m dallasai.main`.** It is a superseded second ingest path: it
-> writes `[0.0] * 768` as the embedding whenever no embedder is passed — and no call site
-> passes one — while stamping the metadata as if the work had happened. Zero vectors in a
-> cosine-indexed column can never be retrieved. Use `pipeline/assemble_delivery.py` →
-> `pipeline/embed_rows.py` → `load_catalog_to_neon.py`, as REPRODUCE.md documents.
+> Legacy `dallasai.main` database writes are disabled. Its `--no-db` option
+> supports local inspection only. Use the reviewed composition → local embedding
+> → strict loader path in the runbook. Setup never drops existing tables, and
+> status checks never initialize the database.
 
 ## Adding a library
 

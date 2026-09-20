@@ -20,7 +20,8 @@ Checks, per CV:
 Personal-attribute inference (nationality, age, gender) is NOT mechanically
 checkable — that stays with the adversarial adjudication pass.
 
-  python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw-root R
+  python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv \
+      --as-of 2026 --raw-root R
     python -m dallasai.pipeline.verify_cv --draft <exemplar.md> \
         --source <source.txt> --as-of 2026   # draft mode: --raw-root optional
 """
@@ -490,6 +491,10 @@ def main(argv=None) -> None:
         help="corpus root: source docs + manifests (enables teaching_record check)",
     )
     args = ap.parse_args(argv)
+    if bool(args.facts) == bool(args.draft):
+        ap.error("Specify exactly one of --facts or --draft")
+    if args.draft and not args.source:
+        ap.error("--draft requires --source")
     if args.facts and not args.raw_root:
         ap.error(
             "--raw-root is required with --facts (source documents are loaded from it)"
@@ -514,7 +519,8 @@ def main(argv=None) -> None:
             env = json.loads(p.read_text(encoding="utf-8"))
             src_path = args.raw_root / env["raw_path"].replace("\\", "/")
             if not src_path.exists():
-                print(f"{p.name}: SKIP (no source at {src_path})")
+                print(f"{p.name}: FAIL (source missing)")
+                total_flags += 1
                 continue
             if src_path.suffix.lower() == ".pdf":
                 source_text = pdf_to_text(src_path)
@@ -533,6 +539,9 @@ def main(argv=None) -> None:
                     print(f"  - {f}")
                 total_flags += len(flags)
         print(f"checked {checked} envelopes, {files_flagged} flagged")
+        if checked == 0:
+            total_flags += 1
+            print("No CVs were verified")
     print(f"total flags: {total_flags}")
     sys.exit(1 if total_flags else 0)
 

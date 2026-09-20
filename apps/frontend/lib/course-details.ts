@@ -338,5 +338,20 @@ export function scheduleResultForModel(output: unknown) {
   if (!isRecord(output)) return output;
   const result = { ...output };
   delete result.instructor_profiles;
+  if (Array.isArray(output.offerings)) {
+    const sections = output.offerings.filter(isRecord);
+    const byModality = new Map<string, number>();
+    for (const section of sections) {
+      const modality = catalogText(section.modality)?.toLowerCase() ?? "unknown";
+      byModality.set(modality, (byModality.get(modality) ?? 0) + 1);
+    }
+    // Count rows, including unassigned instructors. Pagination never turns a
+    // loaded-page count into a total for every section of the course.
+    result.loaded_section_counts = {
+      scope: "loaded_page",
+      total: sections.length,
+      by_modality: Object.fromEntries(byModality),
+    };
+  }
   return result;
 }

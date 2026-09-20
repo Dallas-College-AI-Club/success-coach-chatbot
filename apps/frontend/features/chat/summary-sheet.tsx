@@ -1,10 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import { citationHref } from "@/lib/constants";
 import { useEffect, useState } from "react";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
+import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import {
   useHydrateSession,
   useSavedSession,
@@ -159,13 +159,7 @@ export function SummarySheet() {
 
       <div className="sheet-page">
         <header className="sheet-masthead">
-          <Image
-            src="/dallas-college.svg"
-            alt="Dallas College"
-            width={54}
-            height={54}
-            className="sheet-dc-logo"
-          />
+          <SuccessCoachBot className="sheet-bot" />
           <div className="sheet-title">
             <h1>Success Coach appointment</h1>
             <p>Notes I made with Major, the Dallas College AI Club planner.</p>

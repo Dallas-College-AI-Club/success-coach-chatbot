@@ -1,118 +1,101 @@
-"""Fill knowledge_entry rows with production-grade embeddings via OpenRouter.
+"""Embed deliveries with the same local encoder as frontend retrieval.
 
-Model pinned to the team's gateway decision: openai/text-embedding-3-small at
-dimensions=768, provider-routing locked to OpenAI so every vector — including
-every future live query — comes from numerically identical weights.
-
-Quality is enforced, not advised: the run aborts unless every vector has exactly
-768 dims and unit norm (±1%). Each row's metadata is stamped with
-embedding_model + embedding_dimensions so provenance survives into Postgres and
-a future model swap can target rows precisely.
-
-    OPENROUTER_API_KEY=... python -m dallasai.pipeline.embed_rows --rows rows.json
-        [--out rows.embedded.json] [--batch 64] [--doc-types section]
-
-Resumable: rows that already carry an embedding are skipped. That also makes
---doc-types free to re-run on a finished file, which is how a single assembled
-delivery is split into the per-doc_type files the loader accepts — that split
-needs no API key, because it embeds nothing.
+Requires npm ci in apps/frontend and Node on PATH. Model weights download on
+first use; document text stays local. No API key is required.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
-import os
-import sys
-import time
+import shutil
+import subprocess
+import tempfile
 from pathlib import Path
 
-import requests
+FRONTEND = Path(__file__).resolve().parents[3] / "frontend"
+CONTRACT = json.loads((FRONTEND / "lib/embedding-contract.json").read_text())
+EMBED_MODEL = CONTRACT["model"]
+DIMS = CONTRACT["dimensions"]
+EMBEDDING_KEYS = (
+    "embedding_model",
+    "embedding_dimensions",
+    "embedding_dtype",
+    "embedding_text_sha256",
+)
 
-EMBED_MODEL = "openai/text-embedding-3-small"
-DIMS = 768
-URL = "https://openrouter.ai/api/v1/embeddings"
 
-
-def embed_batch(texts: list[str], key: str) -> list[list[float]]:
-    r = requests.post(URL, timeout=120, headers={
-        "Authorization": f"Bearer {key}",
-        "HTTP-Referer": "https://dc-success-coach.vercel.app",
-        "X-Title": "Dallas College Success Coach Chatbot",
-    }, json={
-        "model": EMBED_MODEL, "input": texts, "dimensions": DIMS,
-        # rider 3: one upstream, no fallbacks — vector consistency over uptime
-        "provider": {"order": ["openai"], "allow_fallbacks": False},
-    })
-    if r.status_code in (429, 500, 502, 503):
-        time.sleep(10)
-        r = requests.post(URL, timeout=120, headers={"Authorization": f"Bearer {key}"},
-                          json={"model": EMBED_MODEL, "input": texts, "dimensions": DIMS,
-                                "provider": {"order": ["openai"], "allow_fallbacks": False}})
-    r.raise_for_status()
-    data = sorted(r.json()["data"], key=lambda d: d["index"])
-    out = []
-    for d in data:
-        v = d["embedding"]
-        if len(v) != DIMS:
-            sys.exit(f"ABORT: got {len(v)} dims, expected {DIMS} — the dimensions "
-                     "parameter did not pass through; do not load these vectors")
-        n = math.sqrt(sum(x * x for x in v))
-        if not 0.99 <= n <= 1.01:
-            sys.exit(f"ABORT: vector norm {n:.4f} outside unit tolerance — "
-                     "normalization contract violated; investigate before loading")
-        out.append(v)
-    return out
+def validate_embedding(row: dict) -> None:
+    if not isinstance(row, dict) or not isinstance(row.get("metadata"), dict):
+        raise ValueError("Embedding row requires a metadata object")
+    if not isinstance(row.get("chunk_text"), str) or not row["chunk_text"].strip():
+        raise ValueError("Embedding row requires non-empty chunk_text")
+    vector = row.get("embedding")
+    if not isinstance(vector, list) or len(vector) != DIMS:
+        raise ValueError(f"Embedding must have {DIMS} dimensions")
+    if any(type(x) not in (int, float) or not math.isfinite(x) for x in vector):
+        raise ValueError("Embedding contains a non-finite or non-numeric value")
+    if not 0.99 <= math.hypot(*vector) <= 1.01:
+        raise ValueError("Embedding must have unit norm")
+    metadata = row["metadata"]
+    expected = (
+        EMBED_MODEL,
+        DIMS,
+        CONTRACT["dtype"],
+        hashlib.sha256(row["chunk_text"].encode()).hexdigest(),
+    )
+    if tuple(metadata.get(k) for k in EMBEDDING_KEYS) != expected:
+        raise ValueError(
+            "Embedding provenance does not match the model contract and text; re-embed"
+        )
 
 
 def main(argv=None) -> None:
-    ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--rows", type=Path, required=True)
-    ap.add_argument("--out", type=Path, default=None)
-    ap.add_argument("--batch", type=int, default=64)
-    ap.add_argument("--doc-types", nargs="+", default=None,
-                    help="Keep only rows with these metadata.doc_type values. "
-                         "A term delivery is section-only; the loader's catalog "
-                         "gate rejects a mixed file.")
-    args = ap.parse_args(argv)
-    key = os.environ.get("OPENROUTER_API_KEY")
-
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--rows", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--doc-types", nargs="+")
+    args = parser.parse_args(argv)
+    if args.out.resolve() == args.rows.resolve() or args.out.exists():
+        parser.error(
+            "Choose a new output path; existing deliveries are never overwritten"
+        )
     rows = json.loads(args.rows.read_text(encoding="utf-8"))
-    flat = rows if isinstance(rows, list) else None
-    if flat is None:
-        sys.exit("--rows must be the composed row LIST (run the compose step first)")
-
+    if (
+        not isinstance(rows, list)
+        or not rows
+        or any(not isinstance(r, dict) for r in rows)
+    ):
+        parser.error("Expected a non-empty row array")
     if args.doc_types:
-        keep = set(args.doc_types)
-        flat = [r for r in flat
-                if (r.get("metadata") or {}).get("doc_type") in keep]
-        if not flat:
-            sys.exit(f"no rows match --doc-types {sorted(keep)}")
-        print(f"filtered to {sorted(keep)}: {len(flat)} rows")
-
-    todo = [r for r in flat if not r.get("embedding")]
-    print(f"{len(flat)} rows, {len(todo)} need embeddings "
-          f"({EMBED_MODEL} @ {DIMS} dims, provider-pinned)")
-    if todo and not key:
-        sys.exit("OPENROUTER_API_KEY not set")
-    for i in range(0, len(todo), args.batch):
-        chunk = todo[i:i + args.batch]
-        vecs = embed_batch([r["chunk_text"] for r in chunk], key)
-        for r, v in zip(chunk, vecs):
-            r["embedding"] = v
-            r.setdefault("metadata", {})["embedding_model"] = EMBED_MODEL
-            r["metadata"]["embedding_dimensions"] = DIMS
-        print(f"  {min(i + args.batch, len(todo))}/{len(todo)}")
-
-    if args.doc_types and args.out is None:
-        sys.exit("--doc-types writes a SUBSET; pass --out so it cannot "
-                 "overwrite the full delivery")
-    dest = args.out or args.rows.with_suffix(".embedded.json")
-    if dest.resolve() == args.rows.resolve():
-        sys.exit(f"refusing to overwrite the input {args.rows} — pick --out")
-    dest.write_text(json.dumps(flat, ensure_ascii=False), encoding="utf-8")
-    print(f"wrote {dest} — every row embedding verified: {DIMS} dims, unit norm")
+        rows = [
+            r for r in rows if r.get("metadata", {}).get("doc_type") in args.doc_types
+        ]
+    if not rows:
+        parser.error("No rows match --doc-types")
+    node = shutil.which("node")
+    if not node or not (FRONTEND / "node_modules/tsx").exists():
+        parser.error("Install Node and run npm ci in apps/frontend first")
+    with tempfile.TemporaryDirectory(prefix="course-embedding-") as temp:
+        staged = Path(temp) / "rows.json"
+        staged.write_text(json.dumps(rows, ensure_ascii=False), encoding="utf-8")
+        result = subprocess.run(
+            [
+                node,
+                "--import",
+                "tsx",
+                "scripts/embed-rows.ts",
+                str(staged),
+                str(args.out.resolve()),
+            ],
+            cwd=FRONTEND,
+        )
+        if result.returncode:
+            raise SystemExit(result.returncode)
+    for row in json.loads(args.out.read_text(encoding="utf-8")):
+        validate_embedding(row)
 
 
 if __name__ == "__main__":
