@@ -1,9 +1,16 @@
 import { tool } from "ai";
-import { PROGRAMS } from "@/features/onboarding/programs";
+import z from "zod";
+import {
+  assessPlan,
+  assessRequisites,
+  comparePlans,
+  studentCourseHistory,
+} from "@/lib/planning";
 import {
   programResultForModel,
   scheduleResultForModel,
   requestedSemesters,
+  readCourseDetails,
 } from "@/lib/course-details";
 import * as getClassSchedule from "./getClassSchedule";
 import * as getCourseInfo from "./getCourseInfo";
@@ -12,8 +19,71 @@ import * as getInstructor from "./getInstructor";
 import * as getProgramRequirements from "./getProgramRequirements";
 import * as getSemesterTool from "./getSemester";
 import * as searchKnowledge from "./searchKnowledge";
+import * as facultyExpertise from "./searchFacultyExpertise";
+import { PROGRAMS } from "@/features/onboarding/programs";
 
 export const TOOL_REGISTRY = {
+  compare_programs: tool({
+    description:
+      "Compare exactly two verified programs using deterministic course-code set arithmetic. Use for shared courses, differences and overlap. Optional courses are not counted as guaranteed shared requirements. Clarify ambiguous program names before comparing.",
+    inputSchema: z.object({
+      programs: z.array(z.string().trim().min(1).max(200)).length(2),
+    }),
+    execute: async ({ programs }) => {
+      const results = await Promise.all(
+        programs.map((programName) =>
+          getProgramRequirements.EXECUTE({ programName }),
+        ),
+      );
+      const [left, right] = results;
+      if (!("groups" in left) || !("groups" in right))
+        return {
+          found: false,
+          needs_clarification: true,
+          program_results: results,
+        };
+      const comparison = comparePlans(left, right);
+      return {
+        found: true,
+        name: "Program comparison",
+        comparison,
+        groups: [
+          {
+            name: "Required in both programs",
+            courses: comparison.shared_required_courses,
+            slot_kind: "fixed",
+          },
+          {
+            name: `Required only in ${String(left.name)}`,
+            courses: comparison.only_first_required_courses,
+            slot_kind: "fixed",
+          },
+          {
+            name: `Required only in ${String(right.name)}`,
+            courses: comparison.only_second_required_courses,
+            slot_kind: "fixed",
+          },
+        ],
+        course_details: [
+          ...(left.course_details ?? []),
+          ...(right.course_details ?? []),
+        ],
+      };
+    },
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: JSON.stringify(programResultForModel(output)),
+    }),
+  }),
+  search_faculty_expertise: tool({
+    description: facultyExpertise.DESCRIPTION,
+    inputSchema: facultyExpertise.INPUT_SCHEMA,
+    execute: facultyExpertise.EXECUTE,
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: JSON.stringify(facultyExpertise.modelOutput(output)),
+    }),
+  }),
   get_current_date: tool({
     description: currentDateTool.DESCRIPTION,
     inputSchema: currentDateTool.INPUT_SCHEMA,
@@ -42,6 +112,18 @@ export const TOOL_REGISTRY = {
     description: getCourseInfo.DESCRIPTION,
     inputSchema: getCourseInfo.INPUT_SCHEMA,
     execute: getCourseInfo.EXECUTE,
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      // Legacy extraction puts recommended references under "prerequisites".
+      // Keep the original evidence in the UI; give the model the classified view.
+      value: JSON.stringify({
+        ...output,
+        prerequisites: undefined,
+        corequisites: undefined,
+        interpretation:
+          "Use requisite_assessment and requisites_raw. A recommendation is never a required prerequisite; matching reported history does not confirm eligibility.",
+      }),
+    }),
   }),
   get_program_requirements: tool({
     description: getProgramRequirements.DESCRIPTION,
@@ -64,19 +146,37 @@ export const TOOL_REGISTRY = {
 export function requestedToolChoice(
   text: string,
   step: number,
-  context: { programKnown?: boolean } = {},
+  context: { programKnown?: boolean; facultySearch?: boolean } = {},
 ) {
   if (step !== 0) return undefined;
   const schedule = getClassSchedule.scheduleToolChoice(text, step);
   if (schedule) return schedule;
+  if (
+    (/\b(?:professors|faculty|instructors)\b/i.test(text) ||
+      (context.facultySearch && /\b(?:those|both)\b/i.test(text))) &&
+    /\b(?:expertise|experience|background|machine learning|large language models?|LLMs?)\b/i.test(
+      text,
+    )
+  )
+    return {
+      type: "tool" as const,
+      toolName: "search_faculty_expertise" as const,
+    };
   const namedPrograms = PROGRAMS.filter((program) =>
     getProgramRequirements
       .squash(text)
       .includes(getProgramRequirements.squash(program.label)),
   );
   if (
+    namedPrograms.length >= 2 &&
+    /\b(?:compare|shared|overlap|common|both)\b/i.test(text)
+  )
+    return { type: "tool" as const, toolName: "compare_programs" as const };
+  if (
     (context.programKnown || namedPrograms.length === 1) &&
-    requestedSemesters(text).length
+    (requestedSemesters(text).length ||
+      (/\b(?:completed|passed|withdrew|taking|checklist)\b/i.test(text) &&
+        /\b(?:program|certificate|checklist|remaining|left)\b/i.test(text)))
   )
     return {
       type: "tool" as const,
@@ -106,6 +206,10 @@ export function toolsForTurn(
   };
   return {
     ...TOOL_REGISTRY,
+    search_faculty_expertise: tool({
+      ...TOOL_REGISTRY.search_faculty_expertise,
+      execute: async (input) => record(await facultyExpertise.EXECUTE(input)),
+    }),
     get_class_schedule: tool({
       ...TOOL_REGISTRY.get_class_schedule,
       execute: async (input) => {
@@ -142,17 +246,62 @@ export function toolsForTurn(
     }),
     get_program_requirements: tool({
       ...TOOL_REGISTRY.get_program_requirements,
-      execute: async (input) =>
-        record(
+      execute: async (input) => {
+        const result = record(
           await getProgramRequirements.EXECUTE({
             ...input,
             semesters: semesters.length ? semesters : undefined,
           }),
-        ),
+        );
+        return "groups" in result
+          ? { ...result, planning: assessPlan(result, userMessages) }
+          : result;
+      },
     }),
     get_course_info: tool({
       ...TOOL_REGISTRY.get_course_info,
-      execute: async (input) => record(await getCourseInfo.EXECUTE(input)),
+      execute: async (input) => {
+        const result = record(await getCourseInfo.EXECUTE(input));
+        const course = readCourseDetails(result);
+        if (!course) return result;
+        let history = studentCourseHistory(userMessages, [course]);
+        const review = assessRequisites(course.requisites_raw, history);
+        // Resolve a reported prerequisite by its catalog title as well as code.
+        // Already recognized codes need no additional lookup.
+        if (
+          userMessages.some((text) =>
+            /\b(?:completed|passed|taken|took|taking|withdrew)\b/i.test(text),
+          )
+        ) {
+          const references =
+            review.referenced_courses
+              ?.filter((r) => r.student_status === "unknown")
+              .slice(0, 12) ?? [];
+          const related = await Promise.allSettled(
+            references.map((r) =>
+              getCourseInfo.EXECUTE({ courseCode: r.course_code }),
+            ),
+          );
+          const knownCourses = related.flatMap((r) => {
+            const detail =
+              r.status === "fulfilled" ? readCourseDetails(r.value) : null;
+            return detail ? [detail] : [];
+          });
+          history = studentCourseHistory(userMessages, [
+            course,
+            ...knownCourses,
+          ]);
+        }
+        return {
+          ...result,
+          course_history: history,
+          student_status: history[course.course_code]?.status ?? "unknown",
+          requisite_assessment: assessRequisites(
+            course.requisites_raw,
+            history,
+          ),
+        };
+      },
     }),
     get_instructor: tool({
       ...TOOL_REGISTRY.get_instructor,

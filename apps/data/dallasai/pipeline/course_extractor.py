@@ -177,27 +177,29 @@ def parse_program_html(html: str) -> Program:
     )
 
 
-directory = Path("/Users/david/temp/catalog/2026-2027")
+def main() -> None:
+    import argparse
 
-programs_dir = directory / "programs"
-with open("/Users/david/temp/programs.jsonl", "w") as fp:
-    for file in programs_dir.glob("*.html"):
-        try:
-            program = parse_program_html(file.read_text(encoding="utf-8"))
-            data = program.model_dump(mode="json")
-            data["source_file"] = file.name
-            fp.write(json.dumps(data) + "\n")
-        except ParseException as e:
-            print(f"Error parsing program in file {file.name}: {e}")
+    parser = argparse.ArgumentParser(
+        description="Parse catalog HTML to local JSONL; never writes a database"
+    )
+    parser.add_argument("--catalog", type=Path, required=True)
+    parser.add_argument("--out", type=Path, required=True)
+    args = parser.parse_args()
+    args.out.mkdir(parents=True, exist_ok=True)
+    for kind, parse in (
+        ("courses", parse_course_html),
+        ("programs", parse_program_html),
+    ):
+        files = sorted((args.catalog / kind).glob("*.html"))
+        if not files:
+            raise SystemExit(f"No {kind} HTML found")
+        with (args.out / f"{kind}.jsonl").open("x", encoding="utf-8") as target:
+            for source in files:
+                data = parse(source.read_text(encoding="utf-8")).model_dump(mode="json")
+                data["source_file"] = source.name
+                target.write(json.dumps(data, ensure_ascii=False) + "\n")
 
 
-courses_dir = directory / "courses"
-with open("/Users/david/temp/courses.jsonl", "w") as fp:
-    for file in courses_dir.glob("*.html"):
-        try:
-            course = parse_course_html(file.read_text(encoding="utf-8"))
-            data = course.model_dump(mode="json")
-            data["source_file"] = file.name
-            fp.write(json.dumps(data) + "\n")
-        except ParseException as e:
-            print(f"Error parsing course in file {file.name}: {e}")
+if __name__ == "__main__":
+    main()
