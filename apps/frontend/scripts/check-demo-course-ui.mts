@@ -169,6 +169,30 @@ test("the complete instructor roster is independent of the section page, with ex
   assert.equal(output.instructor_profiles.length, 1);
 });
 
+test("schedule summaries count unassigned sections and keep page counts separate from totals", () => {
+  const output = {
+    total_sections: 942,
+    offset: 100,
+    truncated: true,
+    offerings: [
+      ...Array.from({ length: 9 }, () => ({ modality: "online", professor: null })),
+      ...Array.from({ length: 5 }, () => ({ modality: "hybrid" })),
+      { modality: "in_person" },
+      { modality: "in_person" },
+      { modality: null },
+    ],
+  };
+  const result = scheduleResultForModel(output) as Record<string, unknown>;
+  assert.deepEqual(result.loaded_section_counts, {
+    scope: "loaded_page",
+    total: 17,
+    by_modality: { online: 9, hybrid: 5, in_person: 2, unknown: 1 },
+  });
+  assert.equal(result.total_sections, 942);
+  assert.equal(result.truncated, true);
+  assert.equal("loaded_section_counts" in output, false);
+});
+
 test("related CV candidates stay qualified, with long backgrounds behind show more", () => {
   const html = renderToStaticMarkup(
     createElement(InstructorResults, {
