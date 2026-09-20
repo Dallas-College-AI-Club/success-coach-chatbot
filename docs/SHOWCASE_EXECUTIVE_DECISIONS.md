@@ -1,5 +1,20 @@
 # Success Coach — showcase review and decisions
 
+## PR #194 review follow-up · September 20, 2026
+
+**Conclusion:** the six automated review findings are addressed, together with the owner's printout and Playful-theme feedback. No schema, database content or model configuration changes are needed.
+
+| Change | Result and rationale |
+|---|---|
+| Review findings | Explicitly named SQL preamble strings remove ambiguous list concatenation; one import style per database/loader module removes duplicate test imports. Generated SQL remains identical to the committed baseline. |
+| Coach printout | The shared D-bot replaces the official Dallas College logo; the unused logo file is removed. Starter questions save concise wording with program, semester, schedule preference or transfer context. Existing saved course-plan prompts are repaired on load; typed questions retain their wording. No model call is used for summarization. |
+| Playful scenery | One SVG illustrates a Dallas skyline, El Centro entrance and Richland Sabine Hall, based on the club game's campus models. Buildings remain visible beside the panel; no new animation dependency or external runtime request. |
+| Mascot movement | Ground characters alternate walking and running; covered travel is skipped so they promptly appear on the other side. Existing character artwork, collision separation, reduced-motion handling and Simple/Focus themes are retained. |
+
+**Verification:** 123 frontend checks, lint, TypeScript and production build pass. Python: 124 passed, four existing skips; the two edited Python files pass Ruff. Motion checks cover four-minute desktop/narrow collision simulations, walk/run speeds, artwork integrity and concealed-only jumps. A real local catalog/model request returned only semester 1 of Accounting Assistant Certificate (18 published credits; 30 for the full program); saving ACCT 2301 and opening the coach sheet showed the concise question, catalog details, source and D-bot. Question checkbox behavior was checked in the browser. Native printer/PDF pagination was not retested in this follow-up.
+
+**Release status:** these follow-up changes are prepared for PR #194 and available in the local preview. The PR's release receipt identifies the public deployment; a Git push alone does not publish it. Earlier decisions below record the original #190/#191 split. Syllabus work continues separately.
+
 ## Release ownership and merge order · September 20, 2026
 
 **Decision:** ship fixes to the existing demo in **PR #190**. Build the follow-up for **issue #191** directly on that reviewed commit. Shared files may receive new capabilities in the follow-up, but existing-behavior cleanup is already part of #190. No database import, merge or deployment is included in this publication authorization.

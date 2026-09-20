@@ -175,7 +175,10 @@ test("schedule summaries count unassigned sections and keep page counts separate
     offset: 100,
     truncated: true,
     offerings: [
-      ...Array.from({ length: 9 }, () => ({ modality: "online", professor: null })),
+      ...Array.from({ length: 9 }, () => ({
+        modality: "online",
+        professor: null,
+      })),
       ...Array.from({ length: 5 }, () => ({ modality: "hybrid" })),
       { modality: "in_person" },
       { modality: "in_person" },
@@ -885,11 +888,59 @@ test("the printable sheet uses the same official citation policy as chat", () =>
     );
     initial.courses = [course];
     const official = renderToStaticMarkup(createElement(SummarySheet));
+    assert.match(official, /<svg[^>]+sheet-bot/);
+    assert.doesNotMatch(official, /dallas-college\.svg|sheet-dc-logo/);
     assert.ok(official.includes("catalog.dallascollege.edu"));
     assert.doesNotMatch(official, /#2026-2027#facts/);
   } finally {
     initial.courses = previous;
   }
+});
+
+test("print questions keep starter context without instructions and repair existing notes", () => {
+  const merge = useSavedCourses.persist.getOptions().merge!;
+  for (const goal of [
+    "first_semester_plan",
+    "transfer_check",
+    "graduation_check",
+    "schedule_fit",
+  ] as const) {
+    for (const program of PROGRAMS) {
+      for (const q of starterQuestionsFor({
+        ...profile,
+        goal,
+        major: program.code,
+      })) {
+        const note = q.note ?? q.label;
+        assert.doesNotMatch(
+          note,
+          /course cards|Reply in|do not|without repeating|Use the schedule/,
+        );
+        if (/^Look up the published course plan/.test(q.prompt)) {
+          assert.ok(note.includes(program.label), note);
+          assert.deepEqual(
+            requestedSemesters(note),
+            requestedSemesters(q.prompt),
+          );
+          const restored = merge(
+            { questions: [q.prompt, note] },
+            useSavedCourses.getState(),
+          );
+          assert.deepEqual(restored.questions, [note]);
+        }
+      }
+    }
+  }
+  const typed =
+    "I finished ITSE 1370. What can I take next, and can I study only on weekends?";
+  const restored = merge({ questions: [typed] }, useSavedCourses.getState());
+  assert.deepEqual(restored.questions, [typed]);
+  const screenshot =
+    "Look up the published course plan for Accounting Assistant Certificate. The course cards already show the requested checklist and its credits. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.";
+  assert.deepEqual(
+    merge({ questions: [screenshot] }, useSavedCourses.getState()).questions,
+    ["Which courses are required for Accounting Assistant Certificate?"],
+  );
 });
 
 test("semester ranges and unavailable numbered semesters never substitute the full plan", () => {

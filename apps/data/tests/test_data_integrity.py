@@ -7,13 +7,8 @@ from collections import Counter
 from pathlib import Path
 
 import pytest
-from dallasai.database import schema_sql
-from dallasai.load_catalog_to_neon import (
-    load_rows,
-    validate_dataset_counts,
-    validate_identity,
-    validate_section,
-)
+from dallasai import database
+from dallasai import load_catalog_to_neon as loader
 from dallasai.pipeline.audit_corpus import catalog_course, catalog_option, reconcile
 from dallasai.pipeline.build_section_meetings import facts_from_csv, parse_meetings
 from dallasai.pipeline.embed_rows import CONTRACT, DIMS, EMBED_MODEL, validate_embedding
@@ -87,22 +82,24 @@ def test_rejects_bad_identity_and_numbers(mutation):
     row = valid_row()
     mutation(row)
     with pytest.raises(ValueError):
-        validate_identity(row, 0)
+        loader.validate_identity(row, 0)
 
 
 def test_full_loader_checks_contract_and_expected_counts(tmp_path):
     path = tmp_path / "rows.json"
     row = valid_row()
     path.write_text(json.dumps([row]))
-    assert len(load_rows(path, expected_counts={"course": 1})) == 1
+    assert len(loader.load_rows(path, expected_counts={"course": 1})) == 1
     row["facts"]["course_code"] = "MATH XXXX"
     path.write_text(json.dumps([row]))
     with pytest.raises(ValueError, match="placeholders"):
-        load_rows(path, expected_counts={"course": 1})
+        loader.load_rows(path, expected_counts={"course": 1})
     with pytest.raises(ValueError):
-        validate_dataset_counts(0, Counter())
+        loader.validate_dataset_counts(0, Counter())
     with pytest.raises(ValueError, match="differ"):
-        validate_dataset_counts(2, Counter(course=2), expected_counts={"course": 3})
+        loader.validate_dataset_counts(
+            2, Counter(course=2), expected_counts={"course": 3}
+        )
 
 
 def test_empty_verification_never_passes(tmp_path):
@@ -133,7 +130,7 @@ def test_fingerprint_changes_with_source_and_identity(tmp_path):
 
 
 def test_safe_schema_matches_committed_baseline():
-    sql = schema_sql()
+    sql = database.schema_sql()
     assert "DROP" not in sql and "halfvec(384)" in sql.lower() and "pg_trgm" in sql
     assert "USING hnsw" not in sql
     assert sql == (Path(__file__).parents[1] / "reference/db/schema.sql").read_text(
@@ -179,7 +176,7 @@ def test_unparsed_schedule_is_retained_and_partial_or_invalid_times_fail():
     assert (
         not recognized and facts["meetings"] == [] and facts["meeting_info_raw"] == raw
     )
-    validate_section(facts)
+    loader.validate_section(facts)
     assert parse_meetings("K103 In-Person Lecture M 99:00 AM - 10:55 AM")[1] is False
     assert parse_meetings("K103 In-Person Lecture M W 09:00 AM - 09:55 AM")[1] is True
 
@@ -189,8 +186,6 @@ def test_facts_only_delivery_commits_once_or_rolls_back_every_batch(
     monkeypatch, missing_last
 ):
     from unittest.mock import MagicMock
-
-    import dallasai.load_catalog_to_neon as loader
 
     session = MagicMock()
     session.__enter__.return_value = session
@@ -218,8 +213,6 @@ def test_facts_only_delivery_commits_once_or_rolls_back_every_batch(
 def test_status_is_read_only_and_fails_without_initializing_schema(monkeypatch):
     from unittest.mock import MagicMock
 
-    import dallasai.database as database
-
     engine = MagicMock()
     conn = engine.connect.return_value.__enter__.return_value
     conn.execute.side_effect = [None, RuntimeError("secret connection detail")]
@@ -238,8 +231,6 @@ def test_snapshot_refuses_to_replace_existing_evidence_before_connecting(
     tmp_path, monkeypatch
 ):
     from unittest.mock import MagicMock
-
-    import dallasai.database as database
 
     connect = MagicMock()
     monkeypatch.setattr(database, "create_engine", connect)
@@ -275,7 +266,7 @@ def test_unknown_schedule_modality_is_missing_information_not_an_enum_error():
     )
     assert facts["modality"] is None
     assert facts["meeting_info_raw"] == "Meeting Patterns will vary."
-    validate_section(facts)
+    loader.validate_section(facts)
 
 
 def test_schedule_assembly_keeps_term_identity_and_latest_receipts(tmp_path):
@@ -325,7 +316,7 @@ def test_malformed_source_dates_fail_with_a_validation_error(tmp_path, value):
     path = tmp_path / "rows.json"
     path.write_text(json.dumps([row]), encoding="utf-8")
     with pytest.raises(ValueError, match="scraped_at"):
-        load_rows(path, expected_counts={"course": 1})
+        loader.load_rows(path, expected_counts={"course": 1})
 
 
 def test_reference_database_rerun_updates_filters_source_dates_and_search(tmp_path):
@@ -471,7 +462,6 @@ def test_facts_only_updates_check_reviewed_hash_and_rollback_atomically(
 ):
     from types import SimpleNamespace
 
-    import dallasai.load_catalog_to_neon as loader
     from sqlalchemy import (
         JSON,
         Column,
@@ -543,17 +533,15 @@ def test_facts_only_updates_check_reviewed_hash_and_rollback_atomically(
 
 
 def test_facts_only_file_requires_a_valid_reviewed_hash(tmp_path):
-    from dallasai.load_catalog_to_neon import load_facts_only_rows
-
     path = tmp_path / "repair.json"
     row = valid_row()
     path.write_text(json.dumps([row]), encoding="utf-8")
     with pytest.raises(ValueError, match="expected_content_hash"):
-        load_facts_only_rows(path)
+        loader.load_facts_only_rows(path)
     row["expected_content_hash"] = "unreviewed"
     path.write_text(json.dumps([row]), encoding="utf-8")
     with pytest.raises(ValueError, match="expected_content_hash"):
-        load_facts_only_rows(path)
+        loader.load_facts_only_rows(path)
 
 
 def test_section_repair_reads_review_hash_before_session_closes(tmp_path, monkeypatch):

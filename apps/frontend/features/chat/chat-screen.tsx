@@ -333,10 +333,10 @@ function Conversation({
   // out of the history.
   const requestOptions = profile ? { body: { profile } } : undefined;
 
-  const send = (text: string) => {
+  const send = (text: string, note = text) => {
     const t = text.trim();
     if (!t || busy) return;
-    useSavedCourses.getState().addQuestion(t);
+    useSavedCourses.getState().addQuestion(note);
     sendMessage({ text: t }, requestOptions);
     setInput("");
   };
@@ -415,7 +415,7 @@ function Conversation({
             <button
               key={q.prompt}
               type="button"
-              onClick={() => send(q.prompt)}
+              onClick={() => send(q.prompt, q.note ?? q.label)}
               disabled={busy}
               className={`${skin.chip} disabled:cursor-wait disabled:opacity-50 pointer-coarse:min-h-11`}
             >

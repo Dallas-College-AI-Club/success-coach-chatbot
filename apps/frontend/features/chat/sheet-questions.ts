@@ -27,6 +27,26 @@ const FILLER: RegExp[] = [
   /^option\s*\d/i,
 ];
 
+/** Repair saved starter prompts from before print questions were separated.
+ * Only match our full instruction suffix; never truncate a student's question. */
+export function summarizeSheetQuestion(text: string): string {
+  const trimmed = text.trim();
+  const plan =
+    /^Look up the published course plan for (.+)\. The course cards already show the (?:complete )?requested checklist and its credits\. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown\. Keep the published credit total exact; unresolved elective choices do not change that total\.$/.exec(
+      trimmed,
+    );
+  if (plan) {
+    const first = plan[1].endsWith(", only semester 1");
+    const program = first
+      ? plan[1].slice(0, -", only semester 1".length)
+      : plan[1];
+    return first
+      ? `Which courses are in semester 1 of ${program}?`
+      : `Which courses are required for ${program}?`;
+  }
+  return trimmed;
+}
+
 export function isSheetWorthyQuestion(text: string): boolean {
   const t = text.trim();
   // Also rejects bare option picks ("1", "2.", "3)") and one-word stubs —

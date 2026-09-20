@@ -27,9 +27,9 @@ const periods: Record<string, number> = {
   "blazer-stallion": 19,
   lion: 27,
   thunderduck: 21,
-  "sun-phoenix": 29,
-  eagle: 31,
-  "harvester-bee": 17,
+  "sun-phoenix": 20,
+  eagle: 23,
+  "harvester-bee": 13,
 };
 const personality: Record<string, string> = {
   bear: "warm welcome",
@@ -131,17 +131,17 @@ const gaitStride = (key: string) =>
       : key === "bear"
         ? 0.18
         : 0.16;
-function travelEase(u: number) {
+function travelEase(u: number, arriving: boolean) {
   const r = 0.12;
-  if (u < r) return { p: (u * u) / (2 * r * (1 - r)), v: u / r };
-  if (u > 1 - r) {
-    const q = 1 - u;
-    return { p: 1 - (q * q) / (2 * r * (1 - r)), v: q / r };
-  }
-  return { p: (u - r / 2) / (1 - r), v: 1 };
+  const t = arriving ? 1 - u : u;
+  const p = t < r ? (t * t) / (2 * r) : t - r / 2;
+  return {
+    p: arriving ? 1 - p / (1 - r / 2) : p / (1 - r / 2),
+    v: Math.min(1, t / r),
+  };
 }
-/** The concealed middle segment can cross a wide panel without speeding up
- * the visible gait. Visible feet stay tied to world distance on both edges. */
+/** Paired routes alternate a walk and a run. Skip only the fully concealed
+ * middle; visible movement and footfalls remain tied to distance. */
 export function crossingAt(
   key: string,
   time: number,
@@ -155,9 +155,10 @@ export function crossingAt(
   // Partners share one route clock and approach from opposite sides. They pass
   // one another only inside the covered panel, never on top of a visible friend.
   const groupWidth = h * (upper ? 0.68 : 1.02),
-    speed = h * (upper ? 0.09 : 0.17),
+    walkSpeed = h * (upper ? 0.55 : 0.75),
+    runSpeed = h * (upper ? 1.05 : 1.4),
     stride = w * gaitStride(key),
-    delay = upper ? 3 : 0,
+    delay = upper ? 0.8 : 0,
     offset = upper ? 54 : 30;
   const left = clamp(
     card.left - groupWidth * 0.65 - offset,
@@ -169,25 +170,44 @@ export function crossingAt(
     groupWidth / 2 + 5,
     viewport - groupWidth / 2 - 5,
   );
-  const insideLeft = card.left + groupWidth * 0.8,
-    insideRight = card.right - groupWidth * 0.8;
-  const entrance = Math.max(0.2, (insideLeft - left) / (speed * 0.88)),
-    exit = Math.max(0.2, (right - insideRight) / (speed * 0.88));
-  const hidden = 1.15,
-    rest = 3.4,
-    total = entrance + hidden + exit,
-    half = total + rest;
-  const elapsed = cycle(Math.max(0, time - delay), half * 2),
-    returning = elapsed >= half,
-    local = cycle(elapsed, half);
+  // Include the artwork's slight sway, then reappear on the opposite edge.
+  // A narrow panel has no safely hidden span, so keep its crossing continuous.
+  const middle = (card.left + card.right) / 2,
+    insideLeft = Math.min(middle, card.left + w * 0.58),
+    insideRight = Math.max(middle, card.right - w * 0.58),
+    rest = 2.2,
+    distance = insideLeft - left + right - insideRight,
+    groupDistance =
+      Math.min(middle, card.left + groupWidth * 0.58) -
+      left +
+      right -
+      Math.max(middle, card.right - groupWidth * 0.58),
+    walkDuration = groupDistance / (walkSpeed * 0.94),
+    runDuration = groupDistance / (runSpeed * 0.94),
+    walkHalf = walkDuration + rest;
+  const elapsed = cycle(
+      Math.max(0, time - delay),
+      walkHalf + runDuration + rest,
+    ),
+    returning = elapsed >= walkHalf,
+    local = returning ? elapsed - walkHalf : elapsed,
+    total = returning ? runDuration : walkDuration;
   const reverse = initialRight !== returning,
     facing = reverse ? -1 : 1;
   const points = reverse
     ? [right, insideRight, insideLeft, left]
     : [left, insideLeft, insideRight, right];
   const durations = reverse
-    ? [exit, hidden, entrance]
-    : [entrance, hidden, exit];
+    ? [
+        ((right - insideRight) / distance) * total,
+        0,
+        ((insideLeft - left) / distance) * total,
+      ]
+    : [
+        ((insideLeft - left) / distance) * total,
+        0,
+        ((right - insideRight) / distance) * total,
+      ];
   const labels: Record<string, string> = {
     bear: "walk across to greet friends",
     "blazer-stallion": "trot across the field",
@@ -210,19 +230,16 @@ export function crossingAt(
     const duration = durations[segment];
     if (local < sum + duration) {
       const u = clamp((local - sum) / duration),
-        e = travelEase(u);
+        e = travelEase(u, segment === 2);
       return {
         x: points[segment] + (points[segment + 1] - points[segment]) * e.p,
-        phase:
-          segment === 1
-            ? e.p * hidden
-            : (e.p * Math.abs(points[segment + 1] - points[segment])) / stride,
+        phase: (e.p * Math.abs(points[segment + 1] - points[segment])) / stride,
         run: e.v,
         facing,
         play: -1,
         pulse: 0,
         arc: 0,
-        action: segment === 1 ? "cross behind the conversation" : labels[key],
+        action: returning ? "run across to join friends" : labels[key],
       };
     }
     sum += duration;
@@ -258,8 +275,8 @@ export function crossingAt(
   };
 }
 
-// Shorten only the fully covered section of a flight. The original easing,
-// visible speed, wing beat, and uniform depth scaling stay independent.
+// Skip only the fully covered section of a flight. Visible easing, wing beats
+// and depth scaling remain independent; no invisible travel timer is needed.
 export function flightClockAt(
   key: string,
   time: number,
@@ -273,28 +290,22 @@ export function flightClockAt(
     duration = period * 0.3;
   const span = Math.max(1, viewport * 0.93 - w),
     left = viewport * 0.035 + w / 2;
-  const enter = clamp((card.left + w * 0.65 - left) / span),
-    leave = clamp((card.right - w * 0.65 - left) / span);
+  const enter = clamp((card.left + w * 0.6 - left) / span),
+    leave = clamp((card.right - w * 0.6 - left) / span);
   if (leave <= enter) return time;
   const inverse = (p: number) => 0.5 - Math.sin(Math.asin(1 - 2 * p) / 3);
   const a = start + duration * inverse(enter),
     b = start + duration * inverse(leave);
   const ra = start + duration * inverse(1 - leave),
     rb = start + duration * inverse(1 - enter);
-  const concealed = Math.min(1.15, b - a),
-    saved = b - a - concealed,
+  const saved = b - a,
     newHalf = half - saved;
   const t = cycle(time, newHalf * 2),
     returning = t >= newHalf,
     local = returning ? t - newHalf : t;
   const entry = returning ? ra : a,
     exit = returning ? rb : b;
-  const mapped =
-    local < entry
-      ? local
-      : local < entry + concealed
-        ? entry + ((local - entry) * (exit - entry)) / concealed
-        : local + saved;
+  const mapped = local < entry ? local : local + exit - entry;
   return (returning ? half : 0) + mapped;
 }
 

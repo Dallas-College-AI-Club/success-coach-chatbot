@@ -140,47 +140,73 @@ test("ground partners only overlap behind the panel across desktop and narrow la
   }
 });
 
-test("concealed ground crossings complete in at most 1.2 seconds", () => {
+test("ground routes alternate walking and running and skip only fully covered travel", () => {
   const card = { left: 304, right: 976, top: 125, bottom: 680 };
   for (const c of ground) {
-    let start: number | null = null,
-      count = 0;
-    for (let tick = 0; tick < 6000; tick++) {
-      const t = tick / 20,
-        p = crossingAt(c.key, t, card, 1280, (72 * c.width) / c.height, 72);
-      if (p.action === "cross behind the conversation") start ??= t;
-      else if (start !== null) {
-        assert.ok(t - start <= 1.2);
-        start = null;
-        count++;
+    const w = (72 * c.width) / c.height;
+    const speeds = { walk: 0, run: 0 };
+    let previous = crossingAt(c.key, 0, card, 1280, w, 72),
+      crossings = 0;
+    let hiddenSince: number | undefined;
+    for (let tick = 1; tick < 12000; tick++) {
+      const t = tick / 120,
+        p = crossingAt(c.key, t, card, 1280, w, 72);
+      const delta = Math.abs(p.x - previous.x);
+      assert.ok(Number.isFinite(p.x) && Number.isFinite(p.phase));
+      if (delta > w) {
+        // The discontinuity is masked by the panel on both sides.
+        for (const x of [p.x, previous.x]) {
+          assert.ok(
+            x - w * 0.54 >= card.left && x + w * 0.54 <= card.right,
+            c.key + " visible jump",
+          );
+        }
+        crossings++;
+      } else {
+        const gait = p.action.startsWith("run ") ? "run" : "walk";
+        speeds[gait] = Math.max(speeds[gait], delta * 120);
       }
+      if (p.x - w / 2 > card.left && p.x + w / 2 < card.right)
+        hiddenSince ??= t;
+      else if (hiddenSince !== undefined) {
+        assert.ok(t - hiddenSince < 0.25, c.key + " waited behind the panel");
+        hiddenSince = undefined;
+      }
+      previous = p;
     }
-    assert.ok(count >= 2, c.key + " did not cross");
+    assert.ok(crossings >= 6, c.key + " too few crossings");
+    assert.ok(speeds.walk > 35, c.key + " still walking too slowly");
+    assert.ok(speeds.run > speeds.walk * 1.7, c.key + " no distinct run");
   }
 });
 
-test("flights reappear promptly without jumps at the concealed speed changes", () => {
+test("flights skip the covered middle without visible jumps or hidden pauses", () => {
   const viewport = 1280,
     card = { left: 304, right: 976, top: 125, bottom: 680 },
     w = 80;
   for (const key of ["sun-phoenix", "eagle", "harvester-bee"]) {
-    let start: number | null = null,
+    let start: number | undefined,
       count = 0,
       previousX: number | undefined;
     for (let tick = 0; tick < 8000; tick++) {
       const t = tick / 100,
         m = motionAt(key, flightClockAt(key, t, card, viewport, w), true);
       const x = viewport * 0.035 + w / 2 + (viewport * 0.93 - w) * m.progress;
-      if (previousX !== undefined)
-        assert.ok(Math.abs(x - previousX) < 10, key + " jumped");
-      previousX = x;
-      if (x > card.left + w * 0.65 && x < card.right - w * 0.65) start ??= t;
-      else if (start !== null) {
-        assert.ok(t - start <= 1.17, key + " stayed hidden too long");
-        start = null;
+      if (previousX !== undefined && Math.abs(x - previousX) >= 10) {
+        for (const center of [x, previousX])
+          assert.ok(
+            center - w * 0.54 >= card.left && center + w * 0.54 <= card.right,
+            key + " visible jump",
+          );
         count++;
       }
+      previousX = x;
+      if (x > card.left + w / 2 && x < card.right - w / 2) start ??= t;
+      else if (start !== undefined) {
+        assert.ok(t - start < 0.15, key + " stayed hidden too long");
+        start = undefined;
+      }
     }
-    assert.ok(count >= 2, key + " did not return");
+    assert.ok(count >= 4, key + " did not return");
   }
 });

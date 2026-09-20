@@ -106,11 +106,17 @@ def schema_sql() -> str:
     from sqlalchemy.dialects.postgresql import dialect
     from sqlalchemy.schema import CreateIndex, CreateTable
 
-    statements = [
+    generated_note = (
         "-- Generated from dallasai.models; regenerate with "
-        "python -m dallasai.database --schema",
+        "python -m dallasai.database --schema"
+    )
+    migration_note = (
         "-- Fresh databases only. Existing databases need a reviewed migration; "
-        "this never drops tables.",
+        "this never drops tables."
+    )
+    statements = [
+        generated_note,
+        migration_note,
         "BEGIN;",
         "CREATE EXTENSION IF NOT EXISTS vector;",
         "CREATE EXTENSION IF NOT EXISTS pg_trgm;",
