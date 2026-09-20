@@ -538,6 +538,7 @@ test("every picker program yields a named course-plan prompt; missing programs n
   for (const program of PROGRAMS) {
     const first = starterQuestionsFor({ ...profile, major: program.code })[0];
     assert.ok(first.prompt.includes(program.label), program.code);
+    assert.deepEqual(requestedSemesters(first.prompt), [1], program.code);
     assert.ok(INPUT_SCHEMA.safeParse({ programName: program.label }).success);
   }
   const unknown = starterQuestionsFor({ ...profile, major: "missing" });

@@ -78,7 +78,7 @@ function coursePlan(
       : first
         ? "Which classes would I start with?"
         : "Review my program's course checklist",
-    prompt: `Show the published course plan for ${name}${first ? ", only semester 1" : ""}, grouped by semester or requirement, with course codes and credits.`,
+    prompt: `Look up the published course plan for ${name}${first ? ", only semester 1" : ""}. The course cards already show the requested checklist and its credits. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.`,
   };
 }
 
@@ -103,7 +103,7 @@ function scheduleQuestion(
     label: preference
       ? `Does a starting course have ${preference} options?`
       : "When does a starting course meet?",
-    prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Keep the explanation brief; the section list supplies the details. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
+    prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Use the schedule cards to show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Reply with a brief summary, without repeating the section list. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
   };
 }
 
