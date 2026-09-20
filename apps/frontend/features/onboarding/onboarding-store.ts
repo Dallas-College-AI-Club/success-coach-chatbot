@@ -5,21 +5,8 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useEffect } from "react";
 
-// The anonymous client store (issue #50). One live domain — the student's
-// onboarding answers — plus a client-generated id, persisted to localStorage
-// so a return visit resumes without an account.
-//
-// The chat-messages domain below (ChatMessage, appendMessage, …) is RESERVED,
-// not live: the shipped chat (features/chat) keeps its transcript in the
-// useChat instance and holds it for the session only — refresh re-seeds. No
-// code writes messages here today; if chat persistence ships, it should store
-// the transport's UIMessage[] shape, not extend this provisional one.
-//
-// This is the system's only durable student/session state. The server's
-// `chat_session` table is a PII-scrubbed analytics/eval log, archived weekly
-// and purged (apps/data/reference/db/schema.sql), so continuity is client-side by
-// design; nothing here is a cache of anything. Tabs don't sync: the stored
-// state follows the most recent writer.
+// Onboarding choices persist locally; the chat transcript stays in useChat.
+// No server session logging or transcript synchronization is implemented here.
 
 /** The completed onboarding a returning student resumes into. */
 export interface SavedSession {
@@ -28,37 +15,10 @@ export interface SavedSession {
   modeId: string;
 }
 
-export type ChatRole = "user" | "assistant" | "system";
-
-/** Provisional — the real vocabulary belongs to the chat transport (#37). */
-const CHAT_MESSAGE_STATUSES = [
-  "pending",
-  "streaming",
-  "complete",
-  "error",
-] as const;
-export type ChatMessageStatus = (typeof CHAT_MESSAGE_STATUSES)[number];
-
-/**
- * The floor for a chat turn, not the final shape: #37 owns the chat and is
- * expected to extend this (per-message citations are required by DP-013 and
- * governed by RFC-0005's Citation Policy, and the server history contract
- * records per-turn citation flags and grounding results — none of which has
- * anywhere to live here yet).
- */
-export interface ChatMessage {
-  id: string;
-  role: ChatRole;
-  content: string;
-  timestamp: string;
-  status: ChatMessageStatus;
-}
-
 interface SessionState {
   /** Maps to `chat_session.student_id` — pseudonymous, never derived from a real identifier. */
   studentId: string | null;
   session: SavedSession | null;
-  messages: ChatMessage[];
   /** False until `rehydrate()` has run, so reads can stay SSR-safe. Never persisted. */
   hasHydrated: boolean;
   setSession: (session: SavedSession) => void;
@@ -69,15 +29,9 @@ interface SessionState {
    *  privacy need on shared campus machines. No owner issue yet; file one
    *  before wiring it into UI. */
   resetSession: () => void;
-  appendMessage: (message: ChatMessage) => void;
-  clearChat: () => void;
-  updateMessageStatus: (id: string, status: ChatMessageStatus) => void;
 }
 
-type PersistedSession = Pick<
-  SessionState,
-  "studentId" | "session" | "messages"
->;
+type PersistedSession = Pick<SessionState, "studentId" | "session">;
 
 function isSavedSession(value: unknown): value is SavedSession {
   if (!value || typeof value !== "object") return false;
@@ -89,22 +43,14 @@ function isSavedSession(value: unknown): value is SavedSession {
     // `completedAt` is set unconditionally by the payload's sole producer
     // (build-payload.ts), so its absence marks a foreign or truncated blob.
     typeof (s.payload as Record<string, unknown>).completedAt === "string" &&
+    ((s.payload as Record<string, unknown>).dayparts_pref == null ||
+      (Array.isArray((s.payload as Record<string, unknown>).dayparts_pref) &&
+        (
+          (s.payload as Record<string, unknown>).dayparts_pref as unknown[]
+        ).every((v) => typeof v === "string"))) &&
     Array.isArray(s.summary) &&
     s.summary.every((x) => typeof x === "string") &&
     typeof s.modeId === "string"
-  );
-}
-
-function isChatMessage(value: unknown): value is ChatMessage {
-  if (!value || typeof value !== "object") return false;
-  const m = value as Record<string, unknown>;
-  return (
-    typeof m.id === "string" &&
-    (m.role === "user" || m.role === "assistant" || m.role === "system") &&
-    typeof m.content === "string" &&
-    typeof m.timestamp === "string" &&
-    typeof m.status === "string" &&
-    (CHAT_MESSAGE_STATUSES as readonly string[]).includes(m.status)
   );
 }
 
@@ -117,7 +63,6 @@ function parsePersisted(raw: unknown): Partial<PersistedSession> {
   return {
     studentId: typeof v.studentId === "string" ? v.studentId : null,
     session: isSavedSession(v.session) ? v.session : null,
-    messages: Array.isArray(v.messages) ? v.messages.filter(isChatMessage) : [],
   };
 }
 
@@ -143,21 +88,12 @@ export const useStudentSession = create<SessionState>()(
     (set) => ({
       studentId: null,
       session: null,
-      messages: [],
       hasHydrated: false,
 
       setSession: (session) => set({ session }),
       setModeId: (modeId) =>
         set((s) => (s.session ? { session: { ...s.session, modeId } } : {})),
       resetSession: () => set({ session: null }),
-
-      appendMessage: (message) =>
-        set((s) => ({ messages: [...s.messages, message] })),
-      clearChat: () => set({ messages: [] }),
-      updateMessageStatus: (id, status) =>
-        set((s) => ({
-          messages: s.messages.map((m) => (m.id === id ? { ...m, status } : m)),
-        })),
     }),
     {
       name: "student-session-store",
@@ -171,13 +107,29 @@ export const useStudentSession = create<SessionState>()(
       storage: createJSONStorage(() => {
         void localStorage;
         return {
-          getItem: (name) => localStorage.getItem(name),
-          setItem: (name, value) => {
-            if (useStudentSession.getState().hasHydrated) {
-              localStorage.setItem(name, value);
+          getItem: (name) => {
+            try {
+              return localStorage.getItem(name);
+            } catch {
+              return null;
             }
           },
-          removeItem: (name) => localStorage.removeItem(name),
+          setItem: (name, value) => {
+            if (useStudentSession.getState().hasHydrated) {
+              try {
+                localStorage.setItem(name, value);
+              } catch {
+                /* Continue with an in-memory session. */
+              }
+            }
+          },
+          removeItem: (name) => {
+            try {
+              localStorage.removeItem(name);
+            } catch {
+              /* Storage may be blocked. */
+            }
+          },
         };
       }),
       // An explicit allowlist, so a field added later doesn't start persisting
@@ -185,7 +137,6 @@ export const useStudentSession = create<SessionState>()(
       partialize: (s): PersistedSession => ({
         studentId: s.studentId,
         session: s.session,
-        messages: s.messages,
       }),
       merge: (persisted, current) => ({
         ...current,
@@ -204,7 +155,6 @@ export const useStudentSession = create<SessionState>()(
         if (error) {
           console.warn(
             "[student-session] stored session unreadable; starting fresh",
-            error,
           );
         }
         const studentId = state?.studentId ?? mintStudentId();

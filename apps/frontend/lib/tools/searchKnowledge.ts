@@ -122,6 +122,30 @@ export function hasTopicEvidence(text: string, terms: string[]) {
   );
 }
 
+/** Keep actual matching passages, even when a long CV's opening has no evidence. */
+export function searchExcerpt(text: string, terms: string[], limit = 2400) {
+  if (text.length <= limit) return text;
+  const wanted = new Set(terms.map((term) => term.replace(/s$/, "")));
+  const ranges: { start: number; end: number }[] = [];
+  for (const match of text.matchAll(/[\p{L}\p{N}+#]+/gu)) {
+    if (!wanted.has(match[0].toLowerCase().replace(/s$/, ""))) continue;
+    const start = Math.max(0, match.index - 160);
+    const end = Math.min(text.length, match.index + match[0].length + 240);
+    const previous = ranges.at(-1);
+    if (previous && start <= previous.end) previous.end = end;
+    else ranges.push({ start, end });
+  }
+  // Whole passages are separated explicitly; never concatenate distant facts
+  // into what looks like a single sentence from the source.
+  return (ranges.length ? ranges : [{ start: 0, end: limit }])
+    .map(
+      ({ start, end }) =>
+        `${start ? "… " : ""}${text.slice(start, end)}${end < text.length ? " …" : ""}`,
+    )
+    .join("\n\n")
+    .slice(0, limit);
+}
+
 /** One broad recovery per turn, including after an earlier focused discovery. */
 export function recoveryToolChoice(
   steps: readonly {
@@ -189,6 +213,8 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
         .where(
           and(
             inArray(knowledgeEntry.docType, types),
+            // Legacy XXXX option pages must never masquerade as enrollable courses.
+            sql`(${knowledgeEntry.docType} <> 'course' OR ${knowledgeEntry.courseCode} ~ '^[A-Z]{3,4} [0-9]{4}$')`,
             lexical ? sql`${document} @@ ${keywords}` : undefined,
           ),
         )
@@ -229,7 +255,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     const results = rows.slice(0, broad ? 6 : TOP_K).map((r) => {
       const isCourse = r.docType === "course";
       return {
-        text: broad ? r.text.slice(0, 2400) : r.text,
+        text: broad ? searchExcerpt(r.text, terms) : r.text,
         source_url: r.sourceUrl,
         doc_type: r.docType,
         name: isCourse ? null : r.name,

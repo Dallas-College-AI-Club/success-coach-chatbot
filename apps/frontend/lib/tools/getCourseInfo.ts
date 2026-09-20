@@ -1,4 +1,5 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
+import { isCourseCode } from "@/lib/course-details";
 
 import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
@@ -21,7 +22,7 @@ export const DESCRIPTION = [
   "The tool returns verified course facts stored in the knowledge base.",
   "",
   "Reporting requisites correctly:",
-  "- `prerequisites` lists only requirements the catalog states as course codes.",
+  "- `prerequisites` contains extracted course references; it may include recommendations. Use `requisites_raw` to distinguish required, recommended and unknown conditions.",
   "- `requisites_raw` is the catalog's requisite sentence, word for word.",
   "- A course can have an EMPTY `prerequisites` array and still have a real",
   "  requirement, because readiness requirements are prose, not course codes",
@@ -53,6 +54,8 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     console.log("[TOOL] get_course_info invoked");
   }
   INPUT_SCHEMA.parse(input);
+  if (!isCourseCode(normalizeCourseCode(input.courseCode)))
+    return { found: false };
   const [row] = await getDb()
     .select({
       facts: knowledgeEntry.facts,
@@ -66,6 +69,10 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
         eq(knowledgeEntry.courseCode, normalizeCourseCode(input.courseCode)),
         eq(knowledgeEntry.docType, "course"),
       ),
+    )
+    .orderBy(
+      sql`${knowledgeEntry.catalogYear} DESC NULLS LAST`,
+      sql`${knowledgeEntry.scrapedAt} DESC NULLS LAST`,
     )
     .limit(1);
 

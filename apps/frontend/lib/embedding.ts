@@ -1,4 +1,5 @@
 import type { FeatureExtractionPipeline } from "@huggingface/transformers";
+import contract from "./embedding-contract.json";
 
 const globalExtractor = globalThis as unknown as {
   __extractorPromise?: Promise<FeatureExtractionPipeline>;
@@ -13,6 +14,13 @@ const globalExtractor = globalThis as unknown as {
 const RETRY_COOLDOWN_MS = 30_000;
 
 async function loadExtractor(): Promise<FeatureExtractionPipeline> {
+  if (
+    contract.dtype !== "int8" ||
+    contract.pooling !== "mean" ||
+    contract.normalize !== true
+  ) {
+    throw new Error("Unsupported shared embedding contract");
+  }
   // Dynamic import, not top-level: transformers.js drags in the native
   // onnxruntime binding, and a top-level import puts that load on EVERY
   // /api/chat request's module graph — measured live on Vercel
@@ -33,8 +41,8 @@ async function loadExtractor(): Promise<FeatureExtractionPipeline> {
     env.cacheDir = "/tmp/transformers-cache";
   }
 
-  return pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2", {
-    dtype: "int8",
+  return pipeline("feature-extraction", contract.model, {
+    dtype: contract.dtype,
   });
 }
 
@@ -67,6 +75,18 @@ function getExtractor(): Promise<FeatureExtractionPipeline> {
 
 export async function embedText(text: string): Promise<number[]> {
   const extractor = await getExtractor();
-  const output = await extractor(text, { pooling: "mean", normalize: true });
-  return Array.from(output.data);
+  const output = await extractor(text, {
+    pooling: "mean",
+    normalize: contract.normalize,
+  });
+  const vector = Array.from(output.data);
+  const norm = Math.hypot(...vector);
+  if (
+    vector.length !== contract.dimensions ||
+    !vector.every(Number.isFinite) ||
+    Math.abs(norm - 1) > 0.01
+  ) {
+    throw new Error("Embedding violates the shared model contract");
+  }
+  return vector;
 }

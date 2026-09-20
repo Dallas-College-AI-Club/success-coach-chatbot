@@ -8,6 +8,7 @@ import {
   recoveryToolChoice,
   searchTerms,
   hasTopicEvidence,
+  searchExcerpt,
 } from "../lib/tools/searchKnowledge";
 
 test("calendar tolerates provider-filled optional defaults and uses Dallas civil dates", async () => {
@@ -64,6 +65,19 @@ test("broad search rejects semantic lookalikes without topical evidence", () => 
     ),
     false,
   );
+});
+
+test("broad recovery keeps late source evidence instead of only the document opening", () => {
+  const text =
+    "Earlier unrelated teaching. ".repeat(130) +
+    "Published research in machine learning and Python." +
+    " Later research.".repeat(200);
+  const excerpt = searchExcerpt(text, searchTerms("machine learning Python"));
+  assert.ok(
+    excerpt.includes("Published research in machine learning and Python."),
+  );
+  assert.ok(excerpt.length <= 2400);
+  assert.ok(excerpt.startsWith("… "));
 });
 
 // All provider traffic is mocked. This suite never loads local credentials.

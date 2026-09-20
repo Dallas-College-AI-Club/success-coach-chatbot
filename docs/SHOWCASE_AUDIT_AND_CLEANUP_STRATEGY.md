@@ -1,5 +1,32 @@
 # Success Coach: repository audit and showcase cleanup strategy
 
+## Release ownership and merge order · September 20, 2026
+
+**Decision:** ship fixes to the existing demo in **PR #190**. Build the follow-up for **issue #191** directly on that reviewed commit. Shared files may receive new capabilities in the follow-up, but existing-behavior cleanup is already part of #190. No database import, merge or deployment is included in this publication authorization.
+
+| Ship with #190 | Keep in the #191 follow-up |
+|---|---|
+| Contextual onboarding starters; hide all starters after the first question; delete obsolete follow-up selector | Completed/in-progress/transfer history; conservative credit calculations; exact program comparison |
+| Semester-only and range filtering; reject unavailable semester scope without substituting the whole plan | Required/recommended/concurrent prerequisite assessment against reported history |
+| Full course/term instructor rosters after title discovery; saved-source dates; grouped sections, highlighted CV details | Exhaustive faculty expertise with AND/OR evidence, coverage and every matched source |
+| Broad-recovery excerpts, valid course identifiers, correct 384-dimensional query embedding contract | Pipeline adoption of that contract, safe data loading, corpus gap proposals and reproducibility |
+| Normalized/deduplicated saved notes, storage-denied handling, shared citation policy, removal of unused transcript code and unified frontend verification | No duplicate cleanup commits; only new capabilities and their regression coverage |
+
+Publish #190 first; target its branch with the follow-up PR until #190 merges. If #190 is squash-merged, transplant only the follow-up commit onto updated `main`, then retarget and rerun checks. This avoids carrying the original #190 commits into a second review. Future changes on `main` still require a fresh conflict check.
+
+### Current audit evidence
+
+- Frontend: **78 checks for #190** (31 demo/mascot, 9 boundary, 12 normalization, 26 sheet-filter); **121 for the combined follow-up**. Both pass lint, TypeScript and production builds.
+- Python baseline: **74 passed, 4 existing skips** for #190; **124 passed, 4 existing skips** for the follow-up. One existing Chroma deprecation warning remains. All **17 touched Python files** pass Ruff; a repository-wide probe found 157 existing lint findings in untouched legacy files, outside these PRs.
+- Read-only Neon verification: **335 program choices**, first-semester scopes, **1,573 valid course records**, and **1,426 Fall sections** across MySQL, Python, College Algebra and Composition I. All pages and complete instructor rosters matched source records. No data was changed.
+- Seven targeted #190 GPT-4.1-mini requests passed (2.1–7.5 seconds locally): program → MySQL roster → Python prerequisites → second semester; missing-course recovery; current-term title discovery; schedule-aware starter. An additional browser starter answered correctly. Model prose can still repeat a list inside its collapsed explanation; structured fields remain the source of truth.
+- The final combined build also passed six paid conversation checks: two mixed course-history cases, visible clarification, complete MySQL schedule, unavailable semester 13, and broad recovery after an empty exhaustive-faculty search. Read-only comparisons rechecked all 337 saved plans and eight faculty searches across 2,709 indexed CVs.
+- Browser: Playful onboarding, first-question starter removal, course disclosure, save-to-notes and print-sheet persistence; Simple/Focus/Playful at 390 px without horizontal overflow. The in-app browser did not open the print link's new tab; the same `/summary` page was verified directly. Native popup handling and printer/PDF pagination are not certified by this run.
+
+Local evidence: `club-project/local/success-coach-pr190/apps/frontend/.tmp/190-{verify.log,data.json,chat.json}` and the existing #191 evidence described below. Initial test-harness mistakes and the inaccessible system pytest cache were corrected before successful final runs; they were not product defects.
+
+## Earlier audit checkpoints
+
 **Audit baseline September 19, 2026; final showcase review September 20.**
 
 <a id="final-review-checkpoint"></a>

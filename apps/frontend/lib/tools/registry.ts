@@ -1,4 +1,5 @@
 import { tool } from "ai";
+import { PROGRAMS } from "@/features/onboarding/programs";
 import {
   programResultForModel,
   scheduleResultForModel,
@@ -44,7 +45,7 @@ export const TOOL_REGISTRY = {
   }),
   get_program_requirements: tool({
     description: getProgramRequirements.DESCRIPTION,
-    inputSchema: getProgramRequirements.INPUT_SCHEMA,
+    inputSchema: getProgramRequirements.INPUT_SCHEMA.omit({ semesters: true }),
     execute: getProgramRequirements.EXECUTE,
     toModelOutput: ({ output }) => ({
       type: "text",
@@ -58,8 +59,44 @@ export const TOOL_REGISTRY = {
   }),
 };
 
+/** Required structured views must be refreshed instead of answered from an
+ * older, differently scoped result in conversation history. */
+export function requestedToolChoice(
+  text: string,
+  step: number,
+  context: { programKnown?: boolean } = {},
+) {
+  if (step !== 0) return undefined;
+  const schedule = getClassSchedule.scheduleToolChoice(text, step);
+  if (schedule) return schedule;
+  const namedPrograms = PROGRAMS.filter((program) =>
+    getProgramRequirements
+      .squash(text)
+      .includes(getProgramRequirements.squash(program.label)),
+  );
+  if (
+    (context.programKnown || namedPrograms.length === 1) &&
+    requestedSemesters(text).length
+  )
+    return {
+      type: "tool" as const,
+      toolName: "get_program_requirements" as const,
+    };
+  if (
+    /\b[A-Z]{3,4}\s*\d{4}\b/i.test(text) &&
+    /\b(?:prerequisites?|requisites?|eligible|eligibility|course details)\b/i.test(
+      text,
+    )
+  )
+    return { type: "tool" as const, toolName: "get_course_info" as const };
+  return undefined;
+}
+
 /** Enforce the current student's explicit scope even if the model omits it. */
-export function toolsForTurn(userText: string) {
+export function toolsForTurn(
+  userText: string,
+  userMessages: string[] = [userText],
+) {
   const semesters = requestedSemesters(userText);
   const courseCode = getClassSchedule.scheduleCourseForTurn(userText);
   let missed = false;
@@ -71,13 +108,37 @@ export function toolsForTurn(userText: string) {
     ...TOOL_REGISTRY,
     get_class_schedule: tool({
       ...TOOL_REGISTRY.get_class_schedule,
-      execute: async (input) =>
-        record(
+      execute: async (input) => {
+        // Do not let an old discovery snippet silently choose a historical term.
+        // Follow-ups retain their conversation's requested term.
+        if (
+          userMessages.length === 1 &&
+          getClassSchedule.asksWhoTeachesNow(userText)
+        ) {
+          const calendar = await getSemesterTool.EXECUTE({});
+          if (!calendar.found || !calendar.semester)
+            return {
+              found: false,
+              note: "Please specify a semester and year.",
+            };
+          input = {
+            ...input,
+            ...getClassSchedule.INPUT_SCHEMA.pick({
+              semester: true,
+              year: true,
+            }).parse({
+              semester: calendar.semester.term.toLowerCase(),
+              year: calendar.semester.year,
+            }),
+          };
+        }
+        return record(
           await getClassSchedule.EXECUTE({
             ...input,
             ...(courseCode ? { courseCode } : {}),
           }),
-        ),
+        );
+      },
     }),
     get_program_requirements: tool({
       ...TOOL_REGISTRY.get_program_requirements,
@@ -85,7 +146,7 @@ export function toolsForTurn(userText: string) {
         record(
           await getProgramRequirements.EXECUTE({
             ...input,
-            ...(semesters.length ? { semesters } : {}),
+            semesters: semesters.length ? semesters : undefined,
           }),
         ),
     }),

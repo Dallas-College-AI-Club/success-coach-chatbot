@@ -29,7 +29,7 @@ The [current tool registry](apps/frontend/lib/tools/registry.ts) is the executab
 
 The configured demo corpus contains the 2026–2027 catalog, published professional backgrounds, selected student resources and saved schedules. The approved Fall repair restores meeting facts for 12,872 existing sections from an August 12, 2026 snapshot. It does not establish present seat availability. Missing facts are labeled; related semantic matches are not an exhaustive directory.
 
-Major cannot decide admission, transfer acceptance, graduation or awards. A published plan does not automatically subtract a student's completed courses or construct a conflict-free timetable. Syllabus-policy answers and exhaustive faculty-expertise enumeration remain future decisions. See the audit for scope and verification, including known source and model limitations.
+Major cannot decide admission, transfer acceptance, graduation or awards. Planning checklists distinguish self-reported completion from in-progress, uncertain and pending-transfer courses. Remaining credits are calculated only when the published rules and reported history reconcile. Faculty expertise lists cover explicit evidence in indexed CVs, with all matches accessible. Official degree audits, automatic timetable construction and syllabus-policy answers remain outside this release. See the audit for scope and verification, including known source and model limitations.
 
 Database setup and ingestion are separate from running the frontend. Historical schema/seed documents illustrate the original design; use the current [data runbook](apps/data/REPRODUCE.md) and [runtime schema](apps/frontend/lib/schema.ts) when reproducing the supported path. Use a separate development database for imports.
 

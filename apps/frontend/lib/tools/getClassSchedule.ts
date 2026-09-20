@@ -2,7 +2,11 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import z from "zod";
 import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
-import { instructorCvLinks, scheduleSection } from "@/lib/course-details";
+import {
+  instructorCvLinks,
+  isRecord,
+  scheduleSection,
+} from "@/lib/course-details";
 import { normalizeCourseCode } from "./getCourseInfo";
 
 export const DESCRIPTION = `Returns individual published class sections, instructors, dates, and meeting times when loaded. Call for schedules, who teaches a course, campus or modality. Set semester and year for the requested term (Fall/Spring is different from curriculum semester 1/2). Never merge sections just because their instructor is the same. Empty meets means UNKNOWN unless meeting_info_raw explicitly explains the pattern. Do not claim online means no fixed time. This is a saved schedule, not live registration or seat availability. The interface displays section details; keep prose brief. If truncated, state the count and use next_offset for further results.`;
@@ -20,10 +24,20 @@ export const INPUT_SCHEMA = z.object({
 });
 const PAGE_SIZE = 100;
 
+/** A fresh present-tense teaching question defaults to the current Dallas term. */
+export function asksWhoTeachesNow(text: string): boolean {
+  return (
+    /\bwho(?:['’]s| is)?\s+(?:teaches|teaching)\b/i.test(text) &&
+    !/\b(?:spring|summer|fall|winter|may|20\d{2}|next|last|previous|past|before|historical|ever|all terms|every term)\b/i.test(
+      text,
+    )
+  );
+}
+
 /** An explicit one-course schedule request must read the database this turn. */
 export function scheduleCourseForTurn(text: string): string | undefined {
   if (
-    !/\b(?:schedules?|sections?|meeting (?:times?|days?)|who (?:teaches|is teaching))\b/i.test(
+    !/\b(?:schedules?|sections?|meeting (?:times?|days?)|who(?:['’]s| is)?\s+(?:teaches|teaching))\b/i.test(
       text,
     )
   )
@@ -45,6 +59,42 @@ export function scheduleToolChoice(text: string, stepNumber: number) {
   // A course-title question needs discovery, not one instructor's biography.
   return /\bwho(?:['’]s| is)?\s+(?:teaches|teaching)\b/i.test(text)
     ? { type: "tool" as const, toolName: "search_knowledge" as const }
+    : undefined;
+}
+
+/** Search snippets establish identity, not the complete teaching roster. */
+export function scheduleDiscoveryChoice(
+  text: string,
+  steps: readonly {
+    toolResults?: readonly { toolName: string; output: unknown }[];
+  }[],
+) {
+  if (scheduleToolChoice(text, 0)?.toolName !== "search_knowledge")
+    return undefined;
+  const results = steps.flatMap((step) => step.toolResults ?? []);
+  if (results.some((result) => result.toolName === "get_class_schedule"))
+    return undefined;
+  const codes = new Set<string>();
+  for (const result of results) {
+    if (result.toolName !== "search_knowledge" || !isRecord(result.output))
+      continue;
+    const matches = result.output.results;
+    if (!Array.isArray(matches)) continue;
+    for (const match of matches) {
+      if (!isRecord(match)) continue;
+      // A CV can mention many historical courses; it cannot resolve this query.
+      const code =
+        match.doc_type === "course"
+          ? match.course_code
+          : match.doc_type === "section" && typeof match.text === "string"
+            ? match.text.match(/^([A-Z]{3,4} \d{4})\b/)?.[1]
+            : null;
+      if (typeof code === "string" && /^[A-Z]{3,4} \d{4}$/.test(code))
+        codes.add(code);
+    }
+  }
+  return codes.size === 1
+    ? { type: "tool" as const, toolName: "get_class_schedule" as const }
     : undefined;
 }
 
@@ -86,7 +136,11 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
       .limit(PAGE_SIZE)
       .offset(offset),
     getDb()
-      .select({ count: sql<number>`count(*)::int` })
+      .select({
+        count: sql<number>`count(*)::int`,
+        oldest: sql<string>`min(${knowledgeEntry.scrapedAt})`,
+        newest: sql<string>`max(${knowledgeEntry.scrapedAt})`,
+      })
       .from(knowledgeEntry)
       .where(where),
     getDb()
@@ -142,6 +196,16 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
       );
     }
   }
+  const namedInstructors = new Map<string, (typeof instructorRows)[number]>();
+  for (const row of instructorRows) {
+    if (
+      row.professor &&
+      !/^(?:to be announced|tba)$/i.test(row.professor.trim()) &&
+      !namedInstructors.has(row.professor)
+    )
+      namedInstructors.set(row.professor, row);
+  }
+  const profiles = new Map(cvRows.map((row) => [row.slug, row]));
   const total = counts[0]?.count ?? 0;
   const title = rows[0]?.text.match(/—\s*(.+?)\s*\((\d+|\?)\s*cr\)/);
   const truncated = offset + rows.length < total;
@@ -155,29 +219,20 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
       [t.semester, t.year].filter(Boolean).join(" "),
     ),
     total_sections: total,
+    oldest_source: counts[0]?.oldest ?? null,
+    newest_source: counts[0]?.newest ?? null,
     // Complete across the selected term, independently of section pagination.
-    instructors: instructorRows
-      .filter(
-        (row, index, all) =>
-          row.professor &&
-          !/^(?:to be announced|tba)$/i.test(row.professor.trim()) &&
-          all.findIndex(
-            (candidate) => candidate.professor === row.professor,
-          ) === index,
-      )
-      .map((row) => ({
-        name: row.professor!,
-        professor_cv_url: row.slug ? (cvLinks.get(row.slug) ?? null) : null,
-      })),
+    instructors: [...namedInstructors.values()].map((row) => ({
+      name: row.professor!,
+      professor_cv_url: row.slug ? (cvLinks.get(row.slug) ?? null) : null,
+    })),
     unassigned_instructor: instructorRows.some(
       (row) =>
         !row.professor ||
         /^(?:to be announced|tba)$/i.test(row.professor.trim()),
     ),
     instructor_profiles: [...cvLinks].flatMap(([slug, url]) => {
-      const profile = cvRows.find(
-        (row) => row.slug === slug && row.sourceUrl === url,
-      );
+      const profile = profiles.get(slug);
       return profile
         ? [{ name: profile.name, source_url: url, background: profile.text }]
         : [];

@@ -6,11 +6,11 @@ import { PROGRAMS } from "@/features/onboarding/programs";
 import {
   courseDetailsFromRow,
   programCourseCode,
+  scopeProgramGroups,
   type CourseDetails,
 } from "@/lib/course-details";
 
 import z from "zod";
-import { scopeProgramGroups } from "@/lib/course-details";
 
 export function squash(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
@@ -26,7 +26,7 @@ export const DESCRIPTION = [
   '- "What are the requirements for the Nursing field of study?"',
   '- "What classes are in the Cybersecurity certificate?"',
   "",
-  "Pass the program name, not the student's whole question. For a specific curriculum semester, also pass semesters (e.g. [1] for first semester). Omit semesters for the entire plan. These numbers are not Fall/Spring terms.",
+  "Pass the program name, not the student's whole question. The server enforces curriculum-semester scope from the student's explicit request. Do not split a whole-program request into semester-by-semester calls. Curriculum semesters are not Fall/Spring terms.",
   "Input is the program name as the user said it; partial names are fine.",
   'If the user mentioned a program code (like "CORE-42"), keep it in',
   "programName exactly as they typed it — codes find programs whose",
@@ -55,9 +55,9 @@ export const DESCRIPTION = [
 
 export const INPUT_SCHEMA = z.object({
   semesters: z
-    .array(z.number().int().min(1).max(12))
+    .array(z.number().int().min(1).max(99))
     .min(1)
-    .max(12)
+    .max(99)
     .optional()
     .describe(
       "Only the requested curriculum semester numbers; omit for the full plan.",
@@ -349,6 +349,9 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
           and(
             eq(knowledgeEntry.docType, "program_map"),
             eq(knowledgeEntry.programCode, CORE_PROGRAM_CODE),
+            row.catalogYear
+              ? eq(knowledgeEntry.catalogYear, row.catalogYear)
+              : undefined,
           ),
         )
         .limit(1);

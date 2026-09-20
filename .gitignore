@@ -9,12 +9,9 @@ out/
 build/
 
 # Environment files (NEVER commit these)
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-.env*.local
+.env*
+!.env.example
+*.env.local
 secrets.env*
 *.secrets.env*
 .secrets/
@@ -46,6 +43,11 @@ Thumbs.db
 # Python cache
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Local Codex attachments are not project assets
+.codex-remote-attachments/
 
 # Local Chroma Database
 apps/data/chroma_db/
@@ -66,7 +68,3 @@ apps/data/cleaned/2026SP/*
 
 # Local data imports
 apps/data/downloaded-dataset/
-
-# Pipeline artifacts
-.tmp/
-.env*

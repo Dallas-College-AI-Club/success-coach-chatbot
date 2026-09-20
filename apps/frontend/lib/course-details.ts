@@ -38,15 +38,20 @@ export function programCourseCode(value: unknown): string | null {
 function requisiteText(value: Record<string, unknown>): string | null {
   const raw = catalogText(value.requisites_raw);
   if (raw) return raw;
-  const sentences = [value.prerequisites, value.corequisites].flatMap(
-    (groups) =>
-      Array.isArray(groups)
-        ? groups.flatMap((g) => {
-            const text = isRecord(g) ? catalogText(g.raw_text) : null;
-            return text ? [text] : [];
-          })
-        : [],
-  );
+  const sentences = ["prerequisites", "corequisites"].flatMap((kind) => {
+    const groups = value[kind];
+    return Array.isArray(groups)
+      ? groups.flatMap((g) => {
+          const text = isRecord(g) ? catalogText(g.raw_text) : null;
+          if (!text) return [];
+          return [
+            /^(?:Pre|Co)requisites?\s*:/i.test(text)
+              ? text
+              : `${kind === "corequisites" ? "Corequisites" : "Prerequisites"}: ${text}`,
+          ];
+        })
+      : [];
+  });
   return [...new Set(sentences)].join("\n") || null;
 }
 
@@ -123,13 +128,37 @@ const ordinals = [
 /** Explicit numbered curriculum semesters, never a Fall/Spring schedule term. */
 export function requestedSemesters(text: string): number[] {
   const value = text.toLowerCase();
+  // A named full checklist may mention a semester as context, not as a filter.
+  const fullPlan = value.match(
+    /\b(?:full|entire|complete)\s+([^.!?;\n]{0,140}?)\b(?:plan|checklist|requirements|curriculum|map)\b/,
+  );
   if (
+    (fullPlan && !/\bsemesters?\b/.test(fullPlan[1])) ||
     /\b(?:all|every)\s+semesters?\b|\b(?:full|entire|complete)\s+(?:program|course|degree)\s*(?:plan|map)?\b/.test(
       value,
     )
   )
     return [];
   const found = new Set<number>();
+  const ordinal = (token: string) =>
+    /^\d/.test(token)
+      ? Number.parseInt(token, 10)
+      : ordinals.indexOf(token) + 1;
+  const atom = `(?:\\d{1,2}(?:st|nd|rd|th)?|${ordinals.join("|")})`;
+  const range = new RegExp(
+    `\\bsemesters?\\s+(${atom})\\s*(?:-|–|to|through)\\s*(${atom})\\b|\\b(${atom})\\s*(?:-|–|to|through)\\s*(${atom})[ -]+semesters?\\b`,
+    "g",
+  );
+  for (const match of value.matchAll(range)) {
+    const first = ordinal(match[1] ?? match[3]);
+    const last = ordinal(match[2] ?? match[4]);
+    for (
+      let semester = Math.min(first, last);
+      semester <= Math.max(first, last);
+      semester++
+    )
+      found.add(semester);
+  }
   for (const match of value.matchAll(
     /\b(\d{1,2})(?:st|nd|rd|th)?[ -]+semester\b|\bsemester\s+(\d{1,2})\b/g,
   )) {
@@ -154,7 +183,7 @@ export function requestedSemesters(text: string): number[] {
   if (wordList)
     for (const word of ordinals)
       if (wordList[1].includes(word)) found.add(ordinals.indexOf(word) + 1);
-  return [...found].filter((n) => n >= 1 && n <= 12).sort((a, b) => a - b);
+  return [...found].filter((n) => n >= 1 && n <= 99).sort((a, b) => a - b);
 }
 
 export function scopeProgramGroups(groups: unknown[], semesters: number[]) {

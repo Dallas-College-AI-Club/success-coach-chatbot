@@ -9,9 +9,13 @@ import {
 } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
 import { isRecord } from "@/lib/course-details";
-import { TOOL_REGISTRY, toolsForTurn } from "@/lib/tools/registry";
-import { scheduleToolChoice } from "@/lib/tools/getClassSchedule";
+import {
+  TOOL_REGISTRY,
+  toolsForTurn,
+  requestedToolChoice,
+} from "@/lib/tools/registry";
 import { recoveryToolChoice } from "@/lib/tools/searchKnowledge";
+import { scheduleDiscoveryChoice } from "@/lib/tools/getClassSchedule";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   APICallError,
@@ -31,18 +35,8 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
-    // Cross-site guard: keeps a third-party page from spending the club's
-    // OpenRouter free-tier quota through a visitor's browser. Origin rather
-    // than Referer — browsers always send Origin on a cross-origin POST,
-    // while Referer is stripped by privacy settings. A missing Origin
-    // (non-browser caller) is allowed through so this never blocks a real
-    // student.
-    //
-    // The request's own host is always allowed, which covers localhost and
-    // every preview deployment without configuration; NEXT_PUBLIC_APP_URL is
-    // an additional allowed origin for the canonical domain. An unparseable
-    // value is ignored rather than thrown — a typo in the env var must not
-    // turn every chat request into a 500.
+    // Reject browser requests from other origins. This is not authentication
+    // or rate limiting; non-browser clients may omit Origin.
     const origin = req.headers.get("origin");
     if (origin) {
       const allowed = new Set<string>();
@@ -102,7 +96,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_MODEL",
           details:
-            "An LLM model is required. Set LLM_MODEL in apps/frontend/.env (or the deployment's environment variables).",
+            "An LLM model is required. Set LLM_MODEL in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -118,7 +112,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing LLM_BASE_URL",
           details:
-            "An API base URL is required. Set LLM_BASE_URL in apps/frontend/.env (or the deployment's environment variables).",
+            "An API base URL is required. Set LLM_BASE_URL in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 500,
@@ -167,7 +161,7 @@ export async function POST(req: Request) {
         JSON.stringify({
           error: "Missing API Key",
           details:
-            "An active OpenRouter API key is required. Set OPENROUTER_API_KEY in apps/frontend/.env (or the deployment's environment variables).",
+            "An active OpenRouter API key is required. Set OPENROUTER_API_KEY in apps/frontend/.env.local (or the deployment's environment variables).",
         }),
         {
           status: 401,
@@ -201,21 +195,30 @@ export async function POST(req: Request) {
       },
     });
 
-    // UI messages carry `parts` (text + tool calls), not a flat `content`
-    // string. convertToModelMessages is the documented bridge and is ASYNC
-    // in AI SDK v6 — the previous String(m.content) map silently sent empty
-    // turns. Docs: node_modules/ai/docs/04-ai-sdk-ui/02-chatbot.mdx
-    //
-    // The system layer is server-owned: lib/system-prompt.ts, plus the
-    // student profile, which is the only client-supplied part and reaches it
-    // only after passing studentProfileSchema. The free-text `systemPrompt`
-    // override is gone — it lost its only caller when #161 deleted
-    // /dev/chat-test.
-    const currentQuestion =
-      messages
-        .findLast((message) => message.role === "user")
-        ?.parts.flatMap((part) => (part.type === "text" ? [part.text] : []))
-        .join(" ") ?? "";
+    // Replay UI text/tool parts through the SDK. The system instructions and
+    // validated onboarding profile are supplied separately by the server.
+    const userMessages = messages
+      .filter((message) => message.role === "user")
+      .map((message) =>
+        message.parts
+          .flatMap((part) => (part.type === "text" ? [part.text] : []))
+          .join(" "),
+      );
+    const currentQuestion = userMessages.at(-1) ?? "";
+    const previousTools = messages
+      .filter((message) => message.role === "assistant")
+      .flatMap((message) => message.parts);
+    const toolContext = {
+      programKnown:
+        Boolean(parsedProfile.success && parsedProfile.data.major) ||
+        previousTools.some(
+          (part) =>
+            part.type === "tool-get_program_requirements" &&
+            "output" in part &&
+            isRecord(part.output) &&
+            Array.isArray(part.output.groups),
+        ),
+    };
     const result = streamText({
       model: openrouter.chat(model),
       // Stop/disconnect cancels generation instead of spending tokens unseen.
@@ -224,30 +227,14 @@ export async function POST(req: Request) {
         tools: TOOL_REGISTRY,
       }),
       system: SYSTEM_PROMPT + profileBlock,
-      tools: toolsForTurn(currentQuestion),
-      // Allow multi-step tool execution.
-      // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
-      //
-      // 8 with a forced-answer phase, not 5: at stepCountIs(5) a thrashing
-      // model spent every step on tool calls and the turn ended with NO text
-      // ("What classes should I take for Computer Science?" → 9 calls at a
-      // 15-step ceiling, observed 2026-08-10). From step 6 on, tools are
-      // withheld (activeTools: []), so the final steps cannot be tool calls
-      // — a turn can no longer end mid-tool-chain. activeTools, NOT
-      // toolChoice "none": measured live 2026-08-11, OpenRouter's free-tier
-      // routing sent step 7 to a backend that 400s on enforced tool_choice
-      // ("inference-enforced tool_choice requires the pinned Gemma prompt
-      // contract" — provider "Darkbloom"), killing exactly the long turns
-      // this phase exists to save.
-      // The forced step ALSO gets an explicit generation order appended to
-      // the system prompt: with tools silently absent but tool history
-      // present, gpt-oss-20b returned EMPTY completions (measured live —
-      // two turns ended blank at steps 7-8). Telling it the budget is spent
-      // and to answer now gives the step a scripted move.
+      tools: toolsForTurn(currentQuestion, userMessages),
+      // Reserve the final steps for an answer. A failed lookup gets one broad
+      // recovery attempt; afterwards no tools are offered to the provider.
       stopWhen: stepCountIs(8),
-      prepareStep: ({ stepNumber, steps }) =>
-        stepNumber < 7 && recoveryToolChoice(steps)
-          ? { toolChoice: recoveryToolChoice(steps) }
+      prepareStep: ({ stepNumber, steps }) => {
+        const recovery = stepNumber < 7 ? recoveryToolChoice(steps) : undefined;
+        return recovery
+          ? { toolChoice: recovery }
           : stepNumber >= 6
             ? {
                 activeTools: [],
@@ -256,16 +243,15 @@ export async function POST(req: Request) {
                   profileBlock +
                   "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
               }
-            : { toolChoice: scheduleToolChoice(currentQuestion, stepNumber) },
+            : {
+                toolChoice:
+                  scheduleDiscoveryChoice(currentQuestion, steps) ??
+                  requestedToolChoice(currentQuestion, stepNumber, toolContext),
+              };
+      },
 
-      // 1000 truncated 4 of 10 replies mid-word in live testing — one
-      // cut a transfer-credit hedge to a bare "Just double-"; a truncated
-      // caveat is worse than a short answer (#154 measurement).
+      // Keep enough output for complete guidance; low variance suits factual lookup.
       maxOutputTokens: 2000,
-      // Low on purpose: this bot restates tool-returned facts, where
-      // sampling variance is pure downside. At 0.7 the live proof runs
-      // showed variance-shaped artifacts (1-of-8 empty replies, garbage
-      // tokens in the before-runs); see the #146 experiment comment.
       temperature: 0.2,
     });
 

@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { useSavedCourses } from "../features/chat/saved-courses";
+import { SummarySheet } from "../features/chat/summary-sheet";
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { convertToModelMessages, tool } from "ai";
@@ -8,7 +11,6 @@ import {
   ScheduleResults,
   InstructorResults,
 } from "../features/chat/course-results";
-import { conversationSuggestions } from "../features/chat/suggestions";
 import {
   requestedSemesters,
   scopeProgramGroups,
@@ -39,8 +41,9 @@ import { INPUT_SCHEMA } from "../lib/tools/getProgramRequirements";
 import {
   scheduleCourseForTurn,
   scheduleToolChoice,
+  scheduleDiscoveryChoice,
+  asksWhoTeachesNow,
 } from "../lib/tools/getClassSchedule";
-import type { UIMessage } from "ai";
 
 const profile: OnboardingPayload = {
   goal: "schedule_fit",
@@ -58,6 +61,63 @@ const profile: OnboardingPayload = {
   completedAt: "2026-09-20T00:00:00Z",
 };
 const skin = { link: "link", chip: "chip" } as Skin;
+
+test("course-title teaching questions complete discovery without guessing from CVs or ambiguous courses", () => {
+  const question = "who's teaching intro to mysql?";
+  assert.equal(asksWhoTeachesNow(question), true);
+  assert.equal(asksWhoTeachesNow("Who teaches ITSE 1303?"), true);
+  for (const suffix of [
+    "in Spring 2026",
+    "next term",
+    "last semester",
+    "across all terms",
+  ])
+    assert.equal(
+      asksWhoTeachesNow(`who's teaching intro to mysql ${suffix}?`),
+      false,
+    );
+  const step = (results: unknown[]) => ({
+    toolResults: [
+      { toolName: "search_knowledge", output: { found: true, results } },
+    ],
+  });
+  const section = {
+    doc_type: "section",
+    text: "ITSE 1303 — Intro to MySQL (3 cr), section 4, 2026FA",
+  };
+  const cv = {
+    doc_type: "cv",
+    text: "Professor taught ITSE 1329 and ITSE 1303 previously",
+  };
+  assert.equal(
+    scheduleDiscoveryChoice(question, [step([section, cv])])?.toolName,
+    "get_class_schedule",
+  );
+  assert.equal(scheduleDiscoveryChoice(question, [step([cv])]), undefined);
+  assert.equal(
+    scheduleDiscoveryChoice(question, [
+      step([section, { doc_type: "course", course_code: "ITSE 1329" }]),
+    ]),
+    undefined,
+  );
+  assert.equal(
+    scheduleDiscoveryChoice(question, [
+      step([section]),
+      {
+        toolResults: [
+          { toolName: "get_class_schedule", output: { found: false } },
+        ],
+      },
+    ]),
+    undefined,
+  );
+  assert.equal(
+    scheduleDiscoveryChoice("What is this professor's background?", [
+      step([section]),
+    ]),
+    undefined,
+  );
+});
 
 test("the complete instructor roster is independent of the section page, with expandable highlighted CVs", () => {
   const cv =
@@ -77,7 +137,7 @@ test("the complete instructor roster is independent of the section page, with ex
         name: "Professor 7",
         source_url: cv,
         background:
-          "Computer science and machine learning. <script>unsafe()</script>",
+          "Computer science and machine learning. C++ and C#; JavaScript is distinct. <script>unsafe()</script>",
       },
     ],
     offerings: [
@@ -96,6 +156,9 @@ test("the complete instructor roster is independent of the section page, with ex
   for (let i = 0; i < 8; i++)
     assert.match(html, new RegExp(`<strong>Professor ${i}</strong>`));
   assert.match(html, /<mark[^>]*>machine learning<\/mark>/i);
+  assert.match(html, /<mark[^>]*>C\+\+<\/mark>/);
+  assert.match(html, /<mark[^>]*>C#<\/mark>/);
+  assert.doesNotMatch(html, /<mark[^>]*>Java<\/mark>Script/);
   assert.match(html, /&lt;script&gt;/);
   assert.doesNotMatch(html, /<script>/);
   assert.match(html, /Professor CV for Professor 7/);
@@ -379,61 +442,13 @@ test("long elective rules are available behind a closed disclosure, with credits
       },
     }),
   );
-  assert.match(html, /15 credits/);
+  assert.match(html, /15 total credits/);
   assert.match(
     html,
     /<details[^>]*><summary[^>]*>Elective - ITSE\/INEW Course.*Show more.*<\/summary>/,
   );
   assert.ok(html.includes(rule.trim()));
   assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
-});
-
-test("used suggestions retire and verified course facts supply new follow-ups", () => {
-  const starters = starterQuestionsFor(profile);
-  const messages: UIMessage[] = [
-    {
-      id: "u1",
-      role: "user",
-      parts: [{ type: "text", text: starters[0].prompt }],
-    },
-    {
-      id: "a1",
-      role: "assistant",
-      parts: [
-        {
-          type: "tool-get_program_requirements",
-          toolCallId: "t1",
-          state: "output-available",
-          input: { programName: "Administrative Certificate" },
-          output: {
-            found: true,
-            name: "Different Program Certificate",
-            course_details: [course],
-          },
-        },
-      ],
-    },
-  ];
-  let suggestions = conversationSuggestions(starters, messages);
-  assert.ok(
-    suggestions.some((q) =>
-      q.prompt.includes(
-        "first-semester courses in Different Program Certificate",
-      ),
-    ),
-  );
-  assert.ok(!suggestions.some((q) => q.prompt === starters[0].prompt));
-  assert.ok(suggestions.some((q) => q.prompt.includes(course.course_code)));
-  const next = suggestions.find((q) => q.prompt.includes(course.course_code))!;
-  messages.push({
-    id: "u2",
-    role: "user",
-    parts: [{ type: "text", text: next.prompt }],
-  });
-  suggestions = conversationSuggestions(starters, messages);
-  assert.ok(!suggestions.some((q) => q.prompt === next.prompt));
-  assert.ok(suggestions.length <= 3);
-  assert.ok(!suggestions.some((q) => /ITSE|BIOL/.test(q.prompt)));
 });
 
 test("schedule rows preserve distinct sections and never treat missing times as asynchronous", () => {
@@ -485,31 +500,37 @@ test("schedule rows preserve distinct sections and never treat missing times as 
   assert.doesNotMatch(html, /no fixed time|asynchronous/i);
 });
 
-test("schedule starters ask for actual catalog facts without promising meeting times or generating advisor questions", () => {
-  const questions = starterQuestionsFor(profile);
-  assert.equal(questions.length, 3);
-  assert.match(questions[0].prompt, /Administrative Certificate/);
-  assert.match(
-    questions[1].prompt,
-    /first-semester courses in Administrative Certificate/,
-  );
-  assert.match(
-    questions[1].prompt,
-    /required prerequisites separate from recommendations/,
-  );
-  assert.doesNotMatch(
-    questions.map((q) => q.prompt).join(" "),
-    /questions.*(?:advisor|coach)/i,
-  );
-  assert.doesNotMatch(
-    questions.map((q) => q.label).join(" "),
-    /which.*(?:online|evening|weekend)|fits around work/i,
-  );
+test("schedule starters use onboarding preferences and bound the saved-data claim", () => {
+  const firstSemester = starterQuestionsFor({
+    ...profile,
+    goal: "first_semester_plan",
+    dayparts_pref: ["evening"],
+  });
+  assert.match(firstSemester[2].prompt, /I prefer evening/);
+  assert.match(firstSemester[2].prompt, /Administrative Certificate/);
+  for (const [modality, dayparts, term] of [
+    ["online", null, "online"],
+    [null, ["weekend"], "weekend"],
+    [null, ["evening"], "evening"],
+    ["online", ["evening", "weekend"], "online and evening and weekend"],
+    [null, null, null],
+  ] as const) {
+    const questions = starterQuestionsFor({
+      ...profile,
+      modality_pref: modality,
+      dayparts_pref: dayparts ? [...dayparts] : null,
+    });
+    assert.equal(questions.length, 3);
+    assert.match(questions[0].prompt, /Administrative Certificate/);
+    assert.match(questions[1].prompt, /one required course from that semester/);
+    assert.match(questions[1].prompt, /Missing meeting times are unknown/);
+    assert.match(questions[1].prompt, /do not claim live availability/);
+    if (term) assert.ok(questions[1].prompt.includes(`I prefer ${term}`));
+  }
   assert.doesNotMatch(
     handoffIntro(profile),
     /build a schedule|schedule that fits/,
   );
-  assert.notEqual(questions[0].label, questions[0].prompt);
 });
 
 test("every picker program yields a named course-plan prompt; missing programs never inherit the demo course", () => {
@@ -519,8 +540,8 @@ test("every picker program yields a named course-plan prompt; missing programs n
     assert.ok(INPUT_SCHEMA.safeParse({ programName: program.label }).success);
   }
   const unknown = starterQuestionsFor({ ...profile, major: "missing" });
-  assert.match(unknown[0].prompt, /ENGL 1301/);
-  assert.doesNotMatch(unknown[0].prompt, /Administrative|CDEC/);
+  assert.match(unknown[0].prompt, /First ask which program/);
+  assert.doesNotMatch(unknown[0].prompt, /Administrative|CDEC|ENGL 1301/);
 });
 
 test("program lookup accepts returned catalog names outside display labels, but bounds empty or oversized input", () => {
@@ -570,10 +591,11 @@ test("special scenarios stay within direct resource and catalog capabilities", (
     transfer_direction: "transfer_back",
     target_institution: "UTA",
   });
-  assert.match(transfer[1].prompt, /free tutoring/);
+  assert.match(transfer[1].prompt, /UT Arlington/);
+  assert.match(transfer[1].prompt, /do not assume a course equivalence/);
   assert.doesNotMatch(
     transfer.map((q) => q.prompt).join(" "),
-    /three questions|transfer acceptance|eligibility/i,
+    /three questions|guaranteed transfer acceptance/i,
   );
 });
 
@@ -610,7 +632,7 @@ test("catalog projection preserves prose recommendations and rejects placeholder
         { raw_text: "Recommended: MATH 1314.", one_of: ["MATH 1314"] },
       ],
     })?.requisites_raw,
-    "Recommended: MATH 1314.",
+    "Prerequisites: Recommended: MATH 1314.",
   );
   assert.equal(
     courseDetailsFromRow({
@@ -677,7 +699,7 @@ test("program cards retain rules and credits, never give placeholders or missing
   assert.equal((markup.match(/Add CDEC 1354 to my notes/g) ?? []).length, 1);
   assert.doesNotMatch(markup, /Add (?:HIST XXXX|ABDR 1307) to my notes/);
   assert.match(markup, /Choose one course; do not take both/);
-  assert.match(markup, /6 credits/);
+  assert.match(markup, /6 total credits/);
   assert.match(markup, /Other options/);
   assert.match(markup, /3 additional options/);
   assert.match(markup, /<h3[^>]*>Semester 1<\/h3>/);
@@ -751,4 +773,109 @@ test("failed and ambiguous tool results never become course cards", () => {
       "",
     );
   }
+});
+
+test("legacy requisite groups preserve concurrent enrollment labels", () => {
+  const detail = courseDetailsFromRow({
+    courseCode: "ITSE 2370",
+    sourceUrl: "https://catalog.dallascollege.edu/",
+    catalogYear: "2026-2027",
+    facts: {
+      prerequisites: [{ raw_text: "Recommended: ITSE 1370." }],
+      corequisites: [{ raw_text: "Required: MATH 1314." }],
+    },
+  });
+  assert.equal(
+    detail?.requisites_raw,
+    "Prerequisites: Recommended: ITSE 1370.\nCorequisites: Required: MATH 1314.",
+  );
+});
+
+test("restored notes are validated, unique and bounded just like newly saved notes", () => {
+  const merge = useSavedCourses.persist.getOptions().merge!;
+  const restored = merge(
+    {
+      courses: [
+        course,
+        { ...course, title: "Updated source title" },
+        { course_code: "HIST XXXX" },
+        null,
+      ],
+      questions: [
+        "   ",
+        "hello",
+        "  What are my prerequisites?  ",
+        "What are my prerequisites?",
+        ...Array.from(
+          { length: 45 },
+          (_, i) => `What are the requirements for course ${i}?`,
+        ),
+      ],
+    },
+    useSavedCourses.getState(),
+  );
+  assert.equal(restored.courses.length, 1);
+  assert.equal(restored.courses[0].title, "Updated source title");
+  assert.equal(restored.questions.length, 40);
+  assert.equal(new Set(restored.questions).size, 40);
+  assert.ok(restored.questions.every((q) => q === q.trim() && q.length > 0));
+});
+
+test("saved notes survive unavailable browser storage and reject invalid course identifiers", () => {
+  const previous = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+  Object.defineProperty(globalThis, "localStorage", {
+    configurable: true,
+    get() {
+      throw new Error("Storage blocked");
+    },
+  });
+  try {
+    assert.doesNotThrow(() => useSavedCourses.getState().clear());
+    assert.doesNotThrow(() => useSavedCourses.getState().toggle(course));
+    useSavedCourses.getState().toggle({ course_code: "HIST XXXX" });
+    assert.equal(useSavedCourses.getState().courses.length, 1);
+    assert.doesNotThrow(() =>
+      useSavedCourses.getState().addQuestion("Which prerequisites do I need?"),
+    );
+    assert.equal(useSavedCourses.getState().questions.length, 1);
+    assert.doesNotThrow(() => useSavedCourses.getState().clear());
+  } finally {
+    if (previous) Object.defineProperty(globalThis, "localStorage", previous);
+    else Reflect.deleteProperty(globalThis, "localStorage");
+  }
+});
+
+test("the printable sheet uses the same official citation policy as chat", () => {
+  // React's server snapshot reads the initial store, not its client state.
+  const initial = useSavedCourses.getInitialState();
+  const previous = initial.courses;
+  try {
+    initial.courses = [
+      { ...course, source_url: "https://untrusted.example/catalog" },
+    ];
+    assert.doesNotMatch(
+      renderToStaticMarkup(createElement(SummarySheet)),
+      /untrusted.example/,
+    );
+    initial.courses = [course];
+    const official = renderToStaticMarkup(createElement(SummarySheet));
+    assert.ok(official.includes("catalog.dallascollege.edu"));
+    assert.doesNotMatch(official, /#2026-2027#facts/);
+  } finally {
+    initial.courses = previous;
+  }
+});
+
+test("semester ranges and unavailable numbered semesters never substitute the full plan", () => {
+  for (const text of [
+    "semesters 1-3",
+    "first through third semesters",
+    "1st to 3rd semester",
+    "semester 3 to 1",
+  ])
+    assert.deepEqual(requestedSemesters(text), [1, 2, 3], text);
+  assert.deepEqual(requestedSemesters("show semester 13"), [13]);
+  assert.deepEqual(scopeProgramGroups([{ name: "Semester 1" }], [13]), []);
+  assert.deepEqual(requestedSemesters("Fall 2026"), []);
+  assert.equal(scheduleCourseForTurn("Who's teaching ITSE 1303?"), "ITSE 1303");
 });

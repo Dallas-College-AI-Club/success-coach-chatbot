@@ -1,7 +1,7 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 
 import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
 import { readCourseDetails } from "@/lib/course-details";
@@ -51,7 +51,9 @@ export const useSavedCourses = create<SavedCoursesState>()(
     (set, get) => ({
       courses: [],
       questions: [],
-      toggle: (course) => {
+      toggle: (raw) => {
+        const course = readCourseDetails(raw);
+        if (!course) return;
         const has = get().courses.some(
           (c) => c.course_code === course.course_code,
         );
@@ -80,6 +82,29 @@ export const useSavedCourses = create<SavedCoursesState>()(
     }),
     {
       name: "saved-courses",
+      storage: createJSONStorage(() => ({
+        getItem: (name) => {
+          try {
+            return localStorage.getItem(name);
+          } catch {
+            return null;
+          }
+        },
+        setItem: (name, value) => {
+          try {
+            localStorage.setItem(name, value);
+          } catch {
+            /* In-memory notes remain usable when storage is full or blocked. */
+          }
+        },
+        removeItem: (name) => {
+          try {
+            localStorage.removeItem(name);
+          } catch {
+            /* Storage may be unavailable. */
+          }
+        },
+      })),
       partialize: (s) => ({ courses: s.courses, questions: s.questions }),
       // Hydrate on the client after mount (see SummarySheet), never during the
       // server render — so the first client paint matches SSR and React never
@@ -100,7 +125,19 @@ export const useSavedCourses = create<SavedCoursesState>()(
         const questions = Array.isArray(p?.questions)
           ? p.questions.filter((q): q is string => typeof q === "string")
           : [];
-        return { ...current, courses, questions };
+        return {
+          ...current,
+          courses: [
+            ...new Map(
+              courses.map((course) => [course.course_code, course]),
+            ).values(),
+          ],
+          questions: [
+            ...new Set(
+              questions.map((q) => q.trim()).filter(isSheetWorthyQuestion),
+            ),
+          ].slice(-MAX_QUESTIONS),
+        };
       },
     },
   ),

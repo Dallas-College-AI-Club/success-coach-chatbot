@@ -1,19 +1,8 @@
 import { PROGRAMS } from "@/features/onboarding/programs";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 
-// The onboarding wizard does not END in a recap — it opens INTO the AI planning
-// chat, which crafts a plan on verified Dallas College catalog data, and a human
-// Success Coach verifies that plan afterward (the strategy's three-stage model:
-// onboarding → AI planning chat → coach verify).
-//
-// This module supplies the hand-off copy, PERSONALIZED from the answers the
-// student already gave: the intro line and the starter-prompt preview are chosen
-// to fit their goal and sub-answers (a one-off job/license student never sees
-// "classes for my major"). It states no academic outcome; anything only an
-// institution can decide is routed, not guessed (interview point 8; governance
-// GP-0005; the strategy's credit-portability invariant "the receiving school
-// decides"). Prompt sets and the honesty review are documented in
-// ENGAGEMENT_ONBOARDING_STRATEGY.md §9.4.
+// One source for onboarding previews and the chat's initial questions. Prompts
+// carry the student's choices explicitly; official decisions stay with the coach.
 
 // --- placeholder fill -------------------------------------------------------
 // {major}/{school}/{interest} resolve from the payload. {school} is a real
@@ -57,7 +46,7 @@ export interface StarterQuestion {
 
 type Handoff = { intro: string; questions: StarterQuestion[] };
 
-export const TUITION: StarterQuestion = {
+const TUITION: StarterQuestion = {
   label: "What might my classes cost?",
   prompt:
     "What Dallas College tuition rates per credit hour are in your records, and what information would you need to estimate my tuition?",
@@ -72,10 +61,10 @@ const COACH: StarterQuestion = {
   prompt:
     "Look up academic advising in your records and give the listed email, phone number and appointment resource for contacting a Dallas College Success Coach.",
 };
-const COURSE_EXAMPLE: StarterQuestion = {
-  label: "What does ENGL 1301 cover?",
+const PROGRAM_QUESTION: StarterQuestion = {
+  label: "Help me find my program's course plan",
   prompt:
-    "What are the catalog title, credits, description and stated requirements for ENGL 1301?",
+    "Help me find the published course plan for my Dallas College program. First ask which program I am considering; do not choose a program or example course for me.",
 };
 
 function coursePlan(
@@ -100,6 +89,39 @@ function coursePrerequisites(name: string): StarterQuestion {
   };
 }
 
+function scheduleQuestion(
+  p: OnboardingPayload,
+  program: string,
+): StarterQuestion {
+  const preferences = [
+    ...(p.modality_pref === "online" ? ["online"] : []),
+    ...(p.dayparts_pref?.includes("evening") ? ["evening"] : []),
+    ...(p.dayparts_pref?.includes("weekend") ? ["weekend"] : []),
+  ];
+  const preference = preferences.join(" and ");
+  return {
+    label: preference
+      ? `Does a starting course have ${preference} options?`
+      : "When does a starting course meet?",
+    prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Keep the explanation brief; the section list supplies the details. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
+  };
+}
+
+function courseQuestion(
+  purpose: OnboardingPayload["oneoff_purpose"],
+): StarterQuestion {
+  return {
+    label:
+      purpose === "prerequisite"
+        ? "Check what I need before taking a course"
+        : purpose === "job_licensure"
+          ? "Find the course details for my job requirement"
+          : "Explore a course I’m interested in",
+    prompt:
+      "Help me look up a Dallas College course. Ask me for its course code or title, then use the catalog to check its description, credits and stated prerequisites. Do not select an example course for me or decide professional-license eligibility.",
+  };
+}
+
 // Named examples make exploration answerable with existing catalog lookups.
 // They are examples, never silently assigned as the student's selected program.
 const INTEREST_PROGRAMS: Record<string, string> = {
@@ -118,13 +140,17 @@ function selectHandoff(p: OnboardingPayload): Handoff {
         false,
         p.goal === "first_semester_plan" || p.goal === "schedule_fit",
       )
-    : COURSE_EXAMPLE;
+    : PROGRAM_QUESTION;
   const prerequisites = program ? coursePrerequisites(program) : TUTORING;
   if (p.student_type === "dual_credit") {
     return {
       intro:
         "Explore course facts, free tutoring and advising contacts. You could ask:",
-      questions: [COURSE_EXAMPLE, TUTORING, COACH],
+      questions: [
+        program ? plan : courseQuestion("prerequisite"),
+        TUTORING,
+        COACH,
+      ],
     };
   }
   if (p.goal === "settle_in") {
@@ -149,29 +175,51 @@ function selectHandoff(p: OnboardingPayload): Handoff {
   if (p.goal === "nondegree_oneoff") {
     return {
       intro:
-        "Check tuition information, tutoring and advising contacts. You could ask:",
-      questions: [TUITION, TUTORING, COACH],
+        "Check a course you have in mind, its cost and where to get guidance. You could ask:",
+      questions: [courseQuestion(p.oneoff_purpose), TUITION, COACH],
     };
   }
   if (p.goal === "transfer_check") {
+    const school = schoolLabel(p);
+    const transferringIn = p.transfer_direction === "inbound";
     return {
       intro:
-        "Look up Dallas College course facts and costs before checking transfer credit. You could ask:",
-      questions: [plan, prerequisites, TUITION],
+        "Gather course facts for a transfer review. The receiving institution decides which credits count. You could ask:",
+      questions: [
+        program ? plan : courseQuestion("prerequisite"),
+        {
+          label: "Get course details for a transfer review",
+          prompt: `I ${transferringIn ? "want to bring previous credits into Dallas College" : `want to take Dallas College credits to ${school}`}. Help me collect Dallas College catalog descriptions, credits and prerequisites for a transfer review. Ask which Dallas College course codes I want to compare; do not assume a course equivalence or accepted credit.`,
+        },
+        COACH,
+      ],
     };
   }
   if (p.goal === "schedule_fit") {
     return {
       intro:
-        "Check course requirements, prerequisites and tuition. Course plans do not confirm this term's meeting times. You could ask:",
-      questions: [plan, prerequisites, TUITION],
+        "Start with the published course plan, then check saved class sections against your preferences. You could ask:",
+      questions: [
+        plan,
+        program ? scheduleQuestion(p, program) : courseQuestion(null),
+        prerequisites,
+      ],
     };
   }
   if (p.goal === "graduation_check") {
     return {
       intro:
         "Review the published course plan before an official graduation review. You could ask:",
-      questions: [plan, prerequisites, COACH],
+      questions: [
+        {
+          label: "Review my graduation checklist",
+          prompt: program
+            ? `Show the published course checklist for ${program}. Help me identify questions to review with my Success Coach. Do not calculate remaining credits or confirm graduation eligibility.`
+            : "Help me review what I still need to graduate. First ask which Dallas College program I am in and which courses I have completed; do not assume a program or an official graduation result.",
+        },
+        plan,
+        COACH,
+      ],
     };
   }
   if (p.goal === "figure_out_major" || !program) {
@@ -181,9 +229,9 @@ function selectHandoff(p: OnboardingPayload): Handoff {
     return {
       intro: example
         ? `Explore ${example} as one example, then discuss your options. You could ask:`
-        : "Explore a course and learn where to get guidance. You could ask:",
+        : "Find a program to explore and learn where to get guidance. You could ask:",
       questions: [
-        example ? coursePlan(example, true) : COURSE_EXAMPLE,
+        example ? coursePlan(example, true) : PROGRAM_QUESTION,
         example ? coursePrerequisites(example) : COACH,
         TUTORING,
       ],
@@ -192,7 +240,13 @@ function selectHandoff(p: OnboardingPayload): Handoff {
   return {
     intro:
       "Explore your published course plan and student support. You could ask:",
-    questions: [plan, prerequisites, TUITION],
+    questions: [
+      plan,
+      prerequisites,
+      p.modality_pref || p.dayparts_pref?.length
+        ? scheduleQuestion(p, program)
+        : TUITION,
+    ],
   };
 }
 

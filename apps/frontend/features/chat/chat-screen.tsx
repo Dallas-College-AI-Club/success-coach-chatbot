@@ -46,7 +46,6 @@ import { citationHref, citationLabel } from "@/lib/constants";
 import { TOOL_LABELS } from "@/lib/tools/names";
 import { cn } from "@/lib/utils";
 import { isRecord, requestedSemesters } from "@/lib/course-details";
-import { conversationSuggestions } from "./suggestions";
 
 // The planning chat. Deliberately the SAME surface the student just used: the
 // simple shell was already a chat (bot avatar, bubbles, a composer), so this is
@@ -283,7 +282,9 @@ function Conversation({
   const scrollRef = useRef<HTMLDivElement>(null);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
-  const suggestions = conversationSuggestions(starters, messages);
+  const suggestions = messages.some((message) => message.role === "user")
+    ? []
+    : starters;
 
   // A new turn (or the thinking row) appearing scrolls to the bottom once.
   useEffect(() => {
@@ -401,7 +402,7 @@ function Conversation({
         )}
       </div>
 
-      {/* Retire used questions and offer follow-ups backed by returned records. */}
+      {/* Starter questions appear only until the first submitted user message. */}
       {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-1">
           {suggestions.map((q) => (

@@ -1,5 +1,30 @@
 # Success Coach — showcase review and decisions
 
+## Release ownership and merge order · September 20, 2026
+
+**Decision:** ship fixes to the existing demo in **PR #190**. Build the follow-up for **issue #191** directly on that reviewed commit. Shared files may receive new capabilities in the follow-up, but existing-behavior cleanup is already part of #190. No database import, merge or deployment is included in this publication authorization.
+
+| Ship with #190 | Keep in the #191 follow-up |
+|---|---|
+| Contextual onboarding starters; hide all starters after the first question; delete obsolete follow-up selector | Completed/in-progress/transfer history; conservative credit calculations; exact program comparison |
+| Semester-only and range filtering; reject unavailable semester scope without substituting the whole plan | Required/recommended/concurrent prerequisite assessment against reported history |
+| Full course/term instructor rosters after title discovery; saved-source dates; grouped sections, highlighted CV details | Exhaustive faculty expertise with AND/OR evidence, coverage and every matched source |
+| Broad-recovery excerpts, valid course identifiers, correct 384-dimensional query embedding contract | Pipeline adoption of that contract, safe data loading, corpus gap proposals and reproducibility |
+| Normalized/deduplicated saved notes, storage-denied handling, shared citation policy, removal of unused transcript code and unified frontend verification | No duplicate cleanup commits; only new capabilities and their regression coverage |
+
+Publish #190 first; target its branch with the follow-up PR until #190 merges. If #190 is squash-merged, transplant only the follow-up commit onto updated `main`, then retarget and rerun checks. This avoids carrying the original #190 commits into a second review. Future changes on `main` still require a fresh conflict check.
+
+### Current audit evidence
+
+- Frontend: **78 checks for #190** (31 demo/mascot, 9 boundary, 12 normalization, 26 sheet-filter); **121 for the combined follow-up**. Both pass lint, TypeScript and production builds.
+- Python baseline: **74 passed, 4 existing skips** for #190; **124 passed, 4 existing skips** for the follow-up. One existing Chroma deprecation warning remains. All **17 touched Python files** pass Ruff; a repository-wide probe found 157 existing lint findings in untouched legacy files, outside these PRs.
+- Read-only Neon verification: **335 program choices**, first-semester scopes, **1,573 valid course records**, and **1,426 Fall sections** across MySQL, Python, College Algebra and Composition I. All pages and complete instructor rosters matched source records. No data was changed.
+- Seven targeted #190 GPT-4.1-mini requests passed (2.1–7.5 seconds locally): program → MySQL roster → Python prerequisites → second semester; missing-course recovery; current-term title discovery; schedule-aware starter. An additional browser starter answered correctly. Model prose can still repeat a list inside its collapsed explanation; structured fields remain the source of truth.
+- The final combined build also passed six paid conversation checks: two mixed course-history cases, visible clarification, complete MySQL schedule, unavailable semester 13, and broad recovery after an empty exhaustive-faculty search. Read-only comparisons rechecked all 337 saved plans and eight faculty searches across 2,709 indexed CVs.
+- Browser: Playful onboarding, first-question starter removal, course disclosure, save-to-notes and print-sheet persistence; Simple/Focus/Playful at 390 px without horizontal overflow. The in-app browser did not open the print link's new tab; the same `/summary` page was verified directly. Native popup handling and printer/PDF pagination are not certified by this run.
+
+Local evidence: `club-project/local/success-coach-pr190/apps/frontend/.tmp/190-{verify.log,data.json,chat.json}` and the existing #191 evidence described below. Initial test-harness mistakes and the inaccessible system pytest cache were corrected before successful final runs; they were not product defects.
+
 **For Prof. David Bracewell · September 20, 2026 · [Issue #189](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/189)**
 
 **Conclusion:** review the bounded demo repair now; keep broader planning/data changes in the next PR. The implementation makes existing records easier to discover, inspect and save. It preserves all three themes and integrates the separately approved mascot work. It does not make the chatbot an eligibility engine or a live registration system.
@@ -12,19 +37,19 @@ The first three rows preserve the owner's priority order. These are implemented 
 
 | Priority / audit decision | Problem and outcome | Implementation and rationale |
 |---|---|---|
-| **1 · Useful starter questions** | Buttons asked for unsupported schedule fitting or generated advisor questions. They now ask direct course-plan, prerequisites and tuition/resource questions; used questions retire. | Curated `{label, prompt}` pairs carry the verified program name. Follow-ups come from returned course records, follow course-list order and use the same saved calendar classification as the backend. No model call is needed to generate buttons. |
+| **1 · Useful starter questions** | Buttons asked for unsupported schedule fitting or generated advisor questions. They now ask direct course-plan, prerequisites and tuition/resource questions; all starter buttons disappear after the first submitted question. | Curated `{label, prompt}` pairs carry the verified program name. Prompts use the selected goal, schedule preferences and student situation; missing program/course identity prompts a clarification. No model call is needed to generate buttons. |
 | **2 · Compact courses and notes** | Long answers hid course-save actions; semester headings and elective paragraphs were confusing. | Numbered course rows, strong semester headings, explicit semester filtering, credits, closed details and add/remove actions. Elective rules live inside the elective row's **Show more**. Stored descriptions/requisite wording and source links remain available; placeholders cannot be saved as real courses. Notes survive navigation and appear on the print sheet. |
 | **3 · Broader recovery** | A failed exact lookup ended the answer without checking other available records. | The bounded tool loop requires one broad recovery after a failed exact course/program/schedule/instructor lookup. Reuse one embedding, search separately across document types, combine semantic and keyword matches, reject off-topic lookalikes, deduplicate sources and return up to six qualified candidates. Related results never establish exhaustive coverage. |
 | **02-S · Actual schedules** | Distinct sections were merged by instructor and meeting facts were absent. | Term/year filtering, individual sections, totals and 100-row pagination; five rows initially visible, expandable remainder, grouping by day/professor/time/campus. Empty times mean unknown. Complete named-instructor enumeration is independent of the section page. |
 | **05 · Instructor usability** | A who-teaches question could produce one biography; CV clicks appeared to do nothing. | Route course-title questions through discovery and then the schedule tool. Show every named instructor for the course/term, bold names, separate unassigned sections, and expand CV summaries inline. CV links use exact, unambiguous instructor keys; highlights mark literal phrases already present, not inferred expertise. |
 | **04/07/09 · Necessary reliability repairs** | Calendar defaults caused tool errors; empty replies, eager embedding imports and cancellation degraded the demo. | Normalize provider-filled empty/zero calendar options, use Dallas civil dates, return useful limitations for invalid calendar queries, lazy-load the embedding runtime, propagate Stop to the provider, validate request shapes, allow official resource citations, retain an empty-reply retry and handle unavailable browser storage. |
-| **09/10 · Reviewability and presentation** | Setup descriptions were stale and UI changes needed repeatable coverage. | Reuse existing route/tools/stores; one shared course-data module, one result-rendering module, one suggestion selector. No added dependency or schema migration. CI now runs lint and demo regressions. READMEs explain the actual execution path and limits. Playful loads the approved seven-mascot scene lazily; Simple and Focus remain available. |
+| **09/10 · Reviewability and presentation** | Setup descriptions were stale and UI changes needed repeatable coverage. | Reuse existing route/tools/stores; one shared course-data module and one result-rendering module; the unused suggestion selector and provisional transcript store were removed. No added dependency or schema migration. CI now runs lint and demo regressions. READMEs explain the actual execution path and limits. Playful loads the approved seven-mascot scene lazily; Simple and Focus remain available. |
 
 ## Evidence and acceptance boundary
 
 | Check | Result / meaning |
 |---|---|
-| Deterministic frontend checks | 34 demo/boundary/mascot tests; 12 course-normalization and 26 sheet-filter cases. Covers scope, elective rules, pagination labels, complete rosters, CV highlights, source allowlist, provider defaults, cancellation and recovery. |
+| Deterministic frontend checks | 40 demo/boundary/mascot tests; 12 course-normalization and 26 sheet-filter cases. Covers scope, elective rules, pagination labels, complete rosters, CV highlights, source allowlist, provider defaults, cancellation and recovery. |
 | Pipeline regression | 74 passed, 4 skipped; one existing Chroma deprecation warning. Skipped tests are not passes. |
 | Database → tool | 216 Fall sections compared by source key, professor and date; 151 exact CV links checked. Python has 16 sections. ENGL 1301 has 942; two 100-row pages have no overlap, and every grouping preserves its loaded section set. Full instructor rosters independently matched all course/term rows, including later pages. |
 | Current conversation run | 10 paid GPT-4.1-mini turns, including program → MySQL teachers → named CV → Python schedule → recommended prerequisite, missing-program recovery, expertise search, and three concurrent requests. All returned nonempty text without stream/tool errors; 1.8–4.3 seconds locally. This is a small smoke/load sample, not a capacity SLA or whole-corpus accuracy rate. |

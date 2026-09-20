@@ -24,7 +24,7 @@ import {
 function ExpertiseText({ text }: { text: string }) {
   // Highlight literal phrases already present; never infer an expertise label.
   const keywords =
-    /\b(machine learning|large language models?|LLMs?|natural language processing|NLP|artificial intelligence|data science|data analytics|data analysis|data engineering|computer science|software engineer(?:ing)?|systems engineer(?:ing)?|project management|cybersecurity|databases?|Python|MySQL|SQL|Java|C\+\+|C#|statistics|mathematics|chemistry|biology|nursing|accounting|finance|education|research|Ph\.?D\.?|master'?s?|bachelor'?s?)\b/gi;
+    /(?<![\p{L}\p{N}])(machine learning|large language models?|LLMs?|natural language processing|NLP|artificial intelligence|data science|data analytics|data analysis|data engineering|computer science|software engineer(?:ing)?|systems engineer(?:ing)?|project management|cybersecurity|databases?|Python|MySQL|SQL|Java|C\+\+|C#|statistics|mathematics|chemistry|biology|nursing|accounting|finance|education|research|Ph\.?D\.?|master'?s?|bachelor'?s?)(?![\p{L}\p{N}+#])/giu;
   return (
     <>
       {text.split(keywords).map((part, index) =>
@@ -349,7 +349,7 @@ export function CourseResults({
               </h3>
               {typeof g.credits_required === "number" && (
                 <span className="rounded-full border border-current/20 px-3 py-1 text-sm font-semibold whitespace-nowrap">
-                  {g.credits_required} credits
+                  {g.credits_required} total credits
                 </span>
               )}
             </header>
@@ -611,6 +611,15 @@ export function ScheduleResults({
         schedule{output.requested_term ? ` for ${output.requested_term}` : ""}.
         This is not live registration or seat availability.
       </p>
+      {(catalogText(output.oldest_source) ||
+        catalogText(output.newest_source)) && (
+        <p className="mt-1 text-sm opacity-75">
+          Source snapshot:{" "}
+          {catalogText(output.oldest_source)?.slice(0, 10) ?? "unknown"} to{" "}
+          {catalogText(output.newest_source)?.slice(0, 10) ?? "unknown"}.
+          Confirm changes on the official section page.
+        </p>
+      )}
       {instructors.length > 0 && (
         <details
           key={String(showInstructors)}

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { citationHref } from "@/lib/constants";
 import { useEffect, useState } from "react";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
@@ -19,15 +20,8 @@ import {
 // property of what this component reads, not a promise. window.print() turns it
 // into a PDF; the on-screen edit controls are print:hidden.
 
-function cleanUrl(u?: string | null): string {
-  const href = (u ?? "").split("#")[0];
-  // Only ever emit an http(s) link — the store persists whatever was saved, so
-  // a stray javascript:/data: URL must never become a live href.
-  return /^https?:\/\//i.test(href) ? href : "";
-}
-
 function Cite({ label, url }: { label: string; url?: string | null }) {
-  const href = cleanUrl(url);
+  const href = citationHref(url);
   if (!href) return <span className="sheet-cite">{label}</span>;
   return (
     <span className="sheet-cite">

@@ -1,0 +1,7 @@
+{
+  "model": "Xenova/all-MiniLM-L6-v2",
+  "dimensions": 384,
+  "dtype": "int8",
+  "pooling": "mean",
+  "normalize": true
+}
