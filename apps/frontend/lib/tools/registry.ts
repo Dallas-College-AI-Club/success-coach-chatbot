@@ -1,4 +1,9 @@
 import { tool } from "ai";
+import {
+  programResultForModel,
+  scheduleResultForModel,
+  requestedSemesters,
+} from "@/lib/course-details";
 import * as getClassSchedule from "./getClassSchedule";
 import * as getCourseInfo from "./getCourseInfo";
 import * as currentDateTool from "./getCurrentDate";
@@ -27,6 +32,10 @@ export const TOOL_REGISTRY = {
     description: getClassSchedule.DESCRIPTION,
     inputSchema: getClassSchedule.INPUT_SCHEMA,
     execute: getClassSchedule.EXECUTE,
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: JSON.stringify(scheduleResultForModel(output)),
+    }),
   }),
   get_course_info: tool({
     description: getCourseInfo.DESCRIPTION,
@@ -37,6 +46,10 @@ export const TOOL_REGISTRY = {
     description: getProgramRequirements.DESCRIPTION,
     inputSchema: getProgramRequirements.INPUT_SCHEMA,
     execute: getProgramRequirements.EXECUTE,
+    toModelOutput: ({ output }) => ({
+      type: "text",
+      value: JSON.stringify(programResultForModel(output)),
+    }),
   }),
   search_knowledge: tool({
     description: searchKnowledge.DESCRIPTION,
@@ -44,3 +57,50 @@ export const TOOL_REGISTRY = {
     execute: searchKnowledge.EXECUTE,
   }),
 };
+
+/** Enforce the current student's explicit scope even if the model omits it. */
+export function toolsForTurn(userText: string) {
+  const semesters = requestedSemesters(userText);
+  const courseCode = getClassSchedule.scheduleCourseForTurn(userText);
+  let missed = false;
+  const record = <T extends { found: boolean }>(result: T): T => {
+    if (!result.found) missed = true;
+    return result;
+  };
+  return {
+    ...TOOL_REGISTRY,
+    get_class_schedule: tool({
+      ...TOOL_REGISTRY.get_class_schedule,
+      execute: async (input) =>
+        record(
+          await getClassSchedule.EXECUTE({
+            ...input,
+            ...(courseCode ? { courseCode } : {}),
+          }),
+        ),
+    }),
+    get_program_requirements: tool({
+      ...TOOL_REGISTRY.get_program_requirements,
+      execute: async (input) =>
+        record(
+          await getProgramRequirements.EXECUTE({
+            ...input,
+            ...(semesters.length ? { semesters } : {}),
+          }),
+        ),
+    }),
+    get_course_info: tool({
+      ...TOOL_REGISTRY.get_course_info,
+      execute: async (input) => record(await getCourseInfo.EXECUTE(input)),
+    }),
+    get_instructor: tool({
+      ...TOOL_REGISTRY.get_instructor,
+      execute: async (input) => record(await getInstructor.EXECUTE(input)),
+    }),
+    search_knowledge: tool({
+      ...TOOL_REGISTRY.search_knowledge,
+      execute: (input) =>
+        searchKnowledge.EXECUTE({ ...input, broad: missed || input.broad }),
+    }),
+  };
+}

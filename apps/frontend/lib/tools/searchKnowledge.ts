@@ -9,13 +9,14 @@
 // their own, and Next blanks non-NEXT_PUBLIC_ env vars in client bundles.
 import "server-only";
 
-import { cosineDistance, inArray, sql } from "drizzle-orm";
+import { and, cosineDistance, inArray, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/client";
 import { SEARCHABLE_DOC_TYPES } from "@/lib/constants";
 import { knowledgeEntry } from "@/lib/schema";
 
 import { embedText } from "@/lib/embedding";
+import { isRecord } from "@/lib/course-details";
 
 import z from "zod";
 
@@ -56,7 +57,9 @@ export const DESCRIPTION = [
   '- "how much does a class cost" / "last day to drop"',
   "",
   "Search ONCE per question — rewording the same query does not find different",
-  "records. Use the results you get.",
+  "records. A failed focused search automatically checks all supported document types.",
+  "Set broad:true after an exact lookup fails or to find possible instructor expertise or syllabus information.",
+  "Broad results are related candidates, never an exhaustive list or proof of a requirement. Verify course/program facts with their exact tool; attribute CV/syllabus excerpts to their source and ask the student to narrow when needed.",
   "",
   "Course and program results are short summaries for FINDING the right record",
   "— never answer a requirements question from them. Each result carries the",
@@ -71,12 +74,82 @@ export const DESCRIPTION = [
 ].join("\n");
 
 export const INPUT_SCHEMA = z.object({
+  broad: z
+    .boolean()
+    .optional()
+    .describe(
+      "Search across course, program, resource, instructor CV, section and syllabus records for related information.",
+    ),
   query: z
     .string()
+    .trim()
+    .min(1)
+    .max(1000)
     .describe(
       "What to search for, in the student's own words, e.g. 'python certificate requirements'.",
     ),
 });
+
+const BROAD_DOC_TYPES = [...SEARCHABLE_DOC_TYPES, "cv", "section", "syllabus"];
+
+const SEARCH_FILLER = new Set(
+  "a an the and or of in at to for with about what which who how is are do does can i my me all any find show list tell please dallas college course courses class classes program programs degree certificate instructor instructors professor professors faculty background information records".split(
+    " ",
+  ),
+);
+
+/** Broad matches also need topical words; vector proximity alone is not evidence. */
+export function searchTerms(query: string) {
+  return [
+    ...new Set(
+      (query.toLowerCase().match(/[\p{L}\p{N}+#]+/gu) ?? []).filter(
+        (word) => word.length > 2 && !SEARCH_FILLER.has(word),
+      ),
+    ),
+  ].slice(0, 12);
+}
+
+export function hasTopicEvidence(text: string, terms: string[]) {
+  if (!terms.length) return false;
+  const words = new Set(
+    (text.toLowerCase().match(/[\p{L}\p{N}+#]+/gu) ?? []).map((w) =>
+      w.replace(/s$/, ""),
+    ),
+  );
+  return (
+    terms.filter((t) => words.has(t.replace(/s$/, ""))).length >=
+    Math.min(2, terms.length)
+  );
+}
+
+/** One broad recovery per turn, including after an earlier focused discovery. */
+export function recoveryToolChoice(
+  steps: readonly {
+    toolResults: readonly { toolName: string; output: unknown }[];
+  }[],
+) {
+  const results = steps.flatMap((step) => step.toolResults);
+  const searchedBroadly = results.some(
+    (result) =>
+      result.toolName === "search_knowledge" &&
+      isRecord(result.output) &&
+      result.output.search_scope === "all",
+  );
+  const missed = results.some(
+    (result) =>
+      [
+        "get_course_info",
+        "get_program_requirements",
+        "get_class_schedule",
+        "get_instructor",
+      ].includes(result.toolName) &&
+      isRecord(result.output) &&
+      result.output.found === false,
+  );
+  return missed && !searchedBroadly
+    ? { type: "tool" as const, toolName: "search_knowledge" as const }
+    : undefined;
+}
 
 export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   if (process.env.NODE_ENV !== "production") {
@@ -88,10 +161,6 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   }
   INPUT_SCHEMA.parse(input);
 
-  const embedding = await embedText(input.query);
-
-  const distance = cosineDistance(knowledgeEntry.embedding, embedding);
-
   // Scope to SEARCHABLE_DOC_TYPES (see lib/constants.ts for the
   // membership rule AND the exact-scan posture): measured live, the
   // unscoped corpus returns five instructor CVs and zero programs for a
@@ -99,39 +168,89 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   // rows, and cv has no point-read tool to complete the hop. The demo
   // DB has no vector index on purpose; the btree on doc_type narrows
   // the sort to the searchable rows and results are exact.
+  let broad = input.broad === true;
   try {
-    const rows = await getDb()
-      .select({
-        text: knowledgeEntry.chunkText,
-        sourceUrl: knowledgeEntry.sourceUrl,
-        docType: knowledgeEntry.docType,
-        name: sql<string | null>`${knowledgeEntry.facts}->>'name'`,
-        courseCode: knowledgeEntry.courseCode,
-        distance,
-      })
-      .from(knowledgeEntry)
-      .where(inArray(knowledgeEntry.docType, SEARCHABLE_DOC_TYPES))
-      .orderBy(distance)
-      .limit(FETCH);
-
-    const results = rows
-      .filter((r) => Number(r.distance) <= OFF_CORPUS_FLOOR)
-      .slice(0, TOP_K)
-      .map((r) => {
-        const isCourse = r.docType === "course";
-        return {
-          text: r.text,
-          source_url: r.sourceUrl,
-          doc_type: r.docType,
-          name: isCourse ? null : r.name,
-          course_code: isCourse ? r.courseCode : null,
-        };
-      });
+    const embedding = await embedText(input.query);
+    const distance = cosineDistance(knowledgeEntry.embedding, embedding);
+    const terms = searchTerms(input.query);
+    const keywords = sql`websearch_to_tsquery('english', ${terms.join(" OR ")})`;
+    const document = sql`to_tsvector('english', ${knowledgeEntry.chunkText})`;
+    const read = (types: string[], lexical = false) =>
+      getDb()
+        .select({
+          text: knowledgeEntry.chunkText,
+          sourceUrl: knowledgeEntry.sourceUrl,
+          docType: knowledgeEntry.docType,
+          name: sql<string | null>`${knowledgeEntry.facts}->>'name'`,
+          courseCode: knowledgeEntry.courseCode,
+          distance,
+        })
+        .from(knowledgeEntry)
+        .where(
+          and(
+            inArray(knowledgeEntry.docType, types),
+            lexical ? sql`${document} @@ ${keywords}` : undefined,
+          ),
+        )
+        .orderBy(
+          lexical ? sql`ts_rank(${document}, ${keywords}) DESC` : distance,
+          distance,
+        )
+        .limit(FETCH);
+    const relevant = (rows: Awaited<ReturnType<typeof read>>) =>
+      rows.filter((r) => Number(r.distance) <= OFF_CORPUS_FLOOR);
+    let rows = broad ? [] : relevant(await read(SEARCHABLE_DOC_TYPES));
+    if (!rows.length) broad = true;
+    if (broad) {
+      // Separate short catalog/resource records from dense CVs; one type
+      // cannot occupy every candidate slot. One embedding is reused.
+      rows = (
+        await Promise.all(
+          BROAD_DOC_TYPES.map(async (type) => {
+            const seen = new Set<string>();
+            const [semantic, lexical] = await Promise.all([
+              read([type]),
+              terms.length ? read([type], true) : Promise.resolve([]),
+            ]);
+            return [...lexical, ...relevant(semantic)]
+              .filter((row) => hasTopicEvidence(row.text, terms))
+              .filter((row) => {
+                if (seen.has(row.sourceUrl)) return false;
+                seen.add(row.sourceUrl);
+                return true;
+              })
+              .slice(0, 2);
+          }),
+        )
+      )
+        .flat()
+        .sort((a, b) => Number(a.distance) - Number(b.distance));
+    }
+    const results = rows.slice(0, broad ? 6 : TOP_K).map((r) => {
+      const isCourse = r.docType === "course";
+      return {
+        text: broad ? r.text.slice(0, 2400) : r.text,
+        source_url: r.sourceUrl,
+        doc_type: r.docType,
+        name: isCourse ? null : r.name,
+        course_code: isCourse ? r.courseCode : null,
+      };
+    });
 
     if (results.length === 0) {
-      return { found: false };
+      return { found: false, search_scope: broad ? "all" : "catalog" };
     }
-    return { found: true, results };
+    return {
+      found: true,
+      results,
+      search_scope: broad ? "all" : "catalog",
+      ...(broad
+        ? {
+            related_only: true,
+            note: "Possible related records, not an exhaustive list or a verified exact answer. Confirm course/program requirements with exact lookups. Excerpts may be shortened; do not infer missing facts.",
+          }
+        : {}),
+    };
   } catch (error) {
     // A retrieval outage must not end the turn: the tool loop treats an
     // undefined return as a malformed result, and `next build` rejects
@@ -139,7 +258,14 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     // found" instead — the model then gives the standard fallback rather
     // than inventing an answer, which is the same behaviour as a genuine
     // zero-hit search.
-    console.error(error);
-    return { found: false };
+    console.error(
+      "[TOOL] search_knowledge unavailable:",
+      error instanceof Error ? error.name : "UnknownError",
+    );
+    return {
+      found: false,
+      search_scope: broad ? "all" : "catalog",
+      unavailable: true,
+    };
   }
 };

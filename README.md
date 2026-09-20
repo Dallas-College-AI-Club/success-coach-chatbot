@@ -1,87 +1,36 @@
 # Dallas College AI Club: Success Coach Chatbot
 
-Chatbot to assist students at Dallas College acting as a Success Coach in their pocket.
+**Major** is a planning companion grounded in Dallas College records. Students can explore course plans and prerequisites, inspect published class sections and instructor backgrounds, and save courses for a conversation with their Success Coach.
 
-## Frontend
+The showcase combines a Next.js chat interface, read-only tools over Neon PostgreSQL/pgvector, and a Python data pipeline. The existing Simple, Playful and Focus experiences share the same chat and planning tools.
 
-- Next.js
-- Tailwind CSS
-- Shadcn UI
+## Start here
 
-## Backend
+| Goal | Reading path |
+|---|---|
+| Run the app and its checks | [Frontend setup and architecture](apps/frontend/README.md) |
+| Reproduce the data pipeline | [Data runbook](apps/data/REPRODUCE.md), [pipeline rationale](apps/data/EXTRACTION_MANUAL.md) |
+| Review this showcase update and next decisions | [Executive decision sheet](docs/SHOWCASE_EXECUTIVE_DECISIONS.md) |
+| Inspect measured behavior, issues and evidence limits | [Consolidated audit](docs/SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md) |
+| Understand the approved mascot implementation | [Playful mascots](docs/PLAYFUL_MASCOTS.md) |
+| Contribute | [Contribution and branch conventions](CONTRIBUTING.md) |
 
-- Node.js (Next.js)
+## Supported demonstration
 
-## Data Scraping
+- Ask for one numbered semester or a published program plan; expand individual course details and elective requirements.
+- Look up saved Fall sections with dates, available meeting times, instructors, campus and source links; group by day, professor, time or campus.
+- Request every named instructor for a course/term; expand saved CV backgrounds with highlighted keywords.
+- Save verified courses to local notes and inspect the printable summary.
+- Search the student-resource corpus; recover possible related records when an exact lookup fails.
 
-- Python
+The [current tool registry](apps/frontend/lib/tools/registry.ts) is the executable capability list. Catalog and schedule cards display retrieved fields directly; explanatory prose remains model-generated. No new database schema or application dependency is introduced by the showcase update.
 
-## Database
+## Data and limits
 
-Neon serverless PostgreSQL with the `pgvector` extension. Two tables hold everything: `knowledge_entry` (the vector-searchable knowledge base) and `chat_session` (anonymous student profiles + chat telemetry).
+The configured demo corpus contains the 2026–2027 catalog, published professional backgrounds, selected student resources and saved schedules. The approved Fall repair restores meeting facts for 12,872 existing sections from an August 12, 2026 snapshot. It does not establish present seat availability. Missing facts are labeled; related semantic matches are not an exhaustive directory.
 
-- **Design & rationale**: [`docs/DATABASE_ARCHITECTURE.md`](docs/DATABASE_ARCHITECTURE.md)
-- **Schema DDL**: [`apps/data/db/schema.sql`](apps/data/db/schema.sql) · **Sample data**: [`apps/data/db/seed_mock.sql`](apps/data/db/seed_mock.sql)
-- **Implementing the ORM models (issue #51)**: [`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)
+Major cannot decide admission, transfer acceptance, graduation or awards. A published plan does not automatically subtract a student's completed courses or construct a conflict-free timetable. Syllabus-policy answers and exhaustive faculty-expertise enumeration remain future decisions. See the audit for scope and verification, including known source and model limitations.
 
-### Set up a database on Neon
+Database setup and ingestion are separate from running the frontend. Historical schema/seed documents illustrate the original design; use the current [data runbook](apps/data/REPRODUCE.md) and [runtime schema](apps/frontend/lib/schema.ts) when reproducing the supported path. Use a separate development database for imports.
 
-1. Create a free project at [console.neon.tech](https://console.neon.tech) (Postgres 16+; pgvector is preinstalled — the schema runs `CREATE EXTENSION` for you).
-2. On the project dashboard, open **Connect** and copy **both** connection strings:
-   - the **pooled** string (host contains `-pooler`) → `DATABASE_URL`
-   - the **direct** string (toggle *Connection pooling* off) → `DATABASE_URL_UNPOOLED`
-3. Copy [`.env.example`](.env.example) to `.env` and paste the two strings. Never commit `.env` — real credentials live only in `.env` files and platform secret stores (Vercel, GitHub Actions, Colab).
-
-### Initialize and seed
-
-```bash
-psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/schema.sql
-psql "$DATABASE_URL_UNPOOLED" -f apps/data/db/seed_mock.sql   # sample rows + smoke-test queries
-```
-
-The seed script prints smoke-test results (fact lookups, enumeration, event listing, contact routing, a vector similarity query) proving the core query patterns work. `psql` ships with PostgreSQL (`winget install PostgreSQL.PostgreSQL` / `scoop install postgresql` / `brew install libpq`); alternatively, paste both files into the Neon console's **SQL Editor**.
-
-### Which connection string does what
-
-| Env var | Used by | Why |
-|---|---|---|
-| `DATABASE_URL` (pooled) | Next.js API routes — TypeScript via [`@neondatabase/serverless`](https://github.com/neondatabase/serverless) (and Drizzle in a later issue) | pooled one-shot HTTP queries fit serverless; pooling is handled for you |
-| `DATABASE_URL_UNPOOLED` (direct) | Python — SQLAlchemy/psycopg for Alembic migrations and bulk ingest | DDL and long transactions need a real session, not transaction-mode pooling |
-
-Quick connectivity checks:
-
-```bash
-# Python (from apps/data; uv fetches psycopg on the fly — no project deps needed yet)
-uv run --with psycopg python -c "import os, psycopg; print(psycopg.connect(os.environ['DATABASE_URL_UNPOOLED']).execute('SELECT count(*) FROM knowledge_entry').fetchone())"
-```
-
-```ts
-// TypeScript (from apps/frontend, after `npm install @neondatabase/serverless`)
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL!);
-
-(async () => {
-  console.log(await sql`SELECT count(*) FROM knowledge_entry`);
-})();
-```
-
-### What lives where
-
-This layer defines the **schema, the sample data, and the connection contract** (which
-string to use, from which runtime, and why). The reusable connection clients live with the
-code that consumes them:
-
-- **TypeScript** — [`apps/frontend/lib/db.ts`](apps/frontend/lib/db.ts) is the Next.js
-  app's shared Neon client: a pooled HTTP `sql` client for one-shot queries, plus a
-  `getPool()` / `closePool()` connection pool with a safe-disconnect hook for transactions.
-  It reads the pooled `DATABASE_URL`. (Its Drizzle mirror lands with a later issue.)
-- **Python** — the pooled SQLAlchemy engine + session/teardown lands with the ORM models
-  ([`docs/handoff/ISSUE_51_HANDOFF.md`](docs/handoff/ISSUE_51_HANDOFF.md)); it reads
-  `DATABASE_URL_UNPOOLED` exactly as documented above.
-
-**Verifying the seed.** `apps/data/db/seed_mock.sql` is idempotent and ends with smoke-test queries
-(row counts by `doc_type`, a fact lookup, an enumeration, event/contact routing, and a
-vector-similarity query). Running it against a `pgvector`-enabled instance (a Neon project,
-or local Postgres with the extension) exercises the whole schema including the HNSW vector
-index; the vector path is confirmed as part of the first Neon run.
+Keep credentials in ignored local `.env` files or platform secret stores. Raw source archives, database snapshots, paid-test traces and generated build output stay outside Git. Model and database configuration on Vercel must be verified separately before a presentation release.

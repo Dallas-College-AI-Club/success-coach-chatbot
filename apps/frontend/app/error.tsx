@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 // Route-level error boundary. Without one, any render throw — a corrupt
 // localStorage blob, a bad tool payload — replaced the whole app with the
 // framework's error screen, and the student's only route back was to know to
@@ -30,12 +32,12 @@ export default function ChatError({
         >
           Try again
         </button>
-        <a
+        <Link
           href="/"
           className="rounded-lg border border-current/30 px-4 py-2 text-sm font-semibold"
         >
           Start over
-        </a>
+        </Link>
       </div>
       {/* The digest is the only handle on the server-side log for this error;
           without it a student report is unactionable. */}

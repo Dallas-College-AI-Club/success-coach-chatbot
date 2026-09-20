@@ -18,7 +18,7 @@ const last = names[names.length - 1]!;
 export const DESCRIPTION = [
   "Resolves which academic semester a question refers to, reading the current date from the system clock.",
   "",
-  `This calendar defines these terms, repeating every year: ${names.join(", ")}.`,
+  `Resolves the term labels ${names.join(", ")} using saved 2026-2027 boundaries. Boundaries classify dates; they are not live registration deadlines or verified dates for other academic years. Use search_knowledge for published calendar/deadline facts.`,
   "",
   "Call this tool for any question about which semester or term something falls in, including which",
   "semester it is now, which one comes next or came before, when a semester starts or ends, how long",
@@ -43,7 +43,7 @@ export const DESCRIPTION = [
   "This tool reads the current date itself. Do NOT call get_current_date first and pass the result in;",
   "call this tool directly.",
   "",
-  "Leave 'asOf' empty for any question about the actual present. Only set 'asOf' when the user asks a",
+  "OMIT 'asOf', 'term', 'year', and 'offset' for the actual current semester. Do not supply empty strings. Only set 'asOf' when the user asks a",
   "hypothetical about a specific other date, such as 'if it were March 2030, what semester would it be?'.",
   "Never put a guessed or remembered date in 'asOf' — you do not know today's date, and supplying a wrong",
   "one produces a confidently wrong answer.",
@@ -60,6 +60,8 @@ export const INPUT_SCHEMA = z.object({
   offset: z
     .number()
     .int()
+    .min(-40)
+    .max(40)
     .optional()
     .describe(
       "Optional integer offset from the current semester: 0 is the current one, positive numbers go forward, negative numbers go back. Do not combine with year.",
@@ -68,7 +70,7 @@ export const INPUT_SCHEMA = z.object({
     .string()
     .optional()
     .describe(
-      "Optional term name, e.g. 'Spring', 'Summer', 'Fall', 'Winter'. Do not combine with year.",
+      "Optional term name: Spring, May, Summer, Fall, Winter. Combine with year for an explicit term, or with offset for next/previous. Omit for the current term.",
     ),
   year: z
     .number()
@@ -81,13 +83,14 @@ export const INPUT_SCHEMA = z.object({
     .string()
     .optional()
     .describe(
-      "Optional ISO 8601 date string to resolve the semester as if it were that date. Leave empty for the actual present.",
+      "Optional ISO 8601 date string for a hypothetical date. Omit for the actual present.",
     ),
   timeZone: z
     .string()
     .optional()
     .refine(
       (tz) => {
+        if (!tz) return true;
         try {
           Intl.DateTimeFormat(undefined, { timeZone: tz });
           return true;
@@ -108,70 +111,72 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   if (process.env.NODE_ENV !== "production") {
     console.log("[TOOL] get_semester invoked");
   }
-  const { timeZone, offset, term, year, asOf } = INPUT_SCHEMA.parse(input);
-  const effectiveTimeZone = timeZone ?? DALLAS_COLLEGE_TIME_ZONE;
-  const asOfDate =
-    asOf ??
-    new Intl.DateTimeFormat("sv-SE", {
-      timeZone: effectiveTimeZone,
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: false,
-    })
-      .format(new Date())
-      .replace(" ", "T");
-  const targetDate = new Date(asOfDate);
-  const today: CalendarDate = {
-    year: targetDate.getFullYear(),
-    month: targetDate.getMonth() + 1,
-    day: targetDate.getDate(),
-  };
+  const parsed = INPUT_SCHEMA.parse(input);
+  const { timeZone, offset, term, asOf } = parsed;
+  // Some compatible providers fill omitted numeric parameters with zero.
+  const year = parsed.year === 0 ? undefined : parsed.year;
+  const effectiveTimeZone = timeZone || DALLAS_COLLEGE_TIME_ZONE;
+  const suppliedDate = asOf?.trim() || undefined;
+  const targetDate = suppliedDate ? new Date(suppliedDate) : new Date();
+  if (!Number.isFinite(targetDate.getTime()))
+    return {
+      found: false,
+      note: "Use a valid ISO date for a hypothetical, or omit asOf to use today's date.",
+    };
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: effectiveTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(targetDate);
+  // Date-only inputs already identify a civil date. Timestamps use the chosen
+  // zone; never parse a formatted local time using the server's own timezone.
+  const civil = suppliedDate?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const today: CalendarDate = civil
+    ? { year: Number(civil[1]), month: Number(civil[2]), day: Number(civil[3]) }
+    : {
+        year: Number(parts.find((p) => p.type === "year")?.value),
+        month: Number(parts.find((p) => p.type === "month")?.value),
+        day: Number(parts.find((p) => p.type === "day")?.value),
+      };
+  const namedTerm = /^(?:current|this)(?: semester| term)?$/i.test(
+    term?.trim() ?? "",
+  )
+    ? undefined
+    : term?.trim() || undefined;
 
   const query = {
-    ...(offset === undefined ? {} : { offset: offset }),
-    ...(term === undefined ? {} : { term: term }),
+    ...(offset === undefined || (year !== undefined && offset === 0)
+      ? {}
+      : { offset }),
+    ...(namedTerm === undefined ? {} : { term: namedTerm }),
     ...(year === undefined ? {} : { year: year }),
   };
 
-  const semester = rethrowAsToolInput(() =>
-    resolveSemester(today, query, DALLAS_COLLEGE_CALENDAR),
-  );
-  const current = resolveSemester(
-    today,
-    { offset: 0 },
-    DALLAS_COLLEGE_CALENDAR,
-  );
-  const todayIso = toIsoDate(today);
-
-  return {
-    semester,
-    current,
-    isCurrent: semester.label === current.label,
-    daysUntilStart: daysBetween(todayIso, semester.startDate),
-    daysUntilEnd: daysBetween(todayIso, semester.endDate),
-    asOfDate,
-    asOfSource: input.asOf === undefined ? "system_clock" : "argument",
-    timeZone,
-  };
-};
-
-/**
- * Converts a calendar error into a `ToolInputError`.
- *
- * Both carry the same message, but the type matters: a `ToolInputError` is
- * something the model can read and retry from, which is the right handling for
- * "no Spring term is in progress" — a well-formed query with an answer the
- * model needs to hear, not a crash.
- */
-function rethrowAsToolInput<T>(fn: () => T): T {
   try {
-    return fn();
+    const semester = resolveSemester(today, query, DALLAS_COLLEGE_CALENDAR);
+    const current = resolveSemester(
+      today,
+      { offset: 0 },
+      DALLAS_COLLEGE_CALENDAR,
+    );
+    const todayIso = toIsoDate(today);
+
+    return {
+      found: true,
+      semester,
+      current,
+      isCurrent: semester.label === current.label,
+      daysUntilStart: daysBetween(todayIso, semester.startDate),
+      daysUntilEnd: daysBetween(todayIso, semester.endDate),
+      asOfDate: todayIso,
+      asOfSource: suppliedDate === undefined ? "system_clock" : "argument",
+      timeZone: effectiveTimeZone,
+      note: "Term classification uses saved 2026-2027 boundaries. End dates are partition boundaries, not guaranteed final instruction dates. For registration, withdrawal deadlines or another academic year's exact dates, search the published calendar records.",
+    };
   } catch (error) {
-    if (error instanceof AcademicCalendarError) throw new Error(error.message);
+    if (error instanceof AcademicCalendarError)
+      return { found: false, note: error.message };
     throw error;
   }
-}
+};

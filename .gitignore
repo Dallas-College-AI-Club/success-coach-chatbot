@@ -15,6 +15,9 @@ build/
 .env.test.local
 .env.production.local
 .env*.local
+secrets.env*
+*.secrets.env*
+.secrets/
 
 # Logs
 logs

@@ -4,6 +4,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 import { isSheetWorthyQuestion } from "@/features/chat/sheet-questions";
+import { readCourseDetails } from "@/lib/course-details";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -19,7 +20,9 @@ export interface SavedCourse {
   course_code: string;
   title?: string | null;
   credit_hours?: number | null;
+  description?: string | null;
   requisites_raw?: string | null;
+  campus_locations?: string | null;
   catalog_year?: string | null;
   source_url?: string;
 }
@@ -42,14 +45,6 @@ interface SavedCoursesState {
 /** Cap on retained questions: enough for a real advising conversation, bounded
  *  so a long session cannot grow the stored transcript without limit. */
 const MAX_QUESTIONS = 40;
-
-function isSavedCourse(v: unknown): v is SavedCourse {
-  return (
-    typeof v === "object" &&
-    v !== null &&
-    typeof (v as SavedCourse).course_code === "string"
-  );
-}
 
 export const useSavedCourses = create<SavedCoursesState>()(
   persist(
@@ -97,7 +92,10 @@ export const useSavedCourses = create<SavedCoursesState>()(
           | { courses?: unknown; questions?: unknown }
           | undefined;
         const courses = Array.isArray(p?.courses)
-          ? p.courses.filter(isSavedCourse)
+          ? p.courses.flatMap((raw) => {
+              const course = readCourseDetails(raw);
+              return course ? [course] : [];
+            })
           : [];
         const questions = Array.isArray(p?.questions)
           ? p.questions.filter((q): q is string => typeof q === "string")

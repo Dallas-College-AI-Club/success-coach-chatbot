@@ -49,8 +49,10 @@ function ClassEntry({
   return (
     <div className="sheet-row">
       <div className="sheet-row-main">
-        <span className="sheet-code">{course.course_code}</span>{" "}
-        {course.title}
+        <span className="sheet-code">{course.course_code}</span> {course.title}
+        {course.description ? (
+          <div className="sheet-req">{course.description}</div>
+        ) : null}
         {course.requisites_raw ? (
           <div className="sheet-req">&ldquo;{course.requisites_raw}&rdquo;</div>
         ) : null}
@@ -322,7 +324,9 @@ export function SummarySheet() {
               </div>
             ))
           ) : (
-            <p className="sheet-empty">(add a note or a question for your coach)</p>
+            <p className="sheet-empty">
+              (add a note or a question for your coach)
+            </p>
           )}
         </section>
 
@@ -336,8 +340,7 @@ export function SummarySheet() {
         <footer className="sheet-footer">
           <div>
             <p className="sheet-promise">
-              Major helps you plan.{" "}
-              <b>A Success Coach makes it official.</b>
+              Major helps you plan. <b>A Success Coach makes it official.</b>
             </p>
             <p className="sheet-fmeta">
               Prepared with Major · Book a coach →

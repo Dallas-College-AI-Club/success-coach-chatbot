@@ -15,12 +15,18 @@ import MarkdownViewer from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
 import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
+import { useSavedCourses } from "@/features/chat/saved-courses";
 import {
-  useSavedCourses,
-  type SavedCourse,
-} from "@/features/chat/saved-courses";
+  CourseResults,
+  hasCourseResults,
+  ScheduleResults,
+  InstructorResults,
+} from "@/features/chat/course-results";
 import { SEED_ID, seedMessages } from "@/features/chat/seed";
-import { starterPromptsFor } from "@/features/onboarding/handoff-copy";
+import {
+  starterQuestionsFor,
+  type StarterQuestion,
+} from "@/features/onboarding/handoff-copy";
 import {
   useHydrateSession,
   useSavedSession,
@@ -37,50 +43,10 @@ import type { Mode, Skin } from "@/features/onboarding/skin";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { citationHref, citationLabel } from "@/lib/constants";
-import { GET_COURSE_INFO_TOOL_NAME, TOOL_LABELS } from "@/lib/tools/names";
+import { TOOL_LABELS } from "@/lib/tools/names";
 import { cn } from "@/lib/utils";
-
-// A get_course_info result the student can keep for their printable sheet.
-// Reads the fields straight off the tool output — real catalog data, never
-// model prose. Returns null for any other tool or an empty/not-found result.
-function toSavedCourse(name: string, output: unknown): SavedCourse | null {
-  if (
-    name !== GET_COURSE_INFO_TOOL_NAME ||
-    !output ||
-    typeof output !== "object"
-  ) {
-    return null;
-  }
-  const o = output as Record<string, unknown>;
-  if (o.found !== true || typeof o.course_code !== "string") return null;
-  return {
-    course_code: o.course_code,
-    title: typeof o.title === "string" ? o.title : null,
-    credit_hours: typeof o.credit_hours === "number" ? o.credit_hours : null,
-    requisites_raw:
-      typeof o.requisites_raw === "string" ? o.requisites_raw : null,
-    catalog_year: typeof o.catalog_year === "string" ? o.catalog_year : null,
-    source_url: typeof o.source_url === "string" ? o.source_url : undefined,
-  };
-}
-
-function SaveCourseButton({
-  course,
-  cls,
-}: {
-  course: SavedCourse;
-  cls: string;
-}) {
-  const saved = useSavedCourses((s) =>
-    s.courses.some((c) => c.course_code === course.course_code),
-  );
-  const toggle = useSavedCourses((s) => s.toggle);
-  return (
-    <button type="button" className={cls} onClick={() => toggle(course)}>
-      {saved ? "✓ Saved to my list" : "+ Save to my list"}
-    </button>
-  );
-}
+import { isRecord, requestedSemesters } from "@/lib/course-details";
+import { conversationSuggestions } from "./suggestions";
 
 // The planning chat. Deliberately the SAME surface the student just used: the
 // simple shell was already a chat (bot avatar, bubbles, a composer), so this is
@@ -134,8 +100,32 @@ const CoachRow = ({ children }: { children: ReactNode }) => (
 // keeps the identity of every message except the one being streamed, and skin
 // comes off the module-level MODES — so memo prunes the transcript re-render
 // to exactly the turn that changed.
-const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
+const Turn = memo(function Turn({
+  m,
+  skin,
+  question,
+}: {
+  m: UIMessage;
+  skin: Skin;
+  question: string;
+}) {
   const isUser = m.role === "user";
+  const courseRows =
+    !isUser &&
+    m.parts.some(
+      (part) =>
+        isToolUIPart(part) &&
+        part.state === "output-available" &&
+        (hasCourseResults(getToolName(part), part.output) ||
+          getToolName(part) === "get_class_schedule" ||
+          getToolName(part) === "get_instructor" ||
+          (getToolName(part) === "search_knowledge" &&
+            isRecord(part.output) &&
+            Array.isArray(part.output.results) &&
+            part.output.results.some(
+              (result) => isRecord(result) && result.doc_type === "cv",
+            ))),
+    );
   const parts = (
     <>
       {/* Sender attribution once per turn — position and avatar don't reach AT. */}
@@ -157,10 +147,19 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
               // loses to stylesheet order.
               className={cn(skin.bubble, "whitespace-normal")}
             >
-              <MarkdownViewer
-                content={part.text}
-                className={isUser ? "prose-invert!" : "prose"}
-              />
+              {courseRows && part.text.length > 300 ? (
+                <details>
+                  <summary className={`${skin.link} cursor-pointer`}>
+                    Major&apos;s explanation
+                  </summary>
+                  <MarkdownViewer content={part.text} className="prose mt-2" />
+                </details>
+              ) : (
+                <MarkdownViewer
+                  content={part.text}
+                  className={isUser ? "prose-invert!" : "prose"}
+                />
+              )}
             </div>
           );
         }
@@ -199,14 +198,10 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
               ].filter((u): u is string => !!u),
             ),
           );
-          const savedCourse =
-            finished && !failed
-              ? toSavedCourse(getToolName(part), part.output)
-              : null;
           return (
-            <span
+            <div
               key={i}
-              className="flex flex-wrap items-center gap-1.5 self-start"
+              className="flex w-full min-w-0 flex-wrap items-center gap-1.5 self-start"
             >
               <span className={`${skin.chip} ${finished ? "" : "opacity-80"}`}>
                 <span aria-hidden className={skin.chipCheck}>
@@ -225,13 +220,30 @@ const Turn = memo(function Turn({ m, skin }: { m: UIMessage; skin: Skin }) {
                   {citationLabel(href)}
                 </a>
               ))}
-              {savedCourse && (
-                <SaveCourseButton
-                  course={savedCourse}
-                  cls={`${skin.chip} cursor-pointer`}
-                />
+              {part.state === "output-available" && (
+                <>
+                  <CourseResults
+                    name={getToolName(part)}
+                    output={part.output}
+                    skin={skin}
+                    semesters={requestedSemesters(question)}
+                  />
+                  <ScheduleResults
+                    name={getToolName(part)}
+                    output={part.output}
+                    skin={skin}
+                    showInstructors={/\b(?:who|professors?|instructors?)\b/i.test(
+                      question,
+                    )}
+                  />
+                  <InstructorResults
+                    name={getToolName(part)}
+                    output={part.output}
+                    skin={skin}
+                  />
+                </>
               )}
-            </span>
+            </div>
           );
         }
         return null;
@@ -256,7 +268,7 @@ function Conversation({
 }: {
   mode: Mode;
   seed: UIMessage[];
-  starters: string[];
+  starters: StarterQuestion[];
   profile: StudentProfile | null;
 }) {
   const { skin, copy } = mode;
@@ -271,6 +283,7 @@ function Conversation({
   const scrollRef = useRef<HTMLDivElement>(null);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
+  const suggestions = conversationSuggestions(starters, messages);
 
   // A new turn (or the thinking row) appearing scrolls to the bottom once.
   useEffect(() => {
@@ -297,6 +310,11 @@ function Conversation({
   // once (role="status" is implicitly polite + atomic), and a regenerated
   // identical answer re-announces because the value passes through "" first.
   const last = messages[messages.length - 1];
+  const incomplete =
+    status === "ready" &&
+    last?.role === "assistant" &&
+    last.id !== SEED_ID &&
+    !plainText(last).trim();
   const announced =
     status === "ready" && last?.role === "assistant" && last.id !== SEED_ID
       ? plainText(last)
@@ -316,6 +334,20 @@ function Conversation({
     setInput("");
   };
 
+  let currentQuestion = "";
+  const turns: ReactNode[] = [];
+  for (const message of messages) {
+    if (message.role === "user") currentQuestion = plainText(message);
+    turns.push(
+      <Turn
+        key={message.id}
+        m={message}
+        skin={skin}
+        question={currentQuestion}
+      />,
+    );
+  }
+
   return (
     <div
       className={`${skin.surface} flex h-[min(720px,calc(100dvh_-_9.5rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4`}
@@ -330,9 +362,7 @@ function Conversation({
         aria-label="Conversation with Major"
         className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       >
-        {messages.map((m) => (
-          <Turn key={m.id} m={m} skin={skin} />
-        ))}
+        {turns}
 
         {status === "submitted" && (
           <CoachRow>
@@ -349,14 +379,16 @@ function Conversation({
           </CoachRow>
         )}
 
-        {error && (
+        {(error || incomplete) && (
           <div className="flex flex-col items-start gap-2">
             {/* Show the message only when it's one of our own mapped strings —
                 equality against the shared allowlist, never reflected text. */}
             <p className={skin.helper}>
-              {SAFE_CHAT_ERRORS.has(error.message)
-                ? error.message
-                : GENERIC_CHAT_ERROR}
+              {incomplete
+                ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
+                : error && SAFE_CHAT_ERRORS.has(error.message)
+                  ? error.message
+                  : GENERIC_CHAT_ERROR}
             </p>
             <Button
               variant="ghost"
@@ -369,18 +401,18 @@ function Conversation({
         )}
       </div>
 
-      {/* Starter questions, tailored to the student's goal; they vanish once
-          the conversation is under way. */}
-      {starters.length > 0 && messages.length <= seed.length && !busy && (
+      {/* Retire used questions and offer follow-ups backed by returned records. */}
+      {suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-1">
-          {starters.map((q) => (
+          {suggestions.map((q) => (
             <button
-              key={q}
+              key={q.prompt}
               type="button"
-              onClick={() => send(q)}
-              className={`${skin.chip} pointer-coarse:min-h-11`}
+              onClick={() => send(q.prompt)}
+              disabled={busy}
+              className={`${skin.chip} disabled:cursor-wait disabled:opacity-50 pointer-coarse:min-h-11`}
             >
-              {q}
+              {q.label}
             </button>
           ))}
         </div>
@@ -448,14 +480,6 @@ export function ChatScreen() {
   const setModeId = useStudentSession((s) => s.setModeId);
   const session = useSavedSession();
 
-  const mountedRef = useRef(false);
-  const clearCourses = useSavedCourses((state) => state.clear);
-  useEffect(() => {
-    if (mountedRef.current) return;
-    mountedRef.current = true;
-    clearCourses();
-  }, [clearCourses]);
-
   // The saved look is derived from the store; `pickedId` only covers a switch
   // before any session exists (a cold visit that never onboarded).
   const [pickedId, setPickedId] = useState<string | null>(null);
@@ -473,7 +497,7 @@ export function ChatScreen() {
   };
 
   const seed = seedMessages(session);
-  const starters = session ? starterPromptsFor(session.payload) : [];
+  const starters = session ? starterQuestionsFor(session.payload) : [];
   const profile = studentProfile(session);
 
   return (

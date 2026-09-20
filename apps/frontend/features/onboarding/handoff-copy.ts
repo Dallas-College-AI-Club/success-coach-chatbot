@@ -15,15 +15,15 @@ import type { OnboardingPayload } from "@/features/onboarding/types";
 // decides"). Prompt sets and the honesty review are documented in
 // ENGAGEMENT_ONBOARDING_STRATEGY.md §9.4.
 
-type HandoffSet = { intro: string; prompts: string[] };
-
 // --- placeholder fill -------------------------------------------------------
 // {major}/{school}/{interest} resolve from the payload. {school} is a real
 // institution name for the named partner universities — every region bucket
 // stores a category code, so it resolves to a plain phrase instead.
 export function majorLabel(p: OnboardingPayload): string {
   if (!p.major) return "your program";
-  return PROGRAMS.find((prog) => prog.code === p.major)?.label ?? "your program";
+  return (
+    PROGRAMS.find((prog) => prog.code === p.major)?.label ?? "your program"
+  );
 }
 
 export function schoolLabel(p: OnboardingPayload): string {
@@ -49,174 +49,164 @@ export function schoolLabel(p: OnboardingPayload): string {
   return "the school you transfer to";
 }
 
-const INTEREST_LABEL: Record<string, string> = {
-  health: "health careers",
-  tech: "technology",
-  business: "business",
-  arts: "arts and design",
-  trades: "skilled trades",
-};
-function interestLabel(p: OnboardingPayload): string {
-  return (p.interest_area && INTEREST_LABEL[p.interest_area]) || "a field you like";
+export interface StarterQuestion {
+  label: string;
+  /** Complete question sent on click; never relies on an unstated "it". */
+  prompt: string;
 }
 
-function fill(text: string, p: OnboardingPayload): string {
-  return text
-    .replace(/\{major\}/g, majorLabel(p))
-    .replace(/\{school\}/g, schoolLabel(p))
-    .replace(/\{interest\}/g, interestLabel(p));
-}
+type Handoff = { intro: string; questions: StarterQuestion[] };
 
-// --- the personalized sets --------------------------------------------------
-// Kept short on purpose: the intro is one line ending in ". You could ask:" that
-// leads straight into 2–3 terse chips. The program name is NOT repeated here (it's
-// already in the recap above); the chips fit the student's situation, not their
-// exact major, so they stay short and scannable.
-const SETS: Record<string, HandoffSet> = {
-  first_major: {
-    intro: "Next, we'll plan your upcoming semester. You could ask:",
-    prompts: ["What do I take first?", "Which classes are online?", "How do I find help paying?"],
-  },
-  first_undecided: {
-    intro: "Next, we'll find good first classes. You could ask:",
-    prompts: ["What do I take before I pick a major?", "What counts toward most degrees?", "How do certificates and degrees differ?"],
-  },
-  grad_major: {
-    intro: "Next, we'll see what's left to finish. You could ask:",
-    prompts: ["What's left to graduate?", "How many credits to go?", "Which requirements are online?"],
-  },
-  transfer_out_partner: {
-    intro: "Next, we'll plan your transfer to {school}. You could ask:",
-    prompts: ["Which classes usually transfer to {school}?", "What should I take first?", "What might not transfer?"],
-  },
-  transfer_out_texas: {
-    intro: "Next, we'll plan your Texas transfer. You could ask:",
-    prompts: ["Which classes transfer in Texas?", "What core classes should I take?", "What might not transfer?"],
-  },
-  transfer_out_other: {
-    intro: "Next, we'll plan a transfer-friendly path. You could ask:",
-    prompts: ["Which classes transfer widely?", "Which core classes usually transfer?", "How do I check what a school will accept?"],
-  },
-  transfer_back: {
-    intro: "Next, we'll find a class that counts back home. You could ask:",
-    prompts: ["Which class matches what I need?", "Is it online?", "What's the tuition per class?"],
-  },
-  transfer_inbound: {
-    intro: "Next, we'll see what could count toward your degree. You could ask:",
-    prompts: ["What might already count?", "How do I get it reviewed?", "What should I take here?"],
-  },
-  transfer_unknown: {
-    intro: "Next, we'll keep your transfer options open. You could ask:",
-    prompts: ["Which classes transfer widely?", "What should I take first?", "How do I check what a school will accept?"],
-  },
-  sched_online_evening: {
-    intro: "Next, we'll fit classes to your time. You could ask:",
-    prompts: ["Which classes are online?", "Which are in the evening?", "What fits around work?"],
-  },
-  sched_online: {
-    intro: "Next, we'll find online classes. You could ask:",
-    prompts: ["Which classes are online?", "Is my class online this term?", "Which requirements are online?"],
-  },
-  sched_evening: {
-    intro: "Next, we'll find evening classes. You could ask:",
-    prompts: ["Which classes meet at night?", "Is my class in the evening?", "Which requirements are at night?"],
-  },
-  sched_default: {
-    intro: "Next, we'll build a schedule that fits. You could ask:",
-    prompts: ["Which classes are online?", "Which are evening or weekend?", "What fits around work?"],
-  },
-  major_interest: {
-    intro: "Next, we'll explore {interest} programs. You could ask:",
-    prompts: ["What {interest} programs are there?", "What would I study?", "Which class should I try first?"],
-  },
-  major_undecided: {
-    intro: "Next, we'll explore your options. You could ask:",
-    prompts: ["What programs are there?", "What should I take first?", "How do certificates and degrees differ?"],
-  },
-  oneoff_job: {
-    intro: "Next, we'll find the class you need. You could ask:",
-    prompts: ["Which class do I need?", "What's the tuition per class?", "Who confirms it counts?"],
-  },
-  oneoff_prereq: {
-    intro: "Next, we'll find your prerequisite class. You could ask:",
-    prompts: ["Which class covers it?", "Is it online?", "What's the tuition per class?"],
-  },
-  oneoff_enrich: {
-    intro: "Next, we'll find a class you'll enjoy. You could ask:",
-    prompts: ["What can I take for fun?", "Any prerequisites?", "What's the tuition per class?"],
-  },
-  dual_credit: {
-    intro: "Next, we'll look at your dual-credit path. You could ask:",
-    prompts: ["How do my classes count?", "How do I check if they'll transfer?", "Which finish a degree?"],
-  },
-  // Incoming international student getting set up to move — resource-style, like
-  // the quick-actions row, not course planning.
-  settle_in: {
-    intro: "Next, we'll help you get set up in Dallas. You could ask:",
-    prompts: ["How do I find housing?", "How do I get around?", "When is orientation?"],
-  },
+export const TUITION: StarterQuestion = {
+  label: "What might my classes cost?",
+  prompt:
+    "What Dallas College tuition rates per credit hour are in your records, and what information would you need to estimate my tuition?",
+};
+const TUTORING: StarterQuestion = {
+  label: "Where can I get free tutoring?",
+  prompt:
+    "What do your records say about free tutoring at Dallas College, and which source link can I use for more information?",
+};
+const COACH: StarterQuestion = {
+  label: "How can I reach a Success Coach?",
+  prompt:
+    "Look up academic advising in your records and give the listed email, phone number and appointment resource for contacting a Dallas College Success Coach.",
+};
+const COURSE_EXAMPLE: StarterQuestion = {
+  label: "What does ENGL 1301 cover?",
+  prompt:
+    "What are the catalog title, credits, description and stated requirements for ENGL 1301?",
 };
 
-// Pick the set that matches the student's answers.
-function selectSet(p: OnboardingPayload): HandoffSet {
-  if (p.student_type === "dual_credit") return SETS.dual_credit;
+function coursePlan(
+  name: string,
+  example = false,
+  first = false,
+): StarterQuestion {
+  return {
+    label: example
+      ? "What would I study in this example program?"
+      : first
+        ? "Which classes would I start with?"
+        : "Review my program's course checklist",
+    prompt: `Show the published course plan for ${name}${first ? ", only semester 1" : ""}, grouped by semester or requirement, with course codes and credits.`,
+  };
+}
 
-  switch (p.goal) {
-    case "first_semester_plan":
-      return p.major ? SETS.first_major : SETS.first_undecided;
+function coursePrerequisites(name: string): StarterQuestion {
+  return {
+    label: "What do I need before starting?",
+    prompt: `What prerequisites and recommended preparation does the catalog list for the first-semester courses in ${name}? Keep required prerequisites separate from recommendations.`,
+  };
+}
 
-    case "graduation_check":
-      // Unsure of the program → explore rather than audit a program they can't name.
-      return p.major ? SETS.grad_major : SETS.major_undecided;
+// Named examples make exploration answerable with existing catalog lookups.
+// They are examples, never silently assigned as the student's selected program.
+const INTEREST_PROGRAMS: Record<string, string> = {
+  health: "Medical Assisting Certificate",
+  tech: "Python Developer Certificate",
+  business: "Accounting Assistant Certificate",
+  arts: "Digital Art and Design A.A.S.",
+  trades: "Welding Applications Certificate",
+};
 
-    case "transfer_check": {
-      const dir = p.transfer_direction;
-      const t = p.target_institution;
-      if (dir === "outbound") {
-        // Any named partner university (not a region bucket) → specific guidance.
-        const partner = t !== null && t !== "TX_OTHER" && t !== "US_OTHER" && t !== "INTL";
-        if (partner) return SETS.transfer_out_partner;
-        if (t === "TX_OTHER") return SETS.transfer_out_texas;
-        return SETS.transfer_out_other; // US_OTHER, INTL, null
-      }
-      if (dir === "transfer_back") return SETS.transfer_back;
-      if (dir === "inbound") return SETS.transfer_inbound;
-      return SETS.transfer_unknown;
-    }
-
-    case "schedule_fit": {
-      const online = p.modality_pref === "online";
-      const evening = Array.isArray(p.dayparts_pref) && p.dayparts_pref.includes("evening");
-      if (online && evening) return SETS.sched_online_evening;
-      if (online) return SETS.sched_online;
-      if (evening) return SETS.sched_evening;
-      return SETS.sched_default;
-    }
-
-    case "figure_out_major":
-      return p.interest_area ? SETS.major_interest : SETS.major_undecided;
-
-    case "settle_in":
-      return SETS.settle_in;
-
-    case "nondegree_oneoff":
-      if (p.oneoff_purpose === "job_licensure") return SETS.oneoff_job;
-      if (p.oneoff_purpose === "enrichment") return SETS.oneoff_enrich;
-      return SETS.oneoff_prereq;
-
-    default:
-      return SETS.first_undecided;
+function selectHandoff(p: OnboardingPayload): Handoff {
+  const program = PROGRAMS.find((entry) => entry.code === p.major)?.label;
+  const plan = program
+    ? coursePlan(
+        program,
+        false,
+        p.goal === "first_semester_plan" || p.goal === "schedule_fit",
+      )
+    : COURSE_EXAMPLE;
+  const prerequisites = program ? coursePrerequisites(program) : TUTORING;
+  if (p.student_type === "dual_credit") {
+    return {
+      intro:
+        "Explore course facts, free tutoring and advising contacts. You could ask:",
+      questions: [COURSE_EXAMPLE, TUTORING, COACH],
+    };
   }
+  if (p.goal === "settle_in") {
+    return {
+      intro:
+        "Explore the student support information in our records. You could ask:",
+      questions: [
+        {
+          label: "What housing assistance is available?",
+          prompt:
+            "What do your records say about Dallas College housing rental assistance, and which source link has more information?",
+        },
+        {
+          label: "How does the free DART GoPass work?",
+          prompt:
+            "What do your records say about the free Dallas College DART GoPass benefit, and where can I read more?",
+        },
+        TUTORING,
+      ],
+    };
+  }
+  if (p.goal === "nondegree_oneoff") {
+    return {
+      intro:
+        "Check tuition information, tutoring and advising contacts. You could ask:",
+      questions: [TUITION, TUTORING, COACH],
+    };
+  }
+  if (p.goal === "transfer_check") {
+    return {
+      intro:
+        "Look up Dallas College course facts and costs before checking transfer credit. You could ask:",
+      questions: [plan, prerequisites, TUITION],
+    };
+  }
+  if (p.goal === "schedule_fit") {
+    return {
+      intro:
+        "Check course requirements, prerequisites and tuition. Course plans do not confirm this term's meeting times. You could ask:",
+      questions: [plan, prerequisites, TUITION],
+    };
+  }
+  if (p.goal === "graduation_check") {
+    return {
+      intro:
+        "Review the published course plan before an official graduation review. You could ask:",
+      questions: [plan, prerequisites, COACH],
+    };
+  }
+  if (p.goal === "figure_out_major" || !program) {
+    const example = p.interest_area
+      ? INTEREST_PROGRAMS[p.interest_area]
+      : undefined;
+    return {
+      intro: example
+        ? `Explore ${example} as one example, then discuss your options. You could ask:`
+        : "Explore a course and learn where to get guidance. You could ask:",
+      questions: [
+        example ? coursePlan(example, true) : COURSE_EXAMPLE,
+        example ? coursePrerequisites(example) : COACH,
+        TUTORING,
+      ],
+    };
+  }
+  return {
+    intro:
+      "Explore your published course plan and student support. You could ask:",
+    questions: [plan, prerequisites, TUITION],
+  };
 }
 
-// One forward line — what the chat picks up next, tailored to the answers.
 export function handoffIntro(p: OnboardingPayload): string {
-  return fill(selectSet(p).intro, p);
+  return selectHandoff(p).intro;
 }
 
-// The starter prompts previewed at the hand-off, tailored to the answers.
+export function starterQuestionsFor(p: OnboardingPayload): StarterQuestion[] {
+  return selectHandoff(p).questions;
+}
+
+// Keep onboarding previews and existing flow checks using the same labels.
 export function starterPromptsFor(p: OnboardingPayload): string[] {
-  return selectSet(p).prompts.map((prompt) => fill(prompt, p));
+  return starterQuestionsFor(p).map((q) => q.label);
 }
 
 // Authority routing — only the deciding institution can confirm transfer credit or
@@ -226,7 +216,9 @@ export function authorityNotes(p: OnboardingPayload): string[] {
     p.transfer_direction === "outbound" ||
     p.transfer_direction === "transfer_back"
   ) {
-    return [`Only ${schoolLabel(p)} can confirm what counts. We'll help you ask.`];
+    return [
+      `Only ${schoolLabel(p)} can confirm what counts. We'll help you ask.`,
+    ];
   }
   if (p.transfer_direction === "inbound") {
     return ["Admissions decides what counts. We'll point you there."];

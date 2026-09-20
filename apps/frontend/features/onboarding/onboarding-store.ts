@@ -31,7 +31,12 @@ export interface SavedSession {
 export type ChatRole = "user" | "assistant" | "system";
 
 /** Provisional — the real vocabulary belongs to the chat transport (#37). */
-const CHAT_MESSAGE_STATUSES = ["pending", "streaming", "complete", "error"] as const;
+const CHAT_MESSAGE_STATUSES = [
+  "pending",
+  "streaming",
+  "complete",
+  "error",
+] as const;
 export type ChatMessageStatus = (typeof CHAT_MESSAGE_STATUSES)[number];
 
 /**
@@ -69,7 +74,10 @@ interface SessionState {
   updateMessageStatus: (id: string, status: ChatMessageStatus) => void;
 }
 
-type PersistedSession = Pick<SessionState, "studentId" | "session" | "messages">;
+type PersistedSession = Pick<
+  SessionState,
+  "studentId" | "session" | "messages"
+>;
 
 function isSavedSession(value: unknown): value is SavedSession {
   if (!value || typeof value !== "object") return false;
@@ -143,7 +151,8 @@ export const useStudentSession = create<SessionState>()(
         set((s) => (s.session ? { session: { ...s.session, modeId } } : {})),
       resetSession: () => set({ session: null }),
 
-      appendMessage: (message) => set((s) => ({ messages: [...s.messages, message] })),
+      appendMessage: (message) =>
+        set((s) => ({ messages: [...s.messages, message] })),
       clearChat: () => set({ messages: [] }),
       updateMessageStatus: (id, status) =>
         set((s) => ({
@@ -178,7 +187,10 @@ export const useStudentSession = create<SessionState>()(
         session: s.session,
         messages: s.messages,
       }),
-      merge: (persisted, current) => ({ ...current, ...parsePersisted(persisted) }),
+      merge: (persisted, current) => ({
+        ...current,
+        ...parsePersisted(persisted),
+      }),
       // Runs after every rehydrate — including a first visit (empty storage)
       // and the error path (an unparseable blob arrives as `state` undefined
       // and is overwritten by the next write, so corruption degrades to a
@@ -190,7 +202,10 @@ export const useStudentSession = create<SessionState>()(
       // which would leave `hasHydrated` false — and the store dark — forever.
       onRehydrateStorage: () => (state, error) => {
         if (error) {
-          console.warn("[student-session] stored session unreadable; starting fresh", error);
+          console.warn(
+            "[student-session] stored session unreadable; starting fresh",
+            error,
+          );
         }
         const studentId = state?.studentId ?? mintStudentId();
         useStudentSession.setState({ studentId, hasHydrated: true });
@@ -211,13 +226,20 @@ export const useStudentSession = create<SessionState>()(
  * has run those writes are dropped by the storage gate — mutate before calling
  * this and the change simply doesn't persist.
  */
+export function hydrateStudentSession(): void {
+  if (useStudentSession.persist) {
+    void useStudentSession.persist.rehydrate();
+  } else {
+    // Storage-denied browsers still get a usable in-memory session.
+    useStudentSession.setState({
+      studentId: useStudentSession.getState().studentId ?? mintStudentId(),
+      hasHydrated: true,
+    });
+  }
+}
+
 export function useHydrateSession(): void {
-  useEffect(() => {
-    // `persist` is absent when storage was unavailable as the module loaded
-    // (the server, or a browser refusing localStorage). Nothing to rehydrate —
-    // `hasHydrated` stays false and every read reports first-time.
-    void useStudentSession.persist?.rehydrate();
-  }, []);
+  useEffect(hydrateStudentSession, []);
 }
 
 /** Persist the completed onboarding so a return visit can reopen it. */

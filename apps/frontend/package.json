@@ -9,7 +9,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:demo": "tsx --test scripts/check-demo-course-ui.mts scripts/check-mascot-motion.mts && tsx --conditions=react-server --test scripts/check-chat-boundaries.mts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.83",

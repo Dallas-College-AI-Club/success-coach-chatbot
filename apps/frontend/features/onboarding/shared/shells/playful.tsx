@@ -1,7 +1,6 @@
 "use client";
 
-import { PlayfulScene } from "@/features/onboarding/shared/scenes/campus-scene";
-import { CampusCritters } from "@/features/onboarding/shared/scenes/campus-critters";
+import { PlayfulField } from "@/features/onboarding/shared/scenes/playful-field";
 import type { WizardProps } from "@/features/onboarding/skin";
 import { RecapPanel } from "@/features/onboarding/shared/recap-panel";
 import { StepTransition } from "@/features/onboarding/shared/step-transition";
@@ -12,10 +11,8 @@ import {
   WizardControls,
 } from "@/features/onboarding/shared/wizard-parts";
 
-// Playful — a stroll across a living, colourful world. The scene pans one sweep
-// per question while the mascots roam it, so answering feels like moving a few
-// steps further along. The scene stays put at the finish; the recap just replaces
-// the note, so it never cuts to a new page.
+// Playful keeps the shared question flow in a centered card. The full viewport
+// field is decorative and remains behind the card through the recap.
 
 // The progress bar. Fills proportionally to the step position (step of total),
 // then completes to 100% on the recap. No numeric percentage is shown — with only
@@ -51,38 +48,25 @@ export const PlayfulShell = ({
   done,
   onRestart,
 }: WizardProps) => {
-  const stop = Math.min(api.stepIdx, 2); // panorama has three stops
   // Fill tracks the step position (step of total), counting the recap as the final
   // fraction, so the bar rises evenly and only reaches 100% at the recap — never a
   // dramatic jump on a short flow, and never full while a question is still open.
   const progress = ((api.stepIdx + 1) / (api.total + 1)) * 100;
 
   return (
-    <div className="relative w-full overflow-hidden rounded-[28px] shadow-[0_18px_50px_rgba(51,65,92,.16)]">
-      {/* the world — pans one third per step */}
-      <div
-        aria-hidden
-        className="absolute inset-y-0 left-0 z-0 h-full"
-        style={{
-          width: "300%",
-          transform: `translateX(-${stop * (100 / 3)}%)`,
-          transition: "transform 750ms cubic-bezier(.22,1,.36,1)",
-        }}
-      >
-        <PlayfulScene />
-      </div>
-
-      {/* cute mascot critters roaming the scene, behind the note */}
-      <CampusCritters />
+    <div className="w-full">
+      <PlayfulField />
 
       {/* the note — a stable-height card so the frame never resizes between
           steps; long content scrolls within the card. */}
-      <div className="relative z-20 flex flex-col justify-start p-4 sm:items-end sm:p-6">
+      <div className="relative z-20 flex flex-col items-center justify-start p-4 sm:p-6">
         <div className="flex h-[min(720px,calc(100dvh_-_11.5rem))] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
           {/* Above both branches so it carries into the recap and fills to 100%. */}
           <ProgressBar
             pct={done ? 100 : progress}
-            label={done ? "All done!" : `Step ${api.stepIdx + 1} of ${api.total}`}
+            label={
+              done ? "All done!" : `Step ${api.stepIdx + 1} of ${api.total}`
+            }
           />
           {done ? (
             <RecapPanel

@@ -1,0 +1,70 @@
+{
+  "version": 9,
+  "source": "approved-cast.png",
+  "totalBytes": 291924,
+  "characters": [
+    {
+      "key": "bear",
+      "name": "Bear",
+      "src": "bear.webp",
+      "width": 279,
+      "height": 420,
+      "bytes": 37350,
+      "air": false
+    },
+    {
+      "key": "blazer-stallion",
+      "name": "Blazer",
+      "src": "blazer-stallion.webp",
+      "width": 327,
+      "height": 420,
+      "bytes": 34764,
+      "air": false
+    },
+    {
+      "key": "lion",
+      "name": "Lion",
+      "src": "lion.webp",
+      "width": 420,
+      "height": 417,
+      "bytes": 53240,
+      "air": false
+    },
+    {
+      "key": "thunderduck",
+      "name": "Thunderduck",
+      "src": "thunderduck.webp",
+      "width": 266,
+      "height": 420,
+      "bytes": 32720,
+      "air": false
+    },
+    {
+      "key": "sun-phoenix",
+      "name": "Phoenix Sun",
+      "src": "sun-phoenix.webp",
+      "width": 385,
+      "height": 420,
+      "bytes": 57400,
+      "air": true
+    },
+    {
+      "key": "eagle",
+      "name": "Eagle",
+      "src": "eagle.webp",
+      "width": 420,
+      "height": 403,
+      "bytes": 44234,
+      "air": true
+    },
+    {
+      "key": "harvester-bee",
+      "name": "Harvester Bee",
+      "src": "harvester-bee.webp",
+      "width": 351,
+      "height": 356,
+      "bytes": 32216,
+      "air": true
+    }
+  ]
+}

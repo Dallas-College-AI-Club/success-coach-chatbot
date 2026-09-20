@@ -56,6 +56,8 @@ export const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
 const CITATION_HOSTS: ReadonlySet<string> = new Set([
   "catalog.dallascollege.edu",
   "dallascollege.campusconcourse.com",
+  "www.dallascollege.edu",
+  "dallascollege.edu",
 ]);
 
 /**

@@ -8,7 +8,10 @@ import {
   TRANSIENT_LIMIT_MESSAGE,
 } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
-import { TOOL_REGISTRY } from "@/lib/tools/registry";
+import { isRecord } from "@/lib/course-details";
+import { TOOL_REGISTRY, toolsForTurn } from "@/lib/tools/registry";
+import { scheduleToolChoice } from "@/lib/tools/getClassSchedule";
+import { recoveryToolChoice } from "@/lib/tools/searchKnowledge";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   APICallError,
@@ -69,7 +72,7 @@ export async function POST(req: Request) {
     // Malformed JSON is a caller mistake, not a server failure: without this
     // guard it fell through to the catch-all 500 and leaked the raw parser
     // message, contra the chat-errors contract.
-    let body: { messages?: unknown; profile?: unknown };
+    let body: unknown;
     try {
       body = await req.json();
     } catch {
@@ -77,6 +80,16 @@ export async function POST(req: Request) {
         {
           error: "Invalid request",
           details: "request body must be JSON.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!isRecord(body)) {
+      return Response.json(
+        {
+          error: "Invalid request",
+          details: "request body must be an object.",
         },
         { status: 400 },
       );
@@ -198,11 +211,20 @@ export async function POST(req: Request) {
     // only after passing studentProfileSchema. The free-text `systemPrompt`
     // override is gone — it lost its only caller when #161 deleted
     // /dev/chat-test.
+    const currentQuestion =
+      messages
+        .findLast((message) => message.role === "user")
+        ?.parts.flatMap((part) => (part.type === "text" ? [part.text] : []))
+        .join(" ") ?? "";
     const result = streamText({
       model: openrouter.chat(model),
-      messages: await convertToModelMessages(messages),
+      // Stop/disconnect cancels generation instead of spending tokens unseen.
+      abortSignal: req.signal,
+      messages: await convertToModelMessages(messages, {
+        tools: TOOL_REGISTRY,
+      }),
       system: SYSTEM_PROMPT + profileBlock,
-      tools: TOOL_REGISTRY,
+      tools: toolsForTurn(currentQuestion),
       // Allow multi-step tool execution.
       // AI SDK defaults to stepCountIs(1), which stops after tool invocation.
       //
@@ -223,16 +245,18 @@ export async function POST(req: Request) {
       // two turns ended blank at steps 7-8). Telling it the budget is spent
       // and to answer now gives the step a scripted move.
       stopWhen: stepCountIs(8),
-      prepareStep: ({ stepNumber }) =>
-        stepNumber >= 6
-          ? {
-              activeTools: [],
-              system:
-                SYSTEM_PROMPT +
-                profileBlock +
-                "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
-            }
-          : undefined,
+      prepareStep: ({ stepNumber, steps }) =>
+        stepNumber < 7 && recoveryToolChoice(steps)
+          ? { toolChoice: recoveryToolChoice(steps) }
+          : stepNumber >= 6
+            ? {
+                activeTools: [],
+                system:
+                  SYSTEM_PROMPT +
+                  profileBlock +
+                  "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
+              }
+            : { toolChoice: scheduleToolChoice(currentQuestion, stepNumber) },
 
       // 1000 truncated 4 of 10 replies mid-word in live testing — one
       // cut a transfer-credit hedge to a bare "Just double-"; a truncated
