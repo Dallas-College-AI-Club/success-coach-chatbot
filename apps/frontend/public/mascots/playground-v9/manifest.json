@@ -1,7 +1,7 @@
 {
   "version": 9,
-  "source": "approved-cast.png",
-  "totalBytes": 291924,
+  "source": "approved cast with owner-requested Blazer and Suns revisions (2026-09-20)",
+  "totalBytes": 276116,
   "characters": [
     {
       "key": "bear",
@@ -18,7 +18,7 @@
       "src": "blazer-stallion.webp",
       "width": 327,
       "height": 420,
-      "bytes": 34764,
+      "bytes": 32386,
       "air": false
     },
     {
@@ -43,9 +43,9 @@
       "key": "sun-phoenix",
       "name": "Phoenix Sun",
       "src": "sun-phoenix.webp",
-      "width": 385,
+      "width": 420,
       "height": 420,
-      "bytes": 57400,
+      "bytes": 43970,
       "air": true
     },
     {

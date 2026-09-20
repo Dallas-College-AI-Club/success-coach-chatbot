@@ -21,7 +21,7 @@ export function ChatBackdrop({ modeId }: { modeId: string }) {
     return (
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden"
+        className="coach-landscape pointer-events-none absolute inset-0 overflow-hidden"
       >
         <div className="absolute inset-0 bg-gradient-to-b from-[#E6EEF4] to-[#F6EFE4]" />
         <div className="absolute inset-x-0 bottom-0 h-[46vh] md:h-[64vh]">

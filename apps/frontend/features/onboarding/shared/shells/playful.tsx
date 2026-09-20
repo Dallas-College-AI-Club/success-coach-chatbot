@@ -21,7 +21,7 @@ import {
 // animates smoothly into the finish — the "reached the end" payoff.
 const ProgressBar = ({ pct, label }: { pct: number; label: string }) => (
   <div className="flex flex-col gap-1.5">
-    <span className="text-xs font-extrabold tracking-wide text-[#E52626] uppercase">
+    <span className="coach-accent text-xs font-extrabold tracking-wide text-[#E52626] uppercase">
       {label}
     </span>
     <div
@@ -60,7 +60,7 @@ export const PlayfulShell = ({
       {/* the note — a stable-height card so the frame never resizes between
           steps; long content scrolls within the card. */}
       <div className="relative z-20 flex flex-col items-center justify-start p-4 sm:p-6">
-        <div className="flex h-[min(720px,calc(100dvh_-_11.5rem))] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
+        <div className="coach-surface flex h-[min(720px,calc(100dvh_-_11.5rem))] w-full flex-col gap-3 overflow-y-auto rounded-3xl bg-white/95 p-5 shadow-[0_10px_30px_rgba(51,65,92,.14)] backdrop-blur-md sm:w-[470px] md:p-6">
           {/* Above both branches so it carries into the recap and fills to 100%. */}
           <ProgressBar
             pct={done ? 100 : progress}

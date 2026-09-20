@@ -54,7 +54,7 @@ export const FocusMountain = ({
   return (
     <svg
       viewBox="0 0 200 320"
-      className="h-full w-full"
+      className="coach-landscape h-full w-full"
       preserveAspectRatio="xMidYMax meet"
       role="img"
       aria-label={`Climbing toward your plan — step ${stepIdx + 1} of ${total}`}
@@ -68,19 +68,42 @@ export const FocusMountain = ({
 
       <rect x="0" y="0" width="200" height="320" fill="url(#mtnSky)" />
       {/* soft sun */}
-      <circle cx="150" cy="60" r="20" fill="#F7E6C8" className="motion-safe:animate-[drift_7s_ease-in-out_infinite]" />
+      <circle
+        cx="150"
+        cy="60"
+        r="20"
+        fill="#F7E6C8"
+        className="motion-safe:animate-[drift_7s_ease-in-out_infinite]"
+      />
 
       {/* far ridges */}
-      <path d="M0 210 L52 150 L96 196 L150 132 L200 190 L200 320 L0 320 Z" fill="#C3D0DD" />
-      <path d="M0 250 L60 196 L120 240 L172 200 L200 224 L200 320 L0 320 Z" fill="#AEBFCF" />
+      <path
+        d="M0 210 L52 150 L96 196 L150 132 L200 190 L200 320 L0 320 Z"
+        fill="#C3D0DD"
+      />
+      <path
+        d="M0 250 L60 196 L120 240 L172 200 L200 224 L200 320 L0 320 Z"
+        fill="#AEBFCF"
+      />
 
       {/* main mountain */}
       <path d="M20 306 L118 92 L138 92 L196 306 Z" fill="#7C93AC" />
       {/* shaded face */}
-      <path d="M128 92 L118 92 L64 306 L118 306 Z" fill="#6C859F" opacity="0.55" />
+      <path
+        d="M128 92 L118 92 L64 306 L118 306 Z"
+        fill="#6C859F"
+        opacity="0.55"
+      />
       {/* snow cap */}
-      <path d="M118 92 L138 92 L152 138 Q134 126 122 138 Q110 128 96 140 Z" fill="#F4F7FA" />
-      <path d="M118 92 L128 92 L120 138 Q110 130 100 139 Z" fill="#DDE6EE" opacity="0.7" />
+      <path
+        d="M118 92 L138 92 L152 138 Q134 126 122 138 Q110 128 96 140 Z"
+        fill="#F4F7FA"
+      />
+      <path
+        d="M118 92 L128 92 L120 138 Q110 130 100 139 Z"
+        fill="#DDE6EE"
+        opacity="0.7"
+      />
 
       {/* trail (dashed, winding to the summit) */}
       <path
@@ -113,10 +136,19 @@ export const FocusMountain = ({
           transformOrigin: "left bottom",
           transform: summited ? "scale(1)" : "scale(0)",
           opacity: summited ? 1 : 0,
-          transition: "transform 500ms cubic-bezier(.34,1.4,.5,1), opacity 300ms",
+          transition:
+            "transform 500ms cubic-bezier(.34,1.4,.5,1), opacity 300ms",
         }}
       >
-        <line x1="138" y1="104" x2="138" y2="80" stroke="#33415c" strokeWidth="2.5" strokeLinecap="round" />
+        <line
+          x1="138"
+          y1="104"
+          x2="138"
+          y2="80"
+          stroke="#33415c"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+        />
         <path d="M138 82 L156 88 L138 95 Z" fill="#EC5F56" />
       </g>
 
@@ -128,9 +160,15 @@ export const FocusMountain = ({
         }}
       >
         <circle cx="0" cy="0" r="7.5" fill="#EC5F56" opacity="0.18" />
-        <circle cx="0" cy="0" r="4.5" fill="#EC5F56" stroke="#fff" strokeWidth="1.6" />
+        <circle
+          cx="0"
+          cy="0"
+          r="4.5"
+          fill="#EC5F56"
+          stroke="#fff"
+          strokeWidth="1.6"
+        />
       </g>
     </svg>
   );
 };
-

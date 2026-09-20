@@ -10,6 +10,76 @@ type Character = {
 };
 type Loaded = Character & { image: HTMLImageElement };
 type Panel = { left: number; right: number; top: number; bottom: number };
+
+function campusHorizonHeight(width: number, height: number, headerTop: number) {
+  return Math.max(
+    0,
+    Math.min(width * 0.24, height * 0.24, 180, Math.max(96, headerTop - 4)),
+  );
+}
+
+/** A slow, continuous sky patrol keeps the round Suns character above the controls. */
+export function sunAt(
+  time: number,
+  width: number,
+  height: number,
+  headerTop: number,
+) {
+  const horizon = campusHorizonHeight(width, height, headerTop);
+  const size = Math.max(20, Math.min(72, headerTop * 0.32));
+  const margin = size * 0.65 + 10;
+  const arc = time / 42;
+  const centerY = size * 0.65 + 5;
+  const rise = Math.max(
+    0,
+    Math.min(
+      horizon * 0.08,
+      centerY - size * 0.6 - 3,
+      headerTop - centerY - size * 0.6 - 4,
+    ),
+  );
+  return {
+    size,
+    x: margin + (width - margin * 2) * (0.5 + Math.sin(arc + 0.9) * 0.5),
+    y: centerY + Math.sin(arc) * rise,
+  };
+}
+
+/** Free bands are measured around the actual UI, not fixed screen percentages. */
+export function freeRoamingBands(
+  width: number,
+  height: number,
+  card: Panel,
+  headerTop: number,
+) {
+  const sky = {
+    left: 8,
+    right: width - 8,
+    top: campusHorizonHeight(width, height, headerTop) + 8,
+    bottom: headerTop - 10,
+  };
+  const lawn = {
+    left: 8,
+    right: width - 8,
+    top: card.bottom + 10,
+    bottom: height - 8,
+  };
+  return {
+    sky: sky.bottom - sky.top >= 44 ? sky : undefined,
+    lawn: lawn.bottom - lawn.top >= 32 ? lawn : undefined,
+  };
+}
+
+export function roamingSlot(area: Panel, index: number, count: number) {
+  const span = (area.right - area.left) / count;
+  return {
+    left: area.left + span * index,
+    right: area.left + span * (index + 1),
+    top: area.top,
+    bottom: area.bottom,
+    height: Math.min(72, (area.bottom - area.top) / 1.5, span / 2.2),
+  };
+}
 export type Controller = {
   dispose: () => void;
   pause: (value: boolean) => void;
@@ -36,7 +106,7 @@ const personality: Record<string, string> = {
   "blazer-stallion": "eager explorer",
   lion: "cheerful playmate",
   thunderduck: "playful spark",
-  "sun-phoenix": "joyful flight",
+  "sun-phoenix": "warm sunshine",
   eagle: "friendly lookout",
   "harvester-bee": "delighted curiosity",
 };
@@ -59,15 +129,14 @@ export function motionAt(key: string, time: number, air = false) {
     "blazer-stallion": ["trot along the field", "look toward friends"],
     lion: ["follow the rolling ball", "settle beside the ball"],
     thunderduck: ["waddle toward the spark", "lightning flourish"],
-    "sun-phoenix": ["sweep up in a warm arc", "open-wing glide"],
+    "sun-phoenix": ["shine above the campuses", "warm sunshine"],
     eagle: ["survey the field", "coast and look around"],
     "harvester-bee": ["visit the flowers", "hover over a blossom"],
   };
-  const lift = air
-    ? key === "sun-phoenix"
-      ? Math.sin(travel * Math.PI * 2) * 0.075
-      : Math.sin(travel * Math.PI) * (key === "harvester-bee" ? -0.025 : 0.07)
-    : 0;
+  const lift =
+    air && key !== "sun-phoenix"
+      ? Math.sin(travel * Math.PI) * (key === "harvester-bee" ? -0.025 : 0.07)
+      : 0;
   const playTime = local - (start + duration + 0.15),
     playDuration =
       key === "bear"
@@ -111,6 +180,28 @@ export function motionAt(key: string, time: number, air = false) {
         : (actions[key]?.[moving ? 0 : 1] ?? "explore"),
     moving,
   };
+}
+
+/** Keep travel speed proportional to character size as its available route changes. */
+export function roamingMotionAt(
+  key: string,
+  time: number,
+  span: number,
+  height: number,
+  air: boolean,
+) {
+  const half = (periods[key] ?? 23) / 2,
+    walkHalf = Math.max(1, span) / Math.max(1, height * 0.7) + 2.2,
+    runHalf = Math.max(1, span) / Math.max(1, height * 1.3) + 2.2,
+    elapsed = cycle(time, walkHalf + runHalf),
+    returning = elapsed >= walkHalf,
+    clock = returning
+      ? half + ((elapsed - walkHalf) / runHalf) * half
+      : (elapsed / walkHalf) * half;
+  const motion = motionAt(key, clock, air);
+  if (!air && returning && motion.moving)
+    motion.action = "run across the open meadow";
+  return motion;
 }
 
 type Crossing = {
@@ -360,6 +451,7 @@ export async function startMascotScene(
     dpr = 1,
     selected: string | null = null,
     panel: Panel | undefined,
+    headerTop = 0,
     header = 0,
     reaction = -100;
   let avg = 0,
@@ -382,6 +474,8 @@ export async function startMascotScene(
     eagle: { side: 0, y: 0.26 },
     "harvester-bee": { side: 0, y: 0.56 },
   };
+  const airborneOrder = ["eagle", "sun-phoenix", "harvester-bee"];
+  const groundOrder = ["bear", "blazer-stallion", "lion", "thunderduck"];
   const draw = () => {
     const started = performance.now();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -389,6 +483,7 @@ export async function startMascotScene(
     const items: RigDraw[] = [],
       actions: string[] = [],
       bounds: string[] = [];
+    let duckPulse = 0;
     const card = panel ?? {
       left: width * 0.36,
       right: width * 0.64,
@@ -397,8 +492,19 @@ export async function startMascotScene(
     };
     const leftSpace = Math.max(0, card.left),
       rightSpace = Math.max(0, width - card.right);
+    const bands = freeRoamingBands(width, height, card, headerTop);
+    const sun = sunAt(time, width, height, headerTop);
+    const groundBelow = !!bands.lawn && !selected && !options.studio;
+    const sideHeight = Math.min(card.bottom, height - 10) - header;
     const smaller = Math.min(leftSpace, rightSpace),
-      normalH = clamp(smaller * 0.64, 36, 72),
+      normalH = clamp(
+        Math.min(
+          smaller * 0.64,
+          groundBelow ? (sideHeight - 44) / 4 : (sideHeight - 80) / 6,
+        ),
+        12,
+        72,
+      ),
       gallery = selected === "*",
       openField = selected === "field",
       solo = selected !== null && !gallery && !openField;
@@ -406,26 +512,55 @@ export async function startMascotScene(
       if (solo && c.key !== selected) continue;
       const t = time + offsets[c.key],
         place = positions[c.key];
+      const area =
+        !selected && !options.studio
+          ? c.air
+            ? bands.sky
+            : bands.lawn
+          : undefined;
+      const bandOrder = c.air ? airborneOrder : groundOrder;
+      const slot =
+        area && c.key !== "sun-phoenix"
+          ? roamingSlot(area, bandOrder.indexOf(c.key), bandOrder.length)
+          : undefined;
       const baseH = solo
         ? Math.min(height * 0.42, 258)
         : gallery
           ? Math.min((height - 330) * 0.35, 170)
           : options.studio
             ? 86
-            : normalH * (c.key === "eagle" ? 1.03 : 1);
-      const across = !solo && !gallery && !openField;
+            : c.key === "sun-phoenix"
+              ? sun.size
+              : (slot?.height ?? normalH * (c.key === "eagle" ? 1.03 : 1));
+      const across = !solo && !gallery && !openField && !slot;
+      const flightTop = header + 8,
+        flightBottom =
+          Math.min(card.bottom, height - 10) -
+          (groundBelow ? 8 : 2 * (normalH + 18) + 10),
+        flightLaneHeight = Math.max(0, flightBottom - flightTop) / 3,
+        flightY =
+          flightTop + (bandOrder.indexOf(c.key) + 0.5) * flightLaneHeight,
+        flightSway = Math.max(0, (flightLaneHeight - baseH * 1.3) / 2);
       const safelyCovered =
-        height * place.y - baseH * 0.6 - height * 0.08 > card.top &&
-        height * place.y + baseH * 0.6 + height * 0.08 < card.bottom;
+        flightY - baseH * 0.65 - flightSway - 2 > card.top &&
+        flightY + baseH * 0.65 + flightSway + 2 < card.bottom;
       const clock =
-        across && c.air && safelyCovered
+        across && c.air && c.key !== "sun-phoenix" && safelyCovered
           ? flightClockAt(c.key, t, card, width, (baseH * c.width) / c.height)
           : t;
-      const m = motionAt(c.key, clock, c.air);
+      const m = slot
+        ? roamingMotionAt(
+            c.key,
+            t,
+            slot.right - slot.left - baseH * 1.5 - 12,
+            baseH,
+            c.air,
+          )
+        : motionAt(c.key, clock, c.air);
       const depth =
-        c.air && !gallery
+        c.air && c.key !== "sun-phoenix" && !gallery
           ? 1 -
-            (c.key === "eagle" ? 0.43 : c.key === "sun-phoenix" ? 0.35 : 0.12) *
+            (c.key === "eagle" ? 0.43 : 0.12) *
               Math.sin(m.travelUnit * Math.PI) ** 2
           : 1;
       const speciesScale =
@@ -485,6 +620,11 @@ export async function startMascotScene(
           130 + ((height - 330) * (row + 0.94)) / 2,
         );
       }
+      if (slot) {
+        laneStart = slot.left + w * 0.25 + 6;
+        laneEnd = slot.right - w * 0.25 - 6;
+        y = (slot.top + slot.bottom) / 2;
+      }
       if (across && c.air) {
         laneStart = width * 0.035;
         laneEnd = width * 0.965;
@@ -497,9 +637,10 @@ export async function startMascotScene(
         thunderduck: 4,
       };
       const strideUV = gaitStride(c.key);
-      const span = c.air
-        ? availableSpan
-        : Math.min(availableSpan, w * strideUV * (strides[c.key] ?? 4));
+      const span =
+        c.air || slot
+          ? availableSpan
+          : Math.min(availableSpan, w * strideUV * (strides[c.key] ?? 4));
       const begin = laneStart + w / 2 + (availableSpan - span) / 2;
       let x = clamp(begin + span * m.progress, w / 2 + 3, width - w / 2 - 3);
       let phase = (m.travelUnit * span) / (w * strideUV);
@@ -519,7 +660,9 @@ export async function startMascotScene(
           action: crossing.action,
         });
       }
-      if (!c.air && !solo && !gallery) {
+      if (slot && !c.air) {
+        y = slot.bottom - h / 2 - 4;
+      } else if (!c.air && !solo && !gallery) {
         const bottom = Math.min(
           height - (options.studio ? 108 : 12),
           across ? card.bottom - 15 : height,
@@ -529,9 +672,21 @@ export async function startMascotScene(
       }
       const floorY = y + h / 2;
       if (c.air) {
-        y -= m.airY * height * (gallery ? 0.35 : 1);
+        if (across) {
+          y = flightY - (m.airY / 0.075) * flightSway;
+        } else {
+          y -=
+            m.airY *
+            (slot ? slot.bottom - slot.top : height) *
+            (gallery ? 0.35 : 1);
+        }
         if (c.key === "harvester-bee") y += Math.sin(t * 2.2) * 1.2;
-        if (!solo && !gallery) y = Math.max(header + h / 2 + 18, y);
+        if (!solo && !gallery && !slot)
+          y = clamp(
+            y,
+            Math.min(header + h / 2 + 8, height - h / 2 - 6),
+            height - h / 2 - 6,
+          );
       } else {
         // A planted gait has only a small vertical weight transfer.
         y -=
@@ -583,6 +738,15 @@ export async function startMascotScene(
         (acknowledge > 0
           ? Math.sin(((time - reaction) * Math.PI) / 1.2) * 1.2
           : 0);
+      const isSun = c.key === "sun-phoenix";
+      if (isSun && !solo && !gallery && !openField) {
+        x = sun.x;
+        y = sun.y;
+        m.action = "shine above the campuses";
+      }
+      // Keep the complete rotated drawing inside the viewport, including play poses.
+      x = clamp(x, w * 0.6 + 2, width - w * 0.6 - 2);
+      y = clamp(y, h * 0.6 + 2, height - h * 0.55 - 2);
       if (!c.air) {
         ctx.fillStyle = "#42644620";
         ctx.beginPath();
@@ -650,10 +814,12 @@ export async function startMascotScene(
       }
       if (c.key === "harvester-bee") {
         const flowerX = clamp(begin + span * 0.85, 8, width - 8),
-          flowerY =
-            (solo ? height * 0.45 : gallery ? y : height * place.y) +
-            h * 0.65 +
-            10;
+          flowerY = Math.min(
+            slot ? slot.bottom - 12 : height - 12,
+            (solo ? height * 0.45 : gallery || slot ? y : height * place.y) +
+              h * 0.65 +
+              10,
+          );
         ctx.strokeStyle = "#619857";
         ctx.lineWidth = 1.2;
         ctx.beginPath();
@@ -688,10 +854,11 @@ export async function startMascotScene(
         y,
         w,
         h,
-        angle,
-        facing: m.facing,
+        angle: isSun ? 0 : angle,
+        facing: isSun ? 1 : m.facing,
         strength: paused && reduced.matches ? 0 : 1,
       });
+      if (c.key === "thunderduck") duckPulse = m.pulse;
       actions.push(c.name + ": " + m.action);
       bounds.push(
         c.key +
@@ -718,14 +885,10 @@ export async function startMascotScene(
       }
     for (const p of items)
       if (p.art.key === "thunderduck") {
-        const duck =
-            !solo && !gallery && !openField
-              ? crossingAt("thunderduck", time, card, width, p.w, p.h)
-              : motionAt("thunderduck", time + offsets.thunderduck),
-          flash = Math.max(
-            duck.pulse,
-            Math.max(0, Math.sin((time + 2) * 1.6)) ** 12,
-          );
+        const flash = Math.max(
+          duckPulse,
+          Math.max(0, Math.sin((time + 2) * 1.6)) ** 12,
+        );
         ctx.save();
         ctx.globalAlpha = 0.16 + 0.84 * flash;
         ctx.translate(p.x + p.facing * (p.w * 0.53 + 3), p.y - p.h * 0.13);
@@ -756,6 +919,7 @@ export async function startMascotScene(
         actions: actions.join(" / "),
         personalities: JSON.stringify(personality),
         bounds: bounds.join(";"),
+        viewport: `${width},${height}`,
         sceneTime: time.toFixed(2),
         frame: String(frame),
         drawMs: duration.toFixed(2),
@@ -813,11 +977,23 @@ export async function startMascotScene(
           bottom: r.bottom - b.top,
         }
       : undefined;
-    header =
-      ((
-        root.querySelector('[aria-label="Choose a style"]') ??
-        root.querySelector("header")
-      )?.getBoundingClientRect().bottom ?? b.top) - b.top;
+    const topBar = root.querySelector(
+      '[aria-label="Choose a style"]',
+    )?.parentElement;
+    const heading = topBar?.getBoundingClientRect();
+    const brand = root
+      .querySelector('img[alt="Success Coach"]')
+      ?.getBoundingClientRect();
+    headerTop =
+      Math.min(heading?.top ?? b.top, brand?.top ?? heading?.top ?? b.top) -
+      b.top;
+    header = Math.max(heading?.bottom ?? b.top, brand?.bottom ?? b.top) - b.top;
+    canvas.parentElement?.style.setProperty(
+      "--campus-height",
+      `${campusHorizonHeight(width, height, headerTop)}px`,
+    );
+    if (obstacle) resizeObserver.observe(obstacle);
+    if (topBar) resizeObserver.observe(topBar);
     sync();
   };
   const preference = () => {
@@ -833,6 +1009,8 @@ export async function startMascotScene(
   };
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvas);
+  const sceneRoot = canvas.closest("main");
+  if (sceneRoot) resizeObserver.observe(sceneRoot);
   const intersection = new IntersectionObserver(([e]) => {
     visible = e.isIntersecting;
     sync();

@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%"><title>Seven Dallas College campuses and Dallas landmarks on green hills</title><desc>Individually scaled campus clusters spread across the full viewport. Only the terrain stretches; buildings keep their proportions.</desc>
+<defs>
+  <linearGradient id="campus-meadow" x2="0" y2="1"><stop stop-color="#9bc972"/><stop offset=".65" stop-color="#bce58f"/><stop offset="1" stop-color="#d8f3b9" stop-opacity="0"/></linearGradient>
+  <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#5aa0b7"/><stop offset="1" stop-color="#b8e5df"/></linearGradient>
+  <pattern id="brick" width="28" height="14" patternUnits="userSpaceOnUse"><rect width="28" height="14" fill="#d8b991"/><path d="M0 0h28M0 7h28M0 14h28M14 0v7M0 7v7M28 7v7" fill="none" stroke="#c2a384" stroke-width=".7"/></pattern>
+  <pattern id="windows" width="27" height="34" patternUnits="userSpaceOnUse"><rect width="27" height="34" fill="url(#glass)"/><path d="M0 0h27v34H0Z" fill="none" stroke="#eef5e7" stroke-width="2"/></pattern>
+  <g id="tree"><path d="M0 0v-79m0 22-18-19m18 7 19-23" fill="none" stroke="#baa077" stroke-width="7" stroke-linecap="round"/><path d="M-33-57c-24-12-18-37 1-42-6-25 21-44 40-32 19-9 41 9 37 26 28 7 24 41 3 47-16 13-27 5-37 8-18 9-31 6-44-7Z" fill="#9bd286"/><path d="M-35-98c-5 22 9 35 30 36 9 14 29 14 46 6-14 18-33 13-41 7-17 9-37 3-44-10-15-8-12-30 9-39Z" fill="#7fc174" opacity=".6"/></g>
+  <g id="brookhaven"><path d="M0 28h85v46H0Zm119-21h45v67h-45Z" fill="#d4b38a"/><path d="M6 32h63v37H6Zm81 3h30v36H87Z" fill="url(#windows)"/><path d="M83 29h37v7H83ZM-2 23h90v6H-2Z" fill="#7e9998"/><path d="m3 72 27-25h22v25Z" fill="#dcbd94"/><path d="M121 45h43v29h-43Z" fill="#ba9766"/><path d="M122 8h42v4h-42Z" fill="#e8dbc2"/></g>
+  <g id="cedar-valley"><path d="M0 25h39v49H0Zm38 14h40v60H38Zm82 8h55v52h-55Z" fill="#c4d4d7"/><path d="M4 28h30v41H4Zm40 13h26v39H44Zm80 6h47v37h-47Z" fill="url(#windows)"/><path d="M78 0h8v74h-8Zm30 0h8v74h-8ZM78 0h38v8H78Z" fill="#db6473"/><path d="M86 9h22v64H86Z" fill="url(#windows)"/><path d="M72 49h48v4H72Z" fill="#eef4e8"/><path d="M5 26h29v6H5Zm0 14h29v6H5Zm0 14h29v6H5Z" fill="#eac9c5"/></g>
+  <g id="eastfield"><path d="M0 18h175v43H0Z" fill="url(#windows)"/><path d="M-3 10h181v8H-3ZM106 61h61v13h-61Z" fill="#e7e4ce"/><path d="M0 18h175v9H0Z" fill="#a0c7c8"/><path d="M4 18v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46m8-46v46" stroke="#e4ece0" stroke-width="2"/><path d="M12 61h34v13H12Z" fill="#d2c9ac"/></g>
+  <g id="mountain-view"><path d="M4 47h158v27H4Z" fill="#e3cda5"/><path d="M8 37h150v16H8Zm18-18h114v17H26ZM45 2h77v17H45Z" fill="url(#windows)"/><path d="M0 52h165v5H0Zm19-19h128v5H19ZM39 17h88v5H39Z" fill="#f0efdb"/><path d="M116-22v47m13-47v47m-17-47h21m-18 10h16m-16 10h16m-16 10h16" fill="none" stroke="#9eaca0" stroke-width="2"/><path d="M118-12h9v10h-9Z" fill="#91b8bc"/></g>
+  <g id="north-lake"><path d="M0 8h96v66H0Z" fill="#c3a07d"/><path d="M12 14h66v7H12Zm11 22h38v29H23Z" fill="url(#windows)"/><path d="M-2 26h101v4H-2Z" fill="#e3deca"/><path d="M91 9q37-18 71 0v59q-36 17-71 0Z" fill="#c7a989"/><path d="M91 32q37 15 71 0v19q-36 15-71 0Z" fill="#97c9ab"/><path d="M101 36v18m11-16v19m11-18v19m11-19v18m11-19v17m10-21v17" stroke="#ebebd9" stroke-width="1.5"/><path d="M90 8q37-18 74 0" fill="none" stroke="#e4d9be" stroke-width="4"/></g>
+<g id="el-centro">
+  <path d="m8 258 235-16 96 28-79 32L-12 280Z" fill="#687b71" opacity=".17"/>
+  <path d="m207 30 48-17 39 10v237l-39 16-48-17Z" fill="#a9967d"/><path d="M207 30h49v246h-49Z" fill="url(#brick)"/>
+  <path d="m204 25 51-17 43 11-42 17Z" fill="#d8cfbb"/><path d="M202 25h56v9h-56Z" fill="#e3dac8"/>
+  <path d="M215 48h11v25h-11Zm22 0h11v25h-11ZM215 89h11v25h-11Zm22 0h11v25h-11ZM215 130h11v25h-11Zm22 0h11v25h-11ZM215 171h11v25h-11Zm22 0h11v25h-11ZM215 212h11v25h-11Zm22 0h11v25h-11Z" fill="#527a83" stroke="#d8cbb2" stroke-width="3"/>
+  <path d="m12 113 122-21 77 15v157L12 278Z" fill="#a9977c"/><path d="M12 115h124v157H12Z" fill="url(#brick)"/><path d="M10 108h128v8H10Z" fill="#ded5c2"/>
+  <path d="M22 128h103v32H22Zm0 49h103v32H22Zm0 49h103v31H22Z" fill="url(#windows)"/><path d="M18 116v156m42-156v156m41-156v156m31-156v156" stroke="#e0d6be" stroke-width="4"/>
+  <path d="M135 111q37-16 69 0v157q-34 16-69 0Z" fill="url(#glass)"/><path d="M135 114q36-17 69 0m-69 50q36-17 69 0m-69 50q36-17 69 0m-69 53q36 16 69 0" fill="none" stroke="#c6b89b" stroke-width="9"/>
+  <path d="M137 108v162m21-167v171m24-171v171m20-165v161" stroke="#e0d9c6" stroke-width="3"/><path d="M145 241h48v35h-48Z" fill="#365865"/><path d="M160 243v32m17-32v32" stroke="#b6c6c4" stroke-width="2"/>
+  <path d="m131 232 68-4 17 8-73 7Z" fill="#3c5e66"/><path d="M132 237h79v13h-79Z" fill="#3c5e66"/>
+  <text x="171" y="246" fill="#f0eddb" font-family="Arial,sans-serif" font-size="7.5" text-anchor="middle" letter-spacing=".7">EL CENTRO</text>
+  <path d="M135 277h68v4h-68Zm-6 4h80v4h-80Zm-6 4h92v4h-92Z" fill="#d7d3bc"/>
+  <path d="M29 285V158m30 127V156m30 129V158" stroke="#a9b5b0" stroke-width="2"/>
+  <path d="M30 160h13v26H30Z" fill="#b97070"/><path d="M60 158h13v26H60Z" fill="#f3eee0"/><path d="M90 160h13v26H90Z" fill="#6387a0"/>
+</g>
+<g id="richland">
+  <path d="m-15 227 297-3 42 27-278 17Z" fill="#687b71" opacity=".17"/>
+  <path d="m-4 45 72-13 222 21v167L-4 234Z" fill="#a7ad9f"/><path d="M1 52h83v173H1Zm188-9h91v182h-91Z" fill="#d1caba"/>
+  <path d="M9 70h67v139H9Zm189-4h80v143h-80Z" fill="url(#windows)"/><path d="M83 29h106v196H83Z" fill="#49656a"/><path d="M91 36h90v189H91Z" fill="url(#windows)"/>
+  <path d="M80 26h112v7H80Z" fill="#c0cbc5"/><path d="M94 36v189m82-189v189" stroke="#e0e4d8" stroke-width="4"/>
+  <path d="m65 92 142-2 30 27H43Z" fill="#c8d2c9"/><path d="m68 93-18 21m32-21-14 21m28-21-10 21m24-21-6 21m20-21-2 21m16-21 2 21m12-21 6 21m8-21 10 21m4-21 14 21m0-21 18 21" stroke="#f1f0e1" stroke-width="3"/>
+  <path d="M43 116h194v7H43Z" fill="#8caaa8"/><path d="M59 123v111m162-111v111" stroke="#bcc8bf" stroke-width="4"/>
+  <path d="M101 177h69v49h-69Z" fill="#476c75"/><path d="M123 179v45m24-45v45" stroke="#c5d4cf" stroke-width="3"/>
+  <rect x="85" y="137" width="103" height="15" rx="1" fill="#4e6a70"/><text x="136" y="147.5" fill="#eeeedb" font-family="Arial,sans-serif" font-size="8" text-anchor="middle" letter-spacing="1">SABINE HALL</text>
+  <path d="M60 232h158v5H60Zm-7 5h172v5H53Zm-7 5h186v5H46Z" fill="#d6d5c3"/>
+  <g fill="#bebdad"><circle cx="49" cy="239" r="8"/><circle cx="227" cy="239" r="8"/></g>
+</g>
+</defs>
+<svg x="34%" y="0" width="34%" height="49%" viewBox="600 14 410 111" preserveAspectRatio="xMidYMax meet"><g opacity=".65" fill="#95c7d0" stroke="#c2e5e8" stroke-width="1.5">
+  <path d="M617 112V67h5v45Z"/><circle cx="619.5" cy="54" r="14"/>
+  <ellipse cx="619.5" cy="54" rx="14" ry="5" fill="none"/><ellipse cx="619.5" cy="54" rx="5" ry="14" fill="none"/>
+  <path d="M666 114V24l17-4 16 5v89Z" fill="#98c9c9" stroke="#b3ddb0" stroke-width="2"/>
+  <path d="M671 32h21m-21 9h21m-21 9h21m-21 9h21m-21 9h21m-21 9h21m-21 9h21m-21 9h21"/>
+  <path d="M639 116V78h17v38m49 0V65h24v51m13 0V45l9-10 9 10v71m8 0V87h25v29m13 0V70h17v46"/>
+  <path d="m798 111-8-20h67l-9 20Zm-2-15h55m-51 6h46m-42 6h37" fill="#b1d3c6"/>
+  <path d="M884 118h114m-95 0q27-85 54 0m-59 0 32-64 32 64m-41-49v48m18-48v48m-41 0 32-64 55 64" fill="none" stroke="#f8fbea" stroke-width="3"/>
+ </g></svg>
+<svg width="100%" height="100%" viewBox="0 0 1440 275" preserveAspectRatio="none"><path d="M0 151Q81 122 188 155T333 143Q431 101 524 118T713 155Q850 184 966 137T1141 108Q1260 151 1440 163V275H0Z" fill="url(#campus-meadow)"/></svg>
+<svg x="0.5%" y="27%" width="13.5%" height="65%" viewBox="-18 -28 210 132" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="87" cy="82" rx="88.2" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 82) scale(0.3444)"/><use href="#brookhaven"/><use href="#tree" transform="translate(182 79) scale(0.3108)"/>
+<text x="87" y="98" font-family="Arial,sans-serif" font-size="11.76" text-anchor="middle" fill="#426d53">Brookhaven</text></svg>
+<svg x="14%" y="34%" width="13.5%" height="66%" viewBox="-18 -18 212 139" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="88" cy="100" rx="89.04" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 100) scale(0.34768)"/><use href="#cedar-valley"/><use href="#tree" transform="translate(184 97) scale(0.31376)"/>
+<text x="88" y="116" font-family="Arial,sans-serif" font-size="11.872" text-anchor="middle" fill="#426d53">Cedar Valley</text></svg>
+<svg x="28.2%" y="12%" width="13%" height="64%" viewBox="-18 -25 215 128" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="89.5" cy="82" rx="90.3" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 82) scale(0.3526)"/><use href="#eastfield"/><use href="#tree" transform="translate(187 79) scale(0.3182)"/>
+<text x="89.5" y="98" font-family="Arial,sans-serif" font-size="12.04" text-anchor="middle" fill="#426d53">Eastfield</text></svg>
+<svg x="42%" y="21%" width="13.5%" height="74%" viewBox="-18 -16 360 337" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="162" cy="299" rx="151.2" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 299) scale(0.5904)"/><use href="#el-centro"/><use href="#tree" transform="translate(332 296) scale(0.5328)"/>
+<text x="162" y="315" font-family="Arial,sans-serif" font-size="20.16" text-anchor="middle" fill="#426d53">El Centro</text></svg>
+<svg x="55.8%" y="6%" width="13%" height="66%" viewBox="-18 -32 204 138" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="84" cy="80" rx="85.68" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 80) scale(0.33456)"/><use href="#mountain-view"/><use href="#tree" transform="translate(176 77) scale(0.30192)"/>
+<text x="84" y="96" font-family="Arial,sans-serif" font-size="11.424" text-anchor="middle" fill="#426d53">Mountain View</text></svg>
+<svg x="70.2%" y="30%" width="13.5%" height="69%" viewBox="-18 -26 205 131" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="84.5" cy="81" rx="86.1" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 81) scale(0.3362)"/><use href="#north-lake"/><use href="#tree" transform="translate(177 78) scale(0.3034)"/>
+<text x="84.5" y="97" font-family="Arial,sans-serif" font-size="11.48" text-anchor="middle" fill="#426d53">North Lake</text></svg>
+<svg x="85%" y="22%" width="14.5%" height="75%" viewBox="-12 0 310 280" preserveAspectRatio="xMidYMax meet">
+<ellipse cx="143" cy="254" rx="130.2" ry="6" fill="#56823f" opacity=".22"/><use href="#tree" transform="translate(-3 254) scale(0.5084)"/><use href="#richland"/><use href="#tree" transform="translate(282 251) scale(0.4588)"/>
+<text x="143" y="270" font-family="Arial,sans-serif" font-size="17.36" text-anchor="middle" fill="#426d53">Richland</text></svg>
+</svg>

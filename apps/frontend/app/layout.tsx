@@ -11,8 +11,8 @@ export const metadata: Metadata = {
     "Plan your Dallas College classes in about a minute. Major lines up requirements, prerequisites, and transfer credits from the official catalog.",
 };
 
-// No forced colour-scheme: the browser/user preference is respected. The look is
-// chosen by the student in the mode picker (including a dark option).
+// Simple, Playful and Focus are independent of color mode. CSS follows the
+// system preference from first paint; the printed coach sheet remains light.
 
 export default function RootLayout({
   children,

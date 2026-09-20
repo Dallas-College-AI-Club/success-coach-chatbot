@@ -66,35 +66,13 @@ export function articulatedPoint(
       -stroke,
       smooth((x - 0.67) / 0.24) * upper,
     );
-  } else if (key === "sun-phoenix") {
-    const stroke = Math.sin(t * 5.2) * 12 * strength,
-      mask = smooth((0.73 - y) / 0.16);
-    p = rotate(
-      p,
-      { x: 0.39, y: 0.49 },
-      stroke,
-      smooth((0.39 - x) / 0.22) * mask,
-    );
-    p = rotate(
-      p,
-      { x: 0.66, y: 0.47 },
-      -stroke,
-      smooth((x - 0.65) / 0.23) * mask,
-    );
-    const tail = smooth((y - 0.62) / 0.18) * smooth((0.48 - x) / 0.18);
-    p = rotate(
-      p,
-      { x: 0.43, y: 0.73 },
-      Math.sin(t * 3.2 - 0.7) * 3 * strength,
-      tail,
-    );
   } else if (key === "harvester-bee") {
     const wing = smooth((0.61 - x) / 0.18) * smooth((0.61 - y) / 0.16);
     const stroke = Math.sin(t * 47) * 9 * strength;
     p = rotate(p, { x: 0.55, y: 0.54 }, stroke, wing);
   } else if (key === "blazer-stallion" || key === "lion") {
     const horse = key === "blazer-stallion",
-      centers = horse ? [0.2, 0.43, 0.64, 0.83] : [0.21, 0.44, 0.66, 0.88];
+      centers = horse ? [0.22, 0.49, 0.69, 0.91] : [0.21, 0.44, 0.66, 0.88];
     const root = horse ? 0.72 : 0.77,
       weight = smooth((y - root) / (0.94 - root));
     const offsets = horse ? [0, 0.5, 0.5, 0] : [0.5, 0.6, 0, 0.1];
@@ -129,7 +107,7 @@ export function articulatedPoint(
       smooth((0.86 - y) / 0.13);
     p = rotate(
       p,
-      { x: horse ? 0.26 : 0.29, y: horse ? 0.6 : 0.69 },
+      { x: 0.29, y: horse ? 0.63 : 0.69 },
       Math.sin(phase * Math.PI * 2 - 0.6) * 2.5 * strength * run,
       tailMask,
     );
@@ -195,8 +173,9 @@ const eyes: Record<string, Eyes> = {
     offset: 0.6,
   },
   "blazer-stallion": {
-    centers: [0.649, 0.299, 0.851, 0.288],
-    radii: [0.065, 0.04, 0.03, 0.04],
+    // This profile has one visible eye; keep the second mask outside the image.
+    centers: [0.805, 0.252, -1, -1],
+    radii: [0.04, 0.027, 0.01, 0.01],
     period: 6.4,
     offset: 1.9,
   },
@@ -213,8 +192,8 @@ const eyes: Record<string, Eyes> = {
     offset: 2.6,
   },
   "sun-phoenix": {
-    centers: [0.487, 0.303, 0.669, 0.301],
-    radii: [0.054, 0.05, 0.032, 0.044],
+    centers: [0.461, 0.477, 0.727, 0.528],
+    radii: [0.069, 0.082, 0.045, 0.068],
     period: 4.8,
     offset: 4.2,
   },

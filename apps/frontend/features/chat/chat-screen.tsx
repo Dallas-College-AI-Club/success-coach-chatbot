@@ -148,7 +148,7 @@ const Turn = memo(function Turn({
               className={cn(skin.bubble, "whitespace-normal")}
             >
               {courseRows && part.text.length > 300 ? (
-                <details>
+                <details open>
                   <summary className={`${skin.link} cursor-pointer`}>
                     Major&apos;s explanation
                   </summary>

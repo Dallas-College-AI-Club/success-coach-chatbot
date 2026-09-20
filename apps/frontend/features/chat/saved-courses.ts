@@ -7,7 +7,8 @@ import {
   isSheetWorthyQuestion,
   summarizeSheetQuestion,
 } from "@/features/chat/sheet-questions";
-import { readCourseDetails } from "@/lib/course-details";
+import { catalogText, isRecord, readCourseDetails } from "@/lib/course-details";
+import { citationHref } from "@/lib/constants";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -28,6 +29,61 @@ export interface SavedCourse {
   campus_locations?: string | null;
   catalog_year?: string | null;
   source_url?: string;
+  sections?: SavedSection[];
+}
+
+export interface SavedSection {
+  section_number: string | null;
+  term: string | null;
+  professor: string | null;
+  campus: string | null;
+  modality: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  meets: string[];
+  meeting_info_raw: string | null;
+  source_url: string;
+}
+
+export function readSavedSection(raw: unknown): SavedSection | null {
+  if (!isRecord(raw)) return null;
+  const source = citationHref(raw.source_url);
+  if (!source) return null;
+  return {
+    section_number: catalogText(raw.section_number),
+    term: catalogText(raw.term),
+    professor: catalogText(raw.professor),
+    campus: catalogText(raw.campus),
+    modality: catalogText(raw.modality),
+    start_date: catalogText(raw.start_date),
+    end_date: catalogText(raw.end_date),
+    meets: [
+      ...new Set(
+        (Array.isArray(raw.meets) ? raw.meets : [])
+          .map(catalogText)
+          .filter((s): s is string => !!s),
+      ),
+    ],
+    meeting_info_raw: catalogText(raw.meeting_info_raw),
+    source_url: source,
+  };
+}
+
+export const savedSectionKey = (section: SavedSection) =>
+  JSON.stringify([section.source_url, section.term, section.section_number]);
+
+function readSavedCourse(raw: unknown): SavedCourse | null {
+  const course = readCourseDetails(raw);
+  if (!course || !isRecord(raw)) return null;
+  const sections = (Array.isArray(raw.sections) ? raw.sections : [])
+    .map(readSavedSection)
+    .filter((s): s is SavedSection => s !== null);
+  return {
+    ...course,
+    sections: [
+      ...new Map(sections.map((s) => [savedSectionKey(s), s])).values(),
+    ],
+  };
 }
 
 interface SavedCoursesState {
@@ -35,6 +91,7 @@ interface SavedCoursesState {
   /** Typed questions or contextual starter labels, without model instructions. */
   questions: string[];
   toggle: (course: SavedCourse) => void;
+  toggleSection: (course: SavedCourse, section: unknown) => void;
   remove: (courseCode: string) => void;
   addQuestion: (q: string) => void;
   removeQuestion: (index: number) => void;
@@ -53,7 +110,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
       courses: [],
       questions: [],
       toggle: (raw) => {
-        const course = readCourseDetails(raw);
+        const course = readSavedCourse(raw);
         if (!course) return;
         const has = get().courses.some(
           (c) => c.course_code === course.course_code,
@@ -62,6 +119,26 @@ export const useSavedCourses = create<SavedCoursesState>()(
           courses: has
             ? get().courses.filter((c) => c.course_code !== course.course_code)
             : [...get().courses, course],
+        });
+      },
+      toggleSection: (rawCourse, rawSection) => {
+        const course = readSavedCourse(rawCourse);
+        const section = readSavedSection(rawSection);
+        if (!course || !section) return;
+        const current = get().courses;
+        const saved = current.find((c) => c.course_code === course.course_code);
+        const sections = saved?.sections ?? [];
+        const key = savedSectionKey(section);
+        const next = {
+          ...(saved ?? course),
+          sections: sections.some((s) => savedSectionKey(s) === key)
+            ? sections.filter((s) => savedSectionKey(s) !== key)
+            : [...sections, section],
+        };
+        set({
+          courses: saved
+            ? current.map((c) => (c === saved ? next : c))
+            : [...current, next],
         });
       },
       remove: (courseCode) =>
@@ -119,7 +196,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
           | undefined;
         const courses = Array.isArray(p?.courses)
           ? p.courses.flatMap((raw) => {
-              const course = readCourseDetails(raw);
+              const course = readSavedCourse(raw);
               return course ? [course] : [];
             })
           : [];

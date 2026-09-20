@@ -1,59 +1,38 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000" preserveAspectRatio="none">
-<title>Dallas campus courtyard</title>
-<desc>Illustrated Dallas skyline, El Centro entrance and Richland Sabine Hall, inspired by the AI Club Dallas Drive game. Decorative scenery, not a campus map.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%">
+<title>A sunny meadow and lake</title>
+<desc>Responsive grassy terrain, lake, trees and flowers. Buildings are layered separately so the chat can keep its position.</desc>
 <defs>
-  <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#d7e8ee"/><stop offset="1" stop-color="#f8f2e4"/></linearGradient>
-  <linearGradient id="glass" x2="1" y2="1"><stop stop-color="#496f80"/><stop offset=".5" stop-color="#7299a2"/><stop offset="1" stop-color="#a6bdba"/></linearGradient>
-  <linearGradient id="lawn" x2="0" y2="1"><stop stop-color="#aec29b"/><stop offset="1" stop-color="#90ab82"/></linearGradient>
-  <pattern id="brick" width="28" height="14" patternUnits="userSpaceOnUse"><rect width="28" height="14" fill="#c0ab8a"/><path d="M0 0h28M0 7h28M0 14h28M14 0v7M0 7v7M28 7v7" fill="none" stroke="#a9987e" stroke-width=".7" opacity=".55"/></pattern>
-  <pattern id="windows" width="27" height="34" patternUnits="userSpaceOnUse"><rect width="27" height="34" fill="url(#glass)"/><path d="M0 0h27v34H0Z" fill="none" stroke="#d4ddd6" stroke-width="2"/><path d="M2 23 25 7" stroke="#f3f6ee" stroke-width="3" opacity=".12"/></pattern>
-  <g id="oak"><ellipse cy="5" rx="38" ry="9" fill="#536d5d" opacity=".12"/><path d="M0 0v-100m0 37-21-25m21 7 23-24" fill="none" stroke="#8e8167" stroke-width="9" stroke-linecap="round"/><path d="M-43-68c-31-15-24-47 1-54-8-33 27-58 52-43 25-11 54 12 49 34 36 10 31 53 4 61-21 17-36 7-48 10-24 12-41 8-58-8Z" fill="#88a987"/><path d="M-46-122c-7 29 11 45 39 46 11 18 37 18 59 8-18 24-42 17-53 10-22 12-48 4-57-13-19-10-15-38 12-51Z" fill="#759778" opacity=".55"/></g>
-  <g id="lamp" fill="#4b6667"><path d="M-2 0v-104h4V0Z"/><path d="M-14-113h28l-3 15h-22Z"/><rect x="-10" y="-110" width="20" height="9" rx="2" fill="#f6ecc9"/><path d="m-16-113 16-7 16 7Z"/></g>
+  <linearGradient id="lawn" x2="0" y2="1"><stop stop-color="#d1f2ac"/><stop offset=".5" stop-color="#b5e78f"/><stop offset="1" stop-color="#8dd172"/></linearGradient>
+  <linearGradient id="water" x2="0" y2="1"><stop stop-color="#a2e8ee"/><stop offset="1" stop-color="#58c9e2"/></linearGradient>
+  <g id="flower"><path d="M0 0q-3-12 0-25m-1 17q-8 0-8-6 7 0 8 6" stroke="#68a65b" stroke-width="2" fill="#80ba66"/><g fill="currentColor"><ellipse cy="-29" rx="4" ry="7"/><ellipse cx="6" cy="-24" rx="7" ry="4" transform="rotate(-25 6 -24)"/><ellipse cx="4" cy="-17" rx="4" ry="7" transform="rotate(-30 4 -17)"/><ellipse cx="-4" cy="-17" rx="4" ry="7" transform="rotate(30 -4 -17)"/><ellipse cx="-6" cy="-24" rx="7" ry="4" transform="rotate(25 -6 -24)"/></g><circle cy="-23" r="4" fill="#ffce4b"/></g>
+  <g id="grass" stroke="#75b46a" stroke-width="2" stroke-linecap="round" fill="none"><path d="M0 0q-1-11-6-16M0 0q2-14 8-20M0 0q7-7 11-7"/></g>
+  <g id="tree"><path d="M0 0v-79m0 22-18-19m18 7 19-23" fill="none" stroke="#baa077" stroke-width="7" stroke-linecap="round"/><path d="M-33-57c-24-12-18-37 1-42-6-25 21-44 40-32 19-9 41 9 37 26 28 7 24 41 3 47-16 13-27 5-37 8-18 9-31 6-44-7Z" fill="#9bd286"/><path d="M-35-98c-5 22 9 35 30 36 9 14 29 14 46 6-14 18-33 13-41 7-17 9-37 3-44-10-15-8-12-30 9-39Z" fill="#7fc174" opacity=".6"/></g>
 </defs>
-<rect width="1440" height="1000" fill="url(#sky)"/>
-<g fill="#fff" opacity=".48"><path d="M26 160c24-24 44-4 60-13 29-24 50-11 65 3 25-8 48-2 57 10Z"/><path d="M1163 117c29-22 45-5 68-17 32-17 45-6 62 9 37-9 60 1 73 8Z"/></g>
-<!-- Distant Dallas silhouettes: Reunion Tower and the angular downtown skyline. -->
-<g fill="#9db4b8" opacity=".42">
-  <path d="M0 440V325h41v-31h34v146h26V267l24-17 28 17v173h22V310h50v130h30V345h60v95h21V276h51v164h41V355h43v85Z"/>
-  <path d="M1006 444V350h41v94h21V256l22-20v-35h36v243h18V294l18-25h45v175h29V307h46v137h27V335h47v109h21V373h43v71Z"/>
-  <path d="M219 395V231h6v164Z"/><circle cx="222" cy="214" r="25"/><path d="M233 235h-22l4 13h14Z"/>
-</g>
-<g fill="none" stroke="#d4e2df" opacity=".7" stroke-width="1.5"><ellipse cx="222" cy="214" rx="25" ry="9"/><ellipse cx="222" cy="214" rx="12" ry="25"/><path d="M197 214h50m-25-25v50"/></g>
-<path d="M0 455q350-25 715-4t725-6v555H0Z" fill="#b3c5aa"/><path d="M0 629 440 604 1000 613 1440 636v364H0Z" fill="url(#lawn)"/>
-<!-- El Centro: tan masonry, taller east tower and a curved blue-glass entrance. -->
-<g transform="translate(12 362)">
-  <path d="m8 258 235-16 96 28-79 32L-12 280Z" fill="#687b71" opacity=".17"/>
-  <path d="m207 30 48-17 39 10v237l-39 16-48-17Z" fill="#a9967d"/><path d="M207 30h49v246h-49Z" fill="url(#brick)"/>
-  <path d="m204 25 51-17 43 11-42 17Z" fill="#d8cfbb"/><path d="M202 25h56v9h-56Z" fill="#e3dac8"/>
-  <path d="M215 48h11v25h-11Zm22 0h11v25h-11ZM215 89h11v25h-11Zm22 0h11v25h-11ZM215 130h11v25h-11Zm22 0h11v25h-11ZM215 171h11v25h-11Zm22 0h11v25h-11ZM215 212h11v25h-11Zm22 0h11v25h-11Z" fill="#527a83" stroke="#d8cbb2" stroke-width="3"/>
-  <path d="m12 113 122-21 77 15v157L12 278Z" fill="#a9977c"/><path d="M12 115h124v157H12Z" fill="url(#brick)"/><path d="M10 108h128v8H10Z" fill="#ded5c2"/>
-  <path d="M22 128h103v32H22Zm0 49h103v32H22Zm0 49h103v31H22Z" fill="url(#windows)"/><path d="M18 116v156m42-156v156m41-156v156m31-156v156" stroke="#e0d6be" stroke-width="4"/>
-  <path d="M135 111q37-16 69 0v157q-34 16-69 0Z" fill="url(#glass)"/><path d="M135 114q36-17 69 0m-69 50q36-17 69 0m-69 50q36-17 69 0m-69 53q36 16 69 0" fill="none" stroke="#c6b89b" stroke-width="9"/>
-  <path d="M137 108v162m21-167v171m24-171v171m20-165v161" stroke="#e0d9c6" stroke-width="3"/><path d="M145 241h48v35h-48Z" fill="#365865"/><path d="M160 243v32m17-32v32" stroke="#b6c6c4" stroke-width="2"/>
-  <path d="m131 232 68-4 17 8-73 7Z" fill="#3c5e66"/><path d="M132 237h79v13h-79Z" fill="#3c5e66"/>
-  <text x="171" y="246" fill="#f0eddb" font-family="Arial,sans-serif" font-size="7.5" text-anchor="middle" letter-spacing=".7">EL CENTRO</text>
-  <path d="M135 277h68v4h-68Zm-6 4h80v4h-80Zm-6 4h92v4h-92Z" fill="#d7d3bc"/>
-  <path d="M29 285V158m30 127V156m30 129V158" stroke="#a9b5b0" stroke-width="2"/>
-  <path d="M30 160h13v26H30Z" fill="#b97070"/><path d="M60 158h13v26H60Z" fill="#f3eee0"/><path d="M90 160h13v26H90Z" fill="#6387a0"/>
-</g>
-<!-- Richland Sabine Hall: stone wings, a tall glass atrium and a slatted canopy. -->
-<g transform="translate(1128 421)">
-  <path d="m-15 227 297-3 42 27-278 17Z" fill="#687b71" opacity=".17"/>
-  <path d="m-4 45 72-13 222 21v167L-4 234Z" fill="#a7ad9f"/><path d="M1 52h83v173H1Zm188-9h91v182h-91Z" fill="#d1caba"/>
-  <path d="M9 70h67v139H9Zm189-4h80v143h-80Z" fill="url(#windows)"/><path d="M83 29h106v196H83Z" fill="#49656a"/><path d="M91 36h90v189H91Z" fill="url(#windows)"/>
-  <path d="M80 26h112v7H80Z" fill="#c0cbc5"/><path d="M94 36v189m82-189v189" stroke="#e0e4d8" stroke-width="4"/>
-  <path d="m65 92 142-2 30 27H43Z" fill="#c8d2c9"/><path d="m68 93-18 21m32-21-14 21m28-21-10 21m24-21-6 21m20-21-2 21m16-21 2 21m12-21 6 21m8-21 10 21m4-21 14 21m0-21 18 21" stroke="#f1f0e1" stroke-width="3"/>
-  <path d="M43 116h194v7H43Z" fill="#8caaa8"/><path d="M59 123v111m162-111v111" stroke="#bcc8bf" stroke-width="4"/>
-  <path d="M101 177h69v49h-69Z" fill="#476c75"/><path d="M123 179v45m24-45v45" stroke="#c5d4cf" stroke-width="3"/>
-  <rect x="85" y="137" width="103" height="15" rx="1" fill="#4e6a70"/><text x="136" y="147.5" fill="#eeeedb" font-family="Arial,sans-serif" font-size="8" text-anchor="middle" letter-spacing="1">SABINE HALL</text>
-  <path d="M60 232h158v5H60Zm-7 5h172v5H53Zm-7 5h186v5H46Z" fill="#d6d5c3"/>
-  <g fill="#bebdad"><circle cx="49" cy="239" r="8"/><circle cx="227" cy="239" r="8"/></g>
-</g>
-<!-- Quiet paths leave the foreground to the mascots and the center to the UI. -->
-<path d="m0 705 364-70 363 2 367 19 346 83v47l-364-91-349-13-355-2L0 749Z" fill="#d8d7c4"/>
-<path d="m0 900 509-169h418l513 164v105H0Z" fill="#e5deca"/>
-<path d="m0 957 521-184m919 169-520-169M438 805h560M247 870h947M42 942h1364" fill="none" stroke="#c8c6b3" stroke-width="2" opacity=".6"/>
-<path d="M0 1000V912l367-115 61 45L90 1000Zm1440 0V912l-348-111-64 46 329 153Z" fill="#8daa82"/>
-<use href="#oak" transform="translate(14 721) scale(.85)"/><use href="#oak" transform="translate(1430 726) scale(.92)"/>
-<use href="#lamp" transform="translate(297 716) scale(.88)"/><use href="#lamp" transform="translate(1116 723) scale(.88)"/>
+<rect width="100%" height="100%" fill="#d8f3b9"/>
+<!-- Flexible terrain fills the viewport; buildings, trees and flowers retain their proportions. -->
+<svg width="100%" height="100%" viewBox="0 0 1440 1000" preserveAspectRatio="none">
+ <rect width="1440" height="1000" fill="url(#lawn)"/>
+ <path d="M0 0h1440v192q-285-40-552 0T0 159Z" fill="#d8f3b9"/>
+ <path d="M0 312q234-55 480 6t463-5 497 17v268H0Z" fill="#c7eca2"/>
+ <path d="M-20 406c230-105 392-56 598-17s425-18 570 18 244 99 312 110v101c-176-17-274-87-433-45s-314 40-470-14S169 571-20 647Z" fill="#a7dc8d"/>
+ <path d="M-20 429c230-106 389-57 591-18s430-18 577 17 244 99 312 110v57c-176-17-275-87-433-45s-314 40-470-14S169 548-20 624Z" fill="url(#water)"/>
+ <path d="M149 468h64m40 22h31m192-43h48m61 37h76m310-14h45m165 40h57m-20 32h76" stroke="#defbfb" stroke-width="3" stroke-linecap="round" opacity=".85"/>
+ <path d="M0 694q307-84 586-3t495-9 359 13v305H0Z" fill="#b6e98f"/>
+ <path d="M0 869q271-62 535 15t531-5 374-10v131H0Z" fill="#97da79" opacity=".6"/>
+</svg>
+<!-- Root coordinates are viewport pixels: decorations never inherit terrain stretching. -->
+<defs>
+ <g id="small-tree"><use href="#tree" transform="scale(.36)"/></g>
+ <g id="near-tree"><use href="#tree" transform="scale(.65)"/></g>
+ <g id="flowers"><use href="#flower" transform="translate(0 0) scale(.7)" color="#fc88b8"/><use href="#flower" transform="translate(21 10) scale(.54)" color="#b798f4"/><use href="#flower" transform="translate(39 8) scale(.5)" color="#fff8e1"/></g>
+ <g id="small-flowers"><use href="#flowers" transform="scale(.68)"/></g>
+ <g id="yellow-flower"><use href="#flower" transform="scale(.65)" color="#ffe477"/></g>
+</defs>
+<use href="#small-tree" x="9%" y="36%"/><use href="#small-tree" x="93%" y="35%"/>
+<use href="#near-tree" x="0%" y="64%"/><use href="#near-tree" x="99%" y="70%"/>
+<use href="#flowers" x="3%" y="78%"/><use href="#small-flowers" x="13%" y="64%"/>
+<use href="#flowers" x="86%" y="89%"/><use href="#small-flowers" x="85%" y="66%"/>
+<use href="#flowers" x="18%" y="96%"/><use href="#small-flowers" x="63%" y="81%"/>
+<use href="#yellow-flower" x="9%" y="89%"/><use href="#yellow-flower" x="96%" y="96%"/>
+<g opacity=".6"><use href="#grass" x="7%" y="82%"/><use href="#grass" x="29%" y="94%"/><use href="#grass" x="78%" y="80%"/><use href="#grass" x="92%" y="93%"/></g>
 </svg>
