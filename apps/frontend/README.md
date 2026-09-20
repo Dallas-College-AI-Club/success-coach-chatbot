@@ -36,6 +36,7 @@ flowchart LR
 - `app/api/chat/route.ts`: request validation, model streaming, cancellation and bounded recovery.
 - `lib/tools/`: read-only queries. Program scope is enforced from the current question; schedules keep distinct sections, explicit totals and pagination. Named instructors are enumerated across all matching sections.
 - `lib/embedding.ts`: lazily loaded **all-MiniLM-L6-v2**, 384 dimensions, matching stored vectors. First retrieval may download model weights; subsequent requests reuse the process cache. Broad recovery combines embeddings with topical keyword evidence and labels related results as candidates.
+- `lib/planning.ts`: student-reported course history, conservative prerequisite labels, credit allocation and exact program comparisons.
 - `lib/course-details.ts` and `features/chat/course-results.tsx`: validated display fields, semester filtering, section grouping, inline CV summaries and literal keyword highlights. Large UI details are omitted from model replay where they are unnecessary.
 - `features/onboarding/handoff-copy.ts`: starter questions reflect the selected goal, program, schedule preference and student situation. Chat hides all starter buttons after the first user message. `saved-courses.ts` and `summary-sheet.tsx` provide local notes and print content.
 - `features/onboarding/`: existing Simple, Playful and Focus layouts. [Playful mascot design and checks](../../docs/PLAYFUL_MASCOTS.md).
@@ -52,6 +53,8 @@ The regression scripts use `node:test` through `tsx`; provider traffic is mocked
 
 The reviewed data includes the 2026–2027 catalog and a saved Fall 2026 schedule. Meeting facts were restored from an approved August 12 snapshot: 12,872 sections, 6,520 with fully parsed times; the rest retain source text. Missing times mean unknown. This is not a live seat-availability feed. Schedule pages contain up to 100 sections; the UI shows totals and how to request the next page. Instructor rosters cover all matching sections, independently of that page limit.
 
-Broad faculty discovery returns related indexed CVs; it does not enumerate every expertise match. Exact remaining-credit calculations, completed-course subtraction, exhaustive faculty expertise and pipeline/corpus reconciliation belong to the follow-up tracked by #191. Automatic timetable construction and syllabus-policy answers remain outside this release.
+Faculty expertise search enumerates every indexed CV with explicit matching evidence, including the requested AND/OR meaning, source links and coverage dates. It cannot establish unrecorded expertise or cover faculty without indexed CVs. Semantic recovery remains a candidate search.
+
+Planning checklists track explicit student-reported completed/in-progress courses and remove them from courses to consider. Credit calculations are exact only when verified course credits and the published rules reconcile. Simple exhaustive elective groups are allocated without double-counting; ambiguous choices, grades, placement and transfer review remain unresolved. Program comparisons use deterministic required-course sets. These are not official degree audits. Automatic timetable construction and syllabus-policy answers remain outside this release.
 
 Publishing code does not change the host's environment settings. Before a presentation deployment, verify its commit, `LLM_MODEL`, configured database and the same acceptance flows. See the [advisor decision sheet](../../docs/SHOWCASE_EXECUTIVE_DECISIONS.md) for remaining choices.

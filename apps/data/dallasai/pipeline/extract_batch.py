@@ -10,9 +10,10 @@ never from the document body.
         --manifest-glob "archive_syllabus_*.jsonl" --doc-type syllabus \
         --out out/facts [--limit 25] [--term 2026SP]
 
-Resumability: a document whose output file already exists is skipped, so a
-killed run continues where it stopped; delete outputs (or pass --refresh) to
-redo. The engine is stateless, so several machines can split the manifests.
+Resumability: skip only an output whose extraction fingerprint still matches
+source bytes, identity, model, prompt, schema and extractor code. Changed inputs
+retire the old envelope to quarantine before retrying (or pass --refresh).
+The engine is stateless, so several machines can split the manifests.
 
 Replay mode (`--replay-map replay.jsonl`) routes documents through
 `extract_manual()` instead of a model call: each line maps a manifest
@@ -28,7 +29,9 @@ course -> course, program -> program_map (index lines are skipped).
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import os
 import sys
 from collections import Counter
 from pathlib import Path
@@ -36,15 +39,18 @@ from typing import Iterator, Optional
 
 from dotenv import load_dotenv
 
-load_dotenv()
-
 from .extract import (
+    DOC_SCHEMAS,
+    SCHEMAS_DIR,
     extract,
     extract_manual,
     html_to_text,
     pdf_to_text,
     persist_quarantine,
+    prompt_path,
 )
+
+load_dotenv()
 
 KIND_TO_DOC_TYPE = {
     "syllabus": "syllabus",
@@ -94,10 +100,52 @@ def _doc_id(entry: dict) -> str:
 
 
 def iter_manifest(raw_root: Path, pattern: str) -> Iterator[dict]:
+    latest: dict[tuple[str, str], dict] = {}
     for mf in sorted((raw_root / "manifests").glob(pattern)):
         for line in mf.read_text(encoding="utf-8").splitlines():
-            if line.strip():
-                yield json.loads(line)
+            if not line.strip():
+                continue
+            entry = json.loads(line)
+            rel = (entry.get("raw_path") or "").replace("\\", "/")
+            if not rel:
+                continue
+            key = (entry.get("kind", ""), rel)
+            previous = latest.get(key, {})
+            if (entry.get("fetched_at") or "") >= (previous.get("fetched_at") or ""):
+                latest[key] = entry
+    yield from latest.values()
+
+
+def extraction_fingerprint(
+    source: Path,
+    doc_type: str,
+    context: dict,
+    replay: Path | None = None,
+    provenance: dict | None = None,
+) -> str:
+    """Resume only the same bytes, identity, model, prompt, schema and extractor."""
+    digest = hashlib.sha256()
+    for value in (
+        source.read_bytes(),
+        prompt_path(doc_type).read_bytes(),
+        (SCHEMAS_DIR / DOC_SCHEMAS[doc_type][0]).read_bytes(),
+        Path(__file__).with_name("extract.py").read_bytes(),
+        json.dumps(context, sort_keys=True).encode(),
+        json.dumps(provenance, sort_keys=True).encode(),
+        (replay.read_bytes() if replay else os.environ.get("EXTRACTOR", "").encode()),
+    ):
+        digest.update(len(value).to_bytes(8, "big"))
+        digest.update(value)
+    return digest.hexdigest()
+
+
+def retire_output(dest: Path, quarantine: Path, doc_type: str) -> None:
+    """Remove stale active facts while preserving the envelope for review."""
+    if dest.exists():
+        retired = quarantine / "superseded" / doc_type
+        retired.mkdir(parents=True, exist_ok=True)
+        old_hash = hashlib.sha256(dest.read_bytes()).hexdigest()[:16]
+        dest.replace(retired / f"{dest.stem}-{old_hash}.json")
 
 
 def main(argv: Optional[list[str]] = None) -> None:
@@ -147,6 +195,8 @@ def main(argv: Optional[list[str]] = None) -> None:
         "file (one per line, / or \\ separators) — pilot/backfill runs",
     )
     args = ap.parse_args(argv)
+    if args.limit is not None and args.limit <= 0:
+        ap.error("--limit must be positive")
 
     only_paths: Optional[set[str]] = None
     if args.paths_file:
@@ -163,9 +213,11 @@ def main(argv: Optional[list[str]] = None) -> None:
             if line.strip():
                 e = json.loads(line)
                 replay[e["raw_path"].replace("\\", "/")] = Path(e["facts_file"])
+        if not replay:
+            ap.error("Replay map contains no documents; no extraction was attempted")
 
     stats: Counter = Counter()
-    seen: set[str] = set()
+    selected: dict[Path, tuple[dict, str, str]] = {}
     for entry in iter_manifest(args.raw_root, args.manifest_glob):
         doc_type = KIND_TO_DOC_TYPE.get(entry.get("kind", ""))
         # Not gated on status: the fetcher records 202 for pages that only
@@ -178,26 +230,56 @@ def main(argv: Optional[list[str]] = None) -> None:
         if args.term and entry.get("term_code") != args.term:
             continue
         rel = entry["raw_path"].replace("\\", "/")
-        if rel in seen:  # re-fetches: first manifest line wins
-            continue
-        seen.add(rel)
         if only_paths is not None and rel not in only_paths:
             continue
-        if replay and rel not in replay:  # replay runs touch only mapped docs
+        if args.replay_map and rel not in replay:
             continue
 
-        doc_id = _doc_id(entry)
-        dest = args.out / doc_type / f"{doc_id}.json"
-        if dest.exists() and not args.refresh:
-            stats["skipped_existing"] += 1
-            continue
+        dest = args.out / doc_type / f"{_doc_id(entry)}.json"
+        previous = selected.get(dest)
+        owner = (
+            json.loads(dest.read_text(encoding="utf-8")).get("raw_path")
+            if dest.exists()
+            else None
+        )
+        if (previous and previous[2] != rel) or (
+            owner and owner.replace("\\", "/") != rel
+        ):
+            raise ValueError(
+                f"Output identities collide at {dest.name}; "
+                "use separate --out directories for each catalog year"
+            )
+        selected[dest] = (entry, doc_type, rel)
+
+    # Preflight every output identity before any extraction or file mutation.
+    for dest, (entry, doc_type, rel) in selected.items():
+        doc_id = dest.stem
         src = args.raw_root / rel
         if not src.exists():
+            retire_output(dest, qdir, doc_type)
             print(f"[missing] {rel}", file=sys.stderr)
             stats["missing_raw"] += 1
             continue
 
         context = _context(entry)
+        fingerprint = extraction_fingerprint(
+            src,
+            doc_type,
+            context,
+            replay.get(rel),
+            {key: entry.get(key) for key in ("source_url", "fetched_at")},
+        )
+        if dest.exists():
+            previous = json.loads(dest.read_text(encoding="utf-8"))
+            if (
+                not args.refresh
+                and previous.get("extraction_fingerprint") == fingerprint
+            ):
+                stats["skipped_verified"] += 1
+                continue
+            # Keep a reviewable copy, but never leave stale facts in the active
+            # delivery when re-extraction fails or gets quarantined.
+            retire_output(dest, qdir, doc_type)
         if rel in replay:
             payload = json.loads(replay[rel].read_text(encoding="utf-8"))
             res = extract_manual(doc_type, payload)
@@ -220,6 +302,8 @@ def main(argv: Optional[list[str]] = None) -> None:
                         "source_url": entry.get("source_url"),
                         "raw_path": entry["raw_path"],
                         "sha256": entry.get("sha256"),
+                        "source_sha256": hashlib.sha256(src.read_bytes()).hexdigest(),
+                        "extraction_fingerprint": fingerprint,
                         "fetched_at": entry.get("fetched_at"),
                         "doc_type": doc_type,
                         "extractor": res.extractor,
@@ -247,8 +331,15 @@ def main(argv: Optional[list[str]] = None) -> None:
     )
     if stats["quarantined"]:
         print(
-            f"quarantine -> {qdir} (review 100% of these before any load; see issue #72)"
+            f"quarantine -> {qdir} "
+            "(review 100% of these before any load; see issue #72)"
         )
+    if (
+        stats["quarantined"]
+        or stats["missing_raw"]
+        or not (stats["ok"] + stats["skipped_verified"])
+    ):
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

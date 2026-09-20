@@ -212,9 +212,9 @@ function selectHandoff(p: OnboardingPayload): Handoff {
         "Review the published course plan before an official graduation review. You could ask:",
       questions: [
         {
-          label: "Review my graduation checklist",
+          label: "Help me check which courses I still need",
           prompt: program
-            ? `Show the published course checklist for ${program}. Help me identify questions to review with my Success Coach. Do not calculate remaining credits or confirm graduation eligibility.`
+            ? `Show the published course checklist for ${program}. Ask which courses I have completed, am taking, or need reviewed as transfer credit before calculating what remains. Keep my reported history separate from an official graduation audit.`
             : "Help me review what I still need to graduate. First ask which Dallas College program I am in and which courses I have completed; do not assume a program or an official graduation result.",
         },
         plan,

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { assessRequisites } from "../lib/planning";
 import { test } from "node:test";
 import { useSavedCourses } from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
@@ -776,19 +777,19 @@ test("failed and ambiguous tool results never become course cards", () => {
 });
 
 test("legacy requisite groups preserve concurrent enrollment labels", () => {
-  const detail = courseDetailsFromRow({
+  const course = courseDetailsFromRow({
     courseCode: "ITSE 2370",
-    sourceUrl: "https://catalog.dallascollege.edu/",
     catalogYear: "2026-2027",
+    sourceUrl: "https://example.edu/course",
     facts: {
       prerequisites: [{ raw_text: "Recommended: ITSE 1370." }],
       corequisites: [{ raw_text: "Required: MATH 1314." }],
     },
   });
-  assert.equal(
-    detail?.requisites_raw,
-    "Prerequisites: Recommended: ITSE 1370.\nCorequisites: Required: MATH 1314.",
-  );
+  const result = assessRequisites(course!.requisites_raw, {});
+  assert.deepEqual(result.required, []);
+  assert.deepEqual(result.recommended, ["Recommended: ITSE 1370."]);
+  assert.deepEqual(result.corequisites, ["Corequisites: Required: MATH 1314."]);
 });
 
 test("restored notes are validated, unique and bounded just like newly saved notes", () => {

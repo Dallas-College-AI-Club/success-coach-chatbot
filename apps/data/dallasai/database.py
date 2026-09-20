@@ -1,35 +1,10 @@
-"""
-===============================================================================
-Neon PostgreSQL Database Connection & Session Manager
-===============================================================================
-Author: Antigravity AI / Neftali
-Project: Success Coach Chatbot (Issue #91 / Issue #36)
+"""Database connection, non-destructive setup and read-only corpus inspection.
 
-Description:
-    Single authoritative module providing database URL resolution, connection
-    engine creation, session management, DDL table initialization, and status
-    checking for the data ingestion pipeline.
-
-    Strict Dependency & Driver Policy:
-    Always uses 'postgresql+psycopg://' (psycopg v3). Does NOT fall back to
-    psycopg2 or bare driver URLs. If psycopg v3 is missing, instructs the
-    developer to run 'uv sync' in apps/data.
-
-Usage:
-    - Initialize tables:
-      python3 apps/data/dallasai/database.py --init
-
-    - Check status:
-      python3 apps/data/dallasai/database.py --status
-
-    - Import in code:
-      from dallasai.database import get_db, get_db_session, init_db, check_db_status
-===============================================================================
+Run as ``python -m dallasai.database --help`` from apps/data.
 """
 
 import argparse
 import os
-import sys
 from collections.abc import Generator
 from pathlib import Path
 from typing import Optional
@@ -40,17 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from dallasai.models import Base
 
-# Auto-inject apps/data directory into sys.path
 SYS_DATA_DIR = Path(__file__).resolve().parent.parent
-if str(SYS_DATA_DIR) not in sys.path:
-    sys.path.insert(0, str(SYS_DATA_DIR))
-
-if hasattr(sys.stdout, "reconfigure"):
-    try:
-        sys.stdout.reconfigure(encoding="utf-8")
-    except Exception:
-        pass
-
 
 load_dotenv()
 
@@ -60,11 +25,12 @@ def get_database_url() -> str:
     Retrieves PostgreSQL connection string from environment or .env file.
 
     Precedence:
-        1. DATABASE_URL_UNPOOLED (direct Neon connection for heavy Python batch operations)
+        1. DATABASE_URL_UNPOOLED (direct Neon connection for batch operations)
         2. DATABASE_URL (pooled connection)
         3. NEON_DATABASE_URL
         4. Root .env fallback lookup
-        5. Individual PG* environment variables (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE)
+        5. Individual PG* environment variables
+           (PGHOST, PGPORT, PGUSER, PGPASSWORD, PGDATABASE)
 
     Enforces psycopg v3 ('postgresql+psycopg://') dialect exclusively.
     """
@@ -111,8 +77,9 @@ try:
 except ModuleNotFoundError as err:
     if "psycopg" in str(err):
         raise ModuleNotFoundError(
-            "psycopg (v3) is required for PostgreSQL connections, but it is not installed. "
-            "Please run 'uv sync' in the 'apps/data' directory to install required dependencies."
+            "psycopg (v3) is required for PostgreSQL connections, "
+            "but it is not installed. Please run 'uv sync' in the "
+            "'apps/data' directory to install required dependencies."
         ) from err
     raise err
 
@@ -126,7 +93,7 @@ SessionLocal = sessionmaker(
 
 
 def get_db() -> Generator[Session, None, None]:
-    """Provide a database session generator for web/API routes and close it afterward."""
+    """Provide a database session for routes and close it afterward."""
     db = SessionLocal()
     try:
         yield db
@@ -134,132 +101,190 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def schema_sql() -> str:
+    """Render the fresh-database baseline without connecting to any database."""
+    from sqlalchemy.dialects.postgresql import dialect
+    from sqlalchemy.schema import CreateIndex, CreateTable
+
+    statements = [
+        "-- Generated from dallasai.models; regenerate with "
+        "python -m dallasai.database --schema",
+        "-- Fresh databases only. Existing databases need a reviewed migration; "
+        "this never drops tables.",
+        "BEGIN;",
+        "CREATE EXTENSION IF NOT EXISTS vector;",
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm;",
+    ]
+    for table in Base.metadata.sorted_tables:
+        statements.append(
+            str(
+                CreateTable(table, if_not_exists=True).compile(dialect=dialect())
+            ).strip()
+            + ";"
+        )
+        for index in sorted(table.indexes, key=lambda x: x.name):
+            statements.append(
+                str(
+                    CreateIndex(index, if_not_exists=True).compile(dialect=dialect())
+                ).strip()
+                + ";"
+            )
+    return (
+        "\n".join(
+            line.rstrip() for line in "\n\n".join(statements + ["COMMIT;"]).splitlines()
+        )
+        + "\n"
+    )
+
+
 def init_db(database_url: Optional[str] = None) -> None:
-    """Initializes pgvector extension and creates all ORM tables in Neon PostgreSQL."""
-    url = database_url or get_database_url()
-    print("🔌 Connecting to Neon PostgreSQL database...")
-
+    """Non-destructive fresh-database setup; never an implicit migration."""
+    eng = create_engine(
+        database_url or get_database_url(),
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5},
+    )
     try:
-        eng = create_engine(
-            url, pool_pre_ping=True, connect_args={"connect_timeout": 5}
-        )
-
-        # 1. Enable pgvector extension
-        with eng.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-            conn.commit()
-            print("✅ 'pgvector' extension verified/enabled.")
-
-        # 2. Create tables defined in models.py (KnowledgeEntry, ChatSession)
-        Base.metadata.create_all(bind=eng)
-        print(
-            "✅ Database tables ('knowledge_entry', 'chat_session') successfully initialized."
-        )
-    except Exception as err:
-        print(f"⚠️ Note: Database initialization step: {err}")
+        with eng.begin() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm"))
+            Base.metadata.create_all(bind=conn)
+        print("Schema initialized. Existing tables were preserved.")
+    except Exception:
+        raise RuntimeError(
+            "Schema initialization failed; transaction rolled back"
+        ) from None
+    finally:
+        eng.dispose()
 
 
 def check_db_status(database_url: Optional[str] = None) -> None:
-    """Queries and displays table record counts and latest ingested entries in Neon PostgreSQL."""
-    url = database_url or get_database_url()
-    init_db(url)
-    print("📊 Querying Neon PostgreSQL database status...\n")
-
+    """Read-only status: no extension creation, table creation, or migration."""
+    eng = create_engine(
+        database_url or get_database_url(),
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5},
+    )
     try:
-        eng = create_engine(
-            url, pool_pre_ping=True, connect_args={"connect_timeout": 5}
-        )
         with eng.connect() as conn:
-            # Discover tables in schema
-            t_res = conn.execute(
-                text(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema='public';"
+            conn.execute(text("SET TRANSACTION READ ONLY"))
+            tables = (
+                conn.execute(
+                    text(
+                        "SELECT table_name FROM information_schema.tables "
+                        "WHERE table_schema='public' ORDER BY table_name"
+                    )
                 )
-            ).fetchall()
-            tbl_names = [t[0] for t in t_res]
-
-            print(
-                "========================================================================="
+                .scalars()
+                .all()
             )
-            print("🐘 Neon PostgreSQL Database Status")
-            print(
-                "========================================================================="
-            )
-            print(
-                f"  • Existing Database Tables: {', '.join(tbl_names) if tbl_names else 'None'}"
-            )
-
-            if "knowledge_entry" in tbl_names:
-                total_count = conn.execute(
-                    text("SELECT COUNT(*) FROM knowledge_entry;")
-                ).scalar()
-                syl_count = conn.execute(
+            print("Tables: " + ", ".join(tables))
+            if "knowledge_entry" in tables:
+                for kind, count in conn.execute(
                     text(
-                        "SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'syllabus';"
+                        "SELECT doc_type, count(*) FROM knowledge_entry "
+                        "GROUP BY doc_type ORDER BY doc_type"
                     )
-                ).scalar()
-                cat_count = conn.execute(
-                    text(
-                        "SELECT COUNT(*) FROM knowledge_entry WHERE metadata->>'doc_type' = 'course';"
-                    )
-                ).scalar()
-                recent = conn.execute(
-                    text(
-                        "SELECT id, source_url, metadata->>'doc_type' AS doc_type, LEFT(chunk_text, 60) AS snippet FROM knowledge_entry ORDER BY id DESC LIMIT 3;"
-                    )
-                ).fetchall()
+                ):
+                    print(f"{kind}: {count}")
+    except Exception:
+        raise RuntimeError(
+            "Database status failed; no database changes were attempted"
+        ) from None
+    finally:
+        eng.dispose()
 
-                print(f"  • Total Knowledge Entries: {total_count}")
-                print(f"  • Syllabi Entries        : {syl_count}")
-                print(f"  • Catalog Course Entries : {cat_count}")
-                print(
-                    "-------------------------------------------------------------------------"
-                )
-                print("📋 Latest Ingested Entries:")
-                if recent:
-                    for r in recent:
-                        print(
-                            f"  [ID: {r.id}] Type: {r.doc_type:<10} File: {r.source_url:<25} Text: '{r.snippet}...'"
-                        )
-                else:
-                    print("  (No records found in database yet)")
-            elif "embeddings" in tbl_names:
-                emb_count = conn.execute(
-                    text("SELECT COUNT(*) FROM embeddings;")
-                ).scalar()
-                print(f"  • Total Embeddings Vector Count: {emb_count}")
 
-            print(
-                "=========================================================================\n"
+def export_snapshot(path, database_url: Optional[str] = None) -> None:
+    """Export public corpus facts and schedule coverage in a read-only transaction."""
+    import json
+
+    target = Path(path)
+    if target.exists():
+        raise ValueError(
+            "Choose a new snapshot path; existing evidence is never overwritten"
+        )
+    eng = create_engine(
+        database_url or get_database_url(),
+        pool_pre_ping=True,
+        connect_args={"connect_timeout": 5},
+    )
+    try:
+        with eng.connect() as conn:
+            conn.execute(text("SET TRANSACTION READ ONLY"))
+            docs = [
+                dict(row)
+                for row in conn.execute(
+                    text("""
+                SELECT id, doc_type, course_code, program_code, instructor_slug,
+                       source_url, chunk_index, chunk_text, facts, metadata,
+                       content_hash, scraped_at
+                FROM knowledge_entry
+                WHERE doc_type IN ('course','program_map','cv','catalog','resource')
+                ORDER BY doc_type,id
+            """)
+                ).mappings()
+            ]
+            schedules = [
+                dict(row)
+                for row in conn.execute(
+                    text("""
+                SELECT course_code, year, semester, count(*) AS sections,
+                       min(scraped_at) AS oldest_source,
+                       max(scraped_at) AS newest_source
+                FROM knowledge_entry WHERE doc_type='section'
+                GROUP BY course_code,year,semester ORDER BY year,semester,course_code
+            """)
+                ).mappings()
+            ]
+        with target.open("x", encoding="utf-8") as output:
+            json.dump(
+                {"docs": docs, "schedules": schedules},
+                output,
+                ensure_ascii=False,
+                default=lambda value: value.isoformat(),
             )
-    except Exception as err:
-        print(f"❌ Error connecting to database: {err}")
+        print(
+            f"Exported {len(docs)} public records and {len(schedules)} "
+            "schedule groups; database unchanged."
+        )
+    except Exception:
+        raise RuntimeError(
+            "Snapshot export failed; no database changes were attempted"
+        ) from None
+    finally:
+        eng.dispose()
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Neon Database Setup & Verification Helper"
+        description="Non-destructive database setup and read-only status"
     )
-    parser.add_argument(
-        "--init", action="store_true", help="Initialize DDL schema tables in Neon"
-    )
-    parser.add_argument(
-        "--status",
-        "--check",
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
+        "--init",
         action="store_true",
-        help="Check database record count and view latest entries",
+        help="Create missing tables; never drops or migrates existing tables",
+    )
+    mode.add_argument(
+        "--status", "--check", action="store_true", help="Read-only table counts"
+    )
+    mode.add_argument(
+        "--schema",
+        action="store_true",
+        help="Print fresh-database SQL without connecting",
+    )
+    mode.add_argument(
+        "--export-snapshot",
+        metavar="NEW_PATH",
+        help="Export public corpus facts read-only for local reconciliation",
     )
     args = parser.parse_args()
-
-    if args.init:
+    if args.schema:
+        print(schema_sql(), end="")
+    elif args.export_snapshot:
+        export_snapshot(args.export_snapshot)
+    elif args.init:
         init_db()
-    elif args.status:
-        check_db_status()
     else:
-        print("Usage:")
-        print(
-            "  python3 apps/data/dallasai/database.py --init    # Initialize database tables"
-        )
-        print(
-            "  python3 apps/data/dallasai/database.py --status  # Check database records & counts"
-        )
+        check_db_status()

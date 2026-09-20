@@ -197,13 +197,6 @@ class KnowledgeEntry(Base):
             name="ck_ke_year",
         ),
         Index(
-            "ix_ke_embedding",
-            "embedding",
-            postgresql_using="hnsw",
-            postgresql_ops={"embedding": "halfvec_cosine_ops"},
-            postgresql_with={"m": 16, "ef_construction": 64},
-        ),
-        Index(
             "ix_ke_tsv",
             "chunk_tsv",
             postgresql_using="gin",
