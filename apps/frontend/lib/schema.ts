@@ -1,21 +1,7 @@
-/**
- * Drizzle MIRROR of the database schema — issue #114.
- *
- * This file defines nothing in the database. It is a hand-written TypeScript
- * mirror of the Alembic-owned schema so Next.js code gets typed reads/writes.
- *
- * Sources of truth (in order):
- *   1. apps/data/dallasai/models/knowledge_entry.py + chat_session.py (SQLAlchemy)
- *   2. apps/data/alembic/ migrations (the only thing that runs DDL)
- *   3. apps/data/reference/db/schema.sql (readable reference this file follows)
- *   See docs/DATABASE_ARCHITECTURE.md §8.
- *
- * Rules:
- *   - Never edit this file except to match a merged Alembic migration.
- *   - drizzle-kit must NEVER be installed or run (no push/migrate/introspect);
- *     a generated migration from this mirror would fight Alembic.
- *   - Column, constraint, and index names are byte-identical to the DDL so the
- *     two files can be reviewed side by side.
+/** Drizzle read mirror of the SQLAlchemy models and generated SQL baseline.
+ * Fresh setup uses dallasai.database --init. Existing databases require a
+ * separately reviewed migration; importing this file never executes DDL.
+ * Keep column/constraint names synchronized with apps/data/reference/db/schema.sql.
  */
 import { sql } from "drizzle-orm";
 import {
@@ -69,7 +55,7 @@ export const knowledgeEntry = pgTable(
       .$type<Record<string, unknown>>()
       .notNull()
       .default(sql`'{}'::jsonb`),
-    // 768 dims frozen project-wide: must match the embedding model used by BOTH
+    // 384 dimensions from the shared embedding contract: must match the embedding model used by BOTH
     // the Python pipeline (ingest) and the Next.js API route (queries).
     embedding: halfvec("embedding", { dimensions: 384 }).notNull(),
 
@@ -137,9 +123,6 @@ export const knowledgeEntry = pgTable(
       sql`(metadata->>'year') IS NULL OR (metadata->>'year')::integer BETWEEN 2020 AND 2035`,
     ),
 
-    index("ix_ke_embedding")
-      .using("hnsw", t.embedding.op("halfvec_cosine_ops"))
-      .with({ m: 16, ef_construction: 64 }),
     index("ix_ke_tsv").using("gin", t.chunkTsv),
     index("ix_ke_metadata").using("gin", t.metadata.op("jsonb_path_ops")),
     index("ix_ke_course").on(t.courseCode, t.docType, t.catalogYear),

@@ -209,6 +209,19 @@ test("a failed exact lookup forces broad recovery once, never for ambiguity or u
       {
         toolResults: [
           {
+            toolName: "search_faculty_expertise",
+            output: { found: false, total_matches: 0, complete: true },
+          },
+        ],
+      },
+    ]),
+    choice,
+  );
+  assert.deepEqual(
+    recoveryToolChoice([
+      {
+        toolResults: [
+          {
             toolName: "search_knowledge",
             output: { found: true, search_scope: "catalog" },
           },
@@ -246,4 +259,47 @@ test("a failed exact lookup forces broad recovery once, never for ambiguity or u
     undefined,
   );
   assert.equal(recoveryToolChoice([]), undefined);
+});
+
+test("structured follow-ups refresh facts without inventing an unidentified program", async () => {
+  const { requestedToolChoice, TOOL_REGISTRY } =
+    await import("../lib/tools/registry");
+  assert.equal(requestedToolChoice("Show my first semester", 0), undefined);
+  assert.equal(
+    requestedToolChoice("Show my first semester", 0, { programKnown: true })
+      ?.toolName,
+    "get_program_requirements",
+  );
+  assert.equal(
+    requestedToolChoice("What are the prerequisites for ITSE 2370?", 0)
+      ?.toolName,
+    "get_course_info",
+  );
+  assert.equal(
+    requestedToolChoice(
+      "Which of those have both machine learning and large language models?",
+      0,
+      { facultySearch: true },
+    )?.toolName,
+    "search_faculty_expertise",
+  );
+  assert.equal(
+    requestedToolChoice("Tell me about Professor Pierce's background", 0),
+    undefined,
+  );
+  assert.equal(requestedToolChoice("Compare programs", 0), undefined);
+  assert.equal(
+    requestedToolChoice("Show my first semester", 1, { programKnown: true }),
+    undefined,
+  );
+  assert.ok(
+    !(
+      "semesters" in
+      (
+        TOOL_REGISTRY.get_program_requirements.inputSchema as unknown as {
+          shape: object;
+        }
+      ).shape
+    ),
+  );
 });

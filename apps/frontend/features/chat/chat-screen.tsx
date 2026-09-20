@@ -118,6 +118,7 @@ const Turn = memo(function Turn({
         (hasCourseResults(getToolName(part), part.output) ||
           getToolName(part) === "get_class_schedule" ||
           getToolName(part) === "get_instructor" ||
+          getToolName(part) === "search_faculty_expertise" ||
           (getToolName(part) === "search_knowledge" &&
             isRecord(part.output) &&
             Array.isArray(part.output.results) &&
@@ -187,16 +188,21 @@ const Turn = memo(function Turn({
           // the one tool whose job is provenance showed no link at all. Each
           // hit gets its own link rather than promoting the first, which would
           // dress a fuzzy match up as the single authoritative source.
-          const srcs = Array.from(
-            new Set(
-              [
-                citationHref(out?.source_url),
-                ...(Array.isArray(out?.results)
-                  ? out.results.map((r) => citationHref(r?.source_url))
-                  : []),
-              ].filter((u): u is string => !!u),
-            ),
-          );
+          // Faculty sources belong to their named, expandable rows; an unlabeled
+          // strip of hundreds of duplicate source links obscures the actual list.
+          const srcs =
+            getToolName(part) === "search_faculty_expertise"
+              ? []
+              : Array.from(
+                  new Set(
+                    [
+                      citationHref(out?.source_url),
+                      ...(Array.isArray(out?.results)
+                        ? out.results.map((r) => citationHref(r?.source_url))
+                        : []),
+                    ].filter((u): u is string => !!u),
+                  ),
+                );
           return (
             <div
               key={i}

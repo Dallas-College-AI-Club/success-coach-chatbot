@@ -25,7 +25,7 @@
     "section": {
       "scope": "term",
       "default_module": "degree_planning",
-      "facts_schema": "facts-section-v1"
+      "facts_schema": "facts-section-v2"
     },
     "syllabus": {
       "scope": "term",

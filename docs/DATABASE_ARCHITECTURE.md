@@ -1,3 +1,10 @@
+> **Current implementation — issue #191:** this document preserves the original
+> architecture proposal below. Its 768-dimension/provider/HNSW and Alembic setup
+> assumptions are superseded by [the current runbook](../apps/data/REPRODUCE.md)
+> and [generated schema](../apps/data/reference/db/schema.sql): local MiniLM,
+> 384 dimensions, exact filtered search, non-destructive SQLAlchemy initialization.
+> No live database migration is performed by these source changes.
+
 # Database Architecture
 
 > **Issue**: #36 — Database Architecture Design & Initialization

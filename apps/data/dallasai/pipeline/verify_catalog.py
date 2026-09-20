@@ -98,6 +98,15 @@ def check_course(f: dict, src: str, folded: str) -> list[str]:
         # skip the equality check; a found title line is never an error itself
         errs.append(f"credit_hours {f['credit_hours']} != printed ({m.group(1)})")
     printed = codes_in(folded)
+    title = fold(f.get("title") or "")
+    if not title or not re.search(
+        re.escape(f["course_code"])
+        + r"\s*-\s*"
+        + re.escape(title)
+        + r"\s*(?:\(|This is a Non-Credit Course\.|$)",
+        folded,
+    ):
+        errs.append("extracted title does not match the printed course heading")
     for kind in ("prerequisites", "corequisites"):
         for entry in f.get(kind) or []:
             for c in entry.get("one_of") or []:
@@ -144,14 +153,16 @@ def check_program(f: dict, src: str, folded: str) -> list[str]:
             r"[Oo]ther options (exist|may exist)", src
         ):
             errs.append(
-                f"group {g.get('name')!r}: options_exhaustive=false without the printed wording"
+                f"group {g.get('name')!r}: "
+                "options_exhaustive=false without the printed wording"
             )
     stated = [g.get("credits_required") for g in f.get("groups") or []]
     if f.get("total_credits") and all(isinstance(x, int) for x in stated) and stated:
         if sum(stated) not in (f["total_credits"],):
-            # semester-group programs sum exactly; core-style programs may not — warn only
+            # Semester groups sum exactly; core-style programs may not — warn only.
             errs.append(
-                f"WARN group credits sum {sum(stated)} != total_credits {f['total_credits']}"
+                f"WARN group credits sum {sum(stated)} "
+                f"!= total_credits {f['total_credits']}"
                 " (accept only if the page itself doesn't reconcile)"
             )
     return errs
@@ -168,6 +179,15 @@ def main(argv=None) -> None:
     ap.add_argument("--raw-root", type=Path, required=True)
     args = ap.parse_args(argv)
 
+    adjudications = (
+        Path(__file__).resolve().parents[2]
+        / "pipeline_runs/gate/adjudicated_source_anomalies.json"
+    )
+    accepted = (
+        json.loads(adjudications.read_text(encoding="utf-8"))
+        if adjudications.exists()
+        else {}
+    )
     n_ok = n_fail = 0
     for sub, checker in (("course", check_course), ("program_map", check_program)):
         for p in sorted((args.facts / sub).glob("*.json")):
@@ -182,34 +202,25 @@ def main(argv=None) -> None:
                 for v in _values(env["facts"])
                 if t in v
             ]
-            accepted = (
-                json.loads(
-                    (
-                        Path(__file__).resolve().parents[2]
-                        / "pipeline_runs"
-                        / "gate"
-                        / "adjudicated_source_anomalies.json"
-                    ).read_text(encoding="utf-8")
-                )
-                if (
-                    Path(__file__).resolve().parents[2]
-                    / "pipeline_runs"
-                    / "gate"
-                    / "adjudicated_source_anomalies.json"
-                ).exists()
-                else {}
-            )
-            if p.stem in accepted:
-                errs = [f"WARN adjudicated source anomaly: {accepted[p.stem]}"]
+            # An adjudication waives only explicitly named diagnostics. Old
+            # blanket notes cannot suppress new title/credit/source failures.
+            waived = accepted.get(p.stem, {})
+            if isinstance(waived, dict) and isinstance(waived.get("errors"), list):
+                errs = [
+                    f"WARN adjudicated: {e}" if e in waived["errors"] else e
+                    for e in errs
+                ]
             hard = [e for e in errs if not e.startswith("WARN")]
             tag = "ok" if not hard else "FAIL"
             n_ok += not hard
             n_fail += bool(hard)
-            print(f"[{tag}] {sub}/{p.stem}" + ("" if not errs else ""))
+            print(f"[{tag}] {sub}/{p.stem}")
             for e in errs:
                 print(f"       - {e}")
     print(f"\n{n_ok} ok, {n_fail} FAIL — a FAIL row must be quarantined, never loaded")
-    sys.exit(1 if n_fail else 0)
+    if n_ok + n_fail == 0:
+        print("No facts were verified; check the input path")
+    sys.exit(1 if n_fail or n_ok == 0 else 0)
 
 
 if __name__ == "__main__":

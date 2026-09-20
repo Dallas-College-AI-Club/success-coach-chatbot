@@ -20,6 +20,16 @@ export const TOOL_LABELS: Record<
   string,
   { running: string; done: string; failed: string }
 > = {
+  compare_programs: {
+    running: "Comparing the two program plans",
+    done: "Compared program requirements",
+    failed: "Couldn't compare the programs",
+  },
+  search_faculty_expertise: {
+    running: "Checking all saved faculty CVs",
+    done: "Checked all saved faculty CVs",
+    failed: "Couldn't check faculty CVs",
+  },
   [GET_COURSE_INFO_TOOL_NAME]: {
     running: "Checking the course catalog",
     done: "Checked the catalog",

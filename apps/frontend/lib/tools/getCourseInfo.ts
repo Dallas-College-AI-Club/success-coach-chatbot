@@ -22,7 +22,7 @@ export const DESCRIPTION = [
   "The tool returns verified course facts stored in the knowledge base.",
   "",
   "Reporting requisites correctly:",
-  "- `prerequisites` contains extracted course references; it may include recommendations. Use `requisites_raw` to distinguish required, recommended and unknown conditions.",
+  "- `prerequisites` contains extracted course references; it may include recommendations. Use `requisite_assessment` and `requisites_raw` to distinguish required, recommended and unknown conditions.",
   "- `requisites_raw` is the catalog's requisite sentence, word for word.",
   "- A course can have an EMPTY `prerequisites` array and still have a real",
   "  requirement, because readiness requirements are prose, not course codes",

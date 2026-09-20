@@ -6,6 +6,11 @@ import type { Skin } from "@/features/onboarding/skin";
 import { useSavedCourses } from "@/features/chat/saved-courses";
 import { citationHref } from "@/lib/constants";
 import {
+  assessRequisites,
+  readCourseHistory,
+  type CourseHistory,
+} from "@/lib/planning";
+import {
   catalogText,
   groupScheduleSections,
   isCourseCode,
@@ -47,11 +52,13 @@ function ProfessorDetails({
   name,
   background,
   url,
+  sources,
   skin,
 }: {
   name: string;
   background?: string | null;
   url?: unknown;
+  sources?: unknown[];
   skin: Skin;
 }) {
   const href = citationHref(url);
@@ -87,6 +94,20 @@ function ProfessorDetails({
             Open official CV ↗
           </a>
         )}
+        {sources
+          ?.map(citationHref)
+          .filter((link): link is string => !!link && link !== href)
+          .map((link) => (
+            <a
+              key={link}
+              href={link}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${skin.link} ml-3 inline-block`}
+            >
+              Additional saved CV source ↗
+            </a>
+          ))}
       </div>
     </details>
   );
@@ -101,28 +122,73 @@ export function InstructorResults({
   output: unknown;
   skin: Skin;
 }) {
-  if (!isRecord(output) || output.found !== true || output.ambiguous === true)
+  const [visibleCount, setVisibleCount] = useState(50);
+  const expertise = name === "search_faculty_expertise";
+  if (
+    !isRecord(output) ||
+    (!expertise && output.found !== true) ||
+    output.ambiguous === true
+  )
     return null;
   const records: Record<string, unknown>[] =
-    name === "get_instructor"
-      ? [output]
-      : name === "search_knowledge" && Array.isArray(output.results)
-        ? output.results
-            .filter(isRecord)
-            .filter((r) => r.doc_type === "cv")
-            .map((r) => ({ ...r, background: r.text }))
-        : [];
-  if (!records.length) return null;
+    expertise && Array.isArray(output.results)
+      ? output.results.filter(isRecord).map((r) => ({
+          ...r,
+          background: Array.isArray(r.evidence)
+            ? r.evidence.filter((t) => typeof t === "string").join("\n\n")
+            : null,
+        }))
+      : name === "get_instructor"
+        ? [output]
+        : name === "search_knowledge" && Array.isArray(output.results)
+          ? output.results
+              .filter(isRecord)
+              .filter((r) => r.doc_type === "cv")
+              .map((r) => ({ ...r, background: r.text }))
+          : [];
+  if (!records.length && !expertise) return null;
   return (
     <section
       aria-label="Instructor backgrounds"
       className="w-full rounded-xl border border-current/20 p-4"
     >
       <h2 className="text-lg font-bold">
-        {name === "search_knowledge"
-          ? "Possible related instructor records"
-          : "Instructor background"}
+        {expertise
+          ? `${records.length} matching faculty profile${records.length === 1 ? "" : "s"}`
+          : name === "search_knowledge"
+            ? "Possible related instructor records"
+            : "Instructor background"}
       </h2>
+      {expertise && (
+        <div className="mt-2 space-y-2 text-sm">
+          <p>
+            Checked {String(output.indexed_cv_records ?? 0)} indexed CV records
+            for{" "}
+            {Array.isArray(output.topics)
+              ? output.topics.join(output.match === "all" ? " AND " : " OR ")
+              : "the requested topics"}
+            .
+          </p>
+          <p>{catalogText(output.coverage_note)}</p>
+          <details>
+            <summary className={`${skin.link} cursor-pointer`}>
+              Search coverage · Show more
+            </summary>
+            <p className="mt-2">
+              Saved source dates:{" "}
+              {catalogText(output.oldest_source)?.slice(0, 10) ?? "unknown"} to{" "}
+              {catalogText(output.newest_source)?.slice(0, 10) ?? "unknown"}.
+            </p>
+            {Array.isArray(output.keyword_variants) &&
+              output.keyword_variants.filter(isRecord).map((item, index) => (
+                <p key={index}>
+                  {catalogText(item.topic)}:{" "}
+                  {Array.isArray(item.terms) ? item.terms.join(", ") : ""}
+                </p>
+              ))}
+          </details>
+        </div>
+      )}
       {name === "search_knowledge" && (
         <p className="mt-1 text-sm">
           Search matches, not a complete faculty list. Check the published
@@ -130,7 +196,7 @@ export function InstructorResults({
         </p>
       )}
       <ul className="list-none">
-        {records.map((record, index) => (
+        {records.slice(0, visibleCount).map((record, index) => (
           <li
             key={index}
             className="border-b border-current/15 py-3 last:border-0"
@@ -138,10 +204,20 @@ export function InstructorResults({
             <p className="mb-2 font-bold">
               {catalogText(record.name) ?? "Instructor"}
             </p>
+            {expertise && Array.isArray(record.topics) && (
+              <p className="mb-2 text-sm">
+                Evidence mentions: {record.topics.join(", ")}
+              </p>
+            )}
             <ProfessorDetails
               name={catalogText(record.name) ?? "Instructor"}
               background={catalogText(record.background)}
               url={record.source_url}
+              sources={
+                Array.isArray(record.source_urls)
+                  ? record.source_urls
+                  : undefined
+              }
               skin={skin}
             />
             {Array.isArray(record.teaches) && (
@@ -161,16 +237,34 @@ export function InstructorResults({
           </li>
         ))}
       </ul>
+      {records.length > visibleCount && (
+        <button
+          type="button"
+          className={`${skin.link} mt-3 text-sm`}
+          onClick={() => setVisibleCount((count) => count + 50)}
+        >
+          Show more faculty · {visibleCount} of {records.length} shown
+        </button>
+      )}
     </section>
   );
 }
 
-function CourseRow({ course, skin }: { course: CourseDetails; skin: Skin }) {
+function CourseRow({
+  course,
+  skin,
+  history = {},
+}: {
+  course: CourseDetails;
+  skin: Skin;
+  history?: CourseHistory;
+}) {
   const saved = useSavedCourses((s) =>
     s.courses.some((c) => c.course_code === course.course_code),
   );
   const toggle = useSavedCourses((s) => s.toggle);
   const href = citationHref(course.source_url);
+  const requisites = assessRequisites(course.requisites_raw, history);
   return (
     <li className="border-b border-current/15 py-3 pl-1 last:border-0">
       <p className="leading-snug">
@@ -199,15 +293,42 @@ function CourseRow({ course, skin }: { course: CourseDetails; skin: Skin }) {
                   "A description is not available in this catalog record."}
               </dd>
             </div>
+            {[
+              ["Required prerequisites", requisites.required],
+              ["Recommended preparation", requisites.recommended],
+              [
+                "Corequisites / concurrent requirements",
+                requisites.corequisites,
+              ],
+            ].map(([label, texts]) =>
+              Array.isArray(texts) && texts.length > 0 ? (
+                <div key={String(label)}>
+                  <dt className="font-semibold">{String(label)}</dt>
+                  <dd className="whitespace-pre-line">{texts.join("\n")}</dd>
+                </div>
+              ) : null,
+            )}
             <div>
-              <dt className="font-semibold">
-                Prerequisites and other catalog requirements
-              </dt>
-              <dd className="whitespace-pre-line">
-                {course.requisites_raw ??
-                  "No prerequisite details are listed in this record. Check the catalog or ask your Success Coach before enrolling."}
-              </dd>
+              <dt className="font-semibold">Prerequisite review</dt>
+              <dd>{requisites.note}</dd>
             </div>
+            {requisites.referenced_courses?.some(
+              (r) => r.student_status !== "unknown",
+            ) && (
+              <div>
+                <dt className="font-semibold">What you reported</dt>
+                <dd>
+                  {requisites.referenced_courses
+                    .filter((r) => r.student_status !== "unknown")
+                    .map(
+                      (r) =>
+                        `${r.course_code}: ${r.student_status.replaceAll("_", " ")}`,
+                    )
+                    .join("; ")}
+                  . This does not confirm enrollment eligibility.
+                </dd>
+              </div>
+            )}
             {course.campus_locations && (
               <div>
                 <dt className="font-semibold">
@@ -252,7 +373,8 @@ export function hasCourseResults(name: string, output: unknown): boolean {
     return false;
   return name === GET_COURSE_INFO_TOOL_NAME
     ? !!readCourseDetails(output)
-    : name === GET_PROGRAM_REQUIREMENTS_TOOL_NAME &&
+    : (name === GET_PROGRAM_REQUIREMENTS_TOOL_NAME ||
+        name === "compare_programs") &&
         Array.isArray(output.groups) &&
         (output.groups.length > 0 || output.semester_scope_found === false);
 }
@@ -273,7 +395,11 @@ export function CourseResults({
     const course = readCourseDetails(output);
     return course ? (
       <ul aria-label="Course details" className="w-full list-none">
-        <CourseRow course={course} skin={skin} />
+        <CourseRow
+          course={course}
+          skin={skin}
+          history={readCourseHistory(output.course_history)}
+        />
       </ul>
     ) : null;
   }
@@ -296,20 +422,127 @@ export function CourseResults({
     output.groups as unknown[],
     requested,
   ).filter(isRecord);
+  const planning = isRecord(output.planning) ? output.planning : null;
+  const comparison = isRecord(output.comparison) ? output.comparison : null;
+  const history = readCourseHistory(planning?.history);
+  const alreadyReported = (code: string) =>
+    ["completed", "in_progress"].includes(history[code]?.status);
   return (
     <section className="w-full min-w-0" aria-label="Published course plan">
       <h2 className="text-xl leading-tight font-bold">
         {catalogText(output.name) ?? "Published course plan"}
       </h2>
-      <p className="mt-1 text-sm opacity-75">
-        {catalogText(output.catalog_year)
-          ? `${output.catalog_year} catalog · `
-          : ""}
-        {typeof output.total_credits === "number" ||
-        typeof output.total_credits === "string"
-          ? `${output.total_credits} credits for the full program`
-          : "Total credits not listed"}
-      </p>
+      {!comparison && (
+        <p className="mt-1 text-sm opacity-75">
+          {catalogText(output.catalog_year)
+            ? `${output.catalog_year} catalog · `
+            : ""}
+          {typeof output.total_credits === "number" ||
+          typeof output.total_credits === "string"
+            ? `${output.total_credits} credits for the full program`
+            : "Total credits not listed"}
+        </p>
+      )}
+      {comparison && (
+        <div className="mt-3 space-y-2 text-sm">
+          <p>{catalogText(comparison.note)}</p>
+          <p>
+            {typeof comparison.shared_required_credits === "number"
+              ? `${comparison.shared_required_credits} shared required credits.`
+              : "Shared credits cannot be confirmed for these catalog records."}
+          </p>
+          {Array.isArray(comparison.programs) &&
+            comparison.programs.filter(isRecord).map((program, index) => (
+              <p key={index}>
+                {String(program.name)} · {String(program.catalog_year)}{" "}
+                {citationHref(program.source_url) && (
+                  <a
+                    href={citationHref(program.source_url)!}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={skin.link}
+                  >
+                    Catalog source ↗
+                  </a>
+                )}
+              </p>
+            ))}
+          <details>
+            <summary className={`${skin.link} cursor-pointer`}>
+              Electives and unresolved requirements · Show more
+            </summary>
+            {Array.isArray(comparison.unresolved_requirements) &&
+              comparison.unresolved_requirements
+                .flat()
+                .filter((s): s is string => typeof s === "string")
+                .map((text, index) => (
+                  <p key={index} className="mt-2">
+                    {text}
+                  </p>
+                ))}
+          </details>
+        </div>
+      )}
+      {planning && (
+        <div
+          className="mt-4 space-y-2 rounded-xl border border-current/20 p-3 text-sm"
+          aria-label="Your planning checklist"
+        >
+          <p className="font-semibold">
+            Your checklist · {String(planning.scope)}
+          </p>
+          {Object.keys(history).length > 0 && (
+            <details open>
+              <summary className={`${skin.link} cursor-pointer`}>
+                Courses you reported · Show more
+              </summary>
+              <ul className="mt-2 list-inside list-disc">
+                {Object.entries(history).map(([code, entry]) => (
+                  <li key={code}>
+                    <strong>{code}</strong>: {entry.status.replaceAll("_", " ")}
+                    {!courses.has(code) ? " · not verified in this plan" : ""}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          {typeof planning.remaining_credits === "number" ? (
+            <p>
+              {planning.remaining_credits} credits remain unfinished, including
+              courses in progress.
+            </p>
+          ) : (
+            <p>
+              An exact remaining-credit total needs review of the unresolved
+              items below.
+            </p>
+          )}
+          {planning.needs_history_clarification === true && (
+            <p className="font-semibold">
+              Please clarify your course history: give the course codes and
+              whether each course is completed, in progress, not completed,
+              planned or awaiting transfer review. The checklist may be
+              incomplete until those details are confirmed.
+            </p>
+          )}
+          <p>{String(planning.note)}</p>
+          {Array.isArray(planning.unresolved_requirements) &&
+            planning.unresolved_requirements.length > 0 && (
+              <details>
+                <summary className={`${skin.link} cursor-pointer`}>
+                  Choices and credit checks · Show more
+                </summary>
+                <ul className="mt-2 list-inside list-disc">
+                  {planning.unresolved_requirements
+                    .filter((s): s is string => typeof s === "string")
+                    .map((text, index) => (
+                      <li key={index}>{text}</li>
+                    ))}
+                </ul>
+              </details>
+            )}
+        </div>
+      )}
       {requested.length > 0 && (
         <p className="mt-3 font-semibold">
           {groups.length
@@ -397,45 +630,58 @@ export function CourseResults({
                   </p>
                 ))}
               <ol className="ml-5 list-decimal marker:font-semibold">
-                {entries.map((code, entryIndex) => {
-                  const course = courses.get(code);
-                  return course ? (
-                    <CourseRow key={code} course={course} skin={skin} />
-                  ) : (
-                    <li
-                      key={`${entryIndex}-${code}`}
-                      className="border-b border-current/15 py-3 last:border-0"
-                    >
-                      {/\belective\b/i.test(code) ? (
-                        <details>
-                          <summary className={`${skin.link} cursor-pointer`}>
-                            {code}{" "}
-                            <span className="ml-2 text-sm">Show more</span>
-                          </summary>
-                          <p className="mt-2 text-sm whitespace-pre-line">
-                            {electiveRule ??
-                              "Choose a course that satisfies this elective with your Success Coach. Check the linked program catalog for the allowed options."}
-                          </p>
-                        </details>
-                      ) : (
-                        <>
-                          <p>
-                            {code}
-                            {catalogText(titles[code])
-                              ? ` — ${titles[code]}`
-                              : ""}
-                          </p>
-                        </>
-                      )}
-                      <p className="text-sm opacity-75">
-                        {isCourseCode(code)
-                          ? "Course details are not available in this record. Check the linked program catalog."
-                          : "A requirement to choose with your coach, not an individual course."}
-                      </p>
-                    </li>
-                  );
-                })}
+                {entries
+                  .filter((code) => !alreadyReported(code))
+                  .map((code, entryIndex) => {
+                    const course = courses.get(code);
+                    return course ? (
+                      <CourseRow
+                        key={code}
+                        course={course}
+                        skin={skin}
+                        history={history}
+                      />
+                    ) : (
+                      <li
+                        key={`${entryIndex}-${code}`}
+                        className="border-b border-current/15 py-3 last:border-0"
+                      >
+                        {/\belective\b/i.test(code) ? (
+                          <details>
+                            <summary className={`${skin.link} cursor-pointer`}>
+                              {code}{" "}
+                              <span className="ml-2 text-sm">Show more</span>
+                            </summary>
+                            <p className="mt-2 text-sm whitespace-pre-line">
+                              {electiveRule ??
+                                "Choose a course that satisfies this elective with your Success Coach. Check the linked program catalog for the allowed options."}
+                            </p>
+                          </details>
+                        ) : (
+                          <>
+                            <p>
+                              {code}
+                              {catalogText(titles[code])
+                                ? ` — ${titles[code]}`
+                                : ""}
+                            </p>
+                          </>
+                        )}
+                        <p className="text-sm opacity-75">
+                          {isCourseCode(code)
+                            ? "Course details are not available in this record. Check the linked program catalog."
+                            : "A requirement to choose with your coach, not an individual course."}
+                        </p>
+                      </li>
+                    );
+                  })}
               </ol>
+              {entries.some(alreadyReported) && (
+                <p className="my-2 text-sm">
+                  {entries.filter(alreadyReported).join(", ")} — already
+                  reported above; excluded from courses to consider.
+                </p>
+              )}
             </div>
           </section>
         );
@@ -475,16 +721,23 @@ export function CourseResults({
                     isCourseCode,
                   ),
                 ),
-              ].map((code) => {
-                const course = courses.get(code);
-                return course ? (
-                  <CourseRow key={code} course={course} skin={skin} />
-                ) : (
-                  <li key={code} className="py-2 text-sm">
-                    {code} — course details unavailable.
-                  </li>
-                );
-              })}
+              ]
+                .filter((code) => !alreadyReported(code))
+                .map((code) => {
+                  const course = courses.get(code);
+                  return course ? (
+                    <CourseRow
+                      key={code}
+                      course={course}
+                      skin={skin}
+                      history={history}
+                    />
+                  ) : (
+                    <li key={code} className="py-2 text-sm">
+                      {code} — course details unavailable.
+                    </li>
+                  );
+                })}
             </ul>
             {typeof area.more_not_shown === "number" &&
               area.more_not_shown > 0 && (

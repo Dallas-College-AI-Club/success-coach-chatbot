@@ -30,7 +30,12 @@ export const EMBED_DIMS = embeddingContract.dimensions;
  * corpus grows by an order of magnitude — and then verify recall for every
  * doc_type before trusting an index.
  */
-export const SEARCHABLE_DOC_TYPES = ["course", "program_map", "resource"];
+export const SEARCHABLE_DOC_TYPES = [
+  "course",
+  "program_map",
+  "resource",
+  "catalog",
+];
 
 /**
  * Dallas College's zone: every "today" the tools resolve is Dallas local
