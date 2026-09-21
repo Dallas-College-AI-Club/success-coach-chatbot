@@ -9,6 +9,7 @@ import {
 import type { DoneState, Mode } from "@/features/onboarding/skin";
 import { AiClubLogo, SuccessCoachWordmark } from "@/features/onboarding/shared/brand";
 import { ModeSwitcher } from "@/features/onboarding/shared/mode-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Welcome } from "@/features/onboarding/shared/welcome";
 import { emit } from "@/features/onboarding/telemetry";
 import type { OnboardingPayload } from "@/features/onboarding/types";
@@ -129,7 +130,10 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
               <SuccessCoachWordmark height={46} />
             </button>
           </div>
-          <ModeSwitcher modes={modes} current={mode} onSwitch={switchMode} />
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ModeSwitcher modes={modes} current={mode} onSwitch={switchMode} />
+            <ThemeToggle />
+          </div>
         </div>
 
         <WizardHost

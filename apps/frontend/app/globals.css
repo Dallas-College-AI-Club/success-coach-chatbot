@@ -3,7 +3,7 @@
 @import "shadcn/tailwind.css";
 @plugin "@tailwindcss/typography";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme inline {
   --color-background: var(--background);
@@ -84,8 +84,8 @@
   --sidebar-ring: oklch(0.705 0.015 286.067);
 }
 
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+.dark {
+  & {
     color-scheme: dark;
     --background: oklch(0.141 0.005 285.823);
     --foreground: oklch(0.985 0 0);
@@ -502,9 +502,12 @@
 }
 
 /* Shared color-mode layer: skins keep their light palettes and geometry.
-   Follow the OS with CSS so first paint, dialogs and native inputs agree. */
-@media screen and (prefers-color-scheme: dark) {
-  :root {
+   Keyed on the `.dark` class that next-themes stamps on <html> before first
+   paint (system preference by default, header toggle to override), so first
+   paint, dialogs and native inputs agree. Nested selectors resolve to
+   `.dark .coach-page`, etc. */
+.dark {
+  & {
     --coach-page: #111b2b;
     --coach-panel: #172333;
     --coach-raised: #24354b;

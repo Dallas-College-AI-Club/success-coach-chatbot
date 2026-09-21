@@ -44,6 +44,7 @@ import {
   SuccessCoachWordmark,
 } from "@/features/onboarding/shared/brand";
 import { ModeSwitcher } from "@/features/onboarding/shared/mode-switcher";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Mode, Skin } from "@/features/onboarding/skin";
@@ -566,6 +567,7 @@ export function ChatScreen() {
               🖨 Print for my coach
             </Link>
             <ModeSwitcher modes={MODES} current={mode} onSwitch={switchMode} />
+            <ThemeToggle />
           </div>
         </div>
 
