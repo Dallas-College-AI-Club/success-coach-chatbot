@@ -283,7 +283,7 @@ test("scene sizing stays readable, scales with the window and keeps the sun smal
       "larger windows need visibly larger characters",
     );
     assert.ok(
-      sunAt(0, width, height, headerTop).size < size * 0.65,
+      sunAt(0, width, height, headerTop).size < size * 0.75,
       "sun must not dominate the cast",
     );
     previous = size;
@@ -300,6 +300,14 @@ test("scene sizing stays readable, scales with the window and keeps the sun smal
     roamingSlot(bands.lawn, 0, 2, characterHeight(1572, 1272, card)).height >
       120,
   );
+  // The old 56px ceiling kept these larger windows at the same sun size.
+  const mediumSun = sunAt(0, 850, 1100, 240).size;
+  const wideSun = sunAt(0, 1100, 1100, 240).size;
+  const largeSun = sunAt(0, 1572, 1272, 240).size;
+  assert.ok(wideSun > mediumSun * 1.2);
+  assert.ok(largeSun > wideSun * 1.1 && largeSun <= 88);
+  assert.ok(largeSun > sunAt(0, 1572, 900, 240).size * 1.3);
+  assert.ok(sunAt(0, 1280, 800, 44).size > 28, "use the available shallow sky");
 });
 
 test("meadow routes use distinct depths and continuous outbound/return curves", () => {
@@ -367,7 +375,9 @@ test("open-field routes explore each slot with continuous motion and a faster re
 
 test("the phoenix sun rises east, sets west and resets invisibly above the controls", () => {
   for (const [width, height, headerTop] of [
+    [390, 844, 32],
     [390, 844, 82],
+    [855, 1072, 147],
     [844, 390, 50],
     [1034, 1253, 240],
     [1280, 800, 44],

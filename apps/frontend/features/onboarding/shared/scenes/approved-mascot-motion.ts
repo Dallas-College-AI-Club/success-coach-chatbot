@@ -26,10 +26,10 @@ export function sunAt(
   headerTop: number,
 ) {
   const horizon = campusHorizonHeight(width, height, headerTop);
-  const size = Math.max(
-    20,
-    Math.min(56, Math.min(width, height) * 0.055, headerTop * 0.32),
-  );
+  const preferredSize = clamp(Math.min(width, height) * 0.07, 28, 88);
+  // Use the actual sky clearance instead of an arbitrary fraction of the header.
+  // Crest + lower edge = 1.25 * size + 4; leave four pixels above the controls.
+  const size = Math.max(12, Math.min(preferredSize, (headerTop - 8) / 1.25));
   const margin = size * 0.65 + 10;
   const progress = cycle(time, 45) / 45;
   const crest = size * 0.65 + 4;
