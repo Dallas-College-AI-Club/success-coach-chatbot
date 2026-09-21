@@ -11,6 +11,7 @@ import {
 } from "@/features/onboarding/onboarding-store";
 import {
   useSavedCourses,
+  savedSectionKey,
   type SavedCourse,
 } from "@/features/chat/saved-courses";
 
@@ -44,16 +45,56 @@ function ClassEntry({
     <div className="sheet-row">
       <div className="sheet-row-main">
         <span className="sheet-code">{course.course_code}</span> {course.title}
-        {course.description ? (
-          <div className="sheet-req">{course.description}</div>
-        ) : null}
-        {course.requisites_raw ? (
-          <div className="sheet-req">&ldquo;{course.requisites_raw}&rdquo;</div>
-        ) : null}
-        <Cite
-          label={`Dallas College catalog ${course.catalog_year ?? ""}`.trim()}
-          url={course.source_url}
-        />
+        {course.sections?.length ? (
+          course.sections.map((section) => (
+            <div key={savedSectionKey(section)} className="sheet-req">
+              <strong>
+                Section {section.section_number ?? "not listed"} ·{" "}
+                {section.term ?? "Term not listed"}
+              </strong>
+              <div>
+                {section.start_date ?? "Start date not listed"} –{" "}
+                {section.end_date ?? "End date not listed"}
+              </div>
+              {section.meets.length ? (
+                section.meets.map((time) => <div key={time}>{time}</div>)
+              ) : (
+                <div>
+                  <div>Meeting times not published in this record.</div>
+                  {section.meeting_info_raw && (
+                    <div>
+                      Source meeting information: {section.meeting_info_raw}
+                    </div>
+                  )}
+                </div>
+              )}
+              <div>
+                {[
+                  section.professor,
+                  section.campus,
+                  section.modality?.replaceAll("_", " "),
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </div>
+              <Cite
+                label="Saved section · confirm current details"
+                url={section.source_url}
+              />
+            </div>
+          ))
+        ) : (
+          <div className="sheet-req">
+            No section selected. Ask Major for this course&apos;s schedule and
+            add a section to save its dates and times.
+          </div>
+        )}
+        {course.source_url && (
+          <Cite
+            label={`Dallas College catalog ${course.catalog_year ?? ""}`.trim()}
+            url={course.source_url}
+          />
+        )}
       </div>
       {course.credit_hours != null ? (
         <div className="sheet-cr">{course.credit_hours} cr</div>

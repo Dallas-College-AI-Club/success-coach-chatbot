@@ -13,26 +13,27 @@ export const simple: Mode = {
   fontClass: "",
   Wizard: SimpleShell,
   skin: {
-    page: "flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F6F5FF] p-4 text-[#2E2555] md:p-8 [--ring:#6C5CE7]",
+    page: "coach-page coach-simple flex min-h-dvh w-full flex-col items-center justify-center gap-3 bg-[#F6F5FF] p-4 text-[#2E2555] md:p-8 [--ring:#6C5CE7]",
     shell: "mx-auto flex w-full max-w-lg flex-col items-center gap-3",
-    sectionLabel: "text-sm font-medium text-[#2E2555]/70",
-    heading: "text-xl font-semibold text-[#2E2555] outline-none md:text-2xl",
-    helper: "text-sm text-[#2E2555]/70",
+    sectionLabel: "coach-accent text-sm font-medium text-[#2E2555]/70",
+    heading:
+      "coach-heading text-xl font-semibold text-[#2E2555] outline-none md:text-2xl",
+    helper: "coach-helper text-sm text-[#2E2555]/70",
     option:
-      "group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#2E2555]/12 bg-[#ECEAFE] px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#2E2555] transition-[border-color,box-shadow,background-color] hover:bg-[#DED8FC] focus-visible:ring-2 focus-visible:ring-[#6C5CE7] focus-visible:ring-offset-2 data-[state=on]:border-[#5B4BD6] data-[state=on]:bg-[#D3CBFA] data-[state=on]:ring-2 data-[state=on]:ring-[#6C5CE7]",
+      "coach-option group/opt flex h-auto! min-h-10 w-full items-center justify-between gap-3 rounded-xl border border-[#2E2555]/12 bg-[#ECEAFE] px-3.5 py-2 text-left text-sm whitespace-normal pointer-coarse:min-h-11 text-[#2E2555] transition-[border-color,box-shadow,background-color] hover:bg-[#DED8FC] focus-visible:ring-2 focus-visible:ring-[#6C5CE7] focus-visible:ring-offset-2 data-[state=on]:border-[#5B4BD6] data-[state=on]:bg-[#D3CBFA] data-[state=on]:ring-2 data-[state=on]:ring-[#6C5CE7]",
     optionCheck:
-      "shrink-0 text-lg leading-none text-[#5B4BD6] opacity-0 transition-opacity group-data-[state=on]/opt:opacity-100",
-    chip: "inline-flex items-center gap-1.5 rounded-full bg-[#2E2555]/[0.07] px-3 py-1 text-sm text-[#2E2555] transition-colors hover:bg-[#2E2555]/15 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2",
-    chipCheck: "text-[#5B4BD6]",
+      "coach-accent shrink-0 text-lg leading-none text-[#5B4BD6] opacity-0 transition-opacity group-data-[state=on]/opt:opacity-100",
+    chip: "coach-chip inline-flex items-center gap-1.5 rounded-full bg-[#2E2555]/[0.07] px-3 py-1 text-sm text-[#2E2555] transition-colors hover:bg-[#2E2555]/15 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-2",
+    chipCheck: "coach-accent text-[#5B4BD6]",
     primaryBtn:
-      "h-11 bg-[#2E2555] px-6 font-medium text-white hover:bg-[#241C46] motion-safe:active:scale-[0.98]",
-    ghostBtn: "h-11 px-3 text-[#2E2555]",
-    link: "inline-flex items-center text-[#2E2555]/70 underline underline-offset-4 pointer-coarse:min-h-11",
-    picker: "rounded-xl border border-[#2E2555]/20 bg-white",
+      "coach-primary h-11 bg-[#2E2555] px-6 font-medium text-white hover:bg-[#241C46] motion-safe:active:scale-[0.98]",
+    ghostBtn: "coach-ghost h-11 px-3 text-[#2E2555]",
+    link: "coach-link inline-flex items-center text-[#2E2555]/70 underline underline-offset-4 pointer-coarse:min-h-11",
+    picker: "coach-picker rounded-xl border border-[#2E2555]/20 bg-white",
     surface:
-      "rounded-3xl border border-[#2E2555]/10 bg-white shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)]",
+      "coach-surface rounded-3xl border border-[#2E2555]/10 bg-white shadow-[0_1px_3px_rgba(51,65,92,.06),0_10px_30px_rgba(51,65,92,.07)]",
     bubble:
-      "max-w-[85%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap text-[#2E2555] data-[role=user]:rounded-tl-2xl data-[role=user]:rounded-br-sm data-[role=user]:bg-[#2E2555] data-[role=user]:text-white",
+      "coach-bubble max-w-[85%] rounded-2xl rounded-tl-sm bg-[#EEEBFE] px-4 py-2.5 text-[15px] leading-snug whitespace-pre-wrap text-[#2E2555] data-[role=user]:rounded-tl-2xl data-[role=user]:rounded-br-sm data-[role=user]:bg-[#2E2555] data-[role=user]:text-white",
   },
   copy: {
     reassurance: "No wrong answers. You can change anything later.",
@@ -42,12 +43,14 @@ export const simple: Mode = {
     done: "Done",
     back: "← Back",
     pickerPlaceholder: "Try “nursing,” “business,” or “welding”",
-    pickerEmpty: "No match yet. Try a shorter word, or pick “I'm still figuring it out.”",
+    pickerEmpty:
+      "No match yet. Try a shorter word, or pick “I'm still figuring it out.”",
     composerPlaceholder: "Ask about your classes…",
     completionHeadline: "That's a solid start.",
     restart: "Start over",
     capabilityTrigger: "What can Major help with?",
     capabilityTitle: "What Major can help with",
-    capabilityDesc: "Major is a planning tool. Here's the kind of thing you can ask.",
+    capabilityDesc:
+      "Major is a planning tool. Here's the kind of thing you can ask.",
   },
 };

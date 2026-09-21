@@ -51,6 +51,10 @@ export const MODES: Mode[] = [simple]; // no picker, no switcher; only Simple
 ## Change one thing
 
 - **Edit a look**: change the class strings / copy in that mode's file.
+- **Edit dark colors**: update the shared `coach-*` palette in `app/globals.css`.
+  Every mode follows the system color preference without a second state store.
+  Preserve the semantic `coach-*` classes when editing a skin; they connect the
+  same controls to the dark palette. Geometry and the printable paper stay unchanged.
 - **Edit an interaction**: change its shell in `../shared/shells/`.
 - **Add a mode**: copy a mode file + its shell, add the mode to `MODES`. Fonts go
   in `fonts.ts` (a `next/font` call at module scope).

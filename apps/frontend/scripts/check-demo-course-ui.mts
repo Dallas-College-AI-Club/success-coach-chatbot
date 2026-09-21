@@ -1,8 +1,13 @@
 import assert from "node:assert/strict";
 import { assessRequisites } from "../lib/planning";
 import { test } from "node:test";
-import { useSavedCourses } from "../features/chat/saved-courses";
+import {
+  readSavedSection,
+  savedSectionKey,
+  useSavedCourses,
+} from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
+import { composerCopy } from "../features/chat/seed";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -45,6 +50,51 @@ import {
   scheduleDiscoveryChoice,
   asksWhoTeachesNow,
 } from "../lib/tools/getClassSchedule";
+
+test("composer follows browser language order, regional tags and English fallback", () => {
+  const fallback = "Ask about your classes…";
+  assert.equal(
+    composerCopy(["es-MX", "en-US"], fallback).placeholder,
+    "Pregúntale lo que quieras a Major",
+  );
+  assert.equal(composerCopy([" ES_us "], fallback).language, "es");
+  assert.equal(composerCopy(["en-GB", "es"], fallback).placeholder, fallback);
+  assert.equal(composerCopy(["unsupported", "ko-KR"], fallback).language, "ko");
+  for (const languages of [
+    [],
+    ["unsupported"],
+    [""],
+    ["constructor"],
+    ["__proto__"],
+  ]) {
+    assert.equal(composerCopy(languages, fallback).placeholder, fallback);
+  }
+  assert.equal(composerCopy(["zh-TW"], fallback).language, "zh-Hant");
+  assert.equal(composerCopy(["zh-Hans-CN"], fallback).language, "zh");
+  assert.equal(composerCopy(["zh-Hans-TW"], fallback).language, "zh");
+});
+
+test("localized placeholder carries text direction without translating controls", () => {
+  for (const lang of [
+    "es",
+    "ko",
+    "vi",
+    "zh",
+    "zh-Hant",
+    "fr",
+    "pt",
+    "ar",
+    "hi",
+    "ur",
+  ]) {
+    const copy = composerCopy([lang], "Ask Major anything");
+    assert.equal(copy.language, lang);
+    assert.ok(copy.placeholder.includes("Major"));
+    assert.equal("send" in copy, false);
+    assert.equal("stop" in copy, false);
+    assert.equal(copy.direction, ["ar", "ur"].includes(lang) ? "rtl" : "ltr");
+  }
+});
 
 const profile: OnboardingPayload = {
   goal: "schedule_fit",
@@ -955,4 +1005,127 @@ test("semester ranges and unavailable numbered semesters never substitute the fu
   assert.deepEqual(scopeProgramGroups([{ name: "Semester 1" }], [13]), []);
   assert.deepEqual(requestedSemesters("Fall 2026"), []);
   assert.equal(scheduleCourseForTurn("Who's teaching ITSE 1303?"), "ITSE 1303");
+});
+
+test("section notes preserve different terms, validate hydration, and retain the course after removal", () => {
+  const state = useSavedCourses.getState();
+  const original = { courses: state.courses, questions: state.questions };
+  const section = {
+    section_number: "1001",
+    term: "Fall 2026",
+    start_date: "Aug 24, 2026",
+    end_date: "Dec 10, 2026",
+    meets: ["Mon / Wed 09:00 AM–09:55 AM (lecture) · K103"],
+    source_url:
+      "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+  };
+  try {
+    useSavedCourses.setState({ courses: [] });
+    state.toggleSection(course, section);
+    state.toggleSection(course, { ...section, term: "Spring 2027" });
+    const saved = useSavedCourses.getState().courses;
+    assert.equal(saved.length, 1);
+    assert.equal(saved[0].sections?.length, 2);
+    assert.equal(saved[0].credit_hours, course.credit_hours);
+    const merge = useSavedCourses.persist.getOptions().merge!;
+    const restored = merge(
+      {
+        courses: [
+          {
+            ...saved[0],
+            sections: [
+              section,
+              section,
+              { source_url: "javascript:alert(1)" },
+              null,
+            ],
+          },
+        ],
+      },
+      useSavedCourses.getState(),
+    );
+    assert.equal(restored.courses[0].sections?.length, 1);
+    assert.equal(
+      savedSectionKey(restored.courses[0].sections![0]),
+      savedSectionKey(readSavedSection(section)!),
+    );
+    state.toggleSection(course, section);
+    assert.equal(useSavedCourses.getState().courses[0].sections?.length, 1);
+    state.toggleSection(course, { ...section, term: "Spring 2027" });
+    assert.equal(useSavedCourses.getState().courses[0].sections?.length, 0);
+    assert.equal(useSavedCourses.getState().courses.length, 1);
+  } finally {
+    useSavedCourses.setState(original);
+  }
+});
+
+test("the coach sheet prints selected section dates and times instead of catalog prose", () => {
+  const initial = useSavedCourses.getInitialState(),
+    previous = initial.courses;
+  const section = readSavedSection({
+    section_number: "1001",
+    term: "Fall 2026",
+    professor: "Example Instructor",
+    start_date: "Aug 24, 2026",
+    end_date: "Dec 10, 2026",
+    meets: ["Mon / Wed 09:00 AM–09:55 AM"],
+    source_url:
+      "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+  })!;
+  try {
+    initial.courses = [{ ...course, sections: [section] }];
+    const html = renderToStaticMarkup(createElement(SummarySheet));
+    for (const text of [
+      "Section 1001",
+      "Fall 2026",
+      "Aug 24, 2026",
+      "Dec 10, 2026",
+      "09:00 AM–09:55 AM",
+      "Example Instructor",
+    ])
+      assert.ok(html.includes(text));
+    assert.ok(!html.includes(course.description!));
+    initial.courses = [
+      {
+        ...course,
+        sections: [{ ...section, meets: [], start_date: null, end_date: null }],
+      },
+    ];
+    assert.match(
+      renderToStaticMarkup(createElement(SummarySheet)),
+      /Start date not listed|Meeting times not published/,
+    );
+    initial.courses = [course];
+    assert.match(
+      renderToStaticMarkup(createElement(SummarySheet)),
+      /No section selected/,
+    );
+  } finally {
+    initial.courses = previous;
+  }
+});
+
+test("published schedule rows offer section-specific note actions only with an official source", () => {
+  const section = {
+    section_number: "1001",
+    term: "Fall 2026",
+    meets: [],
+    source_url:
+      "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+  };
+  const html = renderToStaticMarkup(
+    createElement(ScheduleResults, {
+      name: "get_class_schedule",
+      skin,
+      output: {
+        course_code: "ITSE 1303",
+        offerings: [
+          section,
+          { ...section, source_url: "https://untrusted.example/section" },
+        ],
+      },
+    }),
+  );
+  assert.equal((html.match(/\+ Add section to notes/g) ?? []).length, 1);
+  assert.match(html, /Add ITSE 1303 section 1001 \(Fall 2026\) to my notes/);
 });

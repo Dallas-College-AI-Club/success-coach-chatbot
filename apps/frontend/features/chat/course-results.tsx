@@ -3,7 +3,11 @@
 import { useId, useState } from "react";
 
 import type { Skin } from "@/features/onboarding/skin";
-import { useSavedCourses } from "@/features/chat/saved-courses";
+import {
+  readSavedSection,
+  savedSectionKey,
+  useSavedCourses,
+} from "@/features/chat/saved-courses";
 import { citationHref } from "@/lib/constants";
 import {
   assessRequisites,
@@ -765,6 +769,8 @@ export function ScheduleResults({
 }) {
   const [groupBy, setGroupBy] = useState<ScheduleGrouping>("section");
   const groupId = useId();
+  const savedCourses = useSavedCourses((s) => s.courses);
+  const toggleSection = useSavedCourses((s) => s.toggleSection);
   if (
     name !== "get_class_schedule" ||
     !isRecord(output) ||
@@ -779,7 +785,18 @@ export function ScheduleResults({
     Array.isArray(output.instructors) ? output.instructors : []
   ).filter(isRecord);
   const groups = groupScheduleSections(sections, groupBy);
+  const courseCode = isCourseCode(output.course_code)
+    ? output.course_code
+    : null;
+  const savedSections =
+    savedCourses.find((c) => c.course_code === courseCode)?.sections ?? [];
   const row = (section: Record<string, unknown>, index: number) => {
+    const saveable = readSavedSection(section);
+    const saved =
+      saveable &&
+      savedSections.some(
+        (s) => savedSectionKey(s) === savedSectionKey(saveable),
+      );
     const href = citationHref(section.source_url);
     const cvHref = citationHref(section.professor_cv_url);
     const profile = profiles.find((p) => citationHref(p.source_url) === cvHref);
@@ -829,6 +846,22 @@ export function ScheduleResults({
           </div>
         )}
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+          {courseCode && saveable && (
+            <button
+              type="button"
+              className={`${skin.chip} text-xs`}
+              aria-pressed={!!saved}
+              aria-label={`${saved ? "Remove" : "Add"} ${courseCode} section ${saveable.section_number ?? "unlisted"} (${saveable.term ?? "term not listed"}) ${saved ? "from" : "to"} my notes`}
+              onClick={() =>
+                toggleSection(
+                  { course_code: courseCode, title: catalogText(output.title) },
+                  saveable,
+                )
+              }
+            >
+              {saved ? "✓ Section in notes" : "+ Add section to notes"}
+            </button>
+          )}
           {href && (
             <a
               className={`${skin.link} inline-block text-sm`}

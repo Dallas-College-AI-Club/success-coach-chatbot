@@ -16,6 +16,55 @@ import type { SavedSession } from "@/features/onboarding/onboarding-store";
  *  and the announcer uses it to skip the seed. */
 export const SEED_ID = "coach-intro";
 
+// Small, static composer translations advertise multilingual chat without a
+// translation request or a second language preference to keep in sync.
+const COMPOSER_COPY: Record<string, string> = {
+  es: "Pregúntale lo que quieras a Major",
+  ko: "Major에게 무엇이든 물어보세요",
+  vi: "Hỏi Major bất cứ điều gì",
+  zh: "有什么问题都可以问 Major",
+  "zh-Hant": "有什麼問題都可以問 Major",
+  fr: "Posez vos questions à Major",
+  pt: "Pergunte o que quiser ao Major",
+  ar: "اسأل Major أي سؤال",
+  hi: "Major से कुछ भी पूछें",
+  ur: "Major سے کوئی بھی سوال پوچھیں",
+};
+
+export function composerCopy(
+  languages: readonly string[],
+  englishPlaceholder: string,
+) {
+  for (const tag of languages) {
+    const normalized = tag.trim().replaceAll("_", "-").toLowerCase();
+    const base = normalized.split("-")[0];
+    if (base === "en") break;
+    const language =
+      base === "zh" &&
+      !normalized.split("-").includes("hans") &&
+      /(?:^|-)(hant|tw|hk|mo)(?:-|$)/.test(normalized)
+        ? "zh-Hant"
+        : base;
+    const copy = Object.hasOwn(COMPOSER_COPY, language)
+      ? COMPOSER_COPY[language]
+      : undefined;
+    if (copy)
+      return {
+        language,
+        placeholder: copy,
+        direction:
+          language === "ar" || language === "ur"
+            ? ("rtl" as const)
+            : ("ltr" as const),
+      };
+  }
+  return {
+    language: "en",
+    placeholder: englishPlaceholder,
+    direction: "ltr" as const,
+  };
+}
+
 const COLD_VISIT_INTRO = [
   "Hey, I'm Major 👋 — your Dallas College planning companion.",
   "Ask me about degree requirements, prerequisites, or planning your semester. A Success Coach reviews everything and makes your plan official.",
@@ -28,7 +77,10 @@ export function seedMessages(session: SavedSession | null): UIMessage[] {
   const text = session
     ? [
         session.summary.length
-          ? ["Here's what you told me:", ...session.summary.map((s) => `- ${s}`)].join("\n")
+          ? [
+              "Here's what you told me:",
+              ...session.summary.map((s) => `- ${s}`),
+            ].join("\n")
           : "",
         ...authorityNotes(session.payload),
         coachVerifyLine(session.payload),

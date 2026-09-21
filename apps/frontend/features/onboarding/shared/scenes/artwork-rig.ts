@@ -52,41 +52,19 @@ export function articulatedPoint(
           (1 -
             smooth((beat - 3.5) / 1.5) +
             smooth((beat - 8.5) / 1.2) * (1 - smooth((beat - 12) / 1.5)));
-    const stroke = Math.sin(t * 4.7) * 10 * clamp(power, 0.2, 1) * strength;
-    const upper = smooth((y - 0.32) / 0.15) * smooth((0.88 - y) / 0.12);
+    const stroke = Math.sin(t * 4.7) * 8 * clamp(power, 0.2, 1) * strength;
+    const upper = smooth((0.8 - y) / 0.22);
     p = rotate(
       p,
-      { x: 0.43, y: 0.5 },
+      { x: 0.49, y: 0.6 },
       stroke,
-      smooth((0.46 - x) / 0.23) * upper,
+      smooth((0.55 - x) / 0.28) * upper,
     );
     p = rotate(
       p,
-      { x: 0.72, y: 0.48 },
+      { x: 0.7, y: 0.58 },
       -stroke,
-      smooth((x - 0.67) / 0.24) * upper,
-    );
-  } else if (key === "sun-phoenix") {
-    const stroke = Math.sin(t * 5.2) * 12 * strength,
-      mask = smooth((0.73 - y) / 0.16);
-    p = rotate(
-      p,
-      { x: 0.39, y: 0.49 },
-      stroke,
-      smooth((0.39 - x) / 0.22) * mask,
-    );
-    p = rotate(
-      p,
-      { x: 0.66, y: 0.47 },
-      -stroke,
-      smooth((x - 0.65) / 0.23) * mask,
-    );
-    const tail = smooth((y - 0.62) / 0.18) * smooth((0.48 - x) / 0.18);
-    p = rotate(
-      p,
-      { x: 0.43, y: 0.73 },
-      Math.sin(t * 3.2 - 0.7) * 3 * strength,
-      tail,
+      smooth((x - 0.73) / 0.23) * upper,
     );
   } else if (key === "harvester-bee") {
     const wing = smooth((0.61 - x) / 0.18) * smooth((0.61 - y) / 0.16);
@@ -94,7 +72,7 @@ export function articulatedPoint(
     p = rotate(p, { x: 0.55, y: 0.54 }, stroke, wing);
   } else if (key === "blazer-stallion" || key === "lion") {
     const horse = key === "blazer-stallion",
-      centers = horse ? [0.2, 0.43, 0.64, 0.83] : [0.21, 0.44, 0.66, 0.88];
+      centers = horse ? [0.22, 0.49, 0.69, 0.91] : [0.25, 0.48, 0.67, 0.9];
     const root = horse ? 0.72 : 0.77,
       weight = smooth((y - root) / (0.94 - root));
     const offsets = horse ? [0, 0.5, 0.5, 0] : [0.5, 0.6, 0, 0.1];
@@ -129,7 +107,7 @@ export function articulatedPoint(
       smooth((0.86 - y) / 0.13);
     p = rotate(
       p,
-      { x: horse ? 0.26 : 0.29, y: horse ? 0.6 : 0.69 },
+      { x: 0.29, y: horse ? 0.63 : 0.69 },
       Math.sin(phase * Math.PI * 2 - 0.6) * 2.5 * strength * run,
       tailMask,
     );
@@ -184,49 +162,58 @@ export function articulatedPoint(
 type Eyes = {
   centers: [number, number, number, number];
   radii: [number, number, number, number];
+  lid: [number, number, number];
   period: number;
   offset: number;
 };
 const eyes: Record<string, Eyes> = {
   bear: {
-    centers: [0.48, 0.29, 0.744, 0.311],
-    radii: [0.076, 0.054, 0.055, 0.05],
+    centers: [0.56, 0.242, 0.778, 0.266],
+    radii: [0.048, 0.029, 0.028, 0.024],
+    lid: [0.015, 0.62, 0.43],
     period: 5.7,
     offset: 0.6,
   },
   "blazer-stallion": {
-    centers: [0.649, 0.299, 0.851, 0.288],
-    radii: [0.065, 0.04, 0.03, 0.04],
+    // This profile has one visible eye; keep the second mask outside the image.
+    centers: [0.805, 0.252, -1, -1],
+    radii: [0.04, 0.027, 0.01, 0.01],
+    lid: [0.34, 0.66, 0.18],
     period: 6.4,
     offset: 1.9,
   },
   lion: {
-    centers: [0.63, 0.36, 0.81, 0.36],
-    radii: [0.058, 0.04, 0.044, 0.043],
+    centers: [0.722, 0.329, 0.865, 0.339],
+    radii: [0.039, 0.03, 0.019, 0.023],
+    lid: [1, 0.74, 0.04],
     period: 7.1,
     offset: 3.2,
   },
   thunderduck: {
-    centers: [0.536, 0.286, 0.793, 0.273],
-    radii: [0.078, 0.053, 0.043, 0.04],
+    centers: [0.607, 0.248, 0.808, 0.25],
+    radii: [0.05, 0.033, 0.025, 0.025],
+    lid: [0.43, 0.16, 0.69],
     period: 5.3,
     offset: 2.6,
   },
   "sun-phoenix": {
-    centers: [0.487, 0.303, 0.669, 0.301],
-    radii: [0.054, 0.05, 0.032, 0.044],
+    centers: [0.58, 0.362, 0.713, 0.398],
+    radii: [0.04, 0.025, 0.018, 0.018],
+    lid: [1, 0.8, 0.06],
     period: 4.8,
     offset: 4.2,
   },
   eagle: {
-    centers: [0.603, 0.214, 0.736, 0.19],
-    radii: [0.046, 0.053, 0.024, 0.04],
+    centers: [0.643, 0.449, 0.7, 0.428],
+    radii: [0.016, 0.021, 0.006, 0.013],
+    lid: [0.91, 0.93, 0.96],
     period: 6.1,
     offset: 1.1,
   },
   "harvester-bee": {
-    centers: [0.664, 0.424, 0.903, 0.421],
-    radii: [0.065, 0.063, 0.035, 0.052],
+    centers: [0.738, 0.385, 0.912, 0.4],
+    radii: [0.045, 0.045, 0.026, 0.036],
+    lid: [1, 0.68, 0.015],
     period: 4.6,
     offset: 3.6,
   },
@@ -256,6 +243,7 @@ export type RigDraw = {
   angle: number;
   facing: number;
   strength: number;
+  opacity?: number;
 };
 export function createArtworkRig() {
   const surface = document.createElement("canvas");
@@ -283,7 +271,7 @@ export function createArtworkRig() {
     );
     const fs = makeShader(
       gl.FRAGMENT_SHADER,
-      "precision mediump float;varying vec2 v_uv;uniform sampler2D u_image;uniform vec4 u_eyes;uniform vec4 u_radii;uniform float u_blink;\nvec4 eye(vec4 original,vec2 c,vec2 r){\n vec2 d=(v_uv-c)/r;float mask=1.-smoothstep(1.,1.22,length(d));if(mask<.001||u_blink<.001)return original;\n vec4 l=texture2D(u_image,vec2(c.x,c.y-r.y*1.32)),rr=texture2D(u_image,vec2(c.x,c.y+r.y*1.24));\n vec4 skin=mix(l,rr,smoothstep(-.1,1.24,d.y));float opening=max(.04,1.-u_blink);\n vec4 compressed=texture2D(u_image,vec2(v_uv.x,c.y+d.y*r.y/opening));\n float slit=1.-smoothstep(opening*.84,opening*1.08,abs(d.y));vec4 lid=mix(skin,compressed,slit);\n float closed=smoothstep(.75,.98,u_blink);float line=(1.-smoothstep(.045,.090,abs(d.y-(-.12+.19*d.x*d.x))))*(1.-smoothstep(.76,.92,abs(d.x)));\n vec4 shut=mix(skin,vec4(.025,.105,.08,1.),line);\n return mix(original,mix(lid,shut,closed),mask*smoothstep(0.,.15,u_blink));\n}\nvoid main(){vec4 c=texture2D(u_image,v_uv);c=eye(c,u_eyes.xy,u_radii.xy);c=eye(c,u_eyes.zw,u_radii.zw);gl_FragColor=c;}",
+      "precision mediump float;varying vec2 v_uv;uniform sampler2D u_image;uniform vec4 u_eyes;uniform vec4 u_radii;uniform float u_blink;uniform vec3 u_lid;uniform float u_opacity;\nvec4 eye(vec4 original,vec2 c,vec2 r){\n vec2 d=(v_uv-c)/r;float mask=1.-smoothstep(1.,1.22,length(d));if(mask<.001||u_blink<.001)return original;\n vec4 skin=vec4(u_lid,original.a);float opening=max(.04,1.-u_blink);\n vec4 compressed=texture2D(u_image,vec2(v_uv.x,c.y+d.y*r.y/opening));\n float slit=1.-smoothstep(opening*.84,opening*1.08,abs(d.y));vec4 lid=mix(skin,compressed,slit);\n float closed=smoothstep(.75,.98,u_blink);float line=(1.-smoothstep(.045,.090,abs(d.y-(-.12+.19*d.x*d.x))))*(1.-smoothstep(.76,.92,abs(d.x)));\n vec4 shut=mix(skin,vec4(.025,.105,.08,1.),line);\n return mix(original,mix(lid,shut,closed),mask*smoothstep(0.,.15,u_blink));\n}\nvoid main(){vec4 c=texture2D(u_image,v_uv);c=eye(c,u_eyes.xy,u_radii.xy);c=eye(c,u_eyes.zw,u_radii.zw);gl_FragColor=c*u_opacity;}",
     );
     const program = gl.createProgram()!;
     gl.attachShader(program, vs);
@@ -319,8 +307,10 @@ export function createArtworkRig() {
     gl.vertexAttribPointer(uv, 2, gl.FLOAT, false, 16, 8);
     const eyeUniform = gl.getUniformLocation(program, "u_eyes"),
       radiusUniform = gl.getUniformLocation(program, "u_radii"),
+      lidUniform = gl.getUniformLocation(program, "u_lid"),
       blinkUniform = gl.getUniformLocation(program, "u_blink");
-    const size = gl.getUniformLocation(program, "u_size"),
+    const opacity = gl.getUniformLocation(program, "u_opacity"),
+      size = gl.getUniformLocation(program, "u_size"),
       center = gl.getUniformLocation(program, "u_center"),
       view = gl.getUniformLocation(program, "u_view"),
       turn = gl.getUniformLocation(program, "u_turn"),
@@ -351,6 +341,8 @@ export function createArtworkRig() {
           const e = eyes[art.key];
           gl.uniform4fv(eyeUniform, e.centers);
           gl.uniform4fv(radiusUniform, e.radii);
+          gl.uniform3fv(lidUniform, e.lid);
+          gl.uniform1f(opacity, item.opacity ?? 1);
           gl.uniform1f(blinkUniform, blinkAt(art.key, t) * strength);
           let texture = textures.get(art.key);
           if (!texture) {
