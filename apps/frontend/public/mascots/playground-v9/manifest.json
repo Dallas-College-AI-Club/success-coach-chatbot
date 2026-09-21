@@ -1,15 +1,15 @@
 {
   "version": 9,
-  "source": "approved cast with owner-requested Blazer and Suns revisions (2026-09-20)",
-  "totalBytes": 276116,
+  "source": "owner-requested Mustang-style cast with distinct expressions (2026-09-20)",
+  "totalBytes": 273074,
   "characters": [
     {
       "key": "bear",
       "name": "Bear",
       "src": "bear.webp",
-      "width": 279,
+      "width": 252,
       "height": 420,
-      "bytes": 37350,
+      "bytes": 35094,
       "air": false
     },
     {
@@ -26,26 +26,26 @@
       "name": "Lion",
       "src": "lion.webp",
       "width": 420,
-      "height": 417,
-      "bytes": 53240,
+      "height": 373,
+      "bytes": 44992,
       "air": false
     },
     {
       "key": "thunderduck",
       "name": "Thunderduck",
       "src": "thunderduck.webp",
-      "width": 266,
+      "width": 239,
       "height": 420,
-      "bytes": 32720,
+      "bytes": 30638,
       "air": false
     },
     {
       "key": "sun-phoenix",
       "name": "Phoenix Sun",
       "src": "sun-phoenix.webp",
-      "width": 420,
+      "width": 414,
       "height": 420,
-      "bytes": 43970,
+      "bytes": 57592,
       "air": true
     },
     {
@@ -53,17 +53,17 @@
       "name": "Eagle",
       "src": "eagle.webp",
       "width": 420,
-      "height": 403,
-      "bytes": 44234,
+      "height": 284,
+      "bytes": 31096,
       "air": true
     },
     {
       "key": "harvester-bee",
       "name": "Harvester Bee",
       "src": "harvester-bee.webp",
-      "width": 351,
-      "height": 356,
-      "bytes": 32216,
+      "width": 418,
+      "height": 420,
+      "bytes": 41276,
       "air": true
     }
   ]

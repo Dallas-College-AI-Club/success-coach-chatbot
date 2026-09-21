@@ -9,7 +9,14 @@ import {
   type UIMessage,
 } from "ai";
 import Link from "next/link";
-import { memo, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  memo,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 
 import MarkdownViewer from "@/components/markdown-viewer";
 import { Button } from "@/components/ui/button";
@@ -22,7 +29,7 @@ import {
   ScheduleResults,
   InstructorResults,
 } from "@/features/chat/course-results";
-import { SEED_ID, seedMessages } from "@/features/chat/seed";
+import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
 import {
   starterQuestionsFor,
   type StarterQuestion,
@@ -54,6 +61,14 @@ import { isRecord, requestedSemesters } from "@/lib/course-details";
 
 // Stateless config — never re-created per render.
 const transport = new DefaultChatTransport({ api: "/api/chat" });
+
+function subscribeLanguage(change: () => void) {
+  window.addEventListener("languagechange", change);
+  return () => window.removeEventListener("languagechange", change);
+}
+const browserLanguages = () =>
+  navigator.languages?.join(",") || navigator.language || "en";
+const serverLanguage = () => "en";
 
 let reduceMotionQuery: MediaQueryList | null = null;
 function prefersReducedMotion(): boolean {
@@ -277,6 +292,12 @@ function Conversation({
   profile: StudentProfile | null;
 }) {
   const { skin, copy } = mode;
+  const languages = useSyncExternalStore(
+    subscribeLanguage,
+    browserLanguages,
+    serverLanguage,
+  );
+  const composer = composerCopy(languages.split(","), copy.composerPlaceholder);
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
     transport,
     messages: seed,
@@ -439,7 +460,9 @@ function Conversation({
           id="chat-composer"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder={copy.composerPlaceholder}
+          placeholder={composer.placeholder}
+          lang={composer.language}
+          dir={input ? "auto" : composer.direction}
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent py-1.5 text-base outline-none placeholder:opacity-55"
         />

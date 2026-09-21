@@ -18,7 +18,7 @@ function campusHorizonHeight(width: number, height: number, headerTop: number) {
   );
 }
 
-/** A slow, continuous sky patrol keeps the round Suns character above the controls. */
+/** A 45-second day rises in the east (right) and sets in the west (left). */
 export function sunAt(
   time: number,
   width: number,
@@ -31,20 +31,18 @@ export function sunAt(
     Math.min(56, Math.min(width, height) * 0.055, headerTop * 0.32),
   );
   const margin = size * 0.65 + 10;
-  const arc = time / 42;
-  const centerY = size * 0.65 + 5;
-  const rise = Math.max(
-    0,
-    Math.min(
-      horizon * 0.08,
-      centerY - size * 0.6 - 3,
-      headerTop - centerY - size * 0.6 - 4,
-    ),
+  const progress = cycle(time, 45) / 45;
+  const crest = size * 0.65 + 4;
+  const baseline = Math.max(
+    crest,
+    Math.min(horizon, headerTop - 4) - size * 0.65,
   );
   return {
     size,
-    x: margin + (width - margin * 2) * (0.5 + Math.sin(arc + 0.9) * 0.5),
-    y: centerY + Math.sin(arc) * rise,
+    x: width - margin - (width - margin * 2) * progress,
+    y: baseline - Math.sin(progress * Math.PI) * (baseline - crest),
+    // Hide the reset between sunset and the next sunrise.
+    opacity: smooth(progress / 0.06) * smooth((1 - progress) / 0.06),
   };
 }
 
@@ -515,6 +513,7 @@ export async function startMascotScene(
   };
   const airborneOrder = ["eagle", "harvester-bee"];
   const draw = () => {
+    if (width <= 0 || height <= 0) return;
     const started = performance.now();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, width, height);
@@ -568,7 +567,7 @@ export async function startMascotScene(
       const baseH = solo
         ? Math.min(height * 0.42, 258)
         : gallery
-          ? Math.min((height - 330) * 0.35, 170)
+          ? clamp((height - 330) * 0.35, 24, 170)
           : options.studio
             ? 86
             : c.key === "sun-phoenix"
@@ -838,13 +837,14 @@ export async function startMascotScene(
       }
       if (c.key === "lion") {
         const ballM = motionAt(c.key, t + 1.15),
-          ballX = crossing || slot
-            ? clamp(x + m.facing * (w * 0.64 + 5), 5, width - 5)
-            : clamp(
-                begin + span * ballM.progress + m.facing * (w * 0.59 + 5),
-                laneStart + 5,
-                laneEnd - 5,
-              ),
+          ballX =
+            crossing || slot
+              ? clamp(x + m.facing * (w * 0.64 + 5), 5, width - 5)
+              : clamp(
+                  begin + span * ballM.progress + m.facing * (w * 0.59 + 5),
+                  laneStart + 5,
+                  laneEnd - 5,
+                ),
           ballY = floorY - 4;
         ctx.save();
         ctx.translate(ballX, ballY);
@@ -906,6 +906,10 @@ export async function startMascotScene(
         h,
         angle: isSun ? 0 : angle,
         facing: isSun ? 1 : m.facing,
+        opacity:
+          isSun && !selected && !options.studio && !reduced.matches
+            ? sun.opacity
+            : 1,
         strength: paused && reduced.matches ? 0 : 1,
       });
       if (c.key === "thunderduck") duckPulse = m.pulse;
@@ -930,6 +934,7 @@ export async function startMascotScene(
         ctx.translate(p.x, p.y);
         ctx.rotate((p.angle * Math.PI) / 180);
         ctx.scale(p.facing, 1);
+        ctx.globalAlpha = p.opacity ?? 1;
         ctx.drawImage(p.art.image, -p.w / 2, -p.h / 2, p.w, p.h);
         ctx.restore();
       }
@@ -986,7 +991,13 @@ export async function startMascotScene(
               : "offscreen",
       });
   };
-  const running = () => !paused && visible && !disposed && !document.hidden;
+  const running = () =>
+    width > 0 &&
+    height > 0 &&
+    !paused &&
+    visible &&
+    !disposed &&
+    !document.hidden;
   const tick = (now: number) => {
     raf = 0;
     if (!running()) return;
@@ -1005,8 +1016,8 @@ export async function startMascotScene(
   };
   const resize = () => {
     const b = canvas.getBoundingClientRect();
-    width = Math.max(1, b.width);
-    height = Math.max(1, b.height);
+    width = Math.max(0, b.width);
+    height = Math.max(0, b.height);
     dpr = Math.min(devicePixelRatio || 1, 1.5);
     canvas.width = Math.round(width * dpr);
     canvas.height = Math.round(height * dpr);

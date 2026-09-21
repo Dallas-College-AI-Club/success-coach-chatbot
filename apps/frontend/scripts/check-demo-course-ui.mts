@@ -7,6 +7,7 @@ import {
   useSavedCourses,
 } from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
+import { composerCopy } from "../features/chat/seed";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -49,6 +50,51 @@ import {
   scheduleDiscoveryChoice,
   asksWhoTeachesNow,
 } from "../lib/tools/getClassSchedule";
+
+test("composer follows browser language order, regional tags and English fallback", () => {
+  const fallback = "Ask about your classes…";
+  assert.equal(
+    composerCopy(["es-MX", "en-US"], fallback).placeholder,
+    "Pregúntale lo que quieras a Major",
+  );
+  assert.equal(composerCopy([" ES_us "], fallback).language, "es");
+  assert.equal(composerCopy(["en-GB", "es"], fallback).placeholder, fallback);
+  assert.equal(composerCopy(["unsupported", "ko-KR"], fallback).language, "ko");
+  for (const languages of [
+    [],
+    ["unsupported"],
+    [""],
+    ["constructor"],
+    ["__proto__"],
+  ]) {
+    assert.equal(composerCopy(languages, fallback).placeholder, fallback);
+  }
+  assert.equal(composerCopy(["zh-TW"], fallback).language, "zh-Hant");
+  assert.equal(composerCopy(["zh-Hans-CN"], fallback).language, "zh");
+  assert.equal(composerCopy(["zh-Hans-TW"], fallback).language, "zh");
+});
+
+test("localized placeholder carries text direction without translating controls", () => {
+  for (const lang of [
+    "es",
+    "ko",
+    "vi",
+    "zh",
+    "zh-Hant",
+    "fr",
+    "pt",
+    "ar",
+    "hi",
+    "ur",
+  ]) {
+    const copy = composerCopy([lang], "Ask Major anything");
+    assert.equal(copy.language, lang);
+    assert.ok(copy.placeholder.includes("Major"));
+    assert.equal("send" in copy, false);
+    assert.equal("stop" in copy, false);
+    assert.equal(copy.direction, ["ar", "ur"].includes(lang) ? "rtl" : "ltr");
+  }
+});
 
 const profile: OnboardingPayload = {
   goal: "schedule_fit",

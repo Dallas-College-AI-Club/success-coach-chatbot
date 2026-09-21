@@ -365,7 +365,7 @@ test("open-field routes explore each slot with continuous motion and a faster re
   }
 });
 
-test("the Suns mascot patrols the sky smoothly without changing its round silhouette", () => {
+test("the phoenix sun rises east, sets west and resets invisibly above the controls", () => {
   for (const [width, height, headerTop] of [
     [390, 844, 82],
     [844, 390, 50],
@@ -374,14 +374,25 @@ test("the Suns mascot patrols the sky smoothly without changing its round silhou
   ]) {
     let previous = sunAt(0, width, height, headerTop);
     let minX = width,
-      maxX = 0;
+      maxX = 0,
+      resets = 0;
     for (let tick = 1; tick < 12000; tick++) {
       const p = sunAt(tick / 20, width, height, headerTop);
-      assert.ok(p.x - p.size / 2 >= 0 && p.x + p.size / 2 <= width);
-      assert.ok(p.y - p.size / 2 >= 0 && p.y + p.size / 2 < headerTop);
-      assert.ok(
-        Math.hypot(p.x - previous.x, p.y - previous.y) * 20 < width / 70,
-      );
+      assert.ok(p.x - p.size * 0.6 >= 0 && p.x + p.size * 0.6 <= width);
+      assert.ok(p.y - p.size * 0.6 >= 0 && p.y + p.size * 0.6 < headerTop);
+      assert.ok(p.opacity >= 0 && p.opacity <= 1);
+      if (p.x > previous.x) {
+        resets++;
+        assert.ok(
+          p.opacity < 0.002 && previous.opacity < 0.002,
+          "the sunrise reset must be hidden",
+        );
+      } else {
+        assert.ok(
+          Math.hypot(p.x - previous.x, p.y - previous.y) * 20 < width / 30,
+          "sky travel must be smooth",
+        );
+      }
       minX = Math.min(minX, p.x);
       maxX = Math.max(maxX, p.x);
       assert.deepEqual(
@@ -390,9 +401,13 @@ test("the Suns mascot patrols the sky smoothly without changing its round silhou
       );
       previous = p;
     }
+    assert.ok(resets >= 13, "complete a day approximately every 45 seconds");
+    assert.ok(maxX - minX > width * 0.65);
     assert.ok(
-      maxX - minX > width * 0.65,
-      "the sun should explore the sky, not stay in one corner",
+      sunAt(22.5, width, height, headerTop).y <=
+        sunAt(0, width, height, headerTop).y,
     );
+    assert.equal(sunAt(22.5, width, height, headerTop).opacity, 1);
+    assert.equal(sunAt(45, width, height, headerTop).opacity, 0);
   }
 });
