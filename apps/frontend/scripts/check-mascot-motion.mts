@@ -6,11 +6,13 @@ import { resolve } from "node:path";
 import { articulatedPoint } from "../features/onboarding/shared/scenes/artwork-rig";
 import {
   crossingAt,
+  characterHeight,
   freeRoamingBands,
   flightClockAt,
   motionAt,
   roamingMotionAt,
   roamingSlot,
+  roamingY,
   sunAt,
 } from "../features/onboarding/shared/scenes/approved-mascot-motion";
 
@@ -241,7 +243,7 @@ test("free roaming uses the available top and bottom without covering the UI", (
       for (let i = 0; i < count; i++) {
         const slot = roamingSlot(area, i, count);
         // Includes the widest drawing, articulation and leap clearance.
-        assert.ok(slot.height > 0 && slot.height <= 72);
+        assert.ok(slot.height > 0 && slot.height <= 128);
         assert.ok(slot.height * 1.5 <= area.bottom - area.top + 1e-8);
         assert.ok(slot.height * 2.2 <= slot.right - slot.left + 1e-8);
         if (i) assert.equal(roamingSlot(area, i - 1, count).right, slot.left);
@@ -250,7 +252,7 @@ test("free roaming uses the available top and bottom without covering the UI", (
     if (height === 1253) {
       assert.ok(
         bands.sky && bands.lawn,
-        "tall windows must use both empty areas",
+        "use both fields when each fits the cast",
       );
     }
     if (height === 390)
@@ -259,6 +261,74 @@ test("free roaming uses the available top and bottom without covering the UI", (
         "short windows need the side routes",
       );
   }
+});
+
+test("scene sizing stays readable, scales with the window and keeps the sun smaller", () => {
+  let previous = 0;
+  for (const [width, height, headerTop] of [
+    [390, 844, 82],
+    [1034, 1253, 238],
+    [1572, 1272, 247],
+  ]) {
+    const panelWidth = Math.min(width - 32, 672);
+    const card = {
+      left: (width - panelWidth) / 2,
+      right: (width + panelWidth) / 2,
+      top: 305,
+      bottom: 1025,
+    };
+    const size = characterHeight(width, height, card);
+    assert.ok(
+      size >= 48 && size > previous,
+      "larger windows need visibly larger characters",
+    );
+    assert.ok(
+      sunAt(0, width, height, headerTop).size < size * 0.65,
+      "sun must not dominate the cast",
+    );
+    previous = size;
+  }
+  const card = { left: 450, right: 1122, top: 305, bottom: 1025 };
+  const bands = freeRoamingBands(1572, 1272, card, 247);
+  assert.equal(
+    bands.sky,
+    undefined,
+    "a shallow strip must not shrink flying characters",
+  );
+  assert.ok(bands.lawn);
+  assert.ok(
+    roamingSlot(bands.lawn, 0, 2, characterHeight(1572, 1272, card)).height >
+      120,
+  );
+});
+
+test("meadow routes use distinct depths and continuous outbound/return curves", () => {
+  const ranges: number[][] = [];
+  for (const c of ground) {
+    let previous = roamingY(c.key, 0, 1035, 1264, 127);
+    const values = [previous];
+    for (let tick = 1; tick <= 2400; tick++) {
+      const y = roamingY(c.key, (tick / 1200) % 2, 1035, 1264, 127);
+      assert.ok(y - 127 * 0.7 > 1035 && y + 127 * 0.7 < 1264);
+      assert.ok(
+        Math.abs(y - previous) < 1,
+        "vertical route must not jump on a turn",
+      );
+      values.push(y);
+      previous = y;
+    }
+    assert.ok(
+      Math.max(...values) - Math.min(...values) > 35,
+      "characters should not follow a flat row",
+    );
+    ranges.push(values);
+  }
+  assert.ok(
+    Math.max(...ranges.map((v) => v[0])) -
+      Math.min(...ranges.map((v) => v[0])) >
+      25,
+    "characters need different starting depths",
+  );
 });
 
 test("open-field routes explore each slot with continuous motion and a faster return", () => {

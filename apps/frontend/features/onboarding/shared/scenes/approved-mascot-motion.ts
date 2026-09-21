@@ -26,7 +26,10 @@ export function sunAt(
   headerTop: number,
 ) {
   const horizon = campusHorizonHeight(width, height, headerTop);
-  const size = Math.max(20, Math.min(72, headerTop * 0.32));
+  const size = Math.max(
+    20,
+    Math.min(56, Math.min(width, height) * 0.055, headerTop * 0.32),
+  );
   const margin = size * 0.65 + 10;
   const arc = time / 42;
   const centerY = size * 0.65 + 5;
@@ -45,7 +48,17 @@ export function sunAt(
   };
 }
 
-/** Free bands are measured around the actual UI, not fixed screen percentages. */
+/** Size the cast for the scene, never for a thin strip beside the chat. */
+export function characterHeight(width: number, height: number, card: Panel) {
+  const side = Math.min(card.left, width - card.right);
+  return clamp(
+    Math.min(width, height) * 0.1,
+    Math.min(48, height * 0.1),
+    Math.max(48, Math.min(128, side * 0.85)),
+  );
+}
+
+/** Only use a free band when it has room for full-size, two-dimensional travel. */
 export function freeRoamingBands(
   width: number,
   height: number,
@@ -64,21 +77,43 @@ export function freeRoamingBands(
     top: card.bottom + 10,
     bottom: height - 8,
   };
+  const size = characterHeight(width, height, card);
   return {
-    sky: sky.bottom - sky.top >= 44 ? sky : undefined,
-    lawn: lawn.bottom - lawn.top >= 32 ? lawn : undefined,
+    sky: sky.bottom - sky.top >= size * 1.8 ? sky : undefined,
+    lawn: lawn.bottom - lawn.top >= size * 1.8 ? lawn : undefined,
   };
 }
 
-export function roamingSlot(area: Panel, index: number, count: number) {
+export function roamingSlot(
+  area: Panel,
+  index: number,
+  count: number,
+  size = 128,
+) {
   const span = (area.right - area.left) / count;
   return {
     left: area.left + span * index,
     right: area.left + span * (index + 1),
     top: area.top,
     bottom: area.bottom,
-    height: Math.min(72, (area.bottom - area.top) / 1.5, span / 2.2),
+    height: Math.min(size, (area.bottom - area.top) / 1.8, span / 2.2),
   };
+}
+
+/** Outbound and return curves meet smoothly, with a different depth for each friend. */
+export function roamingY(
+  key: string,
+  travel: number,
+  top: number,
+  bottom: number,
+  size: number,
+) {
+  const phase =
+    { bear: 0.3, "blazer-stallion": 2.1, lion: 4.2, thunderduck: 5.4 }[key] ??
+    0;
+  const middle = (top + bottom) / 2;
+  const radius = Math.max(0, (bottom - top - size * 1.5) / 2);
+  return middle + Math.sin(travel * Math.PI + phase) * radius;
 }
 export type Controller = {
   dispose: () => void;
@@ -193,7 +228,7 @@ export function roamingMotionAt(
   const half = (periods[key] ?? 23) / 2,
     walkHalf = Math.max(1, span) / Math.max(1, height * 0.7) + 2.2,
     runHalf = Math.max(1, span) / Math.max(1, height * 1.3) + 2.2,
-    elapsed = cycle(time, walkHalf + runHalf),
+    elapsed = cycle((time * 23) / (periods[key] ?? 23), walkHalf + runHalf),
     returning = elapsed >= walkHalf,
     clock = returning
       ? half + ((elapsed - walkHalf) / runHalf) * half
@@ -206,6 +241,7 @@ export function roamingMotionAt(
 
 type Crossing = {
   x: number;
+  travel: number;
   phase: number;
   run: number;
   facing: number;
@@ -308,6 +344,7 @@ export function crossingAt(
   if (time < delay)
     return {
       x: points[0],
+      travel: 0,
       phase: 0,
       run: 0,
       facing,
@@ -324,6 +361,7 @@ export function crossingAt(
         e = travelEase(u, segment === 2);
       return {
         x: points[segment] + (points[segment + 1] - points[segment]) * e.p,
+        travel: (returning ? 1 : 0) + (segment === 0 ? e.p / 2 : (1 + e.p) / 2),
         phase: (e.p * Math.abs(points[segment + 1] - points[segment])) / stride,
         run: e.v,
         facing,
@@ -347,6 +385,7 @@ export function crossingAt(
     play = p >= 0 && p <= 1 ? p : -1;
   return {
     x: points[3],
+    travel: returning ? 2 : 1,
     phase: 0,
     run: 0,
     facing,
@@ -474,8 +513,7 @@ export async function startMascotScene(
     eagle: { side: 0, y: 0.26 },
     "harvester-bee": { side: 0, y: 0.56 },
   };
-  const airborneOrder = ["eagle", "sun-phoenix", "harvester-bee"];
-  const groundOrder = ["bear", "blazer-stallion", "lion", "thunderduck"];
+  const airborneOrder = ["eagle", "harvester-bee"];
   const draw = () => {
     const started = performance.now();
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -490,24 +528,21 @@ export async function startMascotScene(
       top: 80,
       bottom: height * 0.85,
     };
-    const leftSpace = Math.max(0, card.left),
-      rightSpace = Math.max(0, width - card.right);
     const bands = freeRoamingBands(width, height, card, headerTop);
     const sun = sunAt(time, width, height, headerTop);
     const groundBelow = !!bands.lawn && !selected && !options.studio;
-    const sideHeight = Math.min(card.bottom, height - 10) - header;
-    const smaller = Math.min(leftSpace, rightSpace),
-      normalH = clamp(
-        Math.min(
-          smaller * 0.64,
-          groundBelow ? (sideHeight - 44) / 4 : (sideHeight - 80) / 6,
-        ),
-        12,
-        72,
-      ),
+    const normalH = characterHeight(width, height, card),
       gallery = selected === "*",
       openField = selected === "field",
       solo = selected !== null && !gallery && !openField;
+    const groundBottom = Math.min(
+      height - (options.studio ? 108 : 12),
+      card.bottom - 15,
+    );
+    const groundTop = Math.min(
+      groundBottom - normalH * (groundBelow ? 2 : 3.6),
+      Math.max(header, height * 0.62),
+    );
     for (const [index, c] of cast.entries()) {
       if (solo && c.key !== selected) continue;
       const t = time + offsets[c.key],
@@ -516,12 +551,19 @@ export async function startMascotScene(
         !selected && !options.studio
           ? c.air
             ? bands.sky
-            : bands.lawn
+            : c.key === "blazer-stallion" || c.key === "lion"
+              ? bands.lawn
+              : undefined
           : undefined;
-      const bandOrder = c.air ? airborneOrder : groundOrder;
+      const bandOrder = c.air ? airborneOrder : ["blazer-stallion", "lion"];
       const slot =
         area && c.key !== "sun-phoenix"
-          ? roamingSlot(area, bandOrder.indexOf(c.key), bandOrder.length)
+          ? roamingSlot(
+              area,
+              bandOrder.indexOf(c.key),
+              bandOrder.length,
+              normalH,
+            )
           : undefined;
       const baseH = solo
         ? Math.min(height * 0.42, 258)
@@ -534,10 +576,9 @@ export async function startMascotScene(
               : (slot?.height ?? normalH * (c.key === "eagle" ? 1.03 : 1));
       const across = !solo && !gallery && !openField && !slot;
       const flightTop = header + 8,
-        flightBottom =
-          Math.min(card.bottom, height - 10) -
-          (groundBelow ? 8 : 2 * (normalH + 18) + 10),
-        flightLaneHeight = Math.max(0, flightBottom - flightTop) / 3,
+        flightBottom = groundTop - 10,
+        flightLaneHeight =
+          Math.max(0, flightBottom - flightTop) / airborneOrder.length,
         flightY =
           flightTop + (bandOrder.indexOf(c.key) + 0.5) * flightLaneHeight,
         flightSway = Math.max(0, (flightLaneHeight - baseH * 1.3) / 2);
@@ -560,11 +601,11 @@ export async function startMascotScene(
       const depth =
         c.air && c.key !== "sun-phoenix" && !gallery
           ? 1 -
-            (c.key === "eagle" ? 0.43 : 0.12) *
+            (c.key === "eagle" ? 0.12 : 0.06) *
               Math.sin(m.travelUnit * Math.PI) ** 2
           : 1;
       const speciesScale =
-        c.key === "harvester-bee" ? (solo ? 1 : gallery ? 0.7 : 0.64) : 1;
+        c.key === "harvester-bee" ? (solo ? 1 : gallery ? 0.7 : 0.72) : 1;
       const h = baseH * depth * speciesScale,
         w = (h * c.width) / c.height;
       let laneStart = place.side === 0 ? 7 : card.right + 7,
@@ -654,6 +695,7 @@ export async function startMascotScene(
         run = crossing.run;
         Object.assign(m, {
           facing: crossing.facing,
+          travel: crossing.travel,
           play: crossing.play,
           pulse: crossing.pulse,
           arc: crossing.arc,
@@ -661,14 +703,22 @@ export async function startMascotScene(
         });
       }
       if (slot && !c.air) {
-        y = slot.bottom - h / 2 - 4;
+        y = roamingY(c.key, m.travel, slot.top, slot.bottom, h);
       } else if (!c.air && !solo && !gallery) {
         const bottom = Math.min(
           height - (options.studio ? 108 : 12),
           across ? card.bottom - 15 : height,
         );
         const upper = c.key === "bear" || c.key === "thunderduck";
-        y = bottom - h / 2 - (upper ? h + 18 : 0);
+        const top = groundTop;
+        const middle = (top + bottom) / 2;
+        y = roamingY(
+          c.key,
+          m.travel,
+          groundBelow || upper ? top : middle,
+          groundBelow || !upper ? bottom : middle,
+          h,
+        );
       }
       const floorY = y + h / 2;
       if (c.air) {
@@ -788,7 +838,7 @@ export async function startMascotScene(
       }
       if (c.key === "lion") {
         const ballM = motionAt(c.key, t + 1.15),
-          ballX = crossing
+          ballX = crossing || slot
             ? clamp(x + m.facing * (w * 0.64 + 5), 5, width - 5)
             : clamp(
                 begin + span * ballM.progress + m.facing * (w * 0.59 + 5),
