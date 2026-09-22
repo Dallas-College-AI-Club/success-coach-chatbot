@@ -1,5 +1,10 @@
+import { INTEREST_GUIDE } from "@/features/onboarding/interests";
 import { PROGRAMS } from "@/features/onboarding/programs";
-import type { OnboardingPayload } from "@/features/onboarding/types";
+import { interestQuestion } from "@/features/onboarding/questions";
+import type {
+  InterestArea,
+  OnboardingPayload,
+} from "@/features/onboarding/types";
 
 // One source for onboarding previews and the chat's initial questions. Prompts
 // carry the student's choices explicitly; official decisions stay with the coach.
@@ -63,28 +68,28 @@ const COACH: StarterQuestion = {
   prompt:
     "Look up academic advising in your records and give the listed email, phone number and appointment resource for contacting a Dallas College Success Coach.",
 };
-const PROGRAM_QUESTION: StarterQuestion = {
-  label: "Help me find my program's course plan",
-  prompt:
-    "Help me find the published course plan for my Dallas College program. First ask which program I am considering; do not choose a program or example course for me.",
-};
 
-function coursePlan(
-  name: string,
-  example = false,
-  first = false,
-): StarterQuestion {
+// Catalog names end in "A.A.S."/"Certificate", so a sentence built from them
+// must not double the final period.
+const listOf = (items: string[]) =>
+  items.length > 1
+    ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`
+    : items.join("");
+const sentence = (text: string) => text.replace(/\.\.$/, ".");
+
+// "only semester 1" is what scopes the lookup to the first-semester group;
+// the full plan must not mention a semester number at all.
+function coursePlan(name: string, first = false): StarterQuestion {
   return {
-    label: example
-      ? "What would I study in this example program?"
-      : first
-        ? "Which classes would I start with?"
-        : "Review my program's course checklist",
+    label: first
+      ? "Which classes would I start with?"
+      : "What courses do I need for this program?",
     note: first
       ? `Which courses are in semester 1 of ${name}?`
-      : example
-        ? `What would I study in ${name} (example program)?`
-        : `Which courses are required for ${name}?`,
+      : `Which courses are required for ${name}?`,
+    // NOT sentence(): features/chat/sheet-questions.ts parses this exact
+    // wording back into the note for the printed sheet, and collapsing the
+    // period after "A.A.S." makes that repair drop it.
     prompt: `Look up the published course plan for ${name}${first ? ", only semester 1" : ""}. The course cards already show the requested checklist and its credits. Reply in at most two sentences introducing those cards, without writing a course list or semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.`,
   };
 }
@@ -109,7 +114,7 @@ function scheduleQuestion(
   const preference = preferences.join(" and ");
   return {
     label: preference
-      ? `Does a starting course have ${preference} options?`
+      ? `Any ${preference} sections for a first class?`
       : "When does a starting course meet?",
     note: `When does a first-semester course in ${program} meet${preference ? `, and are there ${preference} options` : ""}?`,
     prompt: `Look up the published first-semester course plan for ${program}, then check the saved current-term schedule for one required course from that semester. Use the schedule cards to show all sections for that course with dates, days, times, instructors and sources.${preference ? ` I prefer ${preference} classes. Explain which listed sections have evidence matching that preference; do not substitute a closest time for a matching time.` : ""} Reply with a brief summary, without repeating the section list. Missing meeting times are unknown. Label the saved schedule date; do not claim live availability or that this checks every course in the program.`,
@@ -124,42 +129,83 @@ function courseQuestion(
       purpose === "prerequisite"
         ? "Check what I need before taking a course"
         : purpose === "job_licensure"
-          ? "Find the course details for my job requirement"
+          ? "Look up the course my job requires"
           : "Explore a course I’m interested in",
     prompt:
       "Help me look up a Dallas College course. Ask me for its course code or title, then use the catalog to check its description, credits and stated prerequisites. Do not select an example course for me or decide professional-license eligibility.",
   };
 }
 
-// Named examples make exploration answerable with existing catalog lookups.
-// They are examples, never silently assigned as the student's selected program.
-const INTEREST_PROGRAMS: Record<string, string> = {
-  health: "Medical Assisting Certificate",
-  tech: "Python Developer Certificate",
-  business: "Accounting Assistant Certificate",
-  arts: "Digital Art and Design A.A.S.",
-  trades: "Welding Applications Certificate",
+// --- undecided path ---------------------------------------------------------
+// Interest first: real programs to explore before any planning. Every example
+// is looked up live, so the answers stay catalog-grounded, and the prompts say
+// "example" so the model never treats one as the student's choice.
+const INTEREST_OPTIONS = (interestQuestion.options ?? []).filter(
+  (o) => o.contribs.interest_area,
+);
+
+function interestLabel(area: InterestArea): string {
+  return (
+    INTEREST_OPTIONS.find((o) => o.contribs.interest_area === area)?.label ??
+    area
+  );
+}
+
+// No area yet: the first turn asks for one as a numbered list (the system
+// prompt maps a bare number back to it) and carries the verified examples,
+// so the follow-up stays grounded without a search.
+const PICK_AREA: StarterQuestion = {
+  label: "Help me pick an area to explore",
+  note: "Which area should I explore first?",
+  prompt: `I'm still deciding what to study and don't have an area in mind yet. Ask me which of these areas interests me most, as a numbered list I can answer with just the number: ${INTEREST_OPTIONS.map((o, i) => `${i + 1}. ${o.label}`).join("; ")}. After I answer, offer that area's example programs as a second numbered list and ask which one to look up first; do not look anything up before I choose. ${sentence(`The examples are ${INTEREST_OPTIONS.map(
+    (o) =>
+      `${o.label}: ${listOf(INTEREST_GUIDE[o.contribs.interest_area!].examplePrograms)}`,
+  ).join("; ")}`)}`,
 };
+
+function interestHandoff(area: InterestArea | null): Handoff {
+  if (!area) {
+    return {
+      intro:
+        "Pick an area to explore first, and we'll look at real programs. You could ask:",
+      questions: [PICK_AREA, COACH, TUITION],
+    };
+  }
+  const interest = interestLabel(area);
+  const { examplePrograms } = INTEREST_GUIDE[area];
+  const [first, second] = examplePrograms;
+  return {
+    intro: `Explore a few example programs for ${interest} — examples to look at, not a choice made for you. You could ask:`,
+    questions: [
+      {
+        // The parenthetical ("welding, HVAC, auto") is for the picker, not a chip.
+        label: `Example programs for ${interest.replace(/\s*\(.*\)$/, "")}`,
+        note: `Which Dallas College programs are examples for ${interest}?`,
+        prompt: `I'm still deciding what to study; the area that interests me most is ${interest}. Look up the published course plan for each of these example programs, only semester 1: ${sentence(`${listOf(examplePrograms)}.`)} In one sentence each, give the catalog's award type and total credit hours. These are examples, not my choice; do not treat any of them as my program. The course cards already show the starting courses, so do not list courses in prose.`,
+      },
+      {
+        label: `What's in ${first}?`,
+        note: `What would I study in ${first} (example program)?`,
+        // "What would I study" needs substance, not a pointer at the cards:
+        // name the subjects from the returned titles, still without listing.
+        prompt: `Look up the published course plan for ${first}, an example program I have not chosen. Reply in two or three sentences: the award type, the published total credit hours, and what the coursework actually covers, described from the course titles the tool returned. The course cards already show every course, so do not write a course list or a semester-by-semester breakdown. Keep the published credit total exact; unresolved elective choices do not change that total.`,
+      },
+      {
+        label: "Compare two of these programs",
+        note: `How do ${first} and ${second} compare?`,
+        prompt: sentence(`Compare ${first} and ${second}, two example programs I have not chosen. Use the computed shared and different required courses; the interface shows each list. Reply in two or three sentences on what they share and how they differ, without predicting jobs or salaries.`),
+      },
+    ],
+  };
+}
 
 function selectHandoff(p: OnboardingPayload): Handoff {
   const program = PROGRAMS.find((entry) => entry.code === p.major)?.label;
-  const plan = program
-    ? coursePlan(
-        program,
-        false,
-        p.goal === "first_semester_plan" || p.goal === "schedule_fit",
-      )
-    : PROGRAM_QUESTION;
-  const prerequisites = program ? coursePrerequisites(program) : TUTORING;
   if (p.student_type === "dual_credit") {
     return {
       intro:
         "Explore course facts, free tutoring and advising contacts. You could ask:",
-      questions: [
-        program ? plan : courseQuestion("prerequisite"),
-        TUTORING,
-        COACH,
-      ],
+      questions: [courseQuestion("prerequisite"), TUTORING, COACH],
     };
   }
   if (p.goal === "settle_in") {
@@ -189,76 +235,57 @@ function selectHandoff(p: OnboardingPayload): Handoff {
     };
   }
   if (p.goal === "transfer_check") {
+    // A visiting student never picks a program; anyone else without one is
+    // undecided and starts from their interests.
+    if (!program && p.transfer_direction !== "transfer_back")
+      return interestHandoff(p.interest_area);
     const school = schoolLabel(p);
     const transferringIn = p.transfer_direction === "inbound";
+    // The program is its own sentence: "credits for my program, X, to Y" put
+    // two prepositional phrases between the verb and its object.
+    const context = program ? sentence(`I am working toward ${program}.`) + " " : "";
     return {
       intro:
         "Gather course facts for a transfer review. The receiving institution decides which credits count. You could ask:",
       questions: [
-        program ? plan : courseQuestion("prerequisite"),
+        program ? coursePlan(program) : courseQuestion("prerequisite"),
         {
           label: "Get course details for a transfer review",
           note: `Which Dallas College course details should I collect for a transfer review ${transferringIn ? "into Dallas College" : `at ${school}`}?`,
-          prompt: `I ${transferringIn ? "want to bring previous credits into Dallas College" : `want to take Dallas College credits to ${school}`}. Help me collect Dallas College catalog descriptions, credits and prerequisites for a transfer review. Ask which Dallas College course codes I want to compare; do not assume a course equivalence or accepted credit.`,
+          prompt: `${context}I ${transferringIn ? "want to bring previous credits into Dallas College" : `want to take Dallas College credits to ${school}`}. Help me collect Dallas College catalog descriptions, credits and prerequisites for a transfer review. Ask which Dallas College course codes I want to compare; do not assume a course equivalence or accepted credit.`,
         },
         COACH,
       ],
     };
   }
-  if (p.goal === "schedule_fit") {
-    return {
-      intro:
-        "Start with the published course plan, then check saved class sections against your preferences. You could ask:",
-      questions: [
-        plan,
-        program ? scheduleQuestion(p, program) : courseQuestion(null),
-        prerequisites,
-      ],
-    };
-  }
+  if (p.goal === "figure_out_major" || !program)
+    return interestHandoff(p.interest_area);
   if (p.goal === "graduation_check") {
     return {
       intro:
         "Review the published course plan before an official graduation review. You could ask:",
       questions: [
+        coursePlan(program),
         {
           label: "Help me check which courses I still need",
-          note: program
-            ? `Which courses do I still need for ${program}, given my completed, current and transfer courses?`
-            : "Which courses do I still need to graduate?",
-          prompt: program
-            ? `Show the published course checklist for ${program}. Ask which courses I have completed, am taking, or need reviewed as transfer credit before calculating what remains. Keep my reported history separate from an official graduation audit.`
-            : "Help me review what I still need to graduate. First ask which Dallas College program I am in and which courses I have completed; do not assume a program or an official graduation result.",
+          note: `Which courses do I still need for ${program}, given my completed, current and transfer courses?`,
+          prompt: `Show the published course checklist for ${program}. Ask which courses I have completed, am taking, or need reviewed as transfer credit before calculating what remains. Keep my reported history separate from an official graduation audit.`,
         },
-        plan,
         COACH,
       ],
     };
   }
-  if (p.goal === "figure_out_major" || !program) {
-    const example = p.interest_area
-      ? INTEREST_PROGRAMS[p.interest_area]
-      : undefined;
-    return {
-      intro: example
-        ? `Explore ${example} as one example, then discuss your options. You could ask:`
-        : "Find a program to explore and learn where to get guidance. You could ask:",
-      questions: [
-        example ? coursePlan(example, true) : PROGRAM_QUESTION,
-        example ? coursePrerequisites(example) : COACH,
-        TUTORING,
-      ],
-    };
-  }
+  // Planning a semester: the plan, what comes first, then either when it meets
+  // (a schedule goal or preference) or what to have ready.
+  const schedule =
+    p.goal === "schedule_fit" || p.modality_pref || p.dayparts_pref?.length;
   return {
     intro:
-      "Explore your published course plan and student support. You could ask:",
+      "Start with your published course plan, then what you'd take first. You could ask:",
     questions: [
-      plan,
-      prerequisites,
-      p.modality_pref || p.dayparts_pref?.length
-        ? scheduleQuestion(p, program)
-        : TUITION,
+      coursePlan(program),
+      coursePlan(program, true),
+      schedule ? scheduleQuestion(p, program) : coursePrerequisites(program),
     ],
   };
 }

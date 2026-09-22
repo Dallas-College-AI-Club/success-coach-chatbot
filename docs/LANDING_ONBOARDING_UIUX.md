@@ -161,7 +161,16 @@ The school picker is tiered by what the catalog can ground an answer in. Twelve 
 Onboarding does not end in a summary screen; it opens the planning chat. The final panel shows a brief recap of the answers, then the chat's opening, and asserts nothing this page cannot back:
 
 - **A forward line** tailored to the goal — *"Next, in your planning chat we'll…"*.
-- **A preview of the chat, drawn from the answers.** The starter prompts are chosen to fit the student's goal and sub-answers — a student taking a class for a job or license sees *"Who confirms this class counts?"*, not "classes for my major." A destination name appears only for the two named transfer partners; every other school reads as a plain phrase.
+- **A preview of the chat, drawn from the answers.** Every branch offers exactly **three** opening questions, chosen to fit the student's goal and sub-answers — a student taking a class for a job or license is offered a course lookup, not "classes for my major." A destination name appears only for the named transfer partners; every other school reads as a plain phrase. The button is short; the question actually sent to the chat is a full sentence naming the program, so the chat never has to guess what "it" refers to.
+
+  Two shapes, by whether a program is known:
+
+  | | Opens with |
+  |---|---|
+  | **A program chosen** | What the program requires · Which classes to start with · then either when a first class meets (a schedule goal or an evening/weekend/online preference) or what to have ready before starting |
+  | **Still deciding** | Example programs for the chosen interest area · What one of them covers · How two of them compare |
+
+  The undecided path is interest-first by design: a student who has not picked a major is shown **real programs to look at**, never a program picked for them, and every one of those questions says "example" so the chat treats it as exploration. The examples themselves live in [`interests.ts`](../apps/frontend/features/onboarding/interests.ts) and were verified against the live catalog data — each is a program the requirements lookup resolves exactly, whose first-semester courses have real sections with named instructors this Fall. When no interest area was given, the first question asks for one as a numbered list the student can answer with a single digit. What a program *prepares you for* is deliberately **not** offered: the catalog records carry course requirements, not career outcomes, and job or salary predictions are a standing refusal.
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
 - **The close, on every path:** *"Major helps you plan; a Success Coach makes it official."*
 - **The entry point:** a **Start chat** button routes to `/chat`, the chat surface (#37, wireframed in #3). A placeholder holds that route until the chat lands, carrying the same welcome and starter prompts so the student sees where the conversation continues.

@@ -65,9 +65,11 @@ export function composerCopy(
   };
 }
 
+// A visitor who skipped onboarding has told us nothing, so this greeting says
+// exploring first — the same place the undecided hand-off starts.
 const COLD_VISIT_INTRO = [
   "Hey, I'm Major 👋 — your Dallas College planning companion.",
-  "Ask me about degree requirements, prerequisites, or planning your semester. A Success Coach reviews everything and makes your plan official.",
+  "Ask me what programs there are, what you would study in one, or what a degree requires and how to plan your semester. A Success Coach reviews everything and makes your plan official.",
 ].join("\n\n");
 
 /** The coach's opening turn. With a completed onboarding it replays the
