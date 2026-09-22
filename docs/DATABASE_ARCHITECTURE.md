@@ -1,16 +1,15 @@
-> **Current implementation — issue #191:** this document preserves the original
-> architecture proposal below. Its 768-dimension/provider/HNSW and Alembic setup
-> assumptions are superseded by [the current runbook](../apps/data/REPRODUCE.md)
-> and [generated schema](../apps/data/reference/db/schema.sql): local MiniLM,
-> 384 dimensions, exact filtered search, non-destructive SQLAlchemy initialization.
-> No live database migration is performed by these source changes.
-
 # Database Architecture
 
-> **Issue**: #36 — Database Architecture Design & Initialization
-> **Database**: [Neon](https://neon.com) serverless PostgreSQL (free tier) with the `pgvector` extension
-> **Schema DDL**: [`apps/data/db/schema.sql`](../apps/data/db/schema.sql) · **Sample data**: [`apps/data/db/seed_mock.sql`](../apps/data/db/seed_mock.sql) · **Setup**: [README §Database](../README.md#database)
-> **Next steps**: [`docs/handoff/ISSUE_51_HANDOFF.md`](handoff/ISSUE_51_HANDOFF.md) converts this design to SQLAlchemy models + Alembic migrations (issue #51); a TypeScript (Drizzle) mirror follows in a later issue.
+> **Status (2026-09-22):** the two-table design below is what runs. Three details of the original
+> proposal (issue #36, July 2026) changed in implementation and are recorded here instead of being
+> rewritten throughout: embeddings are **384-dimensional** (`Xenova/all-MiniLM-L6-v2`, computed
+> in-process by both the app and the pipeline under [`embedding-contract.json`](../apps/frontend/lib/embedding-contract.json)),
+> not 768; vector search is an exact filtered scan rather than an HNSW index; and the schema is
+> created by non-destructive SQLAlchemy initialization, not Alembic migrations. Where sections 3, 6, 7
+> and 9 mention 768 dimensions, HNSW, a free tier or an open provider decision, read them as the
+> original design record. Current setup: [data runbook](../apps/data/REPRODUCE.md) ·
+> [generated schema](../apps/data/reference/db/schema.sql) · [runtime mirror](../apps/frontend/lib/schema.ts) (Drizzle).
+> The implementation handoff is archived at [ISSUE_51_HANDOFF.md](archive/ISSUE_51_HANDOFF.md).
 
 ---
 
@@ -53,7 +52,7 @@ Three question classes, three query shapes, all against one table:
 
 Long documents also produce plain **prose chunks** (markdown sections with `facts = NULL`) that serve semantic search; a document's structured extraction lives on a single facts row — a `#facts` pseudo-URI row when the document also has prose chunks, or the document's only row when a source yields one row per entity (e.g., each schedule-CSV section). Both kinds are embedded, so everything is reachable by vector search *and* fact rows are reachable by point-read.
 
-**ERD** (full column detail and rationale comments in [`apps/data/db/schema.sql`](../apps/data/db/schema.sql)):
+**ERD** (full column detail and rationale comments in [`apps/data/reference/db/schema.sql`](../apps/data/reference/db/schema.sql)):
 
 ```mermaid
 erDiagram
@@ -114,7 +113,7 @@ Write-time validation backstops bad stamps: `CHECK` constraints reject a missing
 - **Column**: `embedding halfvec(768) NOT NULL` — half-precision floats halve storage with negligible recall loss.
 - **Distance metric**: **cosine**, via an HNSW index (`halfvec_cosine_ops`, `m=16`, `ef_construction=64`).
 - **Dimension**: **768**, frozen project-wide. The binding constraint: **the same embedding model must serve both ingest (Python pipeline) and query time (Next.js API route)**, and OpenRouter's free tier serves no embedding models, so the provider is a deliberate team decision (§9). Candidate free options: a hosted free-tier API reachable from both runtimes (e.g. Google `gemini-embedding-001` at `output_dimensionality: 768`, with `RETRIEVAL_DOCUMENT`/`RETRIEVAL_QUERY` task types), or a local 768-dim model served through LM Studio/Ollama (e.g. `nomic-embed-text`) — noting a purely local server covers ingestion, while query-time embedding on Vercel then needs the *same model* behind a reachable endpoint. ⚠️ Confirm before issue #51 freezes the column.
-- **Filtered search**: `hnsw.iterative_scan = 'relaxed_order'` is set database-wide (see `apps/data/db/schema.sql`) so vector scans keep iterating until enough rows satisfy the `WHERE` filters — required because metadata pre-filtering (by course, term, doc_type) is the core retrieval pattern.
+- **Filtered search**: `hnsw.iterative_scan = 'relaxed_order'` is set database-wide (see `apps/data/reference/db/schema.sql`) so vector scans keep iterating until enough rows satisfy the `WHERE` filters — required because metadata pre-filtering (by course, term, doc_type) is the core retrieval pattern.
 - **Hybrid search**: a generated `tsvector` column + GIN index provides the keyword leg; the canonical retrieval query fuses both legs with Reciprocal Rank Fusion (§5, query B). No extra infrastructure.
 - **Re-embedding path** (model/dimension change): add `embedding_v2 halfvec(N)`, backfill from Python over the direct connection, build the new HNSW index, flip the query column, drop the old — both generations fit the storage budget during transition (§7).
 
@@ -357,7 +356,7 @@ Field rationale:
 | chunk payload metadata (professor, campus, section, term) | registry keys: `professor` + `instructor_slug`, `campus`, `section`, `year` + `semester` |
 | markdown-aware splitting (header sections intact, 500–1000 tokens, 10–20% overlap) | one row per chunk, `chunk_index` = ordinal; overlap simply lives in adjacent rows — no schema impact |
 | "vector database namespaces" | pgvector has no namespaces; the equivalent isolation is the `doc_type`/`module` filters (data stamps, not env config) — one HNSW index serves every domain |
-| provider-agnostic embeddings engine | must emit **768-dim cosine-space vectors with the same model used at query time** (§3) and expose a `task_type` parameter (`document` at ingest, `query` at answer time — required by asymmetric-embedding providers). Cache embeddings keyed by `(embed_model, task_type, sha256(chunk_text))` so re-runs of unchanged text cost nothing and a model change can never serve stale vectors. ChromaDB's default embedder (384-dim MiniLM) does not meet this contract and must not be used. |
+| provider-agnostic embeddings engine | must emit **768-dim cosine-space vectors with the same model used at query time** (§3) and expose a `task_type` parameter (`document` at ingest, `query` at answer time — required by asymmetric-embedding providers). Cache embeddings keyed by `(embed_model, task_type, sha256(chunk_text))` so re-runs of unchanged text cost nothing and a model change can never serve stale vectors. (As implemented, the contract is all-MiniLM-L6-v2 at 384 dimensions; see the status note at the top.) |
 | structured-stream output + schema validation (#34's Pydantic/JSON-Schema hook) | validate stamps against the metadata registry and `facts` schemas **before** the write (§6.1–6.2). Failed or low-confidence extractions are **quarantined** (e.g. `apps/data/quarantine/<run_id>/…`) with a per-run report — pages crawled, parses, failure counts (#34's run-metrics deliverable lives in logs/reports, never in the database) — and re-enter by fixing the extractor and re-running; they never displace the last good row. |
 | "save original HTML so we don't have to rescrape" (#34) | the raw archive lives **outside** the database, keyed by `source_url` + a **document-level** `raw_hash = sha256(raw response bytes)` — distinct from the row-level `content_hash`, which is per-chunk and doesn't exist at fetch time. Location and layout are #34's decision (repo folder vs external storage); optionally stamp `raw_hash` into metadata so rows link back to their archived source. `knowledge_entry` holds only the serving projection. |
 
@@ -386,7 +385,7 @@ Growth is additive by design: a new content domain = new rows + a registry entry
 
 ## 8. ORM and connection management
 
-**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models with Alembic migrations — see [`docs/handoff/ISSUE_51_HANDOFF.md`](handoff/ISSUE_51_HANDOFF.md) for the implementation guide.
+**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models with Alembic migrations — see [`docs/archive/ISSUE_51_HANDOFF.md`](archive/ISSUE_51_HANDOFF.md) for the implementation guide.
 
 **TypeScript mirrors it with Drizzle** (later issue), hand-written from the Python models. Drizzle is the chosen TS ORM because it has first-class pgvector support — native `halfvec` column type and typed `cosineDistance()` query helpers (pin `drizzle-orm ≥ 0.44.3`) — plus `generatedAlwaysAs()` so generated columns are excluded from insert types, and a lightweight `neon-http` driver suited to serverless. (Prisma was evaluated and rejected: it has no native pgvector type — vector columns must be declared `Unsupported("vector")` and every similarity query drops to raw SQL.) Because Alembic owns all DDL, the mirror is a read/write client only: **do not install `drizzle-kit`**, and never run its migration or introspection commands against the database.
 
@@ -403,6 +402,6 @@ The Next.js app is full-stack: its API routes own the database connection (there
 
 ## 9. Decisions to confirm before implementation
 
-1. **Embedding provider** (blocks issue #51; team decision): must serve both Python ingest and the Vercel runtime with identical 768-dim cosine-space vectors. Candidates in §3 — a hosted free-tier API (e.g. Gemini embeddings) or an LM Studio/Ollama-served local model with a query-time-reachable endpoint. If the chosen model's native dimension differs, update `halfvec(N)` here and in `apps/data/db/schema.sql` before the first migration.
+1. **Embedding provider** (blocks issue #51; team decision): must serve both Python ingest and the Vercel runtime with identical 768-dim cosine-space vectors. Candidates in §3 — a hosted free-tier API (e.g. Gemini embeddings) or an LM Studio/Ollama-served local model with a query-time-reachable endpoint. If the chosen model's native dimension differs, update `halfvec(N)` here and in `apps/data/reference/db/schema.sql` before the first migration.
 2. **Catalog retention window**: 3 years proposed (§4); confirm against the college's catalog-rights policy.
 3. **User-submitted content (moderated events and Lost & Found)**: read-only guidance and officially-scraped events ship in `knowledge_entry`; **interactive intake** — club event submissions and lost/found reports with moderation states (`pending/approved/rejected`, `pending/active/claimed`), moderator roles, submitter contact info, and photos (stored externally per the free-tier plan, URLs only in the DB) — is transactional and PII-bearing and is deliberately **out of scope for this schema**. When either feature is greenlit, it arrives as a dedicated intake/moderation table plus an auth/roles decision; **approved submissions then publish into `knowledge_entry` as normal `event`/`knowledge_article` rows**, so the read path never changes.

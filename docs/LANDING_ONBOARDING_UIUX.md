@@ -4,10 +4,10 @@
 |---|---|
 | **Issue** | [#52 — Landing & Onboarding Page UI Implementation](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/52) |
 | **App** | `apps/frontend` (Next.js App Router, React, Tailwind v4, ShadCN) |
-| **Builds on** | `conversation-entry-design.md` (#40) · `success-coach-interview-summary.md` (#42) · `DATABASE_ARCHITECTURE.md` (#36) · `AGENT_PERSONALITIES.md` (#41) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](../research/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
+| **Builds on** | `conversation-entry-design.md` (#40) · `success-coach-interview-summary.md` (#42) · `DATABASE_ARCHITECTURE.md` (#36) · `AGENT_PERSONALITIES.md` (#41) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
 | **Audience** | First-time reader — teammate, reviewer, or Success Coach. No code knowledge assumed. |
 
-The first screen a student sees. It carries the team's [conversational entry flow](conversation-entry-design.md) (#40) into a working surface: a student picks a look, answers a few optional, tap-answerable questions that scope their first request, and is handed into the planning chat. The question set is the intake a Success Coach identified as what students should arrive with (#42); the captured payload is shaped to the profile allowlist in the two-table schema (#36); the copy holds to the trust invariants in the governance RFCs (#54).
+The first screen a student sees. It carries the team's [conversational entry flow](archive/conversation-entry-design.md) (#40) into a working surface: a student picks a look, answers a few optional, tap-answerable questions that scope their first request, and is handed into the planning chat. The question set is the intake a Success Coach identified as what students should arrive with (#42); the captured payload is shaped to the profile allowlist in the two-table schema (#36); the copy holds to the trust invariants in the governance RFCs (#54).
 
 ---
 
@@ -26,7 +26,7 @@ The seam between stage 1 and the rest is a single console-logged payload whose k
 ## 2. The screen
 
 - **Welcome.** The *Success Coach* brand cover (`public/title.png`, served through `next/image`), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
-- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Sessions are saved by the anonymous client store (#50): `onboarding-store.ts` persists the completed session to `localStorage` (key `student-session-store`), and the **"Welcome back"** entry renders only for a returning student, resuming their saved summary. [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) records the design history.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Sessions are saved by the anonymous client store (#50): `onboarding-store.ts` persists the completed session to `localStorage` (key `student-session-store`), and the **"Welcome back"** entry renders only for a returning student, resuming their saved summary. [`handoff/ISSUE_50_HANDOFF.md`](archive/ISSUE_50_HANDOFF.md) records the design history.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -35,7 +35,7 @@ The audience is broad — first-year, returning, first-generation, working adult
 | Mode | Interaction | Type | Status |
 |---|---|---|---|
 | **Simple** | A chat: the bot asks in a bubble, answers sit back as the student's bubbles, new questions slide in. The default. | Manrope | Complete |
-| **Playful** | A campus the student strolls, with the seven Dallas College campus mascots roaming it. | Nunito | **Background polish in progress** — the mascots and flow are in place; the campus backdrop and motion are being refined. |
+| **Playful** | A campus the student strolls, with the seven Dallas College campus mascots roaming it. See [PLAYFUL_MASCOTS.md](PLAYFUL_MASCOTS.md). | Nunito | Complete |
 | **Focus** | A calm single-scene climb that advances one step per answer. | Space Grotesk | Complete |
 
 ---
@@ -152,7 +152,7 @@ The rules are pure functions in [`questions.ts`](../apps/frontend/features/onboa
 - *I go to another college — just taking one class here* → asks the home school; no program.
 - *I have credit or credentials that could count toward my Dallas College degree (another college, the military, exams like AP, IB, or CLEP, or a skills credential)* → asks the program; routes to Admissions for evaluation.
 
-The school picker is tiered by what the catalog can ground an answer in. **UT Dallas** and **UNT** are named — Dallas College's coordinated articulation with them is in the catalog — so the chat can be school-specific. The rest are buckets — *Another Texas school*, *Out of state*, *International*, and *Not sure yet* — that route to the correct process and the receiving school's own verification, in line with the credit-portability principle that the receiving institution decides. The prompt reads *"Where are you hoping to transfer?"* for the outbound student and *"Which college do you normally attend?"* for the visiting student.
+The school picker is tiered by what the catalog can ground an answer in. Twelve partner universities with coordinated articulation are named (UT Dallas, UNT, UNT Dallas, UT Arlington, TWU, Texas Tech, Texas State, Tarleton State, East Texas A&M, Prairie View A&M, Texas A&M and SMU; the list lives in `questions.ts`) so the chat can be school-specific. The rest are buckets — *Elsewhere in Texas*, *Another U.S. state*, *Outside the U.S.*, and *Not sure yet* — that route to the correct process and the receiving school's own verification, in line with the credit-portability principle that the receiving institution decides. The prompt reads *"Where are you hoping to transfer?"* for the outbound student and *"Which college do you normally attend?"* for the visiting student.
 
 ---
 
@@ -189,7 +189,7 @@ Completion logs one object to the console and persists it through the client sto
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
 
-Persisting this object so a returning student can resume is the anonymous client store's job (#50): [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) persists it to `localStorage` under `student-session-store` alongside a client-generated `studentId`, and the welcome screen shows the returning-student entry only when a saved session exists. [`handoff/ISSUE_50_HANDOFF.md`](handoff/ISSUE_50_HANDOFF.md) records the handoff that shaped it. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
+Persisting this object so a returning student can resume is the anonymous client store's job (#50): [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) persists it to `localStorage` under `student-session-store` alongside a client-generated `studentId`, and the welcome screen shows the returning-student entry only when a saved session exists. [`handoff/ISSUE_50_HANDOFF.md`](archive/ISSUE_50_HANDOFF.md) records the handoff that shaped it. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
 
 ---
 
@@ -252,7 +252,7 @@ The picker is populated from the 2026–2027 catalog's programs of study; each e
 | Acceptance criterion | Status |
 |---|---|
 | Next.js landing route; reusable component scaffold; ShadCN in `components/ui` | Complete |
-| Hero + primary CTA; supporting capability section; Tailwind brand styling | Complete (Playful scenery in progress, §2) |
+| Hero + primary CTA; supporting capability section; Tailwind brand styling | Complete |
 | Questionnaire UI; wizard with Next/Back + progress indicator | Complete |
 | Interactive elements capture input via local `useState`; `currentStep` drives conditional rendering without a route change | Complete |
 | Final action prevents default and `console.log`s the payload | Complete |
@@ -269,7 +269,6 @@ High-fidelity match to the Canva theme is met in structure and brand; the flow e
 
 Planned enhancements, sequenced with the surrounding work:
 
-- **Playful scenery** — animated mascots and a richer background (§2).
 - **Schedule as two taps** — time and delivery mode separately, matching the distinct `dayparts_pref` and `modality_pref` keys the #36 schema already carries.
 - **Home-school search for visiting students** and destination-led ordering for outbound transfers, as the articulation data in #35/#61 lands.
 - **A signposted visiting-student route** and a workforce / continuing-education door, as their backing intents ship.
@@ -285,10 +284,10 @@ Why "Major": it is the product's own vocabulary — declaring a major, planning 
 
 ## References
 
-- [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](../research/ENGAGEMENT_ONBOARDING_STRATEGY.md) — the engagement & onboarding strategy this implements
-- [`conversation-entry-design.md`](conversation-entry-design.md) (#40) — the entry flow this carries forward
+- [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) — the engagement & onboarding strategy this implements
+- [`conversation-entry-design.md`](archive/conversation-entry-design.md) (#40) — the entry flow this carries forward
 - [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) — source of the question set
 - [`DEGREE_PLANNING_STORIES.md`](user-stories/DEGREE_PLANNING_STORIES.md) — intents and sprint order
 - [`onboarding-flow-stress.ts`](onboarding-flow-stress.ts) — the flow verification harness
-- [`handoff/CHAT_UI_HANDOFF.md`](handoff/CHAT_UI_HANDOFF.md) — what the planning-chat build (#37) inherits from onboarding
+- [`handoff/CHAT_UI_HANDOFF.md`](archive/CHAT_UI_HANDOFF.md) — what the planning-chat build (#37) inherits from onboarding
 - Issues [#36](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/36) (schema) · [#37](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/37) (chat) · [#41](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/41) (personalities) · [#50](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/50) (persistence & analytics) · [#51](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/51) (backend models)

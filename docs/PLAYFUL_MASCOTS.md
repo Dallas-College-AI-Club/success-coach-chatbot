@@ -51,5 +51,3 @@ The approved upright Bear uses a stylized bipedal stroll. These are restrained 2
 The self-contained review playground, lossless masters, approved reference sheet, and provenance are kept outside the production tree in the user-requested club-project/mascots archive. Runtime source, the single final asset set, tests, and this document belong in the GitHub change. Rejected drafts, source-generation sheets, browser screenshots, and temporary patch scripts do not.
 
 Removed from the application: the unused V8 generated payload, retired campus-scene component, and unused sway/zap/sparkle/twinkle keyframes. The drift animation used by Focus remains.
-
-Backend review findings were sent to the coordinating task, which is handling the narrow backend fixes, schedule grouping, verified professor CV links, the combined build/audit, and the GitHub issue/commit/PR.

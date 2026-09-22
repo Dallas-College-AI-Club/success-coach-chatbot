@@ -38,7 +38,7 @@ record per file: `source_url`, `raw_path`, `sha256`, course/section/professor/te
 ## 1. The production target (read this first)
 
 Everything loads into **one Postgres table, `knowledge_entry`**
-([`apps/data/db/schema.sql`](../../apps/data/db/schema.sql)) — one row per retrievable unit, two kinds:
+([`apps/data/db/schema.sql`](../../apps/data/reference/db/schema.sql)) — one row per retrievable unit, two kinds:
 
 - **Prose chunks** (`facts = NULL`) — markdown sections found by hybrid
   vector + keyword search. *This is the surface #35 produces.*
@@ -98,7 +98,7 @@ metadata) gates updates so unchanged chunks cost no re-embed and no index churn;
 `scraped_at` is always bumped ("verified today") while `updated_at` moves only on
 real content change. A working reference of the compose/load step — including the
 SQLite demo sink that mirrors the Postgres row shape — is
-[`pipeline/build_knowledge.py`](../../apps/data/pipeline/build_knowledge.py).
+[`pipeline/build_knowledge.py`](../../apps/data/dallasai/pipeline/build_knowledge.py).
 
 One structural rule to know: **a section and its syllabus are ONE row** — syllabus
 facts embed in the representative section row (`facts.syllabus`), and

@@ -1,19 +1,21 @@
-## Linked Issue
-Closes #[Insert Issue ID here]
+## Linked issue
 
-## Summary of Changes
-- 
-- 
+Closes #
 
-## Manual Testing Steps
-1. Checkout the branch: `git checkout <branch-name>`
-2. Start the local environment...
-3. Navigate to...
-4. Verify that...
+## Summary of changes
 
-## Definition of Done (DoD) Checklist
-- [ ] **Code Quality:** `eslint` passes with no warnings/errors, and `tsc` reports no type discrepancies.
-- [ ] **Unit Testing:** Critical business logic and state transitions have coverage via `vitest`.
-- [ ] **E2E Testing:** Critical user flows impacted by this change are covered and passing via `playwright`.
-- [ ] **Environment:** Feature works as expected in a simulated local or staging environment.
-- [ ] **Documentation:** System architecture changes, new third-party packages, and environment variables (`.env.example`) are updated in the repository `README` or wiki.
+-
+-
+
+## How this was checked
+
+From `apps/frontend`: `npm run verify` (lint, types, regression checks, production build).
+From `apps/data`, if changed: `uv run pytest tests/ -q`. Describe any manual/browser checks.
+
+## Definition of Done
+
+- [ ] `npm run verify` passes (or `uv run pytest tests/ -q` for `apps/data` changes)
+- [ ] Documentation updated: `docs/ARCHITECTURE.md`, `docs/DECISIONS.md`, or the relevant README
+- [ ] No secrets, credentials or raw data in this diff
+
+See [CONTRIBUTING.md](../CONTRIBUTING.md) for the full workflow.
