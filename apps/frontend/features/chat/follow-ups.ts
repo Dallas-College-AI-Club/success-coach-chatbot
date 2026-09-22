@@ -65,6 +65,15 @@ export function takenPrompt(program: string, taken: string[]): string {
   return `I have completed ${joinList(taken)}. Which courses in ${program} are left, and what should I take this semester?`;
 }
 
+/** The human question a chip stands for, carried as message metadata.
+ *  A chip sends a long instruction prompt so the model keeps its steering;
+ *  showing that wall of text under "You:" reads as if the student typed it.
+ *  The model still receives the prompt — metadata never reaches it, because
+ *  convertToModelMessages builds model messages from `parts` alone. */
+export function askedLabel(metadata: unknown): string | undefined {
+  return isRecord(metadata) ? (catalogText(metadata.label) ?? undefined) : undefined;
+}
+
 export interface FollowUpContext {
   /** Program to name in prompts: the onboarding pick, else the plan shown. */
   program?: string;

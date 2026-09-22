@@ -29,7 +29,7 @@ import {
   ScheduleResults,
   InstructorResults,
 } from "@/features/chat/course-results";
-import { followUpsFor } from "@/features/chat/follow-ups";
+import { askedLabel, followUpsFor } from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
 import {
   starterQuestionsFor,
@@ -127,6 +127,8 @@ const Turn = memo(function Turn({
   question: string;
 }) {
   const isUser = m.role === "user";
+  // What a chip-sent turn SAYS, as opposed to the instructions it carries.
+  const spoken = isUser ? askedLabel(m.metadata) : undefined;
   const courseRows =
     !isUser &&
     m.parts.some(
@@ -174,7 +176,7 @@ const Turn = memo(function Turn({
                 </details>
               ) : (
                 <MarkdownViewer
-                  content={part.text}
+                  content={spoken ?? part.text}
                   className={isUser ? "prose-invert!" : "prose"}
                 />
               )}
@@ -406,7 +408,12 @@ function Conversation({
     const t = text.trim();
     if (!t || busy) return;
     useSavedCourses.getState().addQuestion(note);
-    sendMessage({ text: t }, requestOptions);
+    // The chip's own words ride along as metadata for the bubble to show; the
+    // model still gets `text`, the full prompt. Typed questions need none.
+    sendMessage(
+      { text: t, ...(note === t ? {} : { metadata: { label: note } }) },
+      requestOptions,
+    );
     setInput("");
     // Asking always returns the reader to the end of the conversation.
     stick.current = true;
