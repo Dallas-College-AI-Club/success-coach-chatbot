@@ -4,7 +4,7 @@
 |---|---|
 | **Issue** | [#52 — Landing & Onboarding Page UI Implementation](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/52) |
 | **App** | `apps/frontend` (Next.js App Router, React, Tailwind v4, ShadCN) |
-| **Builds on** | `conversation-entry-design.md` (#40) · `success-coach-interview-summary.md` (#42) · `DATABASE_ARCHITECTURE.md` (#36) · `AGENT_PERSONALITIES.md` (#41) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
+| **Builds on** | [`conversation-entry-design.md`](archive/conversation-entry-design.md) (#40, archived) · [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) · [`DATABASE_ARCHITECTURE.md`](DATABASE_ARCHITECTURE.md) (#36) · [`AGENT_PERSONALITIES.md`](archive/AGENT_PERSONALITIES.md) (#41, archived) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
 | **Audience** | First-time reader — teammate, reviewer, or Success Coach. No code knowledge assumed. |
 
 The first screen a student sees. It carries the team's [conversational entry flow](archive/conversation-entry-design.md) (#40) into a working surface: a student picks a look, answers a few optional, tap-answerable questions that scope their first request, and is handed into the planning chat. The question set is the intake a Success Coach identified as what students should arrive with (#42); the captured payload is shaped to the profile allowlist in the two-table schema (#36); the copy holds to the trust invariants in the governance RFCs (#54).

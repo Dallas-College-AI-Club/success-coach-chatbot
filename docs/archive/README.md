@@ -47,3 +47,5 @@ carries an inline status note instead of being replaced, since most of its query
 [../rfcs/](../rfcs/) keep their original filenames with an updated `Status:` line, since they are
 still the canonical prompt/guardrail contract even though the implementation moved on from a couple
 of their assumptions.
+| `mitigations/test_fallback.js`, `mitigations/*.png` | `docs/mitigations/` | A standalone OpenRouter 429-fallback router and its trace screenshots. Never wired into `app/api/chat/route.ts`; the route now unwraps `RetryError` and maps 429s to student-facing messages directly. Zero inbound references. | 2026-09-22 |
+
