@@ -13,7 +13,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
+import { convertToModelMessages } from "ai";
+
 import {
+  askedLabel,
   followUpsFor,
   joinList,
   takenPrompt,
@@ -437,6 +440,57 @@ test("published group names are classified by their number, never by 'First Year
     scopeProgramGroups(groups, [1]).map((g) => (g as { name: string }).name),
     published.filter(([, s]) => s[0] === 1).map(([name]) => name),
   );
+});
+
+test("the bubble shows the human question while the model still gets the prompt", async () => {
+  const chip = followUpsFor({
+    ...base,
+    taken: ["ENGL 1301"],
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({ requested_semesters: [1] }),
+      },
+    ],
+  })[0];
+  const shown = chip.note ?? chip.label;
+
+  // On stage, 200 people read the bubble. It must not be a wall of steering.
+  assert.equal(askedLabel({ label: shown }), shown);
+  assert.ok(shown.length < chip.prompt.length);
+  assert.ok(!/Reply in|do not|course cards|without writing/i.test(shown), shown);
+
+  // The MODEL still receives the full prompt: convertToModelMessages builds
+  // from parts, so metadata cannot reach it — and cannot weaken the steering.
+  const modelMessages = await convertToModelMessages([
+    {
+      role: "user",
+      metadata: { label: shown },
+      parts: [{ type: "text", text: chip.prompt }],
+    },
+  ]);
+  assert.equal(modelMessages.length, 1);
+  assert.deepEqual(modelMessages[0].content, [
+    { type: "text", text: chip.prompt },
+  ]);
+  assert.ok(!JSON.stringify(modelMessages).includes(shown.slice(0, 30)) ||
+    chip.prompt.includes(shown.slice(0, 30)));
+
+  // Anything that is not a usable label leaves the typed text alone.
+  for (const junk of [
+    undefined,
+    null,
+    {},
+    { label: "" },
+    { label: "   " },
+    { label: 42 },
+    { label: ["a"] },
+    "a string",
+    [{ label: "x" }],
+  ]) {
+    assert.equal(askedLabel(junk), undefined, JSON.stringify(junk));
+  }
+  assert.equal(askedLabel({ label: "  Which classes?  " }), "Which classes?");
 });
 
 test("a missing program name never produces a chip with a hole in it", () => {
