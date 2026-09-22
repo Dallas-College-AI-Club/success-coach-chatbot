@@ -333,6 +333,10 @@ function Conversation({
   const suggestions = followUpsFor({
     program: profile?.major,
     interest,
+    // The schedule answer onboarding already has, so a follow-up asks about
+    // the time the student can actually study.
+    goal: profile?.goal,
+    preference: profile?.dayparts ?? profile?.modality,
     starters,
     tools: lastCoachTools,
     started: messages.some((message) => message.role === "user"),

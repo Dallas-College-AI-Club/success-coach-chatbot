@@ -26,6 +26,7 @@ import { INTEREST_GUIDE } from "../features/onboarding/interests";
 import { useSavedCourses } from "../features/chat/saved-courses";
 import { assessPlan, studentCourseHistory } from "../lib/planning";
 import {
+  COLD_VISIT_QUESTIONS,
   listOf,
   starterQuestionsFor,
 } from "../features/onboarding/handoff-copy";
@@ -517,7 +518,11 @@ test("the plan on screen names the chips, not a stale onboarding pick", () => {
   assert.equal(chips[0].prompt, takenPrompt(OTHER, ["ITSE 1303"]));
   // With no plan on screen the onboarding program is still the fallback.
   assert.ok(
-    followUpsFor({ ...base, program: "Accounting A.A.S." })
+    followUpsFor({
+      ...base,
+      program: "Accounting A.A.S.",
+      tools: [{ name: "get_current_date", output: {} }],
+    })
       .map((c) => c.label)
       .includes("How can I reach a Success Coach?"),
   );
@@ -673,4 +678,355 @@ test("a missing program name never produces a chip with a hole in it", () => {
     ],
   });
   assert.ok(named.every((c) => c.prompt.includes(PROGRAM)));
+});
+
+// --- the coach's own question, and the sets added for tool results the engine
+// --- used to ignore. Walked live against the route handler on 2026-09-22.
+
+test("a turn that looked nothing up shows no chips, because the coach asked", () => {
+  // Four paths ended on "tell me the course code" under [Success Coach]
+  // [tutoring] [tuition] — three chips that answered none of it.
+  assert.deepEqual(followUpsFor({ ...base, tools: [] }), []);
+  // A refusal is NOT this case: the prompt makes the model search first, so it
+  // still arrives with a result and keeps the support trio.
+  assert.deepEqual(
+    followUpsFor({
+      ...base,
+      tools: [{ name: "search_knowledge", output: { found: false } }],
+    }).map((c) => c.label),
+    [
+      "How can I reach a Success Coach?",
+      "Where can I get free tutoring?",
+      "What might my classes cost?",
+    ],
+  );
+});
+
+test("a comparison offers both programs by name, then the area's faculty", () => {
+  const chips = followUpsFor({
+    ...base,
+    interest: "tech",
+    tools: [
+      {
+        name: "compare_programs",
+        output: {
+          found: true,
+          comparison: {
+            programs: [
+              { name: "Python Developer Certificate" },
+              { name: "Cyber Security A.A.S." },
+            ],
+            shared_required_courses: ["ITSE 1370", "MATH 1314"],
+          },
+        },
+      },
+    ],
+  });
+  assert.deepEqual(
+    chips.map((c) => c.label),
+    [
+      "Start with Python Developer?",
+      "Start with Cyber Security?",
+      "Who has cybersecurity experience?",
+    ],
+  );
+  // Each prompt names its OWN program in full, and asks for semester 1 — the
+  // whole plan of a program the student has not chosen is not a next step.
+  assert.ok(chips[0].prompt.includes("Python Developer Certificate"));
+  assert.ok(!chips[0].prompt.includes("Cyber Security"));
+  assert.ok(chips[1].prompt.includes("Cyber Security A.A.S."));
+  assert.deepEqual(requestedSemesters(chips[0].prompt), [1]);
+  assert.deepEqual(requestedSemesters(chips[1].prompt), [1]);
+  // A catalog name too long for a chip shortens in the LABEL only.
+  const long = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "compare_programs",
+        output: {
+          found: true,
+          comparison: {
+            programs: [
+              { name: "Air Conditioning and Refrigeration Technology A.A.S." },
+              { name: "Welding Applications A.A.S." },
+            ],
+          },
+        },
+      },
+    ],
+  });
+  for (const chip of long) assert.ok(chip.label.length <= 40, chip.label);
+  assert.ok(
+    long[0].prompt.includes(
+      "Air Conditioning and Refrigeration Technology A.A.S.",
+    ),
+  );
+});
+
+test("one course leads to when it meets, who teaches it, and what it needs", () => {
+  const chips = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "get_course_info",
+        output: { found: true, course_code: "ITSE 1370", title: "Intro Python" },
+      },
+    ],
+  });
+  assert.deepEqual(
+    chips.map((c) => c.label),
+    [
+      "When does ITSE 1370 meet this Fall?",
+      "Who teaches ITSE 1370?",
+      "What do I need before ITSE 1370?",
+    ],
+  );
+  for (const chip of chips) {
+    assert.ok(chip.prompt.includes("ITSE 1370"), chip.label);
+    assert.ok(chip.label.length <= 40, chip.label);
+    // None of these may be read as a request for semester 1 of a plan.
+    assert.deepEqual(requestedSemesters(chip.prompt), []);
+  }
+  // Cost is the fourth candidate, so it surfaces as the others are used.
+  assert.equal(
+    followUpsFor({
+      ...base,
+      askedLabels: [
+        "When does ITSE 1370 meet this Fall?",
+        "Who teaches ITSE 1370?",
+      ],
+      tools: [
+        {
+          name: "get_course_info",
+          output: { found: true, course_code: "ITSE 1370" },
+        },
+      ],
+    })[1].label,
+    "What might my classes cost?",
+  );
+  // A failed lookup has no course to offer anything about.
+  assert.deepEqual(
+    followUpsFor({
+      ...base,
+      tools: [{ name: "get_course_info", output: { found: false } }],
+    }).map((c) => c.label),
+    [
+      "How can I reach a Success Coach?",
+      "Where can I get free tutoring?",
+      "What might my classes cost?",
+    ],
+  );
+});
+
+test("one named instructor offers their schedule, in the student's own daypart", () => {
+  const teaches = [
+    "ITSE 1329 — Fall 2026 (online)",
+    "ITSC 1325 — Spring 2026 (in person at BHC)",
+  ];
+  const chips = followUpsFor({
+    ...base,
+    preference: "evening",
+    tools: [
+      {
+        name: "get_instructor",
+        output: { found: true, name: "Afrida Islam", teaches },
+      },
+    ],
+  });
+  assert.deepEqual(
+    chips.map((c) => c.label),
+    [
+      "Any evening classes with Islam?",
+      "What is ITSE 1329 about?",
+      "How can I reach a Success Coach?",
+    ],
+  );
+  assert.ok(chips[0].prompt.includes("Afrida Islam"));
+  assert.match(chips[0].prompt, /if none match, say so plainly/);
+  assert.ok(chips[1].prompt.includes("ITSE 1329"));
+  // With no preference captured, the question is simply when they meet.
+  assert.equal(
+    followUpsFor({
+      ...base,
+      tools: [
+        {
+          name: "get_instructor",
+          output: { found: true, name: "Afrida Islam", teaches },
+        },
+      ],
+    })[0].label,
+    "When do Islam's classes meet?",
+  );
+  // An ambiguous name has nothing to offer, so the turn falls through rather
+  // than composing a chip about a person the tool did not identify.
+  assert.deepEqual(
+    followUpsFor({
+      ...base,
+      tools: [
+        {
+          name: "get_instructor",
+          output: { found: true, ambiguous: true, matches: ["A B", "A C"] },
+        },
+      ],
+    }).map((c) => c.label),
+    [
+      "How can I reach a Success Coach?",
+      "Where can I get free tutoring?",
+      "What might my classes cost?",
+    ],
+  );
+  // A surname too long for a chip shortens in the label, never in the prompt.
+  const long = followUpsFor({
+    ...base,
+    preference: "weekend",
+    tools: [
+      {
+        name: "get_instructor",
+        output: {
+          found: true,
+          name: "Ada Papadopoulos-Winterbottom",
+          teaches: [],
+        },
+      },
+    ],
+  });
+  assert.ok(long[0].label.length <= 40, long[0].label);
+  assert.ok(long[0].prompt.includes("Ada Papadopoulos-Winterbottom"));
+});
+
+test("a resource answer offers the next resource, and money pairs with money", () => {
+  const after = (name: string) =>
+    followUpsFor({
+      ...base,
+      tools: [
+        {
+          name: "search_knowledge",
+          output: { found: true, results: [{ doc_type: "resource", name }] },
+        },
+      ],
+    }).map((c) => c.label);
+  // What a class costs and how to pay for it are one question in two halves.
+  assert.equal(
+    after("Tuition rates for credit classes")[0],
+    "How do I apply for financial aid?",
+  );
+  assert.equal(
+    after("Financial aid: how to apply and contacts")[0],
+    "What might my classes cost?",
+  );
+  // Any other resource continues through the corpus rather than repeating.
+  assert.deepEqual(after("Free tutoring on every campus"), [
+    "What might my classes cost?",
+    "How do I apply for financial aid?",
+    "When can I still drop a class?",
+  ]);
+  // A CV or course hit is not a resource answer and must not trigger this set.
+  assert.ok(
+    !followUpsFor({
+      ...base,
+      tools: [
+        {
+          name: "search_knowledge",
+          output: { found: true, results: [{ doc_type: "cv", name: "A B" }] },
+        },
+      ],
+    })
+      .map((c) => c.label)
+      .includes("When can I still drop a class?"),
+  );
+});
+
+test("a whole plan continues into the path the student actually came for", () => {
+  const whole = (goal?: string) =>
+    followUpsFor({
+      ...base,
+      goal,
+      tools: [{ name: "get_program_requirements", output: planOutput() }],
+    }).map((c) => c.label);
+  // Planning: the first chip retired the path's own next step, because an
+  // unscoped plan offered no way back to semester 1 (walked, 2026-09-22).
+  assert.deepEqual(
+    whole("Plan my upcoming semester (I know what I want to study)"),
+    [
+      "Which classes would I start with?",
+      "What do I need before starting?",
+      "When do these classes meet this Fall?",
+    ],
+  );
+  // Graduating: the checklist continues into history and what that leaves,
+  // not into what to have ready for day one.
+  assert.deepEqual(whole("See what I still need to graduate"), [
+    "Which of these have I finished?",
+    "How many credits do I have left?",
+    "What do I need before starting?",
+  ]);
+  // A semester-scoped plan keeps the escape hatch it already had.
+  assert.deepEqual(
+    followUpsFor({
+      ...base,
+      goal: "See what I still need to graduate",
+      tools: [
+        {
+          name: "get_program_requirements",
+          output: planOutput({ requested_semesters: [1] }),
+        },
+      ],
+    }).map((c) => c.label),
+    [
+      "What do I need before starting?",
+      "When do these classes meet this Fall?",
+      "Show the full plan",
+    ],
+  );
+  // The graduation continuation is the SAME chip the hand-off opens with, so
+  // a student who clicked it there is never offered it twice.
+  const grad = starterQuestionsFor({ ...payload, goal: "graduation_check" });
+  assert.ok(
+    whole("See what I still need to graduate").includes(grad[1].label),
+    grad[1].label,
+  );
+});
+
+test("a schedule answer asks about the daypart the student can actually study", () => {
+  const schedule = (preference?: string) =>
+    followUpsFor({
+      ...base,
+      preference,
+      tools: [
+        {
+          name: "get_class_schedule",
+          output: { course_code: "ENGL 1301", offerings: [{ section: "1" }] },
+        },
+      ],
+    });
+  assert.equal(schedule("weekend")[1].label, "Any weekend sections of ENGL 1301?");
+  assert.match(
+    schedule("weekend")[1].prompt,
+    /If none of the listed sections match, say so plainly/,
+  );
+  assert.equal(schedule("evening")[1].label, "Any evening sections of ENGL 1301?");
+  // Online is already the wording of the original chip, and no preference at
+  // all keeps it too.
+  assert.equal(schedule("online")[1].label, "Which sections are online?");
+  assert.equal(schedule()[1].label, "Which sections are online?");
+  for (const preference of [undefined, "evening", "weekend", "online"])
+    for (const chip of schedule(preference)) {
+      assert.ok(chip.label.length <= 40, chip.label);
+      if (chip.label !== "How can I reach a Success Coach?")
+        assert.ok(chip.prompt.includes("ENGL 1301"), chip.label);
+    }
+});
+
+test("a visitor who skipped onboarding still opens on real questions", () => {
+  assert.deepEqual(
+    followUpsFor({ ...base, starters: [], started: false }),
+    COLD_VISIT_QUESTIONS,
+  );
+  // With starters, they still win — the cold set is only for having none.
+  assert.deepEqual(
+    followUpsFor({ ...base, started: false }),
+    starters.slice(0, 3),
+  );
+  // Once the conversation starts it is an ordinary turn again.
+  assert.deepEqual(followUpsFor({ ...base, starters: [], started: true }), []);
 });
