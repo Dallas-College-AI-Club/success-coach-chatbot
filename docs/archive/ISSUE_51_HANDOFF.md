@@ -5,7 +5,7 @@
 > mirror is a separate later issue.
 >
 > **Read first:** [`docs/DATABASE_ARCHITECTURE.md`](../DATABASE_ARCHITECTURE.md)
-> (the design) and [`apps/data/db/schema.sql`](../../apps/data/db/schema.sql) (the exact target DDL —
+> (the design) and [`apps/data/db/schema.sql`](../../apps/data/reference/db/schema.sql) (the exact target DDL —
 > **that file wins any disagreement**).
 
 ---
@@ -104,7 +104,7 @@ on the context directly.
 
 | #51 acceptance criterion | Implementation |
 |---|---|
-| KnowledgeBase repository: add/update/delete entries (`Document` = url + ordered chunks) | Wrap the canonical §5D **upsert + reconcile**: a `Document(source_url, chunks[])` in, one transaction out. `ON CONFLICT (source_url, chunk_index)` with `content_hash`-gated updates; `scraped_at` always bumped; same-transaction reconcile DELETE. The compose stage that will call this already exists: [`apps/data/pipeline/build_knowledge.py`](../../apps/data/pipeline/build_knowledge.py) (its SQLite demo sink mirrors the exact row shape). |
+| KnowledgeBase repository: add/update/delete entries (`Document` = url + ordered chunks) | Wrap the canonical §5D **upsert + reconcile**: a `Document(source_url, chunks[])` in, one transaction out. `ON CONFLICT (source_url, chunk_index)` with `content_hash`-gated updates; `scraped_at` always bumped; same-transaction reconcile DELETE. The compose stage that will call this already exists: [`apps/data/pipeline/build_knowledge.py`](../../apps/data/dallasai/pipeline/build_knowledge.py) (its SQLite demo sink mirrors the exact row shape). |
 | UserRepository: export sessions to JSON for post-processing | The archive job's core (architecture doc §5F): `SELECT` sessions grouped by `student_id` → JSON export. |
 
 ### 3d. Tests
@@ -170,7 +170,7 @@ are part of the decided design:
 ## 7. What #51 does NOT include
 
 - The scrape/extract/compose pipeline — it already exists at
-  [`apps/data/pipeline/`](../../apps/data/pipeline/) (see `DATA_PIPELINE.md`) and
+  [`apps/data/pipeline/`](../../apps/data/dallasai/pipeline/) (see `DATA_PIPELINE.md`) and
   will call your repository layer; you don't build or change it.
 - The TypeScript Drizzle mirror (separate issue — hand-written from these models; no drizzle-kit).
 - LLM tool implementations (issues #37/#38 — they consume the query catalog).
