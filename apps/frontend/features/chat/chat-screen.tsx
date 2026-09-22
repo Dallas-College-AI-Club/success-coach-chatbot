@@ -29,6 +29,7 @@ import {
   ScheduleResults,
   InstructorResults,
 } from "@/features/chat/course-results";
+import { followUpsFor } from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
 import {
   starterQuestionsFor,
@@ -307,32 +308,70 @@ function Conversation({
   });
 
   const [input, setInput] = useState("");
+  const [askedLabels, setAskedLabels] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
-  const suggestions = messages.some((message) => message.role === "user")
+  const taken = useSavedCourses((s) => s.taken);
+
+  // Chips for where the conversation actually is: the opening starters, then
+  // the next step the latest settled reply's tool results can answer. Computed
+  // only when idle, so a half-streamed turn never flickers a wrong set.
+  const lastCoachTools = busy
     ? []
-    : starters;
+    : (messages.findLast((m) => m.role === "assistant")?.parts ?? [])
+        .filter(isToolUIPart)
+        .filter((part) => part.state === "output-available")
+        .map((part) => ({ name: getToolName(part), output: part.output }));
+  const suggestions = followUpsFor({
+    program: profile?.major,
+    starters,
+    tools: lastCoachTools,
+    started: messages.some((message) => message.role === "user"),
+    taken,
+    askedLabels,
+  });
 
-  // A new turn (or the thinking row) appearing scrolls to the bottom once.
+  // Stick to the bottom while the reader is there, stop the moment they
+  // scroll up, resume when they come back. A ResizeObserver on the transcript
+  // catches the growth `messages.length` misses: streamed text, markdown
+  // blocks and course cards mounting inside a turn that already exists.
   useEffect(() => {
     const el = scrollRef.current;
-    el?.scrollTo({
-      top: el.scrollHeight,
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-    });
-  }, [messages.length, error]);
-
-  // Streaming growth pins the bottom — but only when the reader is already
-  // there, so scrolling up to re-read is never fought. `auto`, not `smooth`:
-  // re-targeting an in-flight smooth scroll ~20×/s means it never settles.
-  useEffect(() => {
-    if (status !== "streaming") return;
-    const el = scrollRef.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
-      el.scrollTo({ top: el.scrollHeight });
-    }
-  }, [messages, status]);
+    const transcript = transcriptRef.current;
+    if (!el || !transcript) return;
+    // Only the READER may break the follow. Position alone cannot tell us who
+    // moved the scroll: a growing card, a removed "Thinking…" row or an
+    // in-flight smooth scroll all pass through "not at the bottom" on their
+    // own, and reading those as the reader leaving is what stranded the pane
+    // 2,000px above a long faculty answer.
+    let intentAt = -Infinity;
+    const intent = () => {
+      intentAt = performance.now();
+    };
+    const nearBottom = () =>
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const onScroll = () => {
+      if (nearBottom()) stick.current = true;
+      else if (performance.now() - intentAt < 700) stick.current = false;
+    };
+    const follow = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+    const intents = ["wheel", "touchmove", "pointerdown", "keydown"] as const;
+    for (const type of intents)
+      el.addEventListener(type, intent, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(follow);
+    observer.observe(transcript);
+    return () => {
+      for (const type of intents) el.removeEventListener(type, intent);
+      el.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
 
   // The one live region: derived, not pushed. Empty while streaming, the
   // completed reply once ready — so a screen reader hears the answer exactly
@@ -361,6 +400,12 @@ function Conversation({
     useSavedCourses.getState().addQuestion(note);
     sendMessage({ text: t }, requestOptions);
     setInput("");
+    // Asking always returns the reader to the end of the conversation.
+    stick.current = true;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
   };
 
   let currentQuestion = "";
@@ -389,55 +434,63 @@ function Conversation({
         ref={scrollRef}
         tabIndex={0}
         aria-label="Conversation with Major"
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+        className="min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       >
-        {turns}
+        {/* One element whose height IS the transcript's, so a single
+            ResizeObserver sees every kind of growth. */}
+        <div ref={transcriptRef} className="flex flex-col gap-3">
+          {turns}
 
-        {status === "submitted" && (
-          <CoachRow>
-            {/* Reserves the box the reply will occupy, so nothing jumps. */}
-            <div data-role="assistant" className={`${skin.bubble} min-w-24`}>
-              <span className="sr-only">Major is thinking</span>
-              <span
-                aria-hidden
-                className="opacity-60 motion-safe:animate-pulse"
+          {status === "submitted" && (
+            <CoachRow>
+              {/* Reserves the box the reply will occupy, so nothing jumps. */}
+              <div data-role="assistant" className={`${skin.bubble} min-w-24`}>
+                <span className="sr-only">Major is thinking</span>
+                <span
+                  aria-hidden
+                  className="opacity-60 motion-safe:animate-pulse"
+                >
+                  Thinking…
+                </span>
+              </div>
+            </CoachRow>
+          )}
+
+          {(error || incomplete) && (
+            <div className="flex flex-col items-start gap-2">
+              {/* Show the message only when it's one of our own mapped strings —
+                  equality against the shared allowlist, never reflected text. */}
+              <p className={skin.helper}>
+                {incomplete
+                  ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
+                  : error && SAFE_CHAT_ERRORS.has(error.message)
+                    ? error.message
+                    : GENERIC_CHAT_ERROR}
+              </p>
+              <Button
+                variant="ghost"
+                className={skin.ghostBtn}
+                onClick={() => regenerate(requestOptions)}
               >
-                Thinking…
-              </span>
+                Try again
+              </Button>
             </div>
-          </CoachRow>
-        )}
-
-        {(error || incomplete) && (
-          <div className="flex flex-col items-start gap-2">
-            {/* Show the message only when it's one of our own mapped strings —
-                equality against the shared allowlist, never reflected text. */}
-            <p className={skin.helper}>
-              {incomplete
-                ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
-                : error && SAFE_CHAT_ERRORS.has(error.message)
-                  ? error.message
-                  : GENERIC_CHAT_ERROR}
-            </p>
-            <Button
-              variant="ghost"
-              className={skin.ghostBtn}
-              onClick={() => regenerate(requestOptions)}
-            >
-              Try again
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Starter questions appear only until the first submitted user message. */}
-      {suggestions.length > 0 && (
+      {/* Follow-up questions for wherever the conversation has reached; hidden
+          while a reply streams, so the set never changes under a tapping hand. */}
+      {!busy && suggestions.length > 0 && (
         <div className="flex flex-wrap gap-1.5 px-1">
           {suggestions.map((q) => (
             <button
               key={q.prompt}
               type="button"
-              onClick={() => send(q.prompt, q.note ?? q.label)}
+              onClick={() => {
+                setAskedLabels((asked) => [...asked, q.label]);
+                send(q.prompt, q.note ?? q.label);
+              }}
               disabled={busy}
               className={`${skin.chip} disabled:cursor-wait disabled:opacity-50 pointer-coarse:min-h-11`}
             >
