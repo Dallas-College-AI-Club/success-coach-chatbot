@@ -1,4 +1,10 @@
-import type { StarterQuestion } from "@/features/onboarding/handoff-copy";
+import {
+  COACH,
+  listOf,
+  TUITION,
+  TUTORING,
+  type StarterQuestion,
+} from "@/features/onboarding/handoff-copy";
 import { INTEREST_GUIDE } from "@/features/onboarding/interests";
 import type { InterestArea } from "@/features/onboarding/types";
 import {
@@ -32,29 +38,9 @@ export function topicsFor(interest?: InterestArea | null): string[] {
   return interest ? INTEREST_GUIDE[interest].expertiseTopics : DEFAULT_TOPICS;
 }
 
-// Mirrors the private constants in features/onboarding/handoff-copy.ts.
-const COACH: StarterQuestion = {
-  label: "How can I reach a Success Coach?",
-  prompt:
-    "Look up academic advising in your records and give the listed email, phone number and appointment resource for contacting a Dallas College Success Coach.",
-};
-const TUTORING: StarterQuestion = {
-  label: "Where can I get free tutoring?",
-  prompt:
-    "What do your records say about free tutoring at Dallas College, and which source link can I use for more information?",
-};
-const TUITION: StarterQuestion = {
-  label: "What might my classes cost?",
-  prompt:
-    "What Dallas College tuition rates per credit hour are in your records, and what information would you need to estimate my tuition?",
-};
-
-/** "ENGL 1301, MATH 1314 and COSC 1336" */
-export function joinList(items: string[]): string {
-  return items.length < 2
-    ? items.join("")
-    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
-}
+// COACH/TUTORING/TUITION and listOf come from handoff-copy.ts rather than a
+// copy here: a chip is skipped when its LABEL was already asked, so the two
+// files have to agree on the label exactly, and a duplicate would drift.
 
 /** The sentence lib/planning.ts reads as completed history: every code in one
  *  clause with "completed", then only questions, which its parser skips.
@@ -62,7 +48,7 @@ export function joinList(items: string[]): string {
  *  force a FRESH requirements lookup, instead of letting the model answer
  *  from the older, semester-scoped result still sitting in the transcript. */
 export function takenPrompt(program: string, taken: string[]): string {
-  return `I have completed ${joinList(taken)}. Which courses in ${program} are left, and what should I take this semester?`;
+  return `I have completed ${listOf(taken)}. Which courses in ${program} are left, and what should I take this semester?`;
 }
 
 /** The human question a chip stands for, carried as message metadata.
@@ -111,19 +97,34 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
       | undefined;
 
   const plan = output("get_program_requirements");
-  const program = ctx.program ?? catalogText(plan?.name) ?? undefined;
+  // The plan ON SCREEN wins over the onboarding pick. A student who onboarded
+  // with Accounting and then asked about Cyber Security was offered chips
+  // naming Accounting, and their Cyber Security ticks were attributed to it.
+  const program = catalogText(plan?.name) ?? ctx.program;
   if (plan?.found === true && Array.isArray(plan.groups) && program) {
     const planning = isRecord(plan.planning) ? plan.planning : {};
     const remaining = Array.isArray(planning.remaining_required_courses)
       ? planning.remaining_required_courses.filter(isCourseCode)
       : [];
-    // The planning object rides on EVERY plan lookup; only a non-empty history
-    // means the student has actually reported courses and moved on to "what's
-    // left". An empty one is still the browse-the-plan step.
+    // The planning object rides on EVERY plan lookup, and its history records
+    // NEGATIVES too ("I haven't taken MATH 1314 yet" is a not_completed
+    // entry). Counting those as progress sent the conversation on to "what's
+    // left" while the student had finished nothing — and the checkboxes went
+    // inert, because the chip that carries them is on the browse step.
     const reported = isRecord(planning.history)
-      ? Object.keys(planning.history).length
+      ? Object.values(planning.history).filter(
+          (entry) =>
+            isRecord(entry) &&
+            (entry.status === "completed" || entry.status === "in_progress"),
+        ).length
       : 0;
     if (reported && remaining.length) {
+      // planning sorts the remaining codes alphabetically across the WHOLE
+      // degree, so the bare first one offered a fourth-year art elective as
+      // the next thing to look up. Prefer one the student could take now.
+      const next =
+        remaining.find((code) => planCodes(plan).includes(code)) ??
+        remaining[0];
       const topics = topicsFor(ctx.interest);
       const topic =
         topics.find(
@@ -136,8 +137,8 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
           prompt: `Using the ${program} checklist and the courses I reported, which remaining required courses should I take this semester and why? Suggest a realistic set, keeping prerequisites in mind; my Success Coach makes it official.`,
         },
         {
-          label: `Who teaches ${remaining[0]}?`,
-          prompt: `Who teaches ${remaining[0]} in the saved class schedule? Use the schedule cards to show every section with instructors, days, times and sources, and say which term each section comes from.`,
+          label: `Who teaches ${next}?`,
+          prompt: `Who teaches ${next} in the saved class schedule? Use the schedule cards to show every section with instructors, days, times and sources, and say which term each section comes from.`,
         },
         {
           label: `Who has ${topic} experience?`,
@@ -152,8 +153,12 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
       ...(ctx.taken.length
         ? [
             {
-              label: "I've taken these, what's left?",
-              note: `Which ${program} courses do I still need after ${joinList(ctx.taken)}?`,
+              // The COUNT is in the label because a label, once asked, is
+              // never offered again: a fixed one meant that after a single
+              // click every later tick was unsendable and the checkboxes
+              // quietly stopped doing anything.
+              label: `I've taken these ${ctx.taken.length}, what's left?`,
+              note: `Which ${program} courses do I still need after ${listOf(ctx.taken)}?`,
               prompt: takenPrompt(program, ctx.taken),
             },
           ]
@@ -167,8 +172,8 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
         ? [
             {
               label: "When do these classes meet this Fall?",
-              note: `When do ${joinList(codes)} meet this Fall?`,
-              prompt: `Check the saved class schedule for this Fall for ${joinList(codes)} in ${program}. Use the schedule cards to show each course's sections with dates, days, times, instructors and sources. Reply with a brief summary of which of these courses have sections listed, without repeating the section list. Missing meeting times are unknown; label the saved schedule date and do not claim live availability.`,
+              note: `When do ${listOf(codes)} meet this Fall?`,
+              prompt: `Check the saved class schedule for this Fall for ${listOf(codes)} in ${program}. Use the schedule cards to show each course's sections with dates, days, times, instructors and sources. Reply with a brief summary of which of these courses have sections listed, without repeating the section list. Missing meeting times are unknown; label the saved schedule date and do not claim live availability.`,
             },
           ]
         : []),
@@ -215,12 +220,19 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
         .slice(0, 3)
     : [];
   if (names.length) {
-    const surname = names[0].split(/\s+/).at(-1) ?? names[0];
+    const full = names[0].split(/\s+/).at(-1) ?? names[0];
+    // A chip whose label runs past the limit is dropped, and this branch has
+    // no spare candidate — one long surname left the student with two chips
+    // instead of three. Shorten the label; the prompt keeps the whole name.
+    const surname =
+      `What would I take with ${full}?`.length > MAX_LABEL
+        ? `${full.slice(0, MAX_LABEL - 25)}…`
+        : full;
     return [
       {
         label: "Which classes do they teach this Fall?",
-        note: `Which classes do ${joinList(names)} teach this Fall?`,
-        prompt: `For ${joinList(names)}, use get_instructor to list the courses and sections each one teaches this Fall according to the saved records, and use the cards to show their backgrounds.`,
+        note: `Which classes do ${listOf(names)} teach this Fall?`,
+        prompt: `For ${listOf(names)}, use get_instructor to list the courses and sections each one teaches this Fall according to the saved records, and use the cards to show their backgrounds.`,
       },
       ...(program
         ? [

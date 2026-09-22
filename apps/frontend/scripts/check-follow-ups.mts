@@ -18,7 +18,6 @@ import { convertToModelMessages } from "ai";
 import {
   askedLabel,
   followUpsFor,
-  joinList,
   takenPrompt,
   topicsFor,
   DEFAULT_TOPICS,
@@ -26,7 +25,10 @@ import {
 import { INTEREST_GUIDE } from "../features/onboarding/interests";
 import { useSavedCourses } from "../features/chat/saved-courses";
 import { assessPlan, studentCourseHistory } from "../lib/planning";
-import { starterQuestionsFor } from "../features/onboarding/handoff-copy";
+import {
+  listOf,
+  starterQuestionsFor,
+} from "../features/onboarding/handoff-copy";
 import type { OnboardingPayload } from "../features/onboarding/types";
 import { requestedSemesters, scopeProgramGroups } from "../lib/course-details";
 
@@ -144,7 +146,7 @@ test("ticking courses offers the what's-left chip, and planning.ts reads every c
       },
     ],
   });
-  assert.equal(chips[0].label, "I've taken these, what's left?");
+  assert.equal(chips[0].label, "I've taken these 3, what's left?");
   const prompt = chips[0].prompt;
   assert.equal(prompt, takenPrompt(PROGRAM, taken));
   assert.ok(prompt.includes("ENGL 1301, MATH 1314 and ITSE 1303"));
@@ -183,9 +185,9 @@ test("ticking courses offers the what's-left chip, and planning.ts reads every c
   assert.ok(one.startsWith("I have completed ENGL 1301. "));
   assert.equal(studentCourseHistory([one])["ENGL 1301"]?.status, "completed");
   // Two courses join with "and" only.
-  assert.equal(joinList(["A", "B"]), "A and B");
-  assert.equal(joinList(["A"]), "A");
-  assert.equal(joinList([]), "");
+  assert.equal(listOf(["A", "B"]), "A and B");
+  assert.equal(listOf(["A"]), "A");
+  assert.equal(listOf([]), "");
 });
 
 test("a checklist with reported history moves on to this semester and professors", () => {
@@ -491,6 +493,162 @@ test("the bubble shows the human question while the model still gets the prompt"
     assert.equal(askedLabel(junk), undefined, JSON.stringify(junk));
   }
   assert.equal(askedLabel({ label: "  Which classes?  " }), "Which classes?");
+});
+
+test("the plan on screen names the chips, not a stale onboarding pick", () => {
+  // Onboarded with one program, then asked about another: attributing the
+  // second program's courses to the first is a wrong statement on the sheet.
+  const OTHER = "Cyber Security A.A.S.";
+  const chips = followUpsFor({
+    ...base,
+    program: "Accounting A.A.S.",
+    taken: ["ITSE 1303"],
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: { ...planOutput(), name: OTHER },
+      },
+    ],
+  });
+  for (const chip of chips) {
+    assert.ok(chip.prompt.includes(OTHER), chip.label);
+    assert.ok(!chip.prompt.includes("Accounting"), chip.prompt);
+  }
+  assert.equal(chips[0].prompt, takenPrompt(OTHER, ["ITSE 1303"]));
+  // With no plan on screen the onboarding program is still the fallback.
+  assert.ok(
+    followUpsFor({ ...base, program: "Accounting A.A.S." })
+      .map((c) => c.label)
+      .includes("How can I reach a Success Coach?"),
+  );
+});
+
+test("a denial in the history is not progress, and the ticks stay sendable", () => {
+  // "I haven't taken MATH 1314 yet" is a not_completed entry. Counting it as
+  // reported history moved the chips on to what's-left while the student had
+  // finished nothing — and the checkboxes went inert.
+  const denials = followUpsFor({
+    ...base,
+    taken: ["ITSE 1303", "ITSE 1329", "ENGL 1301"],
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({
+          planning: {
+            history: {
+              "MATH 1314": { status: "not_completed", statement: "" },
+              "ITSE 2321": { status: "planned", statement: "" },
+            },
+            remaining_required_courses: ["ITSE 1303"],
+          },
+        }),
+      },
+    ],
+  });
+  assert.equal(denials[0].label, "I've taken these 3, what's left?");
+  assert.ok(denials[0].prompt.includes("ITSE 1303, ITSE 1329 and ENGL 1301"));
+
+  // An in-progress course IS progress, so that path still advances.
+  const progress = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({
+          planning: {
+            history: { "ENGL 1301": { status: "in_progress", statement: "" } },
+            remaining_required_courses: ["ITSE 1303"],
+          },
+        }),
+      },
+    ],
+  });
+  assert.equal(progress[0].label, "What should I take this semester?");
+});
+
+test("every changed set of ticks can still be sent", () => {
+  const withTicks = (taken: string[], askedLabels: string[] = []) =>
+    followUpsFor({
+      ...base,
+      taken,
+      askedLabels,
+      tools: [{ name: "get_program_requirements", output: planOutput() }],
+    });
+  const first = withTicks(["ENGL 1301"]);
+  assert.equal(first[0].label, "I've taken these 1, what's left?");
+  // After sending that one, ticking another must produce a SENDABLE chip —
+  // a fixed label would have been filtered out as already asked, leaving the
+  // checkboxes permanently inert.
+  const asked = [first[0].label];
+  const second = withTicks(["ENGL 1301", "MATH 1314"], asked);
+  assert.equal(second[0].label, "I've taken these 2, what's left?");
+  assert.ok(!asked.includes(second[0].label));
+  assert.equal(second[0].prompt, takenPrompt(PROGRAM, ["ENGL 1301", "MATH 1314"]));
+  // The same set twice is still not re-offered.
+  assert.ok(
+    !withTicks(["ENGL 1301"], asked)
+      .map((c) => c.label)
+      .includes(first[0].label),
+  );
+  for (const count of [1, 3, 12]) {
+    const codes = Array.from({ length: count }, (_, i) => `ENGL 13${10 + i}`);
+    assert.ok(withTicks(codes)[0].label.length <= 40, String(count));
+  }
+});
+
+test("the who-teaches chip names a course the student could take now", () => {
+  // planning sorts remaining codes alphabetically across the WHOLE degree, so
+  // the bare first one was a later-year elective (ARTS 1301 before ITSE 1303).
+  const chips = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({
+          planning: {
+            history: { "ENGL 1301": { status: "completed", statement: "" } },
+            remaining_required_courses: ["ARTS 1301", "ITSE 1303", "ITSE 2321"],
+          },
+        }),
+      },
+    ],
+  });
+  assert.equal(chips[1].label, "Who teaches ITSE 1303?");
+  assert.ok(chips[1].prompt.includes("ITSE 1303"));
+  assert.ok(!chips[1].prompt.includes("ARTS 1301"));
+  // When nothing remaining is in the first semester, the first one still does.
+  const far = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({
+          planning: {
+            history: { "ENGL 1301": { status: "completed", statement: "" } },
+            remaining_required_courses: ["ARTS 1301"],
+          },
+        }),
+      },
+    ],
+  });
+  assert.equal(far[1].label, "Who teaches ARTS 1301?");
+});
+
+test("a long professor surname shortens the label instead of losing the chip", () => {
+  const chips = followUpsFor({
+    ...base,
+    tools: [
+      {
+        name: "search_faculty_expertise",
+        output: { results: [{ name: "Ada Papadopoulos-Winterbottom" }] },
+      },
+    ],
+  });
+  assert.equal(chips.length, 3);
+  const take = chips.find((c) => c.label.startsWith("What would I take"))!;
+  assert.ok(take.label.length <= 40, take.label);
+  // The label is shortened; the PROMPT still names the professor in full.
+  assert.ok(take.prompt.includes("Ada Papadopoulos-Winterbottom"));
 });
 
 test("a missing program name never produces a chip with a hole in it", () => {
