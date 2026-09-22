@@ -45,9 +45,12 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Storage:** a single Neon Postgres table, `knowledge_entry`, holding both prose chunks (for
   semantic search) and structured `facts` documents (for exact lookups), discriminated by
   `doc_type`. Full design and query catalog: [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md).
-- **Embeddings:** `Xenova/all-MiniLM-L6-v2`, 384 dimensions, computed **in-process** (no external
-  API) by both the Next.js app (`apps/frontend/lib/embedding.ts`) and the Python pipeline, under
-  the shared contract in `apps/frontend/lib/embedding-contract.json`.
+- **Embeddings:** `Xenova/all-MiniLM-L6-v2`, 384 dimensions, computed locally with no embedding
+  API. The Next.js app runs the encoder in-process (`apps/frontend/lib/embedding.ts`); the Python
+  pipeline reuses that same encoder by invoking it through Node, so ingest and query vectors can
+  never diverge (`apps/data/dallasai/pipeline/embed_rows.py` — it needs `npm ci` in
+  `apps/frontend` and `node` on PATH). Both sides read one contract file,
+  `apps/frontend/lib/embedding-contract.json`.
 - **Pipeline:** the Python pipeline in `apps/data` (uv, SQLAlchemy, psycopg 3) acquires, extracts,
   embeds and loads course, program-map, section, CV, resource and catalog data. It is a separate,
   batch process — the frontend only reads. Full pipeline and runbook:
