@@ -1,6 +1,6 @@
 # RFC-0002: AI Guardrails
 
-Status: Draft
+Status: Implemented (2026-09-22). Persona and scope rules live in apps/frontend/lib/system-prompt.ts; benchmark prompts are in ../GUARDRAIL_BENCHMARKS.md.
 
 ---
 

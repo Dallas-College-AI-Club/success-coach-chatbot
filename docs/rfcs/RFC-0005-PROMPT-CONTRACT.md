@@ -1,6 +1,6 @@
 # RFC-0005: Prompt Contract
 
-Status: Draft
+Status: Implemented (2026-09-22). src/config/ai-prompts.json is the governed contract; its refusal wording is copied verbatim into apps/frontend/lib/system-prompt.ts.
 
 Owner: Dallas College AI Club
 

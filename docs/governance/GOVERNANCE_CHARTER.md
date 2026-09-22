@@ -1,6 +1,6 @@
 # Dallas College Success Coach Chatbot Governance Charter
 
-Status: Active Draft
+Status: Accepted (2026-09-22). The principles below are in force; the runtime that applies them is described in ../ARCHITECTURE.md.
 Version: 0.1
 Owner: Dallas College AI Club
 

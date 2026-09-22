@@ -1,6 +1,6 @@
 # RFC-0003: Prompt Evaluation Standard
 
-Status: Draft
+Status: Accepted, partially implemented (2026-09-22). The corpus exists at tests/guardrails/test-corpus.json; CI runs the frontend regression scripts and pytest, not this corpus.
 
 ---
 
