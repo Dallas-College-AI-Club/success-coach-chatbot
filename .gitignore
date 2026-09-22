@@ -68,3 +68,6 @@ apps/data/cleaned/2026SP/*
 
 # Local data imports
 apps/data/downloaded-dataset/
+
+# Local agent/editor scratch (dev-server launch configs, per-session settings)
+.claude/
