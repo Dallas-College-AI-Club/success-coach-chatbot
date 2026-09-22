@@ -1,4 +1,6 @@
 import type { StarterQuestion } from "@/features/onboarding/handoff-copy";
+import { INTEREST_GUIDE } from "@/features/onboarding/interests";
+import type { InterestArea } from "@/features/onboarding/types";
 import {
   catalogText,
   isCourseCode,
@@ -17,13 +19,18 @@ import {
 
 const MAX_CHIPS = 3;
 const MAX_LABEL = 40;
-/** Offered one at a time for the faculty-interest step; the coordinator may
- *  later swap in the onboarding interest map. */
-export const INTEREST_TOPICS = [
+/** The faculty topics to offer when onboarding captured no interest area. */
+export const DEFAULT_TOPICS = [
   "machine learning",
   "cybersecurity",
   "data analytics",
 ];
+
+/** The student's own interest area decides which expertise the chip offers;
+ *  INTEREST_GUIDE's topics are live-verified against the indexed CVs. */
+export function topicsFor(interest?: InterestArea | null): string[] {
+  return interest ? INTEREST_GUIDE[interest].expertiseTopics : DEFAULT_TOPICS;
+}
 
 // Mirrors the private constants in features/onboarding/handoff-copy.ts.
 const COACH: StarterQuestion = {
@@ -61,6 +68,8 @@ export function takenPrompt(program: string, taken: string[]): string {
 export interface FollowUpContext {
   /** Program to name in prompts: the onboarding pick, else the plan shown. */
   program?: string;
+  /** Onboarding's interest area, which picks the faculty topics to offer. */
+  interest?: InterestArea | null;
   /** The onboarding starters — the opening chips, unchanged. */
   starters: StarterQuestion[];
   /** Finished tool parts of the latest settled coach reply. */
@@ -106,10 +115,11 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
       ? Object.keys(planning.history).length
       : 0;
     if (reported && remaining.length) {
+      const topics = topicsFor(ctx.interest);
       const topic =
-        INTEREST_TOPICS.find(
+        topics.find(
           (t) => !ctx.askedLabels.includes(`Who has ${t} experience?`),
-        ) ?? INTEREST_TOPICS[0];
+        ) ?? topics[0];
       return [
         {
           label: "What should I take this semester?",

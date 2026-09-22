@@ -49,6 +49,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Mode, Skin } from "@/features/onboarding/skin";
+import type { InterestArea } from "@/features/onboarding/types";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { citationHref, citationLabel } from "@/lib/constants";
@@ -287,11 +288,13 @@ function Conversation({
   seed,
   starters,
   profile,
+  interest,
 }: {
   mode: Mode;
   seed: UIMessage[];
   starters: StarterQuestion[];
   profile: StudentProfile | null;
+  interest: InterestArea | null;
 }) {
   const { skin, copy } = mode;
   const languages = useSyncExternalStore(
@@ -327,6 +330,7 @@ function Conversation({
         .map((part) => ({ name: getToolName(part), output: part.output }));
   const suggestions = followUpsFor({
     program: profile?.major,
+    interest,
     starters,
     tools: lastCoachTools,
     started: messages.some((message) => message.role === "user"),
@@ -366,6 +370,10 @@ function Conversation({
     el.addEventListener("scroll", onScroll, { passive: true });
     const observer = new ResizeObserver(follow);
     observer.observe(transcript);
+    // The pane itself too: a chip row appearing underneath shortens the
+    // viewport without changing the transcript, which alone left the last
+    // lines of a long answer below the fold.
+    observer.observe(el);
     return () => {
       for (const type of intents) el.removeEventListener(type, intent);
       el.removeEventListener("scroll", onScroll);
@@ -632,6 +640,7 @@ export function ChatScreen() {
           seed={seed}
           starters={starters}
           profile={profile}
+          interest={session?.payload.interest_area ?? null}
         />
       </div>
     </main>
