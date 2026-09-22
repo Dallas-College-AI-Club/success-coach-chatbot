@@ -36,7 +36,7 @@ a course's paired co-req section is not emitted as a separate course):
 ------------------------------------------------------------------------------
 SETUP
 ------------------------------------------------------------------------------
-    pip install -r requirements.txt
+    uv sync          # from apps/data
 
     # ONLY if the Playwright fallback is selected (see "Bot protection" below):
     python -m playwright install chromium
