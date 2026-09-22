@@ -25,7 +25,7 @@ import { useSavedCourses } from "../features/chat/saved-courses";
 import { assessPlan, studentCourseHistory } from "../lib/planning";
 import { starterQuestionsFor } from "../features/onboarding/handoff-copy";
 import type { OnboardingPayload } from "../features/onboarding/types";
-import { requestedSemesters } from "../lib/course-details";
+import { requestedSemesters, scopeProgramGroups } from "../lib/course-details";
 
 const PROGRAM = "Bachelor of Applied Technology in Software Development";
 
@@ -359,6 +359,83 @@ test("reported courses are validated, wiped by clear(), and never a free-text fi
   assert.deepEqual(
     merge({}, useSavedCourses.getState()).taken,
     [],
+  );
+});
+
+test("typing a starter's own words scopes to semester 1, just like clicking it", () => {
+  // The chip's visible LABEL carries no semester token; only its hidden prompt
+  // did. A presenter who types the label must get the same answer as one who
+  // clicks it (production walk, 2026-09-22 — the typed form returned all
+  // eight semesters).
+  for (const text of [
+    "Which classes would I start with?",
+    "which classes would i start with",
+    "What classes do I begin with?",
+    "What should I start with?",
+    "Where do I start?",
+    "What are my first classes?",
+    "Which starting courses should I take?",
+    "What do I need before starting?",
+    "What do I need before I start?",
+    "Which courses do I start my program with?",
+    "What classes would I be starting with in this degree?",
+  ]) {
+    assert.deepEqual(requestedSemesters(text), [1], text);
+  }
+
+  // The escape hatch still wins, so "Show the full plan" is never re-scoped.
+  for (const text of [
+    "Look up the full published course plan for this program, all semesters.",
+    "Show me the entire degree plan, not just what I start with.",
+    "Show the complete program plan.",
+  ]) {
+    assert.deepEqual(requestedSemesters(text), [], text);
+  }
+
+  // Questions that merely mention a start must not be filtered to semester 1.
+  for (const text of [
+    "When does the Fall term start?",
+    "What time does MATH 1314 start?",
+    "Who teaches the courses I would take later?",
+    "What should I take this semester?",
+  ]) {
+    assert.deepEqual(requestedSemesters(text), [], text);
+  }
+});
+
+test("published group names are classified by their number, never by 'First Year'", () => {
+  // Real names, read from the 337 published program_map rows on 2026-09-22 —
+  // the only 12 of 314 distinct group names containing start/begin/first.
+  // "Semester 2 (First Year Continued)" is the trap: a loose /\bfirst\b/ rule
+  // files it under semester 1 and puts semester 2 back on screen.
+  const published = [
+    ["Semester 1 (First Year)", [1]],
+    ["Semester 1 (First Year) - Core Courses", [1]],
+    ["Semester 1 (First Year) - Required Courses", [1]],
+    ["Semester 1 (First Year) - Creative Arts (CB050)", [1]],
+    ["Semester 1 (First Year) - Language, Philosophy and Culture (CB040)", [1]],
+    ["Semester 2 (First Year)", [2]],
+    ["Semester 2 (First Year Continued)", [2]],
+    ["Semester 2 (First Year Continued) - Core Courses", [2]],
+    ["Semester 2 (First Year Continued) - Required Courses", [2]],
+    ["Semester 2 (First Year Continued) - American History (CB060)", [2]],
+    [
+      "Semester 2 (First Year Continued) - Government/Political Science (CB070)",
+      [2],
+    ],
+    [
+      "Semester 2 (First Year Continued) - Language, Philosophy and Culture (CB040)",
+      [2],
+    ],
+  ] as const;
+  for (const [name, expected] of published) {
+    assert.deepEqual(requestedSemesters(name), [...expected], name);
+  }
+  // ...so scoping to semester 1 still excludes every semester-2 group.
+  const groups = published.map(([name]) => ({ name }));
+  assert.deepEqual(
+    scopeProgramGroups(groups, [1]).map((g) => (g as { name: string }).name),
+    published.filter(([, s]) => s[0] === 1).map(([name]) => name),
   );
 });
 
