@@ -92,8 +92,13 @@ test("articulation keeps rest shape exact and never inverts mesh triangles", () 
 });
 
 test("ground partners only overlap behind the panel across desktop and narrow layouts", () => {
+  // Desktop panel widths follow the scale in chat-screen.tsx, so these are the
+  // layouts that actually render; 851 and 390 stay on the untouched 42rem column.
   for (const [viewport, panelWidth, h] of [
-    [1280, 672, 72],
+    [1920, 1152, 108],
+    [1536, 1152, 86],
+    [1280, 1024, 80],
+    [1024, 768, 77],
     [851, 672, 57],
     [851, 238, 86],
     [390, 358, 36],
@@ -419,5 +424,82 @@ test("the phoenix sun rises east, sets west and resets invisibly above the contr
     );
     assert.equal(sunAt(22.5, width, height, headerTop).opacity, 1);
     assert.equal(sunAt(45, width, height, headerTop).opacity, 0);
+  }
+});
+
+// The chat panel grows with the viewport (chat-screen.tsx). The roaming cast
+// lives in the gutters either side of it, and characterHeight() sizes the cast
+// from the NARROWER gutter — so a panel that grows too fast shrinks the
+// mascots. Read the shipped class list rather than restating it here: the
+// budget is only worth guarding if it tracks what actually renders.
+const panelScale = (() => {
+  const source = readFileSync(
+    resolve(import.meta.dirname, "../features/chat/chat-screen.tsx"),
+    "utf8",
+  );
+  const line = source
+    .split("\n")
+    .find((l) => l.includes("relative z-10 mx-auto") && l.includes("max-w-"));
+  assert.ok(line, "chat-screen.tsx no longer has the panel column class list");
+  // Tailwind v4 --container-* and --breakpoint-*, node_modules/tailwindcss/theme.css.
+  const container: Record<string, number> = {
+    "2xl": 672,
+    "3xl": 768,
+    "4xl": 896,
+    "5xl": 1024,
+    "6xl": 1152,
+    "7xl": 1280,
+  };
+  const breakpoint: Record<string, number> = {
+    lg: 1024,
+    xl: 1280,
+    "2xl": 1536,
+  };
+  const steps: { from: number; panel: number }[] = [];
+  for (const [, bp, size] of line.matchAll(
+    /(?:([a-z0-9]+):)?max-w-([0-9a-z]+)/g,
+  )) {
+    const panel = container[size];
+    assert.ok(panel, `unmapped max-w-${size} — add it to the container table`);
+    steps.push({ from: bp ? breakpoint[bp] : 0, panel });
+  }
+  return steps.sort((a, b) => a.from - b.from);
+})();
+
+test("the chat panel leaves the roaming cast its full gutter at every width", () => {
+  // Phone and tablet are deliberately untouched: below lg the panel is the
+  // 42rem column the chat shipped with.
+  assert.deepEqual(panelScale[0], { from: 0, panel: 672 });
+  assert.ok(panelScale.length > 1, "the panel no longer grows on a big screen");
+
+  for (const { from, panel } of panelScale) {
+    if (!from) continue;
+    // Narrowest viewport this step applies to — its tightest gutter.
+    const gutter = (from - panel) / 2;
+    assert.ok(
+      gutter >= 128,
+      `max-w at ${from}px leaves only ${gutter}px of gutter; characterHeight caps the cast at 128px and needs that room`,
+    );
+    // The cast must be no smaller than it was at the old single-width panel.
+    for (const height of [640, 720, 800, 900, 1080]) {
+      if (height > from) continue; // landscape only; portrait is below lg anyway
+      const grown = {
+        left: gutter,
+        right: from - gutter,
+        top: 125,
+        bottom: height - 60,
+      };
+      const old = {
+        left: (from - 672) / 2,
+        right: (from + 672) / 2,
+        top: 125,
+        bottom: height - 60,
+      };
+      assert.equal(
+        characterHeight(from, height, grown),
+        characterHeight(from, height, old),
+        `the wider panel shrinks the cast at ${from}x${height}`,
+      );
+    }
   }
 });
