@@ -167,8 +167,33 @@ Onboarding does not end in a summary screen; it opens the planning chat. The fin
 
   | | Opens with |
   |---|---|
-  | **A program chosen** | What the program requires · Which classes to start with · then either when a first class meets (a schedule goal or an evening/weekend/online preference) or what to have ready before starting |
+  | **A program chosen, planning** | What the program requires · Which classes to start with · then either when a first class meets (a schedule goal or an evening/weekend/online preference) or what to have ready before starting |
+  | **A program chosen, graduating** | What's on my checklist · Which of these have I finished · How many credits do I have left |
   | **Still deciding** | Example programs for the chosen interest area · What one of them covers · How two of them compare |
+  | **Transferring** | The program plan (or a course lookup, for a visiting student) · the course facts to collect, naming the school where it fits a button · the Success Coach |
+  | **One class only** | A course lookup worded for why they came · what it might cost · the Success Coach |
+  | **Settling in** | Housing help · the free DART GoPass · free tutoring |
+  | **No onboarding at all** | Help me find my program's plan · Help me pick an area to explore · the Success Coach |
+
+  **The chip row is replaced after every reply**, so the opening's three questions are three choices
+  for the *first* click only; from then on [`follow-ups.ts`](../apps/frontend/features/chat/follow-ups.ts)
+  offers whatever the latest reply's tool results can actually support. That is why each path's second
+  step has to be reachable from its own first answer rather than only from the opening: a whole-degree
+  plan offers the way into semester 1, a semester-scoped plan offers the way back out to the whole
+  plan, and a graduation checklist continues into what the student has finished and what that leaves
+  (the same two questions the graduation hand-off opens with, shared from one factory so neither is
+  ever asked twice).
+
+  **When a reply looked nothing up, the row is empty.** Major has just asked the student a direct
+  question — which course code, which area, which of these have you finished — and a row of unrelated
+  support links beside it answered none of them. A refusal is not this case: the model searches before
+  refusing, so a refusal still offers the Success Coach, tutoring and tuition.
+
+  **A question is only offered where the data can answer it.** Every support question maps to a row of
+  the eleven-record student-resource corpus and was probed against the live records; a food-pantry
+  question is deliberately absent because that search retrieves culinary courses rather than the
+  pantry record, which the housing answer covers instead. The schedule questions never imply that a
+  matching section exists — they ask, and say plainly when none do.
 
   The undecided path is interest-first by design: a student who has not picked a major is shown **real programs to look at**, never a program picked for them, and every one of those questions says "example" so the chat treats it as exploration. The examples themselves live in [`interests.ts`](../apps/frontend/features/onboarding/interests.ts) and were verified against the live catalog data — each is a program the requirements lookup resolves exactly, whose first-semester courses have real sections with named instructors this Fall. When no interest area was given, the first question asks for one as a numbered list the student can answer with a single digit. What a program *prepares you for* is deliberately **not** offered: the catalog records carry course requirements, not career outcomes, and job or salary predictions are a standing refusal.
 - **Authority routing, never a claim.** Transfer credit and prior-credit evaluation route to the deciding institution. This holds to the interview's standing rule — no promises about transferability, financial aid, or graduation without Success Coach confirmation (#42) — and to the guardrail scope (#39).
