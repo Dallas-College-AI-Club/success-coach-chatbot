@@ -1,7 +1,7 @@
 "use client";
 
 import { citationHref } from "@/lib/constants";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
@@ -20,6 +20,17 @@ import {
 // never from model prose, so "nothing on paper the catalog didn't say" is a
 // property of what this component reads, not a promise. window.print() turns it
 // into a PDF; the on-screen edit controls are print:hidden.
+
+// The printed date never changes while the sheet is open, so there is nothing
+// to subscribe to — this only needs the client value instead of the server's.
+const subscribeNothing = () => () => {};
+const today = () =>
+  new Date().toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+const noDate = () => "";
 
 function Cite({ label, url }: { label: string; url?: string | null }) {
   const href = citationHref(url);
@@ -125,6 +136,7 @@ export function SummarySheet() {
 
   const session = useSavedSession();
   const courses = useSavedCourses((s) => s.courses);
+  const taken = useSavedCourses((s) => s.taken);
   const removeCourse = useSavedCourses((s) => s.remove);
   const questions = useSavedCourses((s) => s.questions);
   const removeQuestion = useSavedCourses((s) => s.removeQuestion);
@@ -157,13 +169,11 @@ export function SummarySheet() {
   // asked a question yet.
   let sectionNo = 0;
   const nextIdx = () => String(++sectionNo).padStart(2, "0");
-  // Client-only value; the printed date carries suppressHydrationWarning below,
-  // so a day-boundary difference between SSR and client never warns.
-  const printedOn = new Date().toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
+  // The READER's today, read on the client only. This page prerenders, and
+  // suppressHydrationWarning told React to keep whatever that render produced
+  // — so computing the date inline froze the BUILD date into every sheet
+  // (production printed "September 21" on September 22).
+  const printedOn = useSyncExternalStore(subscribeNothing, today, noDate);
 
   return (
     <div className="sheet-scope">
@@ -216,7 +226,7 @@ export function SummarySheet() {
               />
             </label>
             <div className="sheet-printed">
-              Printed <b suppressHydrationWarning>{printedOn}</b>
+              Printed <b>{printedOn}</b>
             </div>
           </div>
         </header>
@@ -282,6 +292,24 @@ export function SummarySheet() {
                     </button>
                   </li>
                 ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {taken.length ? (
+          <section className="sheet-section">
+            <h2 className="sheet-shead">
+              <span className="sheet-idx">{nextIdx()}</span>
+              <span className="sheet-h2">
+                Courses I reported as completed (not a transcript)
+              </span>
+            </h2>
+            <ul className="sheet-answers">
+              {taken.map((code) => (
+                <li key={code}>
+                  <span className="sheet-code">{code}</span>
+                </li>
+              ))}
             </ul>
           </section>
         ) : null}
