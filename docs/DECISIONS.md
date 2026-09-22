@@ -3,6 +3,25 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-22 — Guided planning conversation (demo week)
+
+- **Follow-up chips are deterministic.** After every reply the next three chips are chosen from that
+  reply's finished tool results plus the student's profile, never from model prose and never with an
+  extra model call. Cheap, and a chip can only offer a step the data can answer.
+- **No "what jobs does this program lead to" chip.** Measured against the live records: program rows
+  carry only name, award, credits and group names, with no career or outcome text (the only career
+  wording in the corpus is co-op boilerplate in about 90 course descriptions). Such a chip would hit
+  the ungrounded-records refusal. The undecided path uses award type, first-semester coursework, a
+  deterministic comparison of two programs, and faculty expertise instead.
+- **Reported-completion wording is load-bearing.** The "I've taken these, what's left?" chip sends
+  "I have completed X and Y. Which courses in <program> are left, and what should I take this
+  semester?" because the tool router requires a completion word AND a program word to force a fresh
+  requirements lookup. Free-typed phrasings such as "what do I still need for my degree" can be
+  answered from an older result in the transcript. Known gap; widening the router is a follow-up.
+- **The student's bubble shows the question, not the steering prompt.** Chip prompts carry the
+  program name and display instructions for the model; the transcript shows the chip's plain question
+  and the model receives the full prompt.
+
 ## 2026-09-20 — Showcase follow-up (issue #195)
 
 The team completed the responsive Playful scene, section-note and dark-mode requests on the
