@@ -288,9 +288,9 @@ How one document is extracted, regardless of provider:
 
 Switching from Claude to a local LM Studio model is a config change plus a re-run; the two
 outputs can be compared side-by-side before switching over. The same idea applies to
-**embeddings**: a 768-dimension model (e.g. `nomic-embed-text`, runnable locally in LM Studio,
-or a hosted equivalent) turns each chunk into its search vector, using the same model at
-load time and at question time.
+**embeddings**: `Xenova/all-MiniLM-L6-v2` (384 dimensions, run in-process, no API) turns each
+chunk into its search vector; the app uses the same model at question time under the shared
+contract in `apps/frontend/lib/embedding-contract.json`.
 
 ---
 
@@ -342,6 +342,7 @@ re-run; because the raw archive never changes, the knowledge base can always be 
 ```
 success-coach-chatbot/
 ├─ docs/
+│   ├─ ARCHITECTURE.md               how the app, tools and this pipeline fit together
 │   ├─ DATA_PIPELINE.md              ← this file
 │   └─ DATABASE_ARCHITECTURE.md      the knowledge_entry table in full detail
 ├─ src/config/
@@ -349,8 +350,8 @@ success-coach-chatbot/
 │   └─ facts-schemas/                the fact-shape contracts (course, program_map,
 │                                    section, syllabus, cv, …)
 └─ apps/data/
-    ├─ db/                           schema.sql (the database definition) + seed_mock.sql
-    ├─ pipeline/                     the scripts (acquire, extract, embed, load)
+    ├─ reference/db/                 schema.sql (generated database definition)
+    ├─ dallasai/pipeline/            the scripts (acquire, extract, embed, load)
     └─ raw/                          the archived source files (shared drive, not in git)
         ├─ schedule/  cv/  syllabi/<term>/  catalog/<year>/  manifests/
 ```

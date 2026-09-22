@@ -1,6 +1,6 @@
 # RFC-0006: Guardrail Runtime Architecture
 
-Status: Draft
+Status: Superseded (2026-09-22). The staged validator runtime was removed in #152; the live path is a bounded tool loop (up to 8 steps) in apps/frontend/app/api/chat/route.ts.
 
 Owner: Dallas College AI Club
 
