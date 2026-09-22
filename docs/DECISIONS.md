@@ -21,6 +21,13 @@ lost in a closed PR. Newest first. Each entry is dated and says who decided, not
 - **The student's bubble shows the question, not the steering prompt.** Chip prompts carry the
   program name and display instructions for the model; the transcript shows the chip's plain question
   and the model receives the full prompt.
+- **Follow-scroll breaks only on reader intent, not on position.** The pane stops following when a
+  scroll lands within 700 ms of a wheel, touch, pointer or key event on it, and resumes near the
+  bottom. A position-only rule was rejected on evidence: a removed "Thinking…" row clamps scrollTop
+  downward exactly like a reader scrolling up, which is what stranded long answers before. Native
+  scrollbar drags in browsers that emit no pointer event for them (historically Gecko) can be
+  snapped back mid-stream; a direction-plus-height-delta rule would fix that at the cost of more
+  machinery than a Chrome-only demo warrants. Revisit if the app is used outside Chrome.
 
 ## 2026-09-20 — Showcase follow-up (issue #195)
 
