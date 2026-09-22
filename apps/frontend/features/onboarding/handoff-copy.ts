@@ -53,17 +53,17 @@ export interface StarterQuestion {
 
 type Handoff = { intro: string; questions: StarterQuestion[] };
 
-const TUITION: StarterQuestion = {
+export const TUITION: StarterQuestion = {
   label: "What might my classes cost?",
   prompt:
     "What Dallas College tuition rates per credit hour are in your records, and what information would you need to estimate my tuition?",
 };
-const TUTORING: StarterQuestion = {
+export const TUTORING: StarterQuestion = {
   label: "Where can I get free tutoring?",
   prompt:
     "What do your records say about free tutoring at Dallas College, and which source link can I use for more information?",
 };
-const COACH: StarterQuestion = {
+export const COACH: StarterQuestion = {
   label: "How can I reach a Success Coach?",
   prompt:
     "Look up academic advising in your records and give the listed email, phone number and appointment resource for contacting a Dallas College Success Coach.",
@@ -71,7 +71,7 @@ const COACH: StarterQuestion = {
 
 // Catalog names end in "A.A.S."/"Certificate", so a sentence built from them
 // must not double the final period.
-const listOf = (items: string[]) =>
+export const listOf = (items: string[]) =>
   items.length > 1
     ? `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`
     : items.join("");
