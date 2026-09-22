@@ -125,6 +125,21 @@ const ordinals = [
   "twelfth",
 ];
 
+// Asking to START is asking for semester 1, even with no number in the
+// sentence. A reader who TYPED the starter's own words ("Which classes would I
+// start with?") instead of clicking it got the whole eight-semester degree
+// back, because only the chip's hidden prompt carried "only semester 1"
+// (production walk, 2026-09-22).
+//
+// Every alternative needs start/begin, a "do I", or a class word, and NONE of
+// them can appear in a catalog group name. That matters more than it looks:
+// this function also classifies group names for scopeProgramGroups, 12 of the
+// 314 published group names contain "First" — including "Semester 2 (First
+// Year Continued)" — and a bare /\bfirst\b/ rule would file that group under
+// semester 1 and put semester 2 back on screen. Guarded with those real names.
+const FIRST_SEMESTER =
+  /\b(?:start|starting|begin|beginning)\s+(?:out\s+)?with\b|\b(?:do|would|should|can|could)\s+i\s+(?:start|begin)\b|\bbefore\s+(?:i\s+)?start(?:ing)?\b|\b(?:first|starting)\s+(?:class|classes|course|courses)\b|\bstart(?:ing)?\s+(?:my|the|this)\s+(?:program|degree|certificate|major|plan)\b/;
+
 /** Explicit numbered curriculum semesters, never a Fall/Spring schedule term. */
 export function requestedSemesters(text: string): number[] {
   const value = text.toLowerCase();
@@ -140,6 +155,7 @@ export function requestedSemesters(text: string): number[] {
   )
     return [];
   const found = new Set<number>();
+  if (FIRST_SEMESTER.test(value)) found.add(1);
   const ordinal = (token: string) =>
     /^\d/.test(token)
       ? Number.parseInt(token, 10)
