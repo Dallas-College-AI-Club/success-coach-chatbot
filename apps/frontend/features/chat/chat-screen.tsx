@@ -165,7 +165,16 @@ const Turn = memo(function Turn({
               // here the literal newlines between blocks would render as blank
               // lines. cn() (tailwind-merge) is required — a string append
               // loses to stylesheet order.
-              className={cn(skin.bubble, "whitespace-normal")}
+              // self-start: a coach turn carrying a course card sits in a
+              // column as wide as the card, so a stretched bubble painted
+              // ~260px of empty panel beside its own capped prose. Shrink to
+              // fit instead; max-w-[85%] still bounds it. The student's side
+              // already shrinks, via the row's items-end.
+              className={cn(
+                skin.bubble,
+                "whitespace-normal",
+                !isUser && "self-start",
+              )}
             >
               {courseRows && part.text.length > 300 ? (
                 <details open>
@@ -448,7 +457,14 @@ function Conversation({
 
   return (
     <div
-      className={`${skin.surface} flex h-[min(720px,calc(100dvh_-_9.5rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4`}
+      // Subtract the chrome above and below, so the composer always lands
+      // inside the viewport. At md that is p-8 twice + a one-row header + the
+      // gap = 122px, and 9.5rem holds. Below md the buttons wrap the header to
+      // 158px against p-4 — 202px of chrome, which pushed the composer 34px
+      // off a 390x844 phone; 13rem covers it. The 100dvh term is what lets a
+      // short window and a landscape phone fit at all, and the 900px ceiling
+      // only binds above ~1050px of height, where 720px left the panel short.
+      className={`${skin.surface} flex h-[min(900px,calc(100dvh_-_13rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4 md:h-[min(900px,calc(100dvh_-_9.5rem))]`}
     >
       <h1 ref={headingRef} tabIndex={-1} className="sr-only outline-none">
         Planning chat with Major
@@ -458,7 +474,9 @@ function Conversation({
         ref={scrollRef}
         tabIndex={0}
         aria-label="Conversation with Major"
-        className="min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+        // coach-transcript is the hook for the prose measure cap in
+        // globals.css — the panel widens on a big screen, running text does not.
+        className="coach-transcript min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       >
         {/* One element whose height IS the transcript's, so a single
             ResizeObserver sees every kind of growth. */}
@@ -495,9 +513,9 @@ function Conversation({
                 variant="ghost"
                 className={skin.ghostBtn}
                 onClick={() => {
-                regenerate(requestOptions);
-                toBottom();
-              }}
+                  regenerate(requestOptions);
+                  toBottom();
+                }}
               >
                 Try again
               </Button>
@@ -620,9 +638,15 @@ export function ChatScreen() {
       {/* The chat owns its geometry (one width in every mode — skin.shell's
           per-mode widths exist for wizard scenes the chat doesn't render), so
           switching looks repaints the panel without resizing it. */}
+      {/* Phone and tablet keep the 42rem column; the panel only grows where
+          there is field to spare. Each step leaves at least 128px of gutter a
+          side at its own breakpoint's narrowest viewport — the cap
+          characterHeight() sizes the roaming cast to, so widening never
+          shrinks a mascot. check-mascot-motion.mts asserts it against this
+          very class list. */}
       {/* z-10 so the roaming mascots (which carry their own z) pass behind the
           panel — visible in the gutters, softened under the blurred surface. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3">
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AiClubLogo />
