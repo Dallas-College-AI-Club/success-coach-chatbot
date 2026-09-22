@@ -11,7 +11,7 @@ uv run python -m dallasai.database --schema   # print SQL; no connection
 uv run python -m dallasai.database --status   # read-only counts; never initializes
 ```
 
-For a **new disposable database**, review [the generated baseline](reference/db/schema.sql), configure that target, then explicitly run `uv run python -m dallasai.database --init`. Setup enables `vector` and `pg_trgm`, creates missing tables, and never drops tables. It fails clearly on errors. It does not upgrade an existing table layout. The Alembic directory is an unused historical scaffold with no revisions; `alembic upgrade head` is not a setup command.
+For a **new disposable database**, review [the generated baseline](reference/db/schema.sql), configure that target, then explicitly run `uv run python -m dallasai.database --init`. Setup enables `vector` and `pg_trgm`, creates missing tables, and never drops tables. It fails clearly on errors. It does not upgrade an existing table layout. There is no Alembic migration path; the old scaffold (no revisions) sits in [`archive/alembic`](archive/README.md).
 
 SQLAlchemy models are authoritative; TypeScript mirrors them. The supported baseline uses `halfvec(384)` and exact filtered vector search, without an HNSW index. Existing databases require a separately reviewed migration. Regenerate the reference SQL with `database --schema` after an approved model change; a regression test detects drift.
 
@@ -81,7 +81,7 @@ These commands validate only. The loader rejects empty deliveries/text, duplicat
 
 Full imports commit in batches and report failure if any batch fails; already committed batches remain and an idempotent retry is required. Facts-only updates require an `expected_content_hash` captured from each reviewed target, use one transaction, and roll back the entire delivery if any target is absent or its hash changed. `build_section_meetings` supplies this precondition automatically. Regenerate older proposals that lack it; never copy the proposed replacement hash into this field. Facts-only updates must only be used when source text and its embedding are unchanged. A stale proposal or a repeat of an already applied repair must be regenerated and reviewed before loading.
 
-Legacy `dallasai.main` database writes are retired. Its `--no-db` path is only for local historical inspection. `course_extractor` is import-safe and has an explicit local-output CLI. Neither path bypasses the supported loader.
+The legacy `dallasai.main` write path is retired and kept in [`archive/legacy_write_path`](archive/README.md). `course_extractor` is import-safe and has an explicit local-output CLI; it does not bypass the supported loader.
 
 ## Acceptance
 

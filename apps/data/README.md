@@ -43,10 +43,10 @@ Every stage runs as a module from `apps/data/`:
 uv run python -m dallasai.pipeline.<module>
 ```
 
-> Legacy `dallasai.main` database writes are disabled. Its `--no-db` option
-> supports local inspection only. Use the reviewed composition → local embedding
-> → strict loader path in the runbook. Setup never drops existing tables, and
-> status checks never initialize the database.
+Setup never drops existing tables, and status checks never initialize the
+database. Retired code (ChromaDB prototypes, the pre-loader write path, the
+Alembic scaffold) lives in [`archive/`](archive/README.md); nothing there is
+imported by the pipeline or CI.
 
 ## Adding a library
 
@@ -57,5 +57,5 @@ uv add <library-name>
 ## Running tests
 
 ```bash
-uv run pytest
+uv run pytest tests/ -q
 ```
