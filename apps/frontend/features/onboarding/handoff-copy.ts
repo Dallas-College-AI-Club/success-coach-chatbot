@@ -309,7 +309,7 @@ function interestHandoff(area: InterestArea | null): Handoff {
     questions: [
       {
         label: `Example programs for ${plainInterest(interest)}`,
-        note: `Which Dallas College programs are examples for ${interest}?`,
+        note: `Which Dallas College programs are examples for ${plainInterest(interest)}?`,
         prompt: `I'm still deciding what to study; the area that interests me most is ${interest}. Look up the published course plan for each of these example programs, only semester 1: ${sentence(`${listOf(examplePrograms)}.`)} In one sentence each, give the catalog's award type and total credit hours. These are examples, not my choice; do not treat any of them as my program. The course cards already show the starting courses, so do not list courses in prose.`,
       },
       {
