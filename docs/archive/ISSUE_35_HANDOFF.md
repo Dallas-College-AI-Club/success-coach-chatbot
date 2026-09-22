@@ -4,7 +4,7 @@
 > chunked, embedded rows the chatbot can search.
 >
 > **Where things stand:** the RAG approach you proved in
-> [`rag_poc.py`](../../apps/data/dallasai/rag_poc.py) — markdown-header chunking,
+> [`rag_poc.py`](../../apps/data/archive/prototypes/rag_poc.py) — markdown-header chunking,
 > per-chunk metadata stamps, and (crucially) your context-starvation fix of
 > **pre-filtering by course before similarity search** — *is* the production
 > design. This handoff maps that approach onto the production target
