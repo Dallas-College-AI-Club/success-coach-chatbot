@@ -258,15 +258,20 @@ function CourseRow({
   course,
   skin,
   history = {},
+  plan = false,
 }: {
   course: CourseDetails;
   skin: Skin;
   history?: CourseHistory;
+  /** On a program-plan card the student can tick the course as taken. */
+  plan?: boolean;
 }) {
   const saved = useSavedCourses((s) =>
     s.courses.some((c) => c.course_code === course.course_code),
   );
   const toggle = useSavedCourses((s) => s.toggle);
+  const taken = useSavedCourses((s) => s.taken.includes(course.course_code));
+  const toggleTaken = useSavedCourses((s) => s.toggleTaken);
   const href = citationHref(course.source_url);
   const requisites = assessRequisites(course.requisites_raw, history);
   return (
@@ -358,6 +363,20 @@ function CourseRow({
             </a>
           )}
         </details>
+        {/* Ticking courses is how the student says what they finished — far
+            easier than typing codes, and the chip composes the sentence. */}
+        {plan && (
+          <label className="flex shrink-0 cursor-pointer items-center gap-1.5 text-sm pointer-coarse:min-h-11">
+            <input
+              type="checkbox"
+              checked={taken}
+              aria-label={`I've taken ${course.course_code}`}
+              onChange={() => toggleTaken(course.course_code)}
+              className="size-4 accent-current"
+            />
+            I&apos;ve taken this
+          </label>
+        )}
         <button
           type="button"
           aria-pressed={saved}
@@ -644,6 +663,7 @@ export function CourseResults({
                         course={course}
                         skin={skin}
                         history={history}
+                        plan
                       />
                     ) : (
                       <li
@@ -735,6 +755,7 @@ export function CourseResults({
                       course={course}
                       skin={skin}
                       history={history}
+                      plan
                     />
                   ) : (
                     <li key={code} className="py-2 text-sm">
