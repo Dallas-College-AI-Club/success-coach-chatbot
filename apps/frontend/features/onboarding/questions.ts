@@ -96,7 +96,8 @@ export const scheduleQuestion: OnboardingQuestion = {
 };
 
 // --- figure-out-major: interest area --------------------------------------
-const interestQuestion: OnboardingQuestion = {
+// Exported so the hand-off can name the area in the student's own words.
+export const interestQuestion: OnboardingQuestion = {
   id: "interest",
   prompt: "Which area interests you most?",
   kind: "buttons",
