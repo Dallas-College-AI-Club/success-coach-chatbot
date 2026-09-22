@@ -404,6 +404,16 @@ function Conversation({
   // out of the history.
   const requestOptions = profile ? { body: { profile } } : undefined;
 
+  // Asking — or retrying — returns the reader to the end of the conversation
+  // and re-arms the follow, whatever they were reading before.
+  const toBottom = () => {
+    stick.current = true;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  };
+
   const send = (text: string, note = text) => {
     const t = text.trim();
     if (!t || busy) return;
@@ -415,12 +425,7 @@ function Conversation({
       requestOptions,
     );
     setInput("");
-    // Asking always returns the reader to the end of the conversation.
-    stick.current = true;
-    scrollRef.current?.scrollTo({
-      top: scrollRef.current.scrollHeight,
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-    });
+    toBottom();
   };
 
   let currentQuestion = "";
@@ -485,7 +490,10 @@ function Conversation({
               <Button
                 variant="ghost"
                 className={skin.ghostBtn}
-                onClick={() => regenerate(requestOptions)}
+                onClick={() => {
+                regenerate(requestOptions);
+                toBottom();
+              }}
               >
                 Try again
               </Button>
@@ -494,11 +502,13 @@ function Conversation({
         </div>
       </div>
 
-      {/* Follow-up questions for wherever the conversation has reached; hidden
-          while a reply streams, so the set never changes under a tapping hand. */}
-      {!busy && suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-1">
-          {suggestions.map((q) => (
+      {/* Follow-up questions for wherever the conversation has reached. The
+          chips are EMPTIED while a reply streams, so a half-finished turn
+          never changes the set under a tapping hand; the row keeps its height
+          so the composer does not hop as they come and go. */}
+      <div className="flex min-h-9 flex-wrap gap-1.5 px-1">
+        {!busy &&
+          suggestions.map((q) => (
             <button
               key={q.prompt}
               type="button"
@@ -506,14 +516,12 @@ function Conversation({
                 setAskedLabels((asked) => [...asked, q.label]);
                 send(q.prompt, q.note ?? q.label);
               }}
-              disabled={busy}
-              className={`${skin.chip} disabled:cursor-wait disabled:opacity-50 pointer-coarse:min-h-11`}
+              className={`${skin.chip} pointer-coarse:min-h-11`}
             >
               {q.label}
             </button>
           ))}
-        </div>
-      )}
+      </div>
 
       <form
         onSubmit={(e) => {
