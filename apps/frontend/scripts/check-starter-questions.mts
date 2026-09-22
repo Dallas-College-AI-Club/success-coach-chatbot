@@ -16,7 +16,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+  COLD_VISIT_QUESTIONS,
   handoffIntro,
+  MAX_LABEL,
   starterQuestionsFor,
 } from "../features/onboarding/handoff-copy";
 import { INTEREST_GUIDE } from "../features/onboarding/interests";
@@ -27,7 +29,7 @@ import type {
 } from "../features/onboarding/types";
 import { requestedSemesters } from "../lib/course-details";
 
-const LABEL_MAX = 40;
+const LABEL_MAX = MAX_LABEL;
 const ACCOUNTING = PROGRAMS.find((p) => p.label === "Accounting A.A.S.")!;
 const INTERESTS = Object.keys(INTEREST_GUIDE) as InterestArea[];
 
@@ -38,6 +40,8 @@ const SERVICE_LABELS = new Set([
   "How can I reach a Success Coach?",
   "What housing assistance is available?",
   "How does the free DART GoPass work?",
+  "How do I apply for financial aid?",
+  "When can I still drop a class?",
 ]);
 
 function payload(over: Partial<OnboardingPayload>): OnboardingPayload {
@@ -73,6 +77,12 @@ const BRANCHES: [string, Partial<OnboardingPayload>][] = [
   ["transfer out, unsure school", { goal: "transfer_check", transfer_direction: "outbound", ...withProgram }],
   ["transfer out, undecided", { goal: "transfer_check", transfer_direction: "outbound", target_institution: "UTD", interest_area: "tech" }],
   ["visiting", { goal: "transfer_check", transfer_direction: "transfer_back", target_institution: "TX_OTHER" }],
+  ["visiting, named school", { goal: "transfer_check", transfer_direction: "transfer_back", target_institution: "UTA" }],
+  ["transfer out, bucket school", { goal: "transfer_check", transfer_direction: "outbound", target_institution: "TX_OTHER", ...withProgram }],
+  ["dual credit, no preference", { student_type: "dual_credit" }],
+  ["dual credit, online", { student_type: "dual_credit", modality_pref: "online" }],
+  ["schedule fit, evenings and online", { goal: "schedule_fit", modality_pref: "online", dayparts_pref: ["evening"], ...withProgram }],
+  ["first semester, weekends", { goal: "first_semester_plan", dayparts_pref: ["weekend"], ...withProgram }],
   ["transfer in", { goal: "transfer_check", transfer_direction: "inbound", target_institution: "US_OTHER", ...withProgram }],
   ["transfer in, undecided", { goal: "transfer_check", transfer_direction: "inbound" }],
   ["schedule fit, evenings", { goal: "schedule_fit", dayparts_pref: ["evening"], ...withProgram }],
@@ -169,4 +179,111 @@ test("the planning path scopes the first-semester chip and only that chip", () =
   const [, , evening] = starterQuestionsFor(payload({ goal: "first_semester_plan", dayparts_pref: ["evening"], ...withProgram }));
   assert.equal(evening.label, "Any evening sections for a first class?");
   assert.match(evening.prompt, /I prefer evening classes/);
+});
+
+test("the graduation path opens on the checklist, then history, then what is left", () => {
+  const chips = starterQuestionsFor(payload({ goal: "graduation_check", ...withProgram }));
+  assert.deepEqual(chips.map((c) => c.label), [
+    "What's on my checklist?",
+    "Which of these have I finished?",
+    "How many credits do I have left?",
+  ]);
+  // The whole checklist, never one semester of it.
+  assert.deepEqual(requestedSemesters(chips[0].prompt), []);
+  for (const chip of chips.slice(1)) {
+    // registry.ts refreshes the deterministic plan only when a completion word
+    // AND a remaining-work word are both present; without both, the model
+    // answers from an older result already in the transcript.
+    assert.match(chip.prompt, /\b(?:completed|checklist)\b/, chip.label);
+    assert.match(chip.prompt, /\b(?:remain|left)\b/, chip.label);
+    // The one claim this path must never make.
+    assert.match(chip.prompt, /student-reported|reported history/, chip.label);
+    assert.match(chip.prompt, /not a transcript/, chip.label);
+  }
+  assert.match(handoffIntro(payload({ goal: "graduation_check", ...withProgram })), /not a transcript/);
+});
+
+test("a transfer chip names the school it is for, and never promises credit", () => {
+  const outbound = (target: OnboardingPayload["target_institution"]) =>
+    starterQuestionsFor(payload({ goal: "transfer_check", transfer_direction: "outbound", target_institution: target, ...withProgram }))[1];
+  // A named partner belongs in the label; the whole point of the question is
+  // which school it is for.
+  assert.equal(outbound("UTD").label, "What should I send to UT Dallas?");
+  assert.equal(outbound("UTA").label, "What should I send to UT Arlington?");
+  // A name too long for a chip, and every region bucket (which resolves to a
+  // phrase, not a name), fall back to the plain question.
+  assert.equal(outbound("TWU").label, "What should I collect for a review?");
+  assert.equal(outbound("TX_OTHER").label, "What should I collect for a review?");
+  assert.equal(outbound(null).label, "What should I collect for a review?");
+  // Inbound is the other authority, and says so.
+  const inbound = starterQuestionsFor(payload({ goal: "transfer_check", transfer_direction: "inbound", target_institution: "US_OTHER", ...withProgram }));
+  assert.equal(inbound[1].label, "What will Admissions need to see?");
+  // A visiting student has no Dallas program, so the first chip looks up a
+  // course rather than a plan they are not working toward.
+  const visiting = starterQuestionsFor(payload({ goal: "transfer_check", transfer_direction: "transfer_back", target_institution: "UTA" }));
+  assert.equal(visiting[0].label, "Can you look up a class for me?");
+  assert.match(visiting[1].prompt, /UT Arlington/);
+  // No transfer chip, in any direction, may assume an equivalence.
+  for (const direction of ["inbound", "outbound", "transfer_back"] as const)
+    for (const chip of starterQuestionsFor(payload({ goal: "transfer_check", transfer_direction: direction, target_institution: "UTD", ...(direction === "transfer_back" ? {} : withProgram) })))
+      assert.doesNotMatch(chip.prompt, /will (?:count|transfer)|equivalent to|accepted at/i, chip.label);
+});
+
+test("every schedule label fits a chip and every preference survives into the prompt", () => {
+  for (const [modality, dayparts] of [
+    ["online", null],
+    [null, ["evening"]],
+    [null, ["weekend"]],
+    ["online", ["evening"]],
+    ["online", ["evening", "weekend"]],
+    [null, null],
+  ] as const) {
+    const p = payload({ goal: "schedule_fit", modality_pref: modality, dayparts_pref: dayparts ? [...dayparts] : null, ...withProgram });
+    const chip = starterQuestionsFor(p)[2];
+    assert.ok(chip.label.length <= LABEL_MAX, `${chip.label} (${chip.label.length})`);
+    for (const want of [...(modality ? [modality] : []), ...(dayparts ?? [])])
+      assert.ok(chip.prompt.includes(want), `${chip.label} drops "${want}"`);
+    // It must never promise that a matching section exists.
+    if (modality || dayparts)
+      assert.match(chip.prompt, /if none of that course's sections match/i);
+  }
+});
+
+test("the cold visit opens on real questions, not only support links", () => {
+  assert.equal(COLD_VISIT_QUESTIONS.length, 3);
+  const [findProgram, pickArea] = COLD_VISIT_QUESTIONS;
+  assert.match(findProgram.prompt, /Ask me to name the program/);
+  // With no onboarding there is no program list, so the model must not offer
+  // one — an invented program name is the failure grounding exists to stop.
+  assert.match(findProgram.prompt, /Do not suggest a program/);
+  assert.match(pickArea.prompt, /numbered list/);
+  for (const chip of COLD_VISIT_QUESTIONS) {
+    assert.ok(chip.label.length <= LABEL_MAX, chip.label);
+    assert.match(chip.prompt, /^[A-Z][\s\S]{40,}[.?]$/, chip.label);
+  }
+});
+
+test("every intro reflects what the student chose, in one sentence before the invitation", () => {
+  const reflects: [Partial<OnboardingPayload>, RegExp][] = [
+    [{ goal: "first_semester_plan", ...withProgram }, /Accounting A\.A\.S\. it is/],
+    [{ goal: "schedule_fit", dayparts_pref: ["evening"], ...withProgram }, /around evening classes/],
+    [{ goal: "graduation_check", ...withProgram }, /Accounting A\.A\.S\. checklist/],
+    [{ goal: "figure_out_major", interest_area: "trades" }, /^Skilled trades, then\./],
+    [{ goal: "figure_out_major" }, /No area picked yet/],
+    [{ goal: "nondegree_oneoff", oneoff_purpose: "job_licensure" }, /job or licence/],
+    [{ goal: "nondegree_oneoff", oneoff_purpose: "prerequisite" }, /get you ready for the program/],
+    [{ goal: "transfer_check", transfer_direction: "outbound", target_institution: "UTD", ...withProgram }, /Heading to UT Dallas later/],
+    [{ goal: "transfer_check", transfer_direction: "inbound", target_institution: "UTD", ...withProgram }, /Admissions decides what counts/],
+    [{ goal: "transfer_check", transfer_direction: "transfer_back", target_institution: "UTA" }, /count at UT Arlington/],
+    [{ student_type: "dual_credit" }, /still in high school/],
+    [{ goal: "settle_in", student_type: "international", intl_status: "incoming" }, /Getting here comes before picking classes/],
+  ];
+  for (const [over, expected] of reflects) {
+    const intro = handoffIntro(payload(over));
+    assert.match(intro, expected);
+    assert.match(intro, /You could ask:$/);
+    // The parenthetical in "Skilled trades (welding, HVAC, auto)" belongs to
+    // the picker, not to prose the coach speaks.
+    assert.doesNotMatch(intro, /\(welding/);
+  }
 });

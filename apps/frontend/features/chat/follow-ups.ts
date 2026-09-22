@@ -1,6 +1,17 @@
 import {
+  AID,
   COACH,
+  COLD_VISIT_QUESTIONS,
+  courseHistoryCheck,
+  coursePlan,
+  DART,
+  DEADLINE,
+  fitLabel,
+  goalFromLabel,
+  HOUSING,
   listOf,
+  MAX_LABEL,
+  remainingCredits,
   TUITION,
   TUTORING,
   type StarterQuestion,
@@ -24,7 +35,6 @@ import {
 // what to take now → professors by interest → the classes they teach.
 
 const MAX_CHIPS = 3;
-const MAX_LABEL = 40;
 /** The faculty topics to offer when onboarding captured no interest area. */
 export const DEFAULT_TOPICS = [
   "machine learning",
@@ -75,6 +85,31 @@ export interface FollowUpContext {
   taken: string[];
   /** Chip labels already sent — never offered twice. */
   askedLabels: string[];
+  /** Why the student said they came, in their own words from onboarding. A
+   *  whole-degree checklist continues differently for someone graduating. */
+  goal?: string;
+  /** Onboarding's schedule preference ("evening", "weekend", "online"), so a
+   *  schedule or instructor follow-up asks about the time the student has. */
+  preference?: string;
+}
+
+/** The student-resource chips, in the order a support conversation tends to
+ *  move. Filtered by what was already asked, so a resource answer always has a
+ *  next resource under it instead of the same three links. */
+const RESOURCE_NEXT = [TUITION, AID, DEADLINE, TUTORING, HOUSING, DART, COACH];
+
+/** Chip labels have 40 characters; a catalog name's award suffix is the least
+ *  informative part of it, so that is what goes first. */
+function shortProgram(name: string): string {
+  return (
+    name.replace(/\s*(?:A\.A\.S\.|A\.A\.|A\.S\.|Certificate|Degree)$/i, "").trim() ||
+    name
+  );
+}
+
+/** The surname a chip can fit, from a full name the prompt still carries. */
+function surnameOf(name: string): string {
+  return name.split(/\s+/).at(-1) ?? name;
 }
 
 function planCodes(plan: Record<string, unknown>): string[] {
@@ -91,10 +126,59 @@ function planCodes(plan: Record<string, unknown>): string[] {
 }
 
 function candidates(ctx: FollowUpContext): StarterQuestion[] {
-  const output = (name: string) =>
-    ctx.tools.find((t) => t.name === name && isRecord(t.output))?.output as
-      | Record<string, unknown>
-      | undefined;
+  // Nothing was looked up at all, so the coach asked the STUDENT something —
+  // which course code, which area, which of these have you finished. Offering
+  // chips beside a direct question competes with it, and the three support
+  // links answered none of them: walked 2026-09-22, four separate paths ended
+  // "tell me the course code" under [Success Coach] [tutoring] [tuition].
+  // A refusal is not this case; the prompt makes it search first, so it still
+  // arrives here with a tool result and keeps the support trio below.
+  if (!ctx.tools.length) return [];
+  // The optional predicate matters when one turn ran the same tool several
+  // times: "which classes do they teach" looks up three professors, and the
+  // first of those can be an ambiguous-name result with nothing to offer.
+  const output = (
+    name: string,
+    usable?: (o: Record<string, unknown>) => boolean,
+  ) =>
+    ctx.tools.find(
+      (t) =>
+        t.name === name && isRecord(t.output) && (!usable || usable(t.output)),
+    )?.output as Record<string, unknown> | undefined;
+  const topic = () => {
+    const topics = topicsFor(ctx.interest);
+    return (
+      topics.find(
+        (t) => !ctx.askedLabels.includes(`Who has ${t} experience?`),
+      ) ?? topics[0]
+    );
+  };
+
+  // A comparison is the end of the undecided path's opening chips, and today
+  // it offered nothing: the student read what two programs share and the row
+  // fell back to support links. Both programs, then the people who teach in
+  // the area.
+  const compared = output("compare_programs");
+  const pair = isRecord(compared?.comparison)
+    ? (compared.comparison.programs as unknown[])
+    : undefined;
+  const comparedNames = Array.isArray(pair)
+    ? pair.filter(isRecord).flatMap((p) => catalogText(p.name) ?? [])
+    : [];
+  if (compared?.found === true && comparedNames.length === 2) {
+    return [
+      ...comparedNames.map((name) => ({
+        ...coursePlan(name, true),
+        label: fitLabel((n) => `Start with ${n}?`, shortProgram(name)),
+      })),
+      {
+        label: `Who has ${topic()} experience?`,
+        note: `Which professors have ${topic()} experience?`,
+        prompt: `Which Dallas College professors have ${topic()} experience according to their saved CVs? Show every matching faculty profile.`,
+      },
+      COACH,
+    ];
+  }
 
   const plan = output("get_program_requirements");
   // The plan ON SCREEN wins over the onboarding pick. A student who onboarded
@@ -125,11 +209,7 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
       const next =
         remaining.find((code) => planCodes(plan).includes(code)) ??
         remaining[0];
-      const topics = topicsFor(ctx.interest);
-      const topic =
-        topics.find(
-          (t) => !ctx.askedLabels.includes(`Who has ${t} experience?`),
-        ) ?? topics[0];
+      const area = topic();
       return [
         {
           label: "What should I take this semester?",
@@ -141,14 +221,27 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
           prompt: `Who teaches ${next} in the saved class schedule? Use the schedule cards to show every section with instructors, days, times and sources, and say which term each section comes from.`,
         },
         {
-          label: `Who has ${topic} experience?`,
-          note: `Which professors have ${topic} experience?`,
-          prompt: `Which Dallas College professors have ${topic} experience according to their saved CVs? Show every matching faculty profile.`,
+          label: `Who has ${area} experience?`,
+          note: `Which professors have ${area} experience?`,
+          prompt: `Which Dallas College professors have ${area} experience according to their saved CVs? Show every matching faculty profile.`,
         },
         COACH,
       ];
     }
     const codes = planCodes(plan);
+    // Which way the plan on screen is scoped decides the escape hatch: a
+    // semester-1 view offers the whole plan, a whole plan offers semester 1.
+    // Without that second direction, clicking the opening's first chip
+    // RETIRED the path's own next step — the student saw eight semesters and
+    // was never offered "which would I start with" again (walked, 2026-09-22).
+    const scoped =
+      Array.isArray(plan.requested_semesters) &&
+      plan.requested_semesters.length > 0;
+    // A student checking what is left to graduate is not preparing for day
+    // one. Their whole-degree checklist continues into what they have
+    // finished and what that leaves, which is the sequence the graduation
+    // hand-off opens with — the same two chips, so neither is offered twice.
+    const graduating = goalFromLabel(ctx.goal) === "graduation_check";
     return [
       ...(ctx.taken.length
         ? [
@@ -163,6 +256,10 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
             },
           ]
         : []),
+      ...(graduating && !scoped
+        ? [courseHistoryCheck(program), remainingCredits(program)]
+        : []),
+      ...(!graduating && !scoped ? [coursePlan(program, true)] : []),
       {
         label: "What do I need before starting?",
         note: `What are the required prerequisites and recommended preparation for semester 1 of ${program}?`,
@@ -179,8 +276,7 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
         : []),
       // Last, so it fills the third slot while the student is still browsing
       // a scoped semester and yields once they start ticking courses off.
-      ...(Array.isArray(plan.requested_semesters) &&
-      plan.requested_semesters.length
+      ...(scoped
         ? [
             {
               label: "Show the full plan",
@@ -196,17 +292,92 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
   const schedule = output("get_class_schedule");
   const code = schedule?.course_code;
   if (Array.isArray(schedule?.offerings) && isCourseCode(code)) {
+    // A student who told onboarding they can only study at weekends should
+    // not be offered "which of these are online" as their next question.
+    const daypart =
+      ctx.preference === "evening" || ctx.preference === "weekend"
+        ? ctx.preference
+        : null;
     return [
       {
         label: "Who are these instructors?",
         note: `Who are the instructors listed for ${code}?`,
         prompt: `Who are the instructors listed for ${code} in the saved class schedule? Use the complete instructor roster and say which sections each one teaches; the interface shows their CV details.`,
       },
+      daypart
+        ? {
+            label: `Any ${daypart} sections of ${code}?`,
+            note: `Which ${code} sections meet at the ${daypart}?`,
+            prompt: `Which sections of ${code} in the saved class schedule have published meeting times in the ${daypart}? Use the schedule cards; a missing meeting time is unknown, not a match, and do not substitute a closest time for a matching time. If none of the listed sections match, say so plainly.`,
+          }
+        : {
+            label: "Which sections are online?",
+            note: `Which ${code} sections are online?`,
+            prompt: `Which sections of ${code} in the saved class schedule are online, and which meet in person? Use the loaded section counts by modality and the schedule cards; online does not mean asynchronous.`,
+          },
+      COACH,
+    ];
+  }
+
+  // A single course lookup — the whole of the non-degree path, and wherever a
+  // student names one course. Nothing followed it before: the row fell back to
+  // support links the moment the catalog answered.
+  const course = output("get_course_info");
+  const courseCode = course?.course_code;
+  if (course?.found === true && isCourseCode(courseCode)) {
+    return [
       {
-        label: "Which sections are online?",
-        note: `Which ${code} sections are online?`,
-        prompt: `Which sections of ${code} in the saved class schedule are online, and which meet in person? Use the loaded section counts by modality and the schedule cards; online does not mean asynchronous.`,
+        label: `When does ${courseCode} meet this Fall?`,
+        note: `When does ${courseCode} meet this Fall?`,
+        prompt: `Check the saved class schedule for this Fall for ${courseCode}. Use the schedule cards to show its sections with dates, days, times, instructors and sources. Reply with a brief summary, without repeating the section list. Missing meeting times are unknown; label the saved schedule date and do not claim live availability.`,
       },
+      {
+        label: `Who teaches ${courseCode}?`,
+        prompt: `Who teaches ${courseCode} in the saved class schedule? Use the schedule cards to show every section with instructors, days, times and sources, and say which term each section comes from.`,
+      },
+      {
+        label: `What do I need before ${courseCode}?`,
+        note: `What are the prerequisites for ${courseCode}?`,
+        prompt: `What prerequisites and recommended preparation does the catalog list for ${courseCode}? Quote the catalog's requisite wording, and keep required prerequisites separate from recommendations.`,
+      },
+      TUITION,
+      COACH,
+    ];
+  }
+
+  // One named instructor — where the faculty path lands on its second turn.
+  const teacher = output(
+    "get_instructor",
+    (o) => o.found === true && o.ambiguous !== true && !!catalogText(o.name),
+  );
+  const teacherName = catalogText(teacher?.name);
+  if (teacherName) {
+    const surname = surnameOf(teacherName);
+    const taught = (Array.isArray(teacher?.teaches) ? teacher.teaches : [])
+      .flatMap((entry) =>
+        typeof entry === "string"
+          ? (entry.match(/^[A-Z]{3,4} \d{4}/)?.[0] ?? [])
+          : [],
+      )
+      .filter(isCourseCode);
+    const preference = ctx.preference?.trim();
+    return [
+      {
+        label: preference
+          ? fitLabel((n) => `Any ${preference} classes with ${n}?`, surname)
+          : fitLabel((n) => `When do ${n}'s classes meet?`, surname),
+        note: `When do ${teacherName}'s classes meet this Fall${preference ? `, and are any ${preference}` : ""}?`,
+        prompt: `Which courses does ${teacherName} teach this Fall according to their saved record? Then check the saved class schedule for at most two of those courses and say when those sections meet${preference ? `, and which of them have published times matching ${preference} classes. Do not substitute a closest time for a matching time, and if none match, say so plainly` : ""}. Missing meeting times are unknown; do not claim live availability.`,
+      },
+      ...(taught.length
+        ? [
+            {
+              label: `What is ${taught[0]} about?`,
+              note: `What does ${taught[0]} cover?`,
+              prompt: `What does the catalog say ${taught[0]} covers, how many credit hours is it, and what does it list as prerequisites? Quote the catalog's requisite wording.`,
+            },
+          ]
+        : []),
       COACH,
     ];
   }
@@ -220,14 +391,9 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
         .slice(0, 3)
     : [];
   if (names.length) {
-    const full = names[0].split(/\s+/).at(-1) ?? names[0];
     // A chip whose label runs past the limit is dropped, and this branch has
     // no spare candidate — one long surname left the student with two chips
     // instead of three. Shorten the label; the prompt keeps the whole name.
-    const surname =
-      `What would I take with ${full}?`.length > MAX_LABEL
-        ? `${full.slice(0, MAX_LABEL - 25)}…`
-        : full;
     return [
       {
         label: "Which classes do they teach this Fall?",
@@ -237,14 +403,50 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
       ...(program
         ? [
             {
-              label: `What would I take with ${surname}?`,
+              label: fitLabel(
+                (n) => `What would I take with ${n}?`,
+                surnameOf(names[0]),
+              ),
               note: `Which ${program} courses does ${names[0]} teach?`,
               prompt: `Which courses in ${program} does ${names[0]} teach according to the saved records? Look up ${names[0]} with get_instructor and name only the courses that also appear in the ${program} plan.`,
             },
           ]
-        : []),
+        : ctx.interest
+          ? [
+              // An undecided student has no program to tie the faculty back
+              // to, which left this row two chips wide. The bridge from people
+              // back to programs is their own area's first verified example.
+              {
+                ...coursePlan(
+                  INTEREST_GUIDE[ctx.interest].examplePrograms[0],
+                  true,
+                ),
+                label: fitLabel(
+                  (n) => `Start with ${n}?`,
+                  shortProgram(INTEREST_GUIDE[ctx.interest].examplePrograms[0]),
+                ),
+              },
+            ]
+          : []),
       COACH,
     ];
+  }
+
+  // A student-resource answer. The corpus is eleven rows, so the next question
+  // is one of the other rows — and a money answer leads to the other half of
+  // the money question, which is the pair a coach would actually put together.
+  const knowledge = output("search_knowledge");
+  const resource = (
+    Array.isArray(knowledge?.results) ? knowledge.results : []
+  ).filter((r) => isRecord(r) && r.doc_type === "resource");
+  if (resource.length) {
+    const top = (catalogText((resource[0] as Record<string, unknown>).name) ?? "").toLowerCase();
+    const paired = /tuition|surcharge/.test(top)
+      ? [AID]
+      : /financial aid/.test(top)
+        ? [TUITION]
+        : [];
+    return [...paired, ...RESOURCE_NEXT];
   }
 
   return [COACH, TUTORING, TUITION];
@@ -252,8 +454,11 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
 
 /** Up to three chips for the current state of the conversation. */
 export function followUpsFor(ctx: FollowUpContext): StarterQuestion[] {
-  // The opening keeps the onboarding starters exactly as written.
-  if (!ctx.started) return ctx.starters;
+  // The opening keeps the onboarding starters exactly as written — except for
+  // a visitor who skipped onboarding, who has none: an empty chip row is a
+  // dead end on the one screen with nothing else to click.
+  if (!ctx.started)
+    return ctx.starters.length ? ctx.starters : COLD_VISIT_QUESTIONS;
   const seen = new Set(ctx.askedLabels);
   return candidates(ctx)
     .filter((q) => {
