@@ -69,7 +69,6 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   };
 
   const complete = (payload: OnboardingPayload, summary: string[]) => {
-    console.log("onboarding payload", payload);
     setDone({ summary });
     // Persist locally so a return visit can jump straight to this summary.
     saveSession({ payload, summary, modeId: mode.id });
