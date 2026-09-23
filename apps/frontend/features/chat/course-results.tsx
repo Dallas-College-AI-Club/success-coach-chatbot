@@ -206,7 +206,14 @@ export function InstructorResults({
             className="border-b border-current/15 py-3 last:border-0"
           >
             <p className="mb-2 font-bold">
-              {catalogText(record.name) ?? "Instructor"}
+              {/* Expertise results arrive sorted by surname and carry their
+                  own "Bracewell, David" label — a surname-sorted list of
+                  "David Bracewell" rows just reads as unsorted. The tool owns
+                  the rule so the two never drift; the printed name stays
+                  intact in the CV card below. */}
+              {(expertise ? catalogText(record.display_name) : null) ??
+                catalogText(record.name) ??
+                "Instructor"}
             </p>
             {expertise && Array.isArray(record.topics) && (
               <p className="mb-2 text-sm">
