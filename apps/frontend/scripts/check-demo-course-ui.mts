@@ -1253,7 +1253,9 @@ test("faculty search reads source spans only — no generated summary is ever sc
     "utf8",
   );
   // derived_profile is model-written; adding it here would make a match
-  // unfalsifiable, so the queried paths are pinned.
+  // unfalsifiable, so the queried paths are pinned. publications.entries is the
+  // verbatim publication list recovered from the source CV page — source text,
+  // like the venue sample it supersedes.
   assert.deepEqual(
     [...source.matchAll(/jsonb_path_query_array\([^,]+, '([^']+)'\)/g)].map(
       (m) => m[1],
@@ -1261,10 +1263,14 @@ test("faculty search reads source spans only — no generated summary is ever sc
     [
       "$.**.raw_text",
       "$.**.evidence",
+      "$.publications.entries[*]",
       "$.publications.venues_sample[*]",
       "$.education[*].raw_text",
     ],
   );
+  // The recovered list supersedes the sample rather than adding to it, so a
+  // backfilled CV never reports the same venue twice.
+  assert.match(source, /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/);
 });
 
 test("expertise rows render the surname-first label and keep the printed name in the CV card", () => {

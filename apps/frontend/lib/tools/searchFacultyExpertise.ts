@@ -31,8 +31,10 @@ export function topicTerms(topic: string): { topic: string; terms: string[] } {
   return { topic: topic.trim(), terms: [topic.trim()] };
 }
 
-/** Publication venues are source text, so they are labelled, not merged into experience. */
+/** Publication evidence is source text, so it is labelled, not merged into
+ *  experience. A full entry names the paper; a sample names only its venue. */
 export const VENUE_PREFIX = "Publication venue: ";
+export const PUBLICATION_PREFIX = "Publication: ";
 
 // Suffixes and surname particles, normalised without dots: "Ph.D." -> "phd".
 const NAME_SUFFIXES = new Set([
@@ -193,14 +195,21 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   const evidence = sql<
     string[]
   >`jsonb_path_query_array(${knowledgeEntry.facts}, '$.**.raw_text') || jsonb_path_query_array(${knowledgeEntry.facts}, '$.**.evidence')`;
-  // Extraction censuses publications into {count, years, venues_sample} and
-  // discards the titles, so the sampled venue names are the only publication
-  // evidence left — and they sit under no raw_text/evidence key. They are
-  // copied from the CV, not model-written, so scanning them keeps grounding
+  // Extraction censuses publications into {count, years, venues_sample}, so the
+  // sampled venue names were long the only publication evidence left — and they
+  // sit under no raw_text/evidence key. Where the full list has since been
+  // recovered verbatim from the source CV it is stored as publications.entries,
+  // which supersedes the sample: an entry carries the paper's title as well as
+  // its venue, so "A Machine Learning Approach to ..." becomes findable. Both
+  // are copied from the CV, not model-written, so scanning them keeps grounding
   // intact; derived_profile and every generated summary stay excluded.
+  const entries = sql<
+    string[]
+  >`jsonb_path_query_array(${knowledgeEntry.facts}, '$.publications.entries[*]')`;
   const venues = sql<
     string[]
-  >`jsonb_path_query_array(${knowledgeEntry.facts}, '$.publications.venues_sample[*]')`;
+  >`case when jsonb_array_length(${entries}) > 0 then '[]'::jsonb
+         else jsonb_path_query_array(${knowledgeEntry.facts}, '$.publications.venues_sample[*]') end`;
   const needles = [
     ...new Set(
       topics.flatMap((t) =>
@@ -214,6 +223,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
         name: sql<string>`${knowledgeEntry.facts}->>'name'`,
         source_url: knowledgeEntry.sourceUrl,
         evidence,
+        entries,
         venues,
         identity: sql<
           string[]
@@ -227,7 +237,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
           or(
             ...needles.map(
               (word) =>
-                sql`strpos(lower((${evidence} || ${venues})::text), ${word}) > 0`,
+                sql`strpos(lower((${evidence} || ${entries} || ${venues})::text), ${word}) > 0`,
             ),
           ),
         ),
@@ -264,7 +274,8 @@ export function facultyProfiles(
     name: string | null;
     source_url: string;
     evidence: unknown;
-    venues?: unknown;
+    entries?: unknown;
+  venues?: unknown;
     identity: unknown;
     scraped_at: unknown;
   }[],
@@ -310,6 +321,9 @@ export function facultyProfiles(
         ...new Set([
           ...(previous?.spans ?? []),
           ...row.evidence.filter((s): s is string => typeof s === "string"),
+          ...(Array.isArray(row.entries) ? row.entries : [])
+            .filter((s): s is string => typeof s === "string")
+            .map((entry) => `${PUBLICATION_PREFIX}${entry}`),
           ...(Array.isArray(row.venues) ? row.venues : [])
             .filter((s): s is string => typeof s === "string")
             .map((venue) => `${VENUE_PREFIX}${venue}`),
