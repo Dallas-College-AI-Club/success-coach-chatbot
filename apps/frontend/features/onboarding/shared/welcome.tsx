@@ -10,6 +10,7 @@ import {
   SuccessCoachCover,
 } from "@/features/onboarding/shared/brand";
 import type { Mode } from "@/features/onboarding/skin";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import { useState } from "react";
 
@@ -119,6 +120,9 @@ export function Welcome({
   return (
     <main className="coach-page coach-playful relative flex min-h-dvh w-full flex-col items-center justify-center gap-7 bg-[#ECECEC] p-6 pt-20 text-[#1E2A3A] sm:pt-6">
       <AiClubLogo className="absolute top-5 left-5 text-[#1E2A3A]" />
+      <div className="absolute top-5 right-5">
+        <ThemeToggle />
+      </div>
 
       <div className="motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 flex w-full max-w-md flex-col items-center gap-6 text-center motion-safe:duration-500">
         <h1
