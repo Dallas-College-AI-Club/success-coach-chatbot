@@ -47,7 +47,7 @@ flowchart LR
 npm run verify
 ```
 
-The regression scripts use `node:test` through `tsx`; provider traffic is mocked in the boundary suite. They do not need production credentials. CI also builds the app and tests the Python pipeline. A build may need internet access for fonts. Read-only database comparisons and real model/browser checks are recorded separately in the [audit](../../docs/SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint); their local traces are intentionally ignored.
+The regression scripts use `node:test` through `tsx`; provider traffic is mocked in the boundary suite. They do not need production credentials. CI also builds the app and tests the Python pipeline. A build may need internet access for fonts. Read-only database comparisons and real model/browser checks are recorded separately in the [archived showcase audit](../../docs/archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint); their local traces are intentionally ignored.
 
 ## Demo boundaries
 
@@ -72,4 +72,4 @@ The demo is Vercel project `major-demo` in scope `ai-c64d`, with root directory 
 4. Verify the returned deployment: the seven approved Playful characters, Simple/Focus switching, the transfer onboarding path, answerable starter questions, their disappearance after the first message, course details/notes, and complete schedule/faculty results. Compare sampled answers with the configured source records. A successful build alone is insufficient.
 5. Promote the tested deployment with `vercel promote <deployment-url> --scope ai-c64d`. Recheck the **public** URL in a fresh navigation and record the release commit, deployment URL, model, checks and previous deployment for rollback in the PR. Do not call a local or staged fix live before this check.
 
-See the [advisor decision sheet](../../docs/SHOWCASE_EXECUTIVE_DECISIONS.md) for remaining choices. Future automatic Git deployments require a separately configured Vercel Git connection; this procedure does not enable one.
+Open choices are listed in [docs/DECISIONS.md](../../docs/DECISIONS.md). Future automatic Git deployments require a separately configured Vercel Git connection; this procedure does not enable one.

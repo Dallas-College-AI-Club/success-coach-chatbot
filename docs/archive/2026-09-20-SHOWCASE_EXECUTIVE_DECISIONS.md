@@ -130,7 +130,7 @@ The first three rows preserve the owner's priority order. These are implemented 
 | Actual browser | Semester 1 only; elective details beneath the elective; save course; all four named MySQL instructors plus TBA sections; calendar succeeds; inline CV and highlights; day/time/professor grouping; Simple/Playful/Focus controls. Print-sheet data and persistence are checked separately from native printer/PDF pagination. |
 | Earlier breadth | 335 picker labels resolve; 263 projections from seven maps checked against stored fields; historical 202 conversational requests and 38,067 raw archive files reviewed. Historical failures remain in the audit rather than being relabeled as passing. |
 
-Build, typecheck, lint, secret exclusion and GitHub CI are release gates; see the PR checks and the [final audit checkpoint](SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint) for the completed run. No test proves absence of every possible model error. Generated explanations may still overstate missing prerequisites or flatten choice rules; structured records preserve their source wording. Broad CV discovery explicitly remains a candidate search, not a complete expertise directory.
+Build, typecheck, lint, secret exclusion and GitHub CI are release gates; see the PR checks and the [final audit checkpoint](2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint) for the completed run. No test proves absence of every possible model error. Generated explanations may still overstate missing prerequisites or flatten choice rules; structured records preserve their source wording. Broad CV discovery explicitly remains a candidate search, not a complete expertise directory.
 
 ## Approved Fall data repair
 
@@ -154,13 +154,13 @@ The owner selected **`openai/gpt-4.1-mini`**. It is configured locally and in th
 
 ## Next PR: advisor choices
 
-For each decision, select A, B or Hold and enter conditions. **“Astra would” describes proposed implementation, not completed work.** Detailed original findings and all alternatives remain in the [consolidated audit](SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md). None of these selections authorizes a production data write or deployment.
+For each decision, select A, B or Hold and enter conditions. **“The team would” describes proposed implementation, not completed work.** Detailed original findings and all alternatives remain in the [consolidated audit](2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md). None of these selections authorizes a production data write or deployment.
 
 ### 04 · Completed courses, prerequisites and comparisons
 
 **Why:** conversational memory is not a reliable completion ledger; generated arithmetic can mishandle OR groups and double-count electives. Missing prerequisite fields do not mean no prerequisites.
 
-**A — Recommended:** Astra would keep a validated completed-course set separate from raw catalog requirements, compute remaining exact codes and credit/choice constraints deterministically, and retain source wording plus required/recommended/unknown status. Render completed courses as completed rather than silently dropping requirements. Compare programs by exact set intersection and preserve alternatives. Add fixtures for repeated electives, OR/AND rules, missing requisites and topic switches. This fixes the decision logic without adding another model call.
+**A — Recommended:** the team would keep a validated completed-course set separate from raw catalog requirements, compute remaining exact codes and credit/choice constraints deterministically, and retain source wording plus required/recommended/unknown status. Render completed courses as completed rather than silently dropping requirements. Compare programs by exact set intersection and preserve alternatives. Add fixtures for repeated electives, OR/AND rules, missing requisites and topic switches. This fixes the decision logic without adding another model call.
 
 **B — Smaller:** keep published plans unchanged and add explicit completed-course annotations supplied by the student; offer no automatic remaining-credit or eligibility claim. Lower implementation risk, less planning assistance.
 
@@ -172,7 +172,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **Why:** top-k embedding search cannot answer “every professor with ML/LLM experience” exhaustively. Complete course-instructor rosters in this PR solve a different, exact-query problem.
 
-**A — Recommended:** Astra would build a source-backed expertise index from CV records: canonical instructor key, explicit quoted evidence, source URL and as-of date. Normalize reviewed synonyms; separate taught-course evidence from research/employment. Enumerate all matching keys with pagination and a declared coverage count. Validate positives and negatives against original CVs.
+**A — Recommended:** the team would build a source-backed expertise index from CV records: canonical instructor key, explicit quoted evidence, source URL and as-of date. Normalize reviewed synonyms; separate taught-course evidence from research/employment. Enumerate all matching keys with pagination and a declared coverage count. Validate positives and negatives against original CVs.
 
 **B — Smaller:** retain qualified candidate search and inline backgrounds; never claim the result is complete. No new ingestion. This is the current release behavior.
 
@@ -184,7 +184,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **Why:** saved schedules age; other terms lack meeting facts. The archive review also identified old alternate ingest paths, validation/quarantine gaps and term/section joining risks.
 
-**A — Recommended:** Astra would retain one documented assemble → embed → validate → load path; disable unsafe legacy entry points; preserve dated source receipts; quarantine invalid rows; prove idempotence on a disposable database; test exact course+term+section keys. Reuse the reviewed Fall parser for new receipts only after source/schema checks, then request separate production import approval.
+**A — Recommended:** the team would retain one documented assemble → embed → validate → load path; disable unsafe legacy entry points; preserve dated source receipts; quarantine invalid rows; prove idempotence on a disposable database; test exact course+term+section keys. Reuse the reviewed Fall parser for new receipts only after source/schema checks, then request separate production import approval.
 
 **B — Smaller:** freeze the audited snapshot, label its date and document unsupported terms; make no freshness or availability promise. No new imports.
 
@@ -196,7 +196,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **Why:** origin checks are not abuse protection; browser-supplied conversation/tool history should not become trusted academic evidence. These broader trust changes need their own review.
 
-**A — Recommended:** Astra would revalidate relevant tool facts server-side, bound input/history/token budgets and add rate/spend controls. Validate profile fields as data, not instructions; keep sensitive text out of logs. Test forged history, oversized input and replay attacks.
+**A — Recommended:** the team would revalidate relevant tool facts server-side, bound input/history/token budgets and add rate/spend controls. Validate profile fields as data, not instructions; keep sensitive text out of logs. Test forged history, oversized input and replay attacks.
 
 **B — Alternative:** authenticate compact server-issued result references with expiry and bind them to the anonymous session; re-query expired records. Saves repeat lookups but adds signing-key/rotation and replay complexity. Both options still require public spend controls.
 
@@ -208,7 +208,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **Why:** local success is not proof of the deployed commit, model, database, font/native-runtime packaging or cold-start behavior. Three concurrent requests are not a public-load target.
 
-**A — Recommended:** after deployment approval, Astra would record the preview's SHA/model/data receipt and repeat the source-backed student journeys there. Test actual phone layouts, keyboard/screen-reader flows, native print/PDF pagination, cold retrieval, outages, cancellation and an agreed concurrency budget. Require named acceptance results rather than “all bugs fixed.”
+**A — Recommended:** after deployment approval, the team would record the preview's SHA/model/data receipt and repeat the source-backed student journeys there. Test actual phone layouts, keyboard/screen-reader flows, native print/PDF pagination, cold retrieval, outages, cancellation and an agreed concurrency budget. Require named acceptance results rather than “all bugs fixed.”
 
 **B — Smaller:** freeze an identified working release and perform the same critical manual journeys before the event; publish narrower claims and retain explicit unresolved limits. More manual effort for each release.
 
@@ -220,7 +220,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **Why:** historical research, migration handoffs and current runtime documentation coexist. This PR corrects the entry points; reorganizing every old artifact would enlarge the release unnecessarily.
 
-**A — Recommended:** Astra would label/archive superseded handoffs, fix internal links, index current evidence and preserve team attribution. Retain research as dated evidence rather than presenting mock results as production validation.
+**A — Recommended:** the team would label/archive superseded handoffs, fix internal links, index current evidence and preserve team attribution. Retain research as dated evidence rather than presenting mock results as production validation.
 
 **B — Smaller:** keep the new README reading path and add status labels only; no file moves.
 
@@ -234,7 +234,7 @@ For each decision, select A, B or Hold and enter conditions. **“Astra would”
 
 **A — Recommended for this showcase:** keep syllabus-specific grading, textbook and workload answers unavailable; demonstrate catalog requirements, schedules and CVs instead.
 
-**B — Bounded pilot:** Astra would first locate existing verified extracts, sample about 20 varied HTML/PDF/missing cases, validate substantive facts, quarantine failures and join exact course+term+section+instructor. Load only a disposable database and test source → extraction → tool → answer. Review quality/cost before expanding or approving any production import. Never borrow another term's grading policy without evidence.
+**B — Bounded pilot:** the team would first locate existing verified extracts, sample about 20 varied HTML/PDF/missing cases, validate substantive facts, quarantine failures and join exact course+term+section+instructor. Load only a disposable database and test source → extraction → tool → answer. Review quality/cost before expanding or approving any production import. Never borrow another term's grading policy without evidence.
 
 - [ ] A — Keep unavailable.  [ ] B — Pilot only.  [ ] Hold.
 

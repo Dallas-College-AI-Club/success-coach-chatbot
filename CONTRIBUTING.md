@@ -18,7 +18,7 @@ Always branch off of `main` (or the designated integration branch) and use the f
 ## 2. Local Development & Testing Commands
 Before pushing your code, you must ensure that all code complies with our formatting, typing, and testing standards. 
 
-From `apps/frontend`, run `npm run verify` for lint, types, regression checks and a production build. From `apps/data`, run `uv run pytest tests/ -q`. The frontend uses Node's test runner through `tsx`; it does not currently have Vitest or a standalone Playwright test suite.
+From `apps/frontend`, run `npm run verify` for lint, types, regression checks and a production build. From `apps/data`, run `uv run pytest tests/ -q`. These are the same two commands CI runs. The frontend regression scripts use Node's built-in test runner through `tsx`.
 
 For changes to answers or retrieval, also compare tool output with independently read database records and original saved sources. Record the model, source dates, scenario counts, failures and limitations. Browser checks must exercise real student flows, including mobile layout, expandable details, saved notes and the first-message starter behavior.
 
@@ -31,7 +31,7 @@ A feature or bug ticket cannot be moved to the "Done" column until the following
 * **Regression Testing:** Meaningful cases cover changed business rules and reproduced failures through `node:test`/`tsx` or `pytest`.
 * **User-flow Testing:** Relevant browser journeys and real-data comparisons pass, with evidence and limitations recorded.
 * **Environment:** Feature works as expected in a simulated local or staging environment.
-* **Documentation:** System architecture changes, new third-party packages, and environment variables (`.env.example`) are updated in the repository `README` or wiki.
+* **Documentation:** architecture changes go in `docs/ARCHITECTURE.md`, dated decisions in `docs/DECISIONS.md`, and new environment variables in `.env.example` and the relevant README.
 
 ---
 
@@ -41,14 +41,13 @@ Review the whole file when changing it. Remove confirmed unused code and imports
 
 Preserve existing behavior outside the approved scope. Test failure paths as well as successful answers. Keep credentials, raw data, generated drafts and local test traces out of Git. Report unfinished work accurately; passing tests do not prove every possible model response is correct.
 
-For this project's source-only working folder, keep runtime dependencies and audit evidence in the sibling `club-project/local/success-coach-chatbot` folder. Keep credentials separately in `_minjoo_local-only/success-coach-chatbot.env.local`; the local launcher loads that project-specific file and removes conflicting inherited settings for its child process. Delete disposable attachments and caches. Run builds and tests in that local copy so generated files do not accumulate in the GitHub workspace; sync the reviewed source changes before running it.
 
 ## 4. Pull Request (PR) Workflow
 Follow this step-by-step lifecycle to integrate your code:
 
 1. **Commit your changes:** Write clear, concise commit messages.
 2. **Open a PR:** Push your branch and open a Pull Request against `main`.
-3. **Fill out the Template:** The `.github/pull_request_template.md` will automatically populate. You must link the Issue ID, summarize changes, provide manual testing steps, and verify the DoD checklist.
+3. **Fill out the template:** `.github/pull_request_template.md` populates automatically. Link the issue, say what changed and why, and record how it was checked.
 4. **Peer Review:** At least **1 peer approval** is required before the PR can be merged. Reviewers will check for logic errors, architectural consistency, and adherence to the DoD.
 5. **Conflict Resolution:** If merge conflicts arise with the target branch, **the PR author** is solely responsible for pulling the latest changes, resolving the conflicts locally, and updating the PR branch without overwriting others’ work. Use a normal merge update where possible; coordinate any history rewrite before using force-with-lease.
 6. **Merge:** Once approved and passing all automated checks, the code can be merged.

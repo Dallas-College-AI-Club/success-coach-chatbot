@@ -1,6 +1,6 @@
 # RFC-0001: RAG Context Authority
 
-Status: Draft
+Status: Implemented (2026-09-22). Tool-only grounding is enforced by the production system prompt, apps/frontend/lib/system-prompt.ts.
 Author: Dallas College AI Club
 
 ---

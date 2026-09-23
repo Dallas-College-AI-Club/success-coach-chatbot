@@ -1,6 +1,6 @@
 # RFC-0004: System Prompt Architecture
 
-Status: Draft
+Status: Superseded (2026-09-22). Production uses one hand-written prompt string, apps/frontend/lib/system-prompt.ts; the layered builder in lib/prompt-builder.ts is not wired.
 Owner: Dallas College AI Club
 
 ---

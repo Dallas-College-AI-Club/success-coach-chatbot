@@ -47,7 +47,7 @@ where each syllabus's facts merge into its section's row (`facts.syllabus`).
 - **Schema** = the repo contract for the doc_type:
   [`src/config/facts-schemas/facts-{syllabus,course,program_map,cv}-v1.schema.json`](../../src/config/facts-schemas/).
   The schema is injected into the prompt *and* used to validate the response.
-- **Prompt** = [`apps/data/prompts/extract_v1.md`](../../apps/data/prompts/extract_v1.md)
+- **Prompt** = [`apps/data/prompts/extract_v1.md`](../../apps/data/reference/prompts/extract_v1.md)
   — versioned, never edited in place (copy to `extract_v2.md` to change it). It
   carries the extraction rules: *null means the source didn't say; verbatim text
   survives structure; grading Weight columns may hold points OR percentages; exclude
@@ -58,7 +58,7 @@ where each syllabus's facts merge into its section's row (`facts.syllabus`).
   knowledge base is traceable to exactly how it was produced, and outputs from two
   models can be diffed before switching.
 
-The engine is [`apps/data/pipeline/extract.py`](../../apps/data/pipeline/extract.py):
+The engine is [`apps/data/pipeline/extract.py`](../../apps/data/dallasai/pipeline/extract.py):
 prompt → model → parse JSON → validate against the schema → on failure, feed the
 exact validator errors back and retry (up to 2 retries) → `confidence: "low"` or
 exhausted retries ⇒ **quarantine** (`needs_review` — never loaded, never displaces a
@@ -138,7 +138,7 @@ or split terms across teammates' machines. Zero dollars either way.
    land in `needs_review`, never in the database. Review the quarantine folder,
    fix the prompt (bump the version), re-run.
 3. **The golden set** — the four sample syllabi in
-   [`apps/data/sample_syllabi/`](../../apps/data/sample_syllabi/) are the regression
+   ``apps/data/sample_syllabi/`` are the regression
    fixtures. They were chosen because they exercise the hard cases: points-vs-percent
    grading, checksum rows, empty template headings, a co-requisite course's separate
    grade bucket, missing instructor names. Before trusting any new model or prompt
@@ -161,7 +161,7 @@ is `DATABASE_ARCHITECTURE.md §9`'s open item — this runbook works with either
 ## 6. Where the outputs go
 
 Validated facts JSONs feed the compose/load stage
-([`pipeline/build_knowledge.py`](../../apps/data/pipeline/build_knowledge.py)),
+([`pipeline/build_knowledge.py`](../../apps/data/dallasai/pipeline/build_knowledge.py)),
 which merges each syllabus into its section row (`facts.syllabus`), builds
 course/program/cv rows, and upserts into `knowledge_entry`. End-to-end picture:
 [`docs/DATA_PIPELINE.md`](../DATA_PIPELINE.md).

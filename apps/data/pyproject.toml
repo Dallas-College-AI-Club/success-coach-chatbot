@@ -5,7 +5,6 @@ description = "Data scraping module for the Dallas College Success Coach Chatbot
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-  "alembic>=1.18.5",
   "pgvector>=0.5.0",
   "psycopg[binary]>=3.3.4",
   "python-dotenv>=1.2.2",
@@ -16,17 +15,16 @@ dependencies = [
   "playwright>=1.44",     # headless-browser catalog fetcher (pipeline/catalog_fetch.py);
   # after install run:  playwright install chromium
   "pypdf>=6.14.2",
-  "chromadb>=1.5.9",
-  "openai>=2.51.0",
   "anthropic>=0.40",      # extraction engine (dallasai/pipeline/extract.py)
   "jsonschema>=4.21",     # facts-schema validation (extract + verifiers)
-  "sentence-transformers>=5.7.0",
-  "numpy>=2.5.1",
   "html-to-markdown>=3.10.6",
 ]
 
 [dependency-groups]
 dev = ["pytest>=9.1.1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]  # archive/tests/ is frozen with its modules; never collected
 
 [build-system]
 requires = ["hatchling"]
