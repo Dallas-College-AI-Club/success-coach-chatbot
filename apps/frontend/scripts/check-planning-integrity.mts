@@ -350,6 +350,7 @@ test("large faculty summaries preserve the total without suggesting a partial na
     keyword_variants: [],
     results: Array.from({ length: 292 }, (_, i) => ({
       name: `Professor ${i}`,
+      display_name: `${i}, Professor`,
       topics: ["mathematics"],
       evidence: ["Taught mathematics"],
       source_url: `https://example.edu/${i}`,

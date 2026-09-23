@@ -50,6 +50,13 @@ import {
   scheduleDiscoveryChoice,
   asksWhoTeachesNow,
 } from "../lib/tools/getClassSchedule";
+import { readFileSync } from "node:fs";
+import {
+  directoryName,
+  facultyProfiles,
+  surnameSortKey,
+  VENUE_PREFIX,
+} from "../lib/tools/searchFacultyExpertise";
 
 test("composer follows browser language order, regional tags and English fallback", () => {
   const fallback = "Ask about your classes…";
@@ -614,7 +621,10 @@ test("schedule starters use onboarding preferences and bound the saved-data clai
 
 test("every picker program yields a named course-plan prompt; missing programs never inherit the demo course", () => {
   for (const program of PROGRAMS) {
-    const [plan, first] = starterQuestionsFor({ ...profile, major: program.code });
+    const [plan, first] = starterQuestionsFor({
+      ...profile,
+      major: program.code,
+    });
     assert.ok(plan.prompt.includes(program.label), program.code);
     // The whole plan, then semester 1 — scoped on the second chip only.
     assert.deepEqual(requestedSemesters(plan.prompt), [], program.code);
@@ -625,7 +635,10 @@ test("every picker program yields a named course-plan prompt; missing programs n
   // An unknown program code is an undecided student: the opening asks which
   // area to explore, and never names a program of its own.
   const unknown = starterQuestionsFor({ ...profile, major: "missing" });
-  assert.match(unknown[0].prompt, /numbered list I can answer with just the number/);
+  assert.match(
+    unknown[0].prompt,
+    /numbered list I can answer with just the number/,
+  );
   assert.doesNotMatch(unknown[0].prompt, /Administrative|CDEC|ENGL 1301/);
 });
 
@@ -1134,4 +1147,160 @@ test("published schedule rows offer section-specific note actions only with an o
   );
   assert.equal((html.match(/\+ Add section to notes/g) ?? []).length, 1);
   assert.match(html, /Add ITSE 1303 section 1001 \(Fall 2026\) to my notes/);
+});
+
+// --- faculty search: publication evidence and surname order -----------------
+// The professors Minjoo asked about are named by surname, and the evidence
+// that proves their expertise often survives only as a publication venue.
+
+const facultyRow = (
+  name: string,
+  evidence: string[],
+  venues: string[] = [],
+) => ({
+  name,
+  source_url: `https://dallascollege.campusconcourse.com/view_cv_information_for_course?course_id=${encodeURIComponent(name)}`,
+  evidence,
+  venues,
+  identity: [`Ph.D. Example University, 2007.`],
+  scraped_at: "2026-08-01T00:00:00.000Z",
+});
+
+test("surnames drive the sort key and the directory label, suffixes and particles included", () => {
+  const cases: [string, string, string][] = [
+    // printed name, directory label, sort key
+    ["David Bracewell", "Bracewell, David", "bracewell david"],
+    [
+      "Patricia Scott Burnett",
+      "Burnett, Patricia Scott",
+      "burnett patricia scott",
+    ],
+    ["Maria van der Berg", "van der Berg, Maria", "van der berg maria"],
+    ["Juan De La Cruz", "De La Cruz, Juan", "de la cruz juan"],
+    ["John Smith Jr.", "Smith, John Jr.", "smith john"],
+    ["Martin Luther King III", "King, Martin Luther III", "king martin luther"],
+    ["Amal Hassan, Ph.D.", "Amal Hassan, Ph.D.", "amal hassan ph.d."],
+    ["Toler, Casandra", "Toler, Casandra", "toler casandra"],
+    ["Cher", "Cher", "cher"],
+    ["  Adriana   Badulescu ", "Badulescu, Adriana", "badulescu adriana"],
+    // "Al" doubles as a given name, so it must never be read as a particle.
+    ["Al Smith", "Smith, Al", "smith al"],
+  ];
+  for (const [printed, label, key] of cases) {
+    assert.equal(directoryName(printed), label, `label for ${printed}`);
+    assert.equal(surnameSortKey(printed), key, `key for ${printed}`);
+  }
+  assert.equal(directoryName(""), "");
+});
+
+test("faculty results are ordered by surname, not by first name", () => {
+  const rows = [
+    "Casandra Toler",
+    "Adriana Badulescu",
+    "Amal Hassan",
+    "David Bracewell",
+  ].map((name) => facultyRow(name, ["Research in artificial intelligence."]));
+  const ordered = facultyProfiles(rows, ["artificial intelligence"], "any");
+  assert.deepEqual(
+    ordered.map((r) => r.display_name),
+    [
+      "Badulescu, Adriana",
+      "Bracewell, David",
+      "Hassan, Amal",
+      "Toler, Casandra",
+    ],
+  );
+  // The printed name always survives alongside the label.
+  assert.deepEqual(ordered.map((r) => r.name)[1], "David Bracewell");
+});
+
+test("publication venues count as evidence and are labelled as publications", () => {
+  const rows = [
+    facultyRow(
+      "David Bracewell",
+      [
+        "Ph.D. Computer Science, 2008.",
+        "Faculty, Dallas College, 2017-present.",
+      ],
+      ["In the Proceedings of the First Workshop on Metaphor in NLP", "ICSC"],
+    ),
+  ];
+  const [profile] = facultyProfiles(
+    rows,
+    ["natural language processing"],
+    "any",
+  );
+  assert.ok(profile, "venue evidence must surface the profile");
+  assert.deepEqual(profile.evidence, [
+    `${VENUE_PREFIX}In the Proceedings of the First Workshop on Metaphor in NLP`,
+  ]);
+  // Venue evidence never masquerades as experience.
+  assert.ok(profile.evidence.every((span) => span.startsWith(VENUE_PREFIX)));
+  // A CV with no venue text is untouched.
+  assert.equal(
+    facultyProfiles(
+      [facultyRow("Amal Hassan", ["Taught calculus."])],
+      ["natural language processing"],
+      "any",
+    ).length,
+    0,
+  );
+});
+
+test("faculty search reads source spans only — no generated summary is ever scanned", () => {
+  const source = readFileSync(
+    new URL("../lib/tools/searchFacultyExpertise.ts", import.meta.url),
+    "utf8",
+  );
+  // derived_profile is model-written; adding it here would make a match
+  // unfalsifiable, so the queried paths are pinned. publications.entries is the
+  // verbatim publication list recovered from the source CV page — source text,
+  // like the venue sample it supersedes.
+  assert.deepEqual(
+    [...source.matchAll(/jsonb_path_query_array\([^,]+, '([^']+)'\)/g)].map(
+      (m) => m[1],
+    ),
+    [
+      "$.**.raw_text",
+      "$.**.evidence",
+      "$.publications.entries[*]",
+      "$.publications.venues_sample[*]",
+      "$.education[*].raw_text",
+    ],
+  );
+  // The recovered list supersedes the sample rather than adding to it, so a
+  // backfilled CV never reports the same venue twice.
+  assert.match(source, /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/);
+});
+
+test("expertise rows render the surname-first label and keep the printed name in the CV card", () => {
+  const html = renderToStaticMarkup(
+    createElement(InstructorResults, {
+      name: "search_faculty_expertise",
+      skin,
+      output: {
+        found: true,
+        indexed_cv_records: 2709,
+        topics: ["natural language processing"],
+        match: "any",
+        coverage_note: "Saved evidence only",
+        results: [
+          {
+            name: "David Bracewell",
+            display_name: "Bracewell, David",
+            topics: ["natural language processing"],
+            evidence: [`${VENUE_PREFIX}First Workshop on Metaphor in NLP`],
+            source_url:
+              "https://dallascollege.campusconcourse.com/view_cv_information_for_course?course_id=85876",
+          },
+        ],
+      },
+    }),
+  );
+  assert.match(html, /Bracewell, David/);
+  assert.match(html, /<strong>David Bracewell<\/strong>/);
+  assert.match(
+    html,
+    /Publication venue: First Workshop on Metaphor in <mark[^>]*>NLP<\/mark>/,
+  );
 });
