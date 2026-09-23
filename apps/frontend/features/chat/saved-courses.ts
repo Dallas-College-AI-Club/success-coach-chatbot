@@ -7,7 +7,12 @@ import {
   isSheetWorthyQuestion,
   summarizeSheetQuestion,
 } from "@/features/chat/sheet-questions";
-import { catalogText, isRecord, readCourseDetails } from "@/lib/course-details";
+import {
+  catalogText,
+  isCourseCode,
+  isRecord,
+  readCourseDetails,
+} from "@/lib/course-details";
 import { citationHref } from "@/lib/constants";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
@@ -90,8 +95,12 @@ interface SavedCoursesState {
   courses: SavedCourse[];
   /** Typed questions or contextual starter labels, without model instructions. */
   questions: string[];
+  /** Codes the student ticked as already taken on a plan card. Self-reported
+   *  and printed as such — never a transcript. */
+  taken: string[];
   toggle: (course: SavedCourse) => void;
   toggleSection: (course: SavedCourse, section: unknown) => void;
+  toggleTaken: (courseCode: string) => void;
   remove: (courseCode: string) => void;
   addQuestion: (q: string) => void;
   removeQuestion: (index: number) => void;
@@ -109,6 +118,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
     (set, get) => ({
       courses: [],
       questions: [],
+      taken: [],
       toggle: (raw) => {
         const course = readSavedCourse(raw);
         if (!course) return;
@@ -141,6 +151,12 @@ export const useSavedCourses = create<SavedCoursesState>()(
             : [...current, next],
         });
       },
+      toggleTaken: (courseCode) =>
+        set({
+          taken: get().taken.includes(courseCode)
+            ? get().taken.filter((c) => c !== courseCode)
+            : [...get().taken, courseCode],
+        }),
       remove: (courseCode) =>
         set({
           courses: get().courses.filter((c) => c.course_code !== courseCode),
@@ -154,7 +170,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
       removeQuestion: (index) =>
         set({ questions: get().questions.filter((_, i) => i !== index) }),
       clear: () => {
-        set({ courses: [], questions: [] });
+        set({ courses: [], questions: [], taken: [] });
         void useSavedCourses.persist?.clearStorage();
       },
     }),
@@ -183,7 +199,11 @@ export const useSavedCourses = create<SavedCoursesState>()(
           }
         },
       })),
-      partialize: (s) => ({ courses: s.courses, questions: s.questions }),
+      partialize: (s) => ({
+        courses: s.courses,
+        questions: s.questions,
+        taken: s.taken,
+      }),
       // Hydrate on the client after mount (see SummarySheet), never during the
       // server render — so the first client paint matches SSR and React never
       // reports a hydration mismatch. Same posture as the onboarding store.
@@ -192,7 +212,7 @@ export const useSavedCourses = create<SavedCoursesState>()(
       // same posture as the onboarding store's validated merge.
       merge: (persisted, current) => {
         const p = persisted as
-          | { courses?: unknown; questions?: unknown }
+          | { courses?: unknown; questions?: unknown; taken?: unknown }
           | undefined;
         const courses = Array.isArray(p?.courses)
           ? p.courses.flatMap((raw) => {
@@ -217,6 +237,9 @@ export const useSavedCourses = create<SavedCoursesState>()(
                 .filter(isSheetWorthyQuestion),
             ),
           ].slice(-MAX_QUESTIONS),
+          taken: Array.isArray(p?.taken)
+            ? [...new Set(p.taken.filter(isCourseCode))]
+            : [],
         };
       },
     },

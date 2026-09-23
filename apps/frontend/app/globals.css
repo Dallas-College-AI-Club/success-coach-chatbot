@@ -636,3 +636,17 @@
     color-scheme: light;
   }
 }
+
+/* The chat panel grows past `lg` (chat-screen.tsx) so course, schedule and
+   faculty ROWS can use a big screen. Running text does not benefit: at the
+   1152px panel a 14px paragraph sets ~150 characters to the line, roughly
+   double what reads comfortably. So the panel widens and the prose does not —
+   34rem is ~75 characters, the measure the narrow panel already gave it.
+   Only the wrapping text blocks are capped; rows, headings, chips and the
+   disclosure controls still span the full width. Markdown answers carry
+   Typography's own 65ch and are left alone. Below `lg` nothing changes. */
+@media (width >= 64rem) {
+  .coach-transcript :where(p, dd):not(:where(.prose, .prose *)) {
+    max-width: 34rem;
+  }
+}

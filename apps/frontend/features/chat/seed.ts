@@ -65,9 +65,14 @@ export function composerCopy(
   };
 }
 
+// A visitor who skipped onboarding has told us nothing, so this greeting says
+// exploring first — the same place the undecided hand-off starts. It ends on
+// the same invitation every hand-off does, because the chips underneath it are
+// now real questions (COLD_VISIT_QUESTIONS) rather than an empty row.
 const COLD_VISIT_INTRO = [
   "Hey, I'm Major 👋 — your Dallas College planning companion.",
-  "Ask me about degree requirements, prerequisites, or planning your semester. A Success Coach reviews everything and makes your plan official.",
+  "I can look up what a degree or certificate requires, what you would study in one, when classes meet and who teaches them. A Success Coach reviews everything and makes your plan official.",
+  "You could ask:",
 ].join("\n\n");
 
 /** The coach's opening turn. With a completed onboarding it replays the

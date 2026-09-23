@@ -29,6 +29,7 @@ import {
   ScheduleResults,
   InstructorResults,
 } from "@/features/chat/course-results";
+import { askedLabel, followUpsFor } from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
 import {
   starterQuestionsFor,
@@ -48,6 +49,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import { useHeadingFocus } from "@/features/onboarding/shared/use-heading-focus";
 import type { Mode, Skin } from "@/features/onboarding/skin";
+import type { InterestArea } from "@/features/onboarding/types";
 import { MODES, modeFromId } from "@/features/onboarding/variants";
 import { GENERIC_CHAT_ERROR, SAFE_CHAT_ERRORS } from "@/lib/chat-errors";
 import { citationHref, citationLabel } from "@/lib/constants";
@@ -125,6 +127,8 @@ const Turn = memo(function Turn({
   question: string;
 }) {
   const isUser = m.role === "user";
+  // What a chip-sent turn SAYS, as opposed to the instructions it carries.
+  const spoken = isUser ? askedLabel(m.metadata) : undefined;
   const courseRows =
     !isUser &&
     m.parts.some(
@@ -161,7 +165,16 @@ const Turn = memo(function Turn({
               // here the literal newlines between blocks would render as blank
               // lines. cn() (tailwind-merge) is required — a string append
               // loses to stylesheet order.
-              className={cn(skin.bubble, "whitespace-normal")}
+              // self-start: a coach turn carrying a course card sits in a
+              // column as wide as the card, so a stretched bubble painted
+              // ~260px of empty panel beside its own capped prose. Shrink to
+              // fit instead; max-w-[85%] still bounds it. The student's side
+              // already shrinks, via the row's items-end.
+              className={cn(
+                skin.bubble,
+                "whitespace-normal",
+                !isUser && "self-start",
+              )}
             >
               {courseRows && part.text.length > 300 ? (
                 <details open>
@@ -172,7 +185,7 @@ const Turn = memo(function Turn({
                 </details>
               ) : (
                 <MarkdownViewer
-                  content={part.text}
+                  content={spoken ?? part.text}
                   className={isUser ? "prose-invert!" : "prose"}
                 />
               )}
@@ -286,11 +299,13 @@ function Conversation({
   seed,
   starters,
   profile,
+  interest,
 }: {
   mode: Mode;
   seed: UIMessage[];
   starters: StarterQuestion[];
   profile: StudentProfile | null;
+  interest: InterestArea | null;
 }) {
   const { skin, copy } = mode;
   const languages = useSyncExternalStore(
@@ -307,32 +322,79 @@ function Conversation({
   });
 
   const [input, setInput] = useState("");
+  const [askedLabels, setAskedLabels] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const transcriptRef = useRef<HTMLDivElement>(null);
+  const stick = useRef(true);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
-  const suggestions = messages.some((message) => message.role === "user")
+  const taken = useSavedCourses((s) => s.taken);
+
+  // Chips for where the conversation actually is: the opening starters, then
+  // the next step the latest settled reply's tool results can answer. Computed
+  // only when idle, so a half-streamed turn never flickers a wrong set.
+  const lastCoachTools = busy
     ? []
-    : starters;
+    : (messages.findLast((m) => m.role === "assistant")?.parts ?? [])
+        .filter(isToolUIPart)
+        .filter((part) => part.state === "output-available")
+        .map((part) => ({ name: getToolName(part), output: part.output }));
+  const suggestions = followUpsFor({
+    program: profile?.major,
+    interest,
+    // The schedule answer onboarding already has, so a follow-up asks about
+    // the time the student can actually study.
+    goal: profile?.goal,
+    preference: profile?.dayparts ?? profile?.modality,
+    starters,
+    tools: lastCoachTools,
+    started: messages.some((message) => message.role === "user"),
+    taken,
+    askedLabels,
+  });
 
-  // A new turn (or the thinking row) appearing scrolls to the bottom once.
+  // Stick to the bottom while the reader is there, stop the moment they
+  // scroll up, resume when they come back. A ResizeObserver on the transcript
+  // catches the growth `messages.length` misses: streamed text, markdown
+  // blocks and course cards mounting inside a turn that already exists.
   useEffect(() => {
     const el = scrollRef.current;
-    el?.scrollTo({
-      top: el.scrollHeight,
-      behavior: prefersReducedMotion() ? "auto" : "smooth",
-    });
-  }, [messages.length, error]);
-
-  // Streaming growth pins the bottom — but only when the reader is already
-  // there, so scrolling up to re-read is never fought. `auto`, not `smooth`:
-  // re-targeting an in-flight smooth scroll ~20×/s means it never settles.
-  useEffect(() => {
-    if (status !== "streaming") return;
-    const el = scrollRef.current;
-    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 80) {
-      el.scrollTo({ top: el.scrollHeight });
-    }
-  }, [messages, status]);
+    const transcript = transcriptRef.current;
+    if (!el || !transcript) return;
+    // Only the READER may break the follow. Position alone cannot tell us who
+    // moved the scroll: a growing card, a removed "Thinking…" row or an
+    // in-flight smooth scroll all pass through "not at the bottom" on their
+    // own, and reading those as the reader leaving is what stranded the pane
+    // 2,000px above a long faculty answer.
+    let intentAt = -Infinity;
+    const intent = () => {
+      intentAt = performance.now();
+    };
+    const nearBottom = () =>
+      el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    const onScroll = () => {
+      if (nearBottom()) stick.current = true;
+      else if (performance.now() - intentAt < 700) stick.current = false;
+    };
+    const follow = () => {
+      if (stick.current) el.scrollTop = el.scrollHeight;
+    };
+    const intents = ["wheel", "touchmove", "pointerdown", "keydown"] as const;
+    for (const type of intents)
+      el.addEventListener(type, intent, { passive: true });
+    el.addEventListener("scroll", onScroll, { passive: true });
+    const observer = new ResizeObserver(follow);
+    observer.observe(transcript);
+    // The pane itself too: a chip row appearing underneath shortens the
+    // viewport without changing the transcript, which alone left the last
+    // lines of a long answer below the fold.
+    observer.observe(el);
+    return () => {
+      for (const type of intents) el.removeEventListener(type, intent);
+      el.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
 
   // The one live region: derived, not pushed. Empty while streaming, the
   // completed reply once ready — so a screen reader hears the answer exactly
@@ -355,12 +417,28 @@ function Conversation({
   // out of the history.
   const requestOptions = profile ? { body: { profile } } : undefined;
 
+  // Asking — or retrying — returns the reader to the end of the conversation
+  // and re-arms the follow, whatever they were reading before.
+  const toBottom = () => {
+    stick.current = true;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: prefersReducedMotion() ? "auto" : "smooth",
+    });
+  };
+
   const send = (text: string, note = text) => {
     const t = text.trim();
     if (!t || busy) return;
     useSavedCourses.getState().addQuestion(note);
-    sendMessage({ text: t }, requestOptions);
+    // The chip's own words ride along as metadata for the bubble to show; the
+    // model still gets `text`, the full prompt. Typed questions need none.
+    sendMessage(
+      { text: t, ...(note === t ? {} : { metadata: { label: note } }) },
+      requestOptions,
+    );
     setInput("");
+    toBottom();
   };
 
   let currentQuestion = "";
@@ -379,7 +457,14 @@ function Conversation({
 
   return (
     <div
-      className={`${skin.surface} flex h-[min(720px,calc(100dvh_-_9.5rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4`}
+      // Subtract the chrome above and below, so the composer always lands
+      // inside the viewport. At md that is p-8 twice + a one-row header + the
+      // gap = 122px, and 9.5rem holds. Below md the buttons wrap the header to
+      // 158px against p-4 — 202px of chrome, which pushed the composer 34px
+      // off a 390x844 phone; 13rem covers it. The 100dvh term is what lets a
+      // short window and a landscape phone fit at all, and the 900px ceiling
+      // only binds above ~1050px of height, where 720px left the panel short.
+      className={`${skin.surface} flex h-[min(900px,calc(100dvh_-_13rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4 md:h-[min(900px,calc(100dvh_-_9.5rem))]`}
     >
       <h1 ref={headingRef} tabIndex={-1} className="sr-only outline-none">
         Planning chat with Major
@@ -389,63 +474,76 @@ function Conversation({
         ref={scrollRef}
         tabIndex={0}
         aria-label="Conversation with Major"
-        className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+        // coach-transcript is the hook for the prose measure cap in
+        // globals.css — the panel widens on a big screen, running text does not.
+        className="coach-transcript min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       >
-        {turns}
+        {/* One element whose height IS the transcript's, so a single
+            ResizeObserver sees every kind of growth. */}
+        <div ref={transcriptRef} className="flex flex-col gap-3">
+          {turns}
 
-        {status === "submitted" && (
-          <CoachRow>
-            {/* Reserves the box the reply will occupy, so nothing jumps. */}
-            <div data-role="assistant" className={`${skin.bubble} min-w-24`}>
-              <span className="sr-only">Major is thinking</span>
-              <span
-                aria-hidden
-                className="opacity-60 motion-safe:animate-pulse"
+          {status === "submitted" && (
+            <CoachRow>
+              {/* Reserves the box the reply will occupy, so nothing jumps. */}
+              <div data-role="assistant" className={`${skin.bubble} min-w-24`}>
+                <span className="sr-only">Major is thinking</span>
+                <span
+                  aria-hidden
+                  className="opacity-60 motion-safe:animate-pulse"
+                >
+                  Thinking…
+                </span>
+              </div>
+            </CoachRow>
+          )}
+
+          {(error || incomplete) && (
+            <div className="flex flex-col items-start gap-2">
+              {/* Show the message only when it's one of our own mapped strings —
+                  equality against the shared allowlist, never reflected text. */}
+              <p className={skin.helper}>
+                {incomplete
+                  ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
+                  : error && SAFE_CHAT_ERRORS.has(error.message)
+                    ? error.message
+                    : GENERIC_CHAT_ERROR}
+              </p>
+              <Button
+                variant="ghost"
+                className={skin.ghostBtn}
+                onClick={() => {
+                  regenerate(requestOptions);
+                  toBottom();
+                }}
               >
-                Thinking…
-              </span>
+                Try again
+              </Button>
             </div>
-          </CoachRow>
-        )}
-
-        {(error || incomplete) && (
-          <div className="flex flex-col items-start gap-2">
-            {/* Show the message only when it's one of our own mapped strings —
-                equality against the shared allowlist, never reflected text. */}
-            <p className={skin.helper}>
-              {incomplete
-                ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
-                : error && SAFE_CHAT_ERRORS.has(error.message)
-                  ? error.message
-                  : GENERIC_CHAT_ERROR}
-            </p>
-            <Button
-              variant="ghost"
-              className={skin.ghostBtn}
-              onClick={() => regenerate(requestOptions)}
-            >
-              Try again
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
-      {/* Starter questions appear only until the first submitted user message. */}
-      {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 px-1">
-          {suggestions.map((q) => (
+      {/* Follow-up questions for wherever the conversation has reached. The
+          chips are EMPTIED while a reply streams, so a half-finished turn
+          never changes the set under a tapping hand; the row keeps its height
+          so the composer does not hop as they come and go. */}
+      <div className="flex min-h-9 flex-wrap gap-1.5 px-1">
+        {!busy &&
+          suggestions.map((q) => (
             <button
               key={q.prompt}
               type="button"
-              onClick={() => send(q.prompt, q.note ?? q.label)}
-              disabled={busy}
-              className={`${skin.chip} disabled:cursor-wait disabled:opacity-50 pointer-coarse:min-h-11`}
+              onClick={() => {
+                setAskedLabels((asked) => [...asked, q.label]);
+                send(q.prompt, q.note ?? q.label);
+              }}
+              className={`${skin.chip} pointer-coarse:min-h-11`}
             >
               {q.label}
             </button>
           ))}
-        </div>
-      )}
+      </div>
 
       <form
         onSubmit={(e) => {
@@ -540,9 +638,15 @@ export function ChatScreen() {
       {/* The chat owns its geometry (one width in every mode — skin.shell's
           per-mode widths exist for wizard scenes the chat doesn't render), so
           switching looks repaints the panel without resizing it. */}
+      {/* Phone and tablet keep the 42rem column; the panel only grows where
+          there is field to spare. Each step leaves at least 128px of gutter a
+          side at its own breakpoint's narrowest viewport — the cap
+          characterHeight() sizes the roaming cast to, so widening never
+          shrinks a mascot. check-mascot-motion.mts asserts it against this
+          very class list. */}
       {/* z-10 so the roaming mascots (which carry their own z) pass behind the
           panel — visible in the gutters, softened under the blurred surface. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3">
+      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
         <div className="flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AiClubLogo />
@@ -579,6 +683,7 @@ export function ChatScreen() {
           seed={seed}
           starters={starters}
           profile={profile}
+          interest={session?.payload.interest_area ?? null}
         />
       </div>
     </main>

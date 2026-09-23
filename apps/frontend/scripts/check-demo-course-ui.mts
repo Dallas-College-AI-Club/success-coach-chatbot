@@ -600,10 +600,11 @@ test("schedule starters use onboarding preferences and bound the saved-data clai
     });
     assert.equal(questions.length, 3);
     assert.match(questions[0].prompt, /Administrative Certificate/);
-    assert.match(questions[1].prompt, /one required course from that semester/);
-    assert.match(questions[1].prompt, /Missing meeting times are unknown/);
-    assert.match(questions[1].prompt, /do not claim live availability/);
-    if (term) assert.ok(questions[1].prompt.includes(`I prefer ${term}`));
+    // The plan comes first, then semester 1, so the schedule chip is last.
+    assert.match(questions[2].prompt, /one required course from that semester/);
+    assert.match(questions[2].prompt, /Missing meeting times are unknown/);
+    assert.match(questions[2].prompt, /do not claim live availability/);
+    if (term) assert.ok(questions[2].prompt.includes(`I prefer ${term}`));
   }
   assert.doesNotMatch(
     handoffIntro(profile),
@@ -613,13 +614,18 @@ test("schedule starters use onboarding preferences and bound the saved-data clai
 
 test("every picker program yields a named course-plan prompt; missing programs never inherit the demo course", () => {
   for (const program of PROGRAMS) {
-    const first = starterQuestionsFor({ ...profile, major: program.code })[0];
+    const [plan, first] = starterQuestionsFor({ ...profile, major: program.code });
+    assert.ok(plan.prompt.includes(program.label), program.code);
+    // The whole plan, then semester 1 — scoped on the second chip only.
+    assert.deepEqual(requestedSemesters(plan.prompt), [], program.code);
     assert.ok(first.prompt.includes(program.label), program.code);
     assert.deepEqual(requestedSemesters(first.prompt), [1], program.code);
     assert.ok(INPUT_SCHEMA.safeParse({ programName: program.label }).success);
   }
+  // An unknown program code is an undecided student: the opening asks which
+  // area to explore, and never names a program of its own.
   const unknown = starterQuestionsFor({ ...profile, major: "missing" });
-  assert.match(unknown[0].prompt, /First ask which program/);
+  assert.match(unknown[0].prompt, /numbered list I can answer with just the number/);
   assert.doesNotMatch(unknown[0].prompt, /Administrative|CDEC|ENGL 1301/);
 });
 
