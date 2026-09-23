@@ -11,7 +11,7 @@
     "start": "next start",
     "lint": "eslint",
     "verify": "npm run lint && tsc --noEmit && npm run test:demo && tsx scripts/check-course-code-normalization.mts && tsx scripts/check-sheet-question-filter.mts && next build",
-    "test:demo": "tsx --test scripts/check-demo-course-ui.mts scripts/check-follow-ups.mts scripts/check-mascot-motion.mts scripts/check-planning-integrity.mts scripts/check-starter-questions.mts && tsx --conditions=react-server --test scripts/check-chat-boundaries.mts"
+    "test:demo": "tsx --test scripts/check-demo-course-ui.mts scripts/check-follow-ups.mts scripts/check-mascot-motion.mts scripts/check-panel-viewport.mts scripts/check-planning-integrity.mts scripts/check-starter-questions.mts && tsx --conditions=react-server --test scripts/check-chat-boundaries.mts"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.83",

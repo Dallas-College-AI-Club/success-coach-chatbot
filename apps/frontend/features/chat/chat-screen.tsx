@@ -476,7 +476,13 @@ function Conversation({
         aria-label="Conversation with Major"
         // coach-transcript is the hook for the prose measure cap in
         // globals.css — the panel widens on a big screen, running text does not.
-        className="coach-transcript min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+        // `relative` is load-bearing: `sr-only` is position:absolute, so without
+        // it every screen-reader span in a turn resolves its containing block to
+        // the panel wrapper instead — laid out down the page, unscrolled and
+        // unclipped by this box. A long plan put one 6,500px down and made <main>
+        // a silently scrollable box that any scroll-into-view dragged the whole
+        // panel off the top of the screen.
+        className="coach-transcript relative min-h-0 flex-1 overflow-y-auto px-1 py-1 focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
       >
         {/* One element whose height IS the transcript's, so a single
             ResizeObserver sees every kind of growth. */}
@@ -631,7 +637,12 @@ export function ChatScreen() {
 
   return (
     <main
-      className={`relative overflow-hidden ${mode.fontClass} ${mode.skin.page}`}
+      // overflow-CLIP, not hidden: clip is not a scroll container, so this box
+      // has no scrollport to move and the chat cannot leave the viewport even
+      // if something inside overflows again. `hidden` clips identically but
+      // stays programmatically scrollable — with no scrollbar and no wheel to
+      // bring it back, which is how the panel used to strand itself off-screen.
+      className={`relative overflow-clip ${mode.fontClass} ${mode.skin.page}`}
     >
       {/* The mode's scene continues behind the chat. */}
       <ChatBackdrop modeId={mode.id} />

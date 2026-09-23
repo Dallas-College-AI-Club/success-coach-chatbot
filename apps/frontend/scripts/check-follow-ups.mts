@@ -683,12 +683,32 @@ test("a missing program name never produces a chip with a hole in it", () => {
 // --- the coach's own question, and the sets added for tool results the engine
 // --- used to ignore. Walked live against the route handler on 2026-09-22.
 
-test("a turn that looked nothing up shows no chips, because the coach asked", () => {
-  // Four paths ended on "tell me the course code" under [Success Coach]
-  // [tutoring] [tuition] — three chips that answered none of it.
-  assert.deepEqual(followUpsFor({ ...base, tools: [] }), []);
-  // A refusal is NOT this case: the prompt makes the model search first, so it
-  // still arrives with a result and keeps the support trio.
+test("a turn that looked nothing up offers the path and a human, never nothing", () => {
+  // The coach's own question and an unsearched governed refusal arrive here
+  // identically — no tool result to read either way — and the refusal cannot
+  // be left with an empty row. Two chips, not the old support trio: four paths
+  // ended on "tell me the course code" under [Success Coach] [tutoring]
+  // [tuition], three chips that answered none of it.
+  assert.deepEqual(
+    followUpsFor({ ...base, tools: [] }).map((c) => c.label),
+    ["Which classes would I start with?", "How can I reach a Success Coach?"],
+  );
+  // No program: the student's own area decides, and with neither it is the
+  // picker that asks them.
+  assert.deepEqual(
+    followUpsFor({
+      ...base,
+      program: undefined,
+      interest: "tech" as const,
+      tools: [],
+    }).map((c) => c.label),
+    ["Start with Python Developer?", "How can I reach a Success Coach?"],
+  );
+  assert.deepEqual(
+    followUpsFor({ ...base, program: undefined, tools: [] }).map((c) => c.label),
+    ["Help me pick an area to explore", "How can I reach a Success Coach?"],
+  );
+  // A refusal that DID search keeps the support trio it always had.
   assert.deepEqual(
     followUpsFor({
       ...base,
@@ -1027,6 +1047,10 @@ test("a visitor who skipped onboarding still opens on real questions", () => {
     followUpsFor({ ...base, started: false }),
     starters.slice(0, 3),
   );
-  // Once the conversation starts it is an ordinary turn again.
-  assert.deepEqual(followUpsFor({ ...base, starters: [], started: true }), []);
+  // Once the conversation starts it is an ordinary turn again — the starters
+  // are gone, and with nothing looked up yet it is the path-and-a-human pair.
+  assert.deepEqual(
+    followUpsFor({ ...base, starters: [], started: true }).map((c) => c.label),
+    ["Which classes would I start with?", "How can I reach a Success Coach?"],
+  );
 });

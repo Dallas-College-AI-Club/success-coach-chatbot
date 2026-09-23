@@ -11,6 +11,7 @@ import {
   HOUSING,
   listOf,
   MAX_LABEL,
+  PICK_AREA,
   remainingCredits,
   TUITION,
   TUTORING,
@@ -125,15 +126,33 @@ function planCodes(plan: Record<string, unknown>): string[] {
   return [...new Set(codes)].slice(0, 5);
 }
 
+/** The next step on the student's OWN path, for a turn with no tool result to
+ *  read: their program, else their area's first verified example, else the
+ *  picker that asks them which area to start from. */
+function onwards(ctx: FollowUpContext): StarterQuestion {
+  if (ctx.program) return coursePlan(ctx.program, true);
+  if (!ctx.interest) return PICK_AREA;
+  const example = INTEREST_GUIDE[ctx.interest].examplePrograms[0];
+  return {
+    ...coursePlan(example, true),
+    label: fitLabel((n) => `Start with ${n}?`, shortProgram(example)),
+  };
+}
+
 function candidates(ctx: FollowUpContext): StarterQuestion[] {
-  // Nothing was looked up at all, so the coach asked the STUDENT something —
-  // which course code, which area, which of these have you finished. Offering
-  // chips beside a direct question competes with it, and the three support
-  // links answered none of them: walked 2026-09-22, four separate paths ended
-  // "tell me the course code" under [Success Coach] [tutoring] [tuition].
-  // A refusal is not this case; the prompt makes it search first, so it still
-  // arrives here with a tool result and keeps the support trio below.
-  if (!ctx.tools.length) return [];
+  // Nothing was looked up at all. Either the coach asked the STUDENT something
+  // — which course code, which area, which of these have you finished — or it
+  // gave the governed refusal without searching first, which the prompt tells
+  // it not to do but which it does. This file reads tool results and never the
+  // model's prose, so it cannot tell those two apart, and the refusal is the
+  // one turn where an empty row is a genuine dead end: nothing said, nothing
+  // to click. Two chips rather than the old support trio — the next step on
+  // the student's own path, and a human. Walked 2026-09-22, four separate
+  // paths ended "tell me the course code" under [Success Coach] [tutoring]
+  // [tuition], three chips that answered none of it; those two still do not
+  // answer "which course code", but they do not pretend to, and they leave
+  // somewhere to go when the coach has said it cannot help.
+  if (!ctx.tools.length) return [onwards(ctx), COACH];
   // The optional predicate matters when one turn ran the same tool several
   // times: "which classes do they teach" looks up three professors, and the
   // first of those can be an ambiguous-name result with nothing to offer.
