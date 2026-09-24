@@ -52,6 +52,11 @@ restored-answer checkbox overwrite, missing retry state and stale test assumptio
 corrected and the affected checks repeated. Raw local traces and screenshots are intentionally
 excluded from Git. Exact final verification, deployment URL and CI status belong in the draft PR.
 
+Staging also exposed a deployment-only failure: Transformers 4.3 dynamically requires ONNX,
+so the packager omitted its JavaScript package despite including the native binary. Explicit
+runtime-file tracing and a post-build artifact check cover this dependency. A successful HTTP
+response alone is insufficient: staged search must return actual results without `unavailable`.
+
 ## Release and remaining checks
 
 Apply `apps/frontend/scripts/chat-request-budget.sql` to the deployment's database before use.
