@@ -65,6 +65,14 @@ function getExtractor(): Promise<FeatureExtractionPipeline> {
       return extractor;
     },
     (err) => {
+      // Loading uses the fixed model contract, never student text. Keep enough
+      // server-only detail to distinguish missing binaries from download failures.
+      console.error("[embedding] model setup failed", {
+        platform: process.platform,
+        arch: process.arch,
+        message:
+          err instanceof Error ? err.message.slice(0, 600) : "Unknown error",
+      });
       globalExtractor.__extractorPromise = undefined;
       globalExtractor.__extractorFailedAt = Date.now();
       throw err;
