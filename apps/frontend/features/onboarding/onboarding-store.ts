@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import type { OnboardingPayload } from "@/features/onboarding/types";
 import { useEffect } from "react";
 
-// Onboarding choices persist locally; the chat transcript stays in useChat.
+// Onboarding choices persist locally; conversation-store keeps this tab's chat.
 // No server session logging or transcript synchronization is implemented here.
 
 /** The completed onboarding a returning student resumes into. */
@@ -16,7 +16,7 @@ export interface SavedSession {
 }
 
 interface SessionState {
-  /** Maps to `chat_session.student_id` — pseudonymous, never derived from a real identifier. */
+  /** Pseudonymous local identifier, never derived from a real identifier. */
   studentId: string | null;
   session: SavedSession | null;
   /** False until `rehydrate()` has run, so reads can stay SSR-safe. Never persisted. */

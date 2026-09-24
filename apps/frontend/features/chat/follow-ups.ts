@@ -19,6 +19,7 @@ import {
 } from "@/features/onboarding/handoff-copy";
 import { INTEREST_GUIDE } from "@/features/onboarding/interests";
 import type { InterestArea } from "@/features/onboarding/types";
+import type { CompletionOverrides } from "@/features/chat/completion-state";
 import {
   catalogText,
   isCourseCode,
@@ -37,11 +38,7 @@ import {
 
 const MAX_CHIPS = 3;
 /** The faculty topics to offer when onboarding captured no interest area. */
-export const DEFAULT_TOPICS = [
-  "machine learning",
-  "cybersecurity",
-  "data analytics",
-];
+export const DEFAULT_TOPICS = ["teaching"];
 
 /** The student's own interest area decides which expertise the chip offers;
  *  INTEREST_GUIDE's topics are live-verified against the indexed CVs. */
@@ -68,7 +65,9 @@ export function takenPrompt(program: string, taken: string[]): string {
  *  The model still receives the prompt — metadata never reaches it, because
  *  convertToModelMessages builds model messages from `parts` alone. */
 export function askedLabel(metadata: unknown): string | undefined {
-  return isRecord(metadata) ? (catalogText(metadata.label) ?? undefined) : undefined;
+  return isRecord(metadata)
+    ? (catalogText(metadata.label) ?? undefined)
+    : undefined;
 }
 
 export interface FollowUpContext {
@@ -84,6 +83,9 @@ export interface FollowUpContext {
   started: boolean;
   /** Course codes the student ticked as taken. */
   taken: string[];
+  completionOverrides?: CompletionOverrides;
+  /** Most recent plan, even after a schedule or resource answer. */
+  latestPlan?: unknown;
   /** Chip labels already sent — never offered twice. */
   askedLabels: string[];
   /** Why the student said they came, in their own words from onboarding. A
@@ -103,8 +105,9 @@ const RESOURCE_NEXT = [TUITION, AID, DEADLINE, TUTORING, HOUSING, DART, COACH];
  *  informative part of it, so that is what goes first. */
 function shortProgram(name: string): string {
   return (
-    name.replace(/\s*(?:A\.A\.S\.|A\.A\.|A\.S\.|Certificate|Degree)$/i, "").trim() ||
     name
+      .replace(/\s*(?:A\.A\.S\.|A\.A\.|A\.S\.|Certificate|Degree)$/i, "")
+      .trim() || name
   );
 }
 
@@ -262,13 +265,11 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
     // hand-off opens with — the same two chips, so neither is offered twice.
     const graduating = goalFromLabel(ctx.goal) === "graduation_check";
     return [
-      ...(ctx.taken.length
+      ...(ctx.completionOverrides === undefined && ctx.taken.length
         ? [
             {
-              // The COUNT is in the label because a label, once asked, is
-              // never offered again: a fixed one meant that after a single
-              // click every later tick was unsendable and the checkboxes
-              // quietly stopped doing anything.
+              // Compatibility for callers without a completion snapshot.
+              // The app uses the state-aware refresh action below instead.
               label: `I've taken these ${ctx.taken.length}, what's left?`,
               note: `Which ${program} courses do I still need after ${listOf(ctx.taken)}?`,
               prompt: takenPrompt(program, ctx.taken),
@@ -415,7 +416,10 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
     // instead of three. Shorten the label; the prompt keeps the whole name.
     return [
       {
-        label: "Which classes do they teach this Fall?",
+        label:
+          names.length === 3
+            ? "Classes taught by the first 3 faculty?"
+            : "Which classes do they teach this Fall?",
         note: `Which classes do ${listOf(names)} teach this Fall?`,
         prompt: `For ${listOf(names)}, use get_instructor to list the courses and sections each one teaches this Fall according to the saved records, and use the cards to show their backgrounds.`,
       },
@@ -459,7 +463,9 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
     Array.isArray(knowledge?.results) ? knowledge.results : []
   ).filter((r) => isRecord(r) && r.doc_type === "resource");
   if (resource.length) {
-    const top = (catalogText((resource[0] as Record<string, unknown>).name) ?? "").toLowerCase();
+    const top = (
+      catalogText((resource[0] as Record<string, unknown>).name) ?? ""
+    ).toLowerCase();
     const paired = /tuition|surcharge/.test(top)
       ? [AID]
       : /financial aid/.test(top)
@@ -479,11 +485,37 @@ export function followUpsFor(ctx: FollowUpContext): StarterQuestion[] {
   if (!ctx.started)
     return ctx.starters.length ? ctx.starters : COLD_VISIT_QUESTIONS;
   const seen = new Set(ctx.askedLabels);
-  return candidates(ctx)
-    .filter((q) => {
+  const plan =
+    ctx.latestPlan ??
+    ctx.tools.find(
+      (t) => t.name === "get_program_requirements" && isRecord(t.output),
+    )?.output;
+  const planning =
+    isRecord(plan) && isRecord(plan.planning) ? plan.planning : {};
+  const history = isRecord(planning.history) ? planning.history : {};
+  const program = isRecord(plan) ? catalogText(plan.name) : ctx.program;
+  const changed = Object.entries(ctx.completionOverrides ?? {}).some(
+    ([code, completed]) =>
+      completed
+        ? !isRecord(history[code]) || history[code].status !== "completed"
+        : isRecord(history[code]) && history[code].status === "completed",
+  );
+  const refresh =
+    program && changed
+      ? [
+          {
+            label: "Update my remaining courses",
+            note: `Which courses in ${program} remain after my updated course history?`,
+            prompt: `Refresh the full ${program} checklist using my current reported course history. Which courses are left, and what should I take this semester?`,
+          },
+        ]
+      : [];
+  return [
+    ...refresh,
+    ...candidates(ctx).filter((q) => {
       if (q.label.length > MAX_LABEL || seen.has(q.label)) return false;
       seen.add(q.label);
       return true;
-    })
-    .slice(0, MAX_CHIPS);
+    }),
+  ].slice(0, MAX_CHIPS);
 }

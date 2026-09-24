@@ -1,12 +1,5 @@
-// Server-only: this module reads OPENROUTER_API_KEY and opens DB queries, so
-// it must never be bundled into a client component. "server-only" makes that
-// a build error instead of a convention.
-//
-// It sits here rather than in lib/client.ts (which would cover all three
-// DB-backed tools) because the package throws outside a react-server
-// condition, and scripts/check-course-code-normalization.mts imports
-// getCourseInfo under plain tsx in CI. The other two tools carry no secret of
-// their own, and Next blanks non-NEXT_PUBLIC_ env vars in client bundles.
+// This module opens database queries and loads the native embedding runtime.
+// Keep it out of client bundles; CLI callers use the react-server condition.
 import "server-only";
 
 import { and, cosineDistance, inArray, sql } from "drizzle-orm";
@@ -91,6 +84,16 @@ export const INPUT_SCHEMA = z.object({
 });
 
 const BROAD_DOC_TYPES = [...SEARCHABLE_DOC_TYPES, "cv", "section", "syllabus"];
+
+/** Help finding tutoring is a service question, not evidence of faculty expertise. */
+export function asksForTutoringService(query: string): boolean {
+  return (
+    /\btutor(?:ing|s)?\b/i.test(query) &&
+    !/\b(?:professor|instructor|faculty|cv|background|experience|expertise)\b/i.test(
+      query,
+    )
+  );
+}
 
 const SEARCH_FILLER = new Set(
   "a an the and or of in at to for with about what which who how is are do does can i my me all any find show list tell please dallas college course courses class classes program programs degree certificate instructor instructors professor professors faculty background information records".split(
@@ -195,6 +198,31 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   // the sort to the searchable rows and results are exact.
   let broad = input.broad === true;
   try {
+    // A subject-specific tutoring search otherwise lets dense faculty CVs
+    // outrank the official service page and implies those people offer tutoring.
+    if (asksForTutoringService(input.query)) {
+      const results = await getDb()
+        .select({
+          text: knowledgeEntry.chunkText,
+          source_url: knowledgeEntry.sourceUrl,
+          doc_type: knowledgeEntry.docType,
+          name: sql<string | null>`${knowledgeEntry.facts}->>'name'`,
+        })
+        .from(knowledgeEntry)
+        .where(
+          and(
+            inArray(knowledgeEntry.docType, ["resource"]),
+            sql`${knowledgeEntry.chunkText} ILIKE '%tutor%'`,
+          ),
+        )
+        .limit(TOP_K);
+      return {
+        found: results.length > 0,
+        results,
+        search_scope: "resources",
+        note: "Official tutoring service information. Do not infer subject-specific tutor availability, appointments or hours unless the returned resource states them.",
+      };
+    }
     const embedding = await embedText(input.query);
     const distance = cosineDistance(knowledgeEntry.embedding, embedding);
     const terms = searchTerms(input.query);

@@ -38,7 +38,7 @@ flowchart LR
 - `lib/embedding.ts`: lazily loaded **all-MiniLM-L6-v2**, 384 dimensions, matching stored vectors. First retrieval may download model weights; subsequent requests reuse the process cache. Broad recovery combines embeddings with topical keyword evidence and labels related results as candidates.
 - `lib/planning.ts`: student-reported course history, conservative prerequisite labels, credit allocation and exact program comparisons.
 - `lib/course-details.ts` and `features/chat/course-results.tsx`: validated display fields, semester filtering, section grouping, inline CV summaries and literal keyword highlights. Large UI details are omitted from model replay where they are unnecessary.
-- `features/onboarding/handoff-copy.ts`: starter questions reflect the selected goal, program, schedule preference and student situation. Chat hides all starter buttons after the first user message. `saved-courses.ts` and `summary-sheet.tsx` provide local notes and print content.
+- `features/onboarding/handoff-copy.ts`: starter questions reflect the selected goal, program, schedule preference and student situation. After the first message, `follow-ups.ts` selects relevant next questions from finished tool results. `conversation-store.ts` preserves this tab's chat across navigation and refresh; `saved-courses.ts` and `summary-sheet.tsx` persist local notes and sheet edits.
 - `features/onboarding/`: existing Simple, Playful and Focus layouts. [Playful mascot design and checks](../../docs/PLAYFUL_MASCOTS.md).
 
 ## Verify
@@ -59,6 +59,13 @@ Planning checklists track explicit student-reported completed/in-progress course
 
 ## Release the demo
 
+Before staging, apply `scripts/chat-request-budget.sql` to the database configured for that
+deployment. It creates only expiring request counters; it does not change knowledge records.
+Production enforces the shared limits automatically; set `CHAT_RATE_LIMIT_ENABLED=1` to exercise
+them during development. Optional `CHAT_EVIDENCE_SECRET` signs tool outputs; otherwise the existing
+server-only provider key supplies the signing secret. Rotating it invalidates old tool evidence,
+which the next answer must retrieve again. Verify the provider account's spending limit separately.
+
 The demo is Vercel project `major-demo` in scope `ai-c64d`, with root directory `apps/frontend` and public URL https://major-demo-chi.vercel.app. It currently uses manual deployments; merging a GitHub PR does **not** publish the app. Verify the project before deploying, and keep local configuration, raw data and build artifacts out of the upload.
 
 1. Verify that every intended PR reached `main`. A stacked PR merged into another feature branch has not necessarily reached `main`, especially after a squash merge.
@@ -69,7 +76,7 @@ The demo is Vercel project `major-demo` in scope `ai-c64d`, with root directory 
    vercel deploy --project major-demo --scope ai-c64d --prod --skip-domain
    ```
 
-4. Verify the returned deployment: the seven approved Playful characters, Simple/Focus switching, the transfer onboarding path, answerable starter questions, their disappearance after the first message, course details/notes, and complete schedule/faculty results. Compare sampled answers with the configured source records. A successful build alone is insufficient.
+4. Verify the returned deployment: the seven approved Playful characters, Simple/Focus switching, transfer onboarding, answerable starter and follow-up questions, repeated completion changes, course details/notes, and complete schedule/faculty results. Check small phones and landscape, sheet-to-chat return, refresh and restored edits. Compare sampled answers with configured source records and check a small concurrent burst. A successful build alone is insufficient.
 5. Promote the tested deployment with `vercel promote <deployment-url> --scope ai-c64d`. Recheck the **public** URL in a fresh navigation and record the release commit, deployment URL, model, checks and previous deployment for rollback in the PR. Do not call a local or staged fix live before this check.
 
 Open choices are listed in [docs/DECISIONS.md](../../docs/DECISIONS.md). Future automatic Git deployments require a separately configured Vercel Git connection; this procedure does not enable one.

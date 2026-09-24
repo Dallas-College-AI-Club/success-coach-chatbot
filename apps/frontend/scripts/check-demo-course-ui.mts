@@ -247,6 +247,8 @@ test("schedule summaries count unassigned sections and keep page counts separate
     scope: "loaded_page",
     total: 17,
     by_modality: { online: 9, hybrid: 5, in_person: 2, unknown: 1 },
+    with_published_times: 0,
+    without_published_times: 17,
   });
   assert.equal(result.total_sections, 942);
   assert.equal(result.truncated, true);
@@ -1115,7 +1117,7 @@ test("the coach sheet prints selected section dates and times instead of catalog
       /Start date not listed|Meeting times not published/,
     );
     initial.courses = [course];
-    assert.match(
+    assert.doesNotMatch(
       renderToStaticMarkup(createElement(SummarySheet)),
       /No section selected/,
     );
@@ -1270,7 +1272,10 @@ test("faculty search reads source spans only — no generated summary is ever sc
   );
   // The recovered list supersedes the sample rather than adding to it, so a
   // backfilled CV never reports the same venue twice.
-  assert.match(source, /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/);
+  assert.match(
+    source,
+    /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/,
+  );
 });
 
 test("expertise rows render the surname-first label and keep the printed name in the CV card", () => {

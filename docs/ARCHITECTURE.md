@@ -21,7 +21,7 @@ Tool registry (apps/frontend/lib/tools/registry.ts)
   │  get_instructor · get_class_schedule · get_course_info
   │  get_program_requirements · search_knowledge
   ▼
-Neon PostgreSQL + pgvector — one table, knowledge_entry (apps/frontend/lib/schema.ts)
+Neon PostgreSQL + pgvector — knowledge_entry (apps/frontend/lib/schema.ts)
   ▲
   │  writes (batch, not at request time)
 Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
@@ -39,10 +39,25 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Tools:** `apps/frontend/lib/tools/registry.ts` is the executable capability list. Each tool
   reads `knowledge_entry` directly; catalog and schedule cards display retrieved fields, and
   explanatory prose is model-generated.
+- **Conversation and notes:** `conversation-store.ts` keeps chat, unfinished input and interruption
+  state in this tab's session storage, keyed to completed onboarding. Returning from the sheet or
+  refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits
+  in local storage. Neither is an official student record or cross-device account.
+- **Completion changes:** each user turn includes a validated checkbox snapshot. The server merges
+  changes chronologically with explicit student statements and forces fresh planning for remaining
+  course questions. Restored replies never overwrite newer checkbox edits.
+- **Public request bounds:** at most 4 MB, 160 messages and 8,000 characters per user message,
+  retaining the 2,000 output-token, 8-step and 60-second execution bounds. Atomic counters in
+  `chat_request_budget` limit each network to 120 requests/5 minutes, all networks to 300/5 minutes
+  and 1,000/day. Network identities are keyed hashes; counters expire. Production fails closed if
+  counters cannot be read. Provider spending limits remain independent.
+- **Tool evidence:** outputs carry an HMAC over the tool name, input and output. Replayed outputs
+  without a valid signature are omitted from model context. This guards tool facts against client
+  modification; it does not authenticate the whole conversation or verify student completion.
 
 ## Data
 
-- **Storage:** a single Neon Postgres table, `knowledge_entry`, holding both prose chunks (for
+- **Knowledge storage:** Neon Postgres table `knowledge_entry`, holding both prose chunks (for
   semantic search) and structured `facts` documents (for exact lookups), discriminated by
   `doc_type`. Full design and query catalog: [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md).
 - **Embeddings:** `Xenova/all-MiniLM-L6-v2`, 384 dimensions, computed locally with no embedding
@@ -53,7 +68,8 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   `apps/frontend/lib/embedding-contract.json`.
 - **Pipeline:** the Python pipeline in `apps/data` (uv, SQLAlchemy, psycopg 3) acquires, extracts,
   embeds and loads course, program-map, section, CV, resource and catalog data. It is a separate,
-  batch process — the frontend only reads. Full pipeline and runbook:
+  batch process — the frontend reads knowledge records and writes temporary request counters.
+  Full pipeline and runbook:
   [DATA_PIPELINE.md](DATA_PIPELINE.md), [../apps/data/REPRODUCE.md](../apps/data/REPRODUCE.md).
 
 ## Deployment

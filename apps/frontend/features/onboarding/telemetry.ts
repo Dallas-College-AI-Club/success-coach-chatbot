@@ -25,4 +25,7 @@ export type OnboardingEvent =
 export function emit(
   _event: OnboardingEvent,
   _detail?: Record<string, unknown>,
-): void {}
+): void {
+  void _event;
+  void _detail;
+}

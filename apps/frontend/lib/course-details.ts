@@ -358,7 +358,8 @@ export function scheduleResultForModel(output: unknown) {
     const sections = output.offerings.filter(isRecord);
     const byModality = new Map<string, number>();
     for (const section of sections) {
-      const modality = catalogText(section.modality)?.toLowerCase() ?? "unknown";
+      const modality =
+        catalogText(section.modality)?.toLowerCase() ?? "unknown";
       byModality.set(modality, (byModality.get(modality) ?? 0) + 1);
     }
     // Count rows, including unassigned instructors. Pagination never turns a
@@ -367,7 +368,16 @@ export function scheduleResultForModel(output: unknown) {
       scope: "loaded_page",
       total: sections.length,
       by_modality: Object.fromEntries(byModality),
+      with_published_times: sections.filter(
+        (section) => Array.isArray(section.meets) && section.meets.length > 0,
+      ).length,
+      without_published_times: sections.filter(
+        (section) =>
+          !Array.isArray(section.meets) || section.meets.length === 0,
+      ).length,
     };
+    result.timing_guidance =
+      "Sections without published times have UNKNOWN schedule fit. Report them separately; do not count them as unavailable, non-matching, evening, or asynchronous.";
   }
   return result;
 }

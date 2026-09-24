@@ -3,6 +3,31 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Townhall readiness and printable notes
+
+The maintainer approved audit tasks 1–5 and requested removal of two empty-schedule notices,
+phone-friendly sheets, preserved chat on return and a clickable Success Coaching address.
+
+- Persist chat in per-tab session storage and sheet edits in local storage. Closing the tab ends
+  its recoverable chat; this is not a server account or cross-device transcript feature.
+- Replace fixed chat-height subtraction with the available visual viewport. Compact landscape
+  keeps the conversation and composer visible while follow-up chips scroll horizontally.
+- Treat completed-course checkboxes as chronological student statements, including unchecks.
+  Refresh remaining-course planning after changes. This supersedes the September 22 routing gap.
+- Sign tool outputs and reject modified replayed evidence; bound request size and use shared Neon
+  request counters. The campus-network allowance is 120/5 minutes; global limits are 300/5 minutes
+  and 1,000/day. Apply `scripts/chat-request-budget.sql` before deploying to each configured database.
+  Provider-key spending limits are independent and must be checked in the provider account.
+- Upgrade Next.js to 16.3.6 and compatible locked dependencies to address the dependency audit.
+- Keep unknown meeting times distinct from non-matching times. Removing empty-state notices from
+  the printed sheet does not create missing section facts or establish enrollment eligibility.
+- Draft the PR and stage a tested deployment. Peer approval remains required for merging; moving
+  the public demo URL is a separate release action. Physical phone keyboards, Safari, native print
+  pagination and unbounded model variations require checks beyond the automated browser matrix.
+
+After the demo: assess authenticated result references, cross-tab data handling, automated source
+refresh, longer-lived sessions and stronger operational controls using actual usage evidence.
+
 ## 2026-09-22 — Guided planning conversation (demo week)
 
 - **Follow-up chips are deterministic.** After every reply the next three chips are chosen from that

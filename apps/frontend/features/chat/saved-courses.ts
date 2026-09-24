@@ -14,6 +14,10 @@ import {
   readCourseDetails,
 } from "@/lib/course-details";
 import { citationHref } from "@/lib/constants";
+import {
+  readCompletionOverrides,
+  type CompletionOverrides,
+} from "@/features/chat/completion-state";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -23,7 +27,8 @@ import { citationHref } from "@/lib/constants";
 //
 // PRIVACY: this persists to localStorage, and `questions` holds the student's
 // typed words or concise starter questions. On a shared machine others can read
-// them, so `clear()` exists and /summary offers it. Nothing is sent to a server.
+// them, so `clear()` exists and /summary offers it. Sheet edits stay local;
+// chat questions and completion choices are sent with chat requests.
 
 export interface SavedCourse {
   course_code: string;
@@ -91,7 +96,45 @@ function readSavedCourse(raw: unknown): SavedCourse | null {
   };
 }
 
+export interface SheetDraft {
+  name: string;
+  notes: string[];
+  edited: boolean;
+  toAsk: string[];
+  hiddenAnswers: string[];
+}
+
+const emptyDraft = (): SheetDraft => ({
+  name: "",
+  notes: [],
+  edited: false,
+  toAsk: [],
+  hiddenAnswers: [],
+});
+
+export function readSheetDraft(value: unknown): SheetDraft {
+  const draft = isRecord(value) ? value : {};
+  const strings = (v: unknown) =>
+    Array.isArray(v)
+      ? v
+          .filter((x): x is string => typeof x === "string")
+          .slice(0, 100)
+          .map((x) => x.slice(0, 8000))
+      : [];
+  return {
+    name: typeof draft.name === "string" ? draft.name.slice(0, 200) : "",
+    notes: strings(draft.notes),
+    edited: draft.edited === true,
+    toAsk: strings(draft.toAsk),
+    hiddenAnswers: strings(draft.hiddenAnswers),
+  };
+}
+
 interface SavedCoursesState {
+  completionOverrides: CompletionOverrides;
+  applyCompletionHistory: (history: unknown) => void;
+  draft: SheetDraft;
+  updateDraft: (patch: Partial<SheetDraft>) => void;
   courses: SavedCourse[];
   /** Typed questions or contextual starter labels, without model instructions. */
   questions: string[];
@@ -119,6 +162,27 @@ export const useSavedCourses = create<SavedCoursesState>()(
       courses: [],
       questions: [],
       taken: [],
+      completionOverrides: {},
+      applyCompletionHistory: (history) => {
+        if (!isRecord(history)) return;
+        const patch = Object.fromEntries(
+          Object.entries(history).flatMap(([code, record]) =>
+            isCourseCode(code) &&
+            isRecord(record) &&
+            ["completed", "not_completed"].includes(String(record.status))
+              ? [[code, record.status === "completed"]]
+              : [],
+          ),
+        );
+        const next = { ...get().completionOverrides, ...patch };
+        set({
+          completionOverrides: next,
+          taken: Object.keys(next).filter((code) => next[code]),
+        });
+      },
+      draft: emptyDraft(),
+      updateDraft: (patch) =>
+        set({ draft: readSheetDraft({ ...get().draft, ...patch }) }),
       toggle: (raw) => {
         const course = readSavedCourse(raw);
         if (!course) return;
@@ -151,12 +215,18 @@ export const useSavedCourses = create<SavedCoursesState>()(
             : [...current, next],
         });
       },
-      toggleTaken: (courseCode) =>
+      toggleTaken: (courseCode) => {
+        if (!isCourseCode(courseCode)) return;
         set({
+          completionOverrides: {
+            ...get().completionOverrides,
+            [courseCode]: !get().taken.includes(courseCode),
+          },
           taken: get().taken.includes(courseCode)
             ? get().taken.filter((c) => c !== courseCode)
             : [...get().taken, courseCode],
-        }),
+        });
+      },
       remove: (courseCode) =>
         set({
           courses: get().courses.filter((c) => c.course_code !== courseCode),
@@ -170,7 +240,13 @@ export const useSavedCourses = create<SavedCoursesState>()(
       removeQuestion: (index) =>
         set({ questions: get().questions.filter((_, i) => i !== index) }),
       clear: () => {
-        set({ courses: [], questions: [], taken: [] });
+        set({
+          courses: [],
+          questions: [],
+          taken: [],
+          completionOverrides: {},
+          draft: emptyDraft(),
+        });
         void useSavedCourses.persist?.clearStorage();
       },
     }),
@@ -203,6 +279,8 @@ export const useSavedCourses = create<SavedCoursesState>()(
         courses: s.courses,
         questions: s.questions,
         taken: s.taken,
+        draft: s.draft,
+        completionOverrides: s.completionOverrides,
       }),
       // Hydrate on the client after mount (see SummarySheet), never during the
       // server render — so the first client paint matches SSR and React never
@@ -212,7 +290,13 @@ export const useSavedCourses = create<SavedCoursesState>()(
       // same posture as the onboarding store's validated merge.
       merge: (persisted, current) => {
         const p = persisted as
-          | { courses?: unknown; questions?: unknown; taken?: unknown }
+          | {
+              courses?: unknown;
+              questions?: unknown;
+              taken?: unknown;
+              draft?: unknown;
+              completionOverrides?: unknown;
+            }
           | undefined;
         const courses = Array.isArray(p?.courses)
           ? p.courses.flatMap((raw) => {
@@ -225,6 +309,15 @@ export const useSavedCourses = create<SavedCoursesState>()(
           : [];
         return {
           ...current,
+          draft: readSheetDraft(p?.draft),
+          completionOverrides: readCompletionOverrides(
+            p?.completionOverrides ??
+              (Array.isArray(p?.taken)
+                ? Object.fromEntries(
+                    p.taken.filter(isCourseCode).map((code) => [code, true]),
+                  )
+                : {}),
+          ),
           courses: [
             ...new Map(
               courses.map((course) => [course.course_code, course]),

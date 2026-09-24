@@ -54,11 +54,6 @@ test("every scroll container in the chat is its own containing block", () => {
     );
 });
 
-test("the panel stays height-capped below the viewport", () => {
-  const panel = classLists().find((c) => c.includes("${skin.surface}"));
-  assert.ok(panel, "chat-screen.tsx no longer has the panel class list");
-  // Both the base and the md step subtract chrome from 100dvh and cap at 900px,
-  // so the panel is never taller than the window it sits in.
-  const caps = [...panel.matchAll(/h-\[min\(900px,calc\(100dvh_-_[\d.]+rem\)\)\]/g)];
-  assert.equal(caps.length, 2, `panel height cap changed shape: ${panel}`);
-});
+// Height behavior is verified in real browser viewport tests. The old assertion
+// required two fixed subtractions even though they left only 8px for replies on
+// a landscape phone. Checking that formula's presence certified the failure.

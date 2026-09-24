@@ -24,6 +24,11 @@ import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
 import {
+  hydrateConversation,
+  saveConversation,
+  useConversation,
+} from "@/features/chat/conversation-store";
+import {
   CourseResults,
   hasCourseResults,
   ScheduleResults,
@@ -300,12 +305,14 @@ function Conversation({
   starters,
   profile,
   interest,
+  sessionKey,
 }: {
   mode: Mode;
   seed: UIMessage[];
   starters: StarterQuestion[];
   profile: StudentProfile | null;
   interest: InterestArea | null;
+  sessionKey: string;
 }) {
   const { skin, copy } = mode;
   const languages = useSyncExternalStore(
@@ -314,21 +321,35 @@ function Conversation({
     serverLanguage,
   );
   const composer = composerCopy(languages.split(","), copy.composerPlaceholder);
+  const [restored] = useState(() => useConversation.getState().draft);
   const { messages, sendMessage, status, stop, error, regenerate } = useChat({
     transport,
-    messages: seed,
+    messages: restored?.messages.length ? restored.messages : seed,
     // useChat re-renders on every chunk; throttle the paint, not the stream.
     experimental_throttle: 50,
   });
 
-  const [input, setInput] = useState("");
-  const [askedLabels, setAskedLabels] = useState<string[]>([]);
+  const [input, setInput] = useState(restored?.input ?? "");
+  const [askedLabels, setAskedLabels] = useState<string[]>(
+    restored?.askedLabels ?? [],
+  );
+  const [cancelled, setCancelled] = useState(restored?.interrupted ?? false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
   const taken = useSavedCourses((s) => s.taken);
+  const completionOverrides = useSavedCourses((s) => s.completionOverrides);
+  useEffect(() => {
+    saveConversation({
+      key: sessionKey,
+      messages,
+      input,
+      askedLabels,
+      interrupted: busy || cancelled || !!error,
+    });
+  }, [sessionKey, messages, input, askedLabels, busy, cancelled, error]);
 
   // Chips for where the conversation actually is: the opening starters, then
   // the next step the latest settled reply's tool results can answer. Computed
@@ -339,6 +360,30 @@ function Conversation({
         .filter(isToolUIPart)
         .filter((part) => part.state === "output-available")
         .map((part) => ({ name: getToolName(part), output: part.output }));
+  // A restored answer predates any checkbox edits made after that answer.
+  // Apply history only from newly completed replies, never on navigation back.
+  const appliedHistory = useRef<string | null>(
+    restored?.messages.findLast((message) => message.role === "assistant")
+      ?.id ?? null,
+  );
+  useEffect(() => {
+    if (busy) return;
+    const reply = messages.findLast((m) => m.role === "assistant");
+    if (!reply || reply.id === appliedHistory.current) return;
+    appliedHistory.current = reply.id;
+    for (const part of reply.parts) {
+      if (
+        isToolUIPart(part) &&
+        part.state === "output-available" &&
+        isRecord(part.output) &&
+        isRecord(part.output.planning)
+      ) {
+        useSavedCourses
+          .getState()
+          .applyCompletionHistory(part.output.planning.history);
+      }
+    }
+  }, [messages, busy]);
   const suggestions = followUpsFor({
     program: profile?.major,
     interest,
@@ -350,6 +395,15 @@ function Conversation({
     tools: lastCoachTools,
     started: messages.some((message) => message.role === "user"),
     taken,
+    completionOverrides,
+    latestPlan: messages
+      .flatMap((message) => message.parts)
+      .filter(isToolUIPart)
+      .findLast(
+        (part) =>
+          getToolName(part) === "get_program_requirements" &&
+          part.state === "output-available",
+      )?.output,
     askedLabels,
   });
 
@@ -415,7 +469,9 @@ function Conversation({
   // once so a retry cannot silently drop it: the route puts it in the system
   // prompt, so it survives even if the seeded opening turn is ever trimmed
   // out of the history.
-  const requestOptions = profile ? { body: { profile } } : undefined;
+  const requestOptions = {
+    body: { profile: profile ?? undefined, completionOverrides },
+  };
 
   // Asking — or retrying — returns the reader to the end of the conversation
   // and re-arms the follow, whatever they were reading before.
@@ -430,11 +486,18 @@ function Conversation({
   const send = (text: string, note = text) => {
     const t = text.trim();
     if (!t || busy) return;
+    setCancelled(false);
     useSavedCourses.getState().addQuestion(note);
     // The chip's own words ride along as metadata for the bubble to show; the
     // model still gets `text`, the full prompt. Typed questions need none.
     sendMessage(
-      { text: t, ...(note === t ? {} : { metadata: { label: note } }) },
+      {
+        text: t,
+        metadata: {
+          ...(note === t ? {} : { label: note }),
+          completionOverrides,
+        },
+      },
       requestOptions,
     );
     setInput("");
@@ -457,14 +520,8 @@ function Conversation({
 
   return (
     <div
-      // Subtract the chrome above and below, so the composer always lands
-      // inside the viewport. At md that is p-8 twice + a one-row header + the
-      // gap = 122px, and 9.5rem holds. Below md the buttons wrap the header to
-      // 158px against p-4 — 202px of chrome, which pushed the composer 34px
-      // off a 390x844 phone; 13rem covers it. The 100dvh term is what lets a
-      // short window and a landscape phone fit at all, and the 900px ceiling
-      // only binds above ~1050px of height, where 720px left the panel short.
-      className={`${skin.surface} flex h-[min(900px,calc(100dvh_-_13rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4 md:h-[min(900px,calc(100dvh_-_9.5rem))]`}
+      // Flex uses the header's actual height rather than a fixed subtraction.
+      className={`${skin.surface} coach-chat-panel flex w-full min-w-0 flex-col gap-3 p-3 sm:p-4`}
     >
       <h1 ref={headingRef} tabIndex={-1} className="sr-only outline-none">
         Planning chat with Major
@@ -504,21 +561,24 @@ function Conversation({
             </CoachRow>
           )}
 
-          {(error || incomplete) && (
+          {(error || incomplete || cancelled) && (
             <div className="flex flex-col items-start gap-2">
               {/* Show the message only when it's one of our own mapped strings —
                   equality against the shared allowlist, never reflected text. */}
               <p className={skin.helper}>
-                {incomplete
-                  ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
-                  : error && SAFE_CHAT_ERRORS.has(error.message)
-                    ? error.message
-                    : GENERIC_CHAT_ERROR}
+                {cancelled
+                  ? "Response stopped. You can try again or ask another question."
+                  : incomplete
+                    ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
+                    : error && SAFE_CHAT_ERRORS.has(error.message)
+                      ? error.message
+                      : GENERIC_CHAT_ERROR}
               </p>
               <Button
                 variant="ghost"
                 className={skin.ghostBtn}
                 onClick={() => {
+                  setCancelled(false);
                   regenerate(requestOptions);
                   toBottom();
                 }}
@@ -534,7 +594,7 @@ function Conversation({
           chips are EMPTIED while a reply streams, so a half-finished turn
           never changes the set under a tapping hand; the row keeps its height
           so the composer does not hop as they come and go. */}
-      <div className="flex min-h-9 flex-wrap gap-1.5 px-1">
+      <div className="coach-followups flex min-h-9 flex-wrap gap-1.5 px-1">
         {!busy &&
           suggestions.map((q) => (
             <button
@@ -569,6 +629,7 @@ function Conversation({
           lang={composer.language}
           dir={input ? "auto" : composer.direction}
           autoComplete="off"
+          maxLength={8000}
           className="min-w-0 flex-1 bg-transparent py-1.5 text-base outline-none placeholder:opacity-55"
         />
         {busy ? (
@@ -576,7 +637,10 @@ function Conversation({
             type="button"
             variant="ghost"
             className={skin.ghostBtn}
-            onClick={() => stop()}
+            onClick={() => {
+              setCancelled(true);
+              stop();
+            }}
           >
             Stop
           </Button>
@@ -614,6 +678,29 @@ export function ChatScreen() {
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
   const session = useSavedSession();
+  const sessionKey = session?.payload.completedAt ?? "without-onboarding";
+  const readyFor = useConversation((s) => s.readyFor);
+  const pageRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (hydrated) void hydrateConversation(sessionKey);
+  }, [hydrated, sessionKey]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const visible = window.visualViewport;
+    const resize = () => {
+      const height = visible?.height ?? window.innerHeight;
+      page.style.setProperty("--chat-height", `${height}px`);
+      page.dataset.compact = String(height < 600);
+    };
+    resize();
+    visible?.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    return () => {
+      visible?.removeEventListener("resize", resize);
+      window.removeEventListener("resize", resize);
+    };
+  }, [readyFor]);
 
   // The saved look is derived from the store; `pickedId` only covers a switch
   // before any session exists (a cold visit that never onboarded).
@@ -623,7 +710,8 @@ export function ChatScreen() {
   // Arriving via <Link> from onboarding, the store is already hydrated in
   // memory, so this renders themed on the first committed frame. Only a cold
   // load of /chat shows the placeholder, and only for one frame.
-  if (!mode) return <main className={MODES[0].skin.page} />;
+  if (!mode || readyFor !== sessionKey)
+    return <main className={MODES[0].skin.page} />;
 
   const switchMode = (m: Mode) => {
     setPickedId(m.id);
@@ -637,12 +725,13 @@ export function ChatScreen() {
 
   return (
     <main
+      ref={pageRef}
       // overflow-CLIP, not hidden: clip is not a scroll container, so this box
       // has no scrollport to move and the chat cannot leave the viewport even
       // if something inside overflows again. `hidden` clips identically but
       // stays programmatically scrollable — with no scrollbar and no wheel to
       // bring it back, which is how the panel used to strand itself off-screen.
-      className={`relative overflow-clip ${mode.fontClass} ${mode.skin.page}`}
+      className={`coach-chat-page relative overflow-clip ${mode.fontClass} ${mode.skin.page}`}
     >
       {/* The mode's scene continues behind the chat. */}
       <ChatBackdrop modeId={mode.id} />
@@ -657,8 +746,8 @@ export function ChatScreen() {
           very class list. */}
       {/* z-10 so the roaming mascots (which carry their own z) pass behind the
           panel — visible in the gutters, softened under the blurred surface. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
-        <div className="flex w-full items-center justify-between gap-3">
+      <div className="coach-chat-shell relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
+        <div className="coach-chat-header flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AiClubLogo />
             <Link
@@ -670,13 +759,9 @@ export function ChatScreen() {
             </Link>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {/* New tab: a client navigation unmounts this screen, and the
-                transcript lives in the useChat instance — printing would
-                otherwise discard the conversation it is printing from. */}
+            {/* The tab's saved conversation survives this same-tab round trip. */}
             <Link
               href="/summary"
-              target="_blank"
-              rel="noopener"
               className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
             >
               🖨 Print for my coach
@@ -690,6 +775,8 @@ export function ChatScreen() {
             switching looks must repaint it, not reset it — the wizard's rule
             ("the answers survive because they live in the hook, not the shell"). */}
         <Conversation
+          key={sessionKey}
+          sessionKey={sessionKey}
           mode={mode}
           seed={seed}
           starters={starters}
