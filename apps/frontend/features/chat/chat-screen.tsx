@@ -11,7 +11,9 @@ import {
 import Link from "next/link";
 import {
   memo,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -33,8 +35,13 @@ import {
   hasCourseResults,
   ScheduleResults,
   InstructorResults,
+  type CourseScheduleAction,
 } from "@/features/chat/course-results";
-import { askedLabel, followUpsFor } from "@/features/chat/follow-ups";
+import {
+  askedLabel,
+  courseScheduleQuestion,
+  followUpsFor,
+} from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
 import {
   starterQuestionsFor,
@@ -126,10 +133,14 @@ const Turn = memo(function Turn({
   m,
   skin,
   question,
+  displayQuestion,
+  scheduleAction,
 }: {
   m: UIMessage;
   skin: Skin;
   question: string;
+  displayQuestion: string;
+  scheduleAction: CourseScheduleAction;
 }) {
   const isUser = m.role === "user";
   // What a chip-sent turn SAYS, as opposed to the instructions it carries.
@@ -266,13 +277,14 @@ const Turn = memo(function Turn({
                     output={part.output}
                     skin={skin}
                     semesters={requestedSemesters(question)}
+                    scheduleAction={scheduleAction}
                   />
                   <ScheduleResults
                     name={getToolName(part)}
                     output={part.output}
                     skin={skin}
                     showInstructors={/\b(?:who|professors?|instructors?)\b/i.test(
-                      question,
+                      displayQuestion,
                     )}
                   />
                   <InstructorResults
@@ -339,6 +351,40 @@ function Conversation({
   const stick = useRef(true);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
+  const sending = useRef(false);
+  const scheduleRequested = useRef<string | null>(null);
+  useEffect(() => {
+    if (busy) return;
+    sending.current = false;
+    const code = scheduleRequested.current;
+    if (!code) return;
+    scheduleRequested.current = null;
+    const reply = messages.at(-1);
+    if (
+      !reply?.parts.some(
+        (part) =>
+          isToolUIPart(part) &&
+          part.state === "output-available" &&
+          getToolName(part) === "get_class_schedule" &&
+          isRecord(part.output) &&
+          part.output.course_code === code,
+      )
+    )
+      return;
+    const sections = transcriptRef.current?.querySelectorAll<HTMLElement>(
+      'section[aria-label="Published class sections"]',
+    );
+    const result = Array.from(sections ?? []).findLast(
+      (section) => section.dataset.courseCode === code,
+    );
+    const pane = scrollRef.current;
+    if (!result || !pane) return;
+    // Start at the section heading, rather than the end of a long schedule.
+    stick.current = false;
+    pane.scrollTop +=
+      result.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+    result.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  }, [busy, messages]);
   const taken = useSavedCourses((s) => s.taken);
   const completionOverrides = useSavedCourses((s) => s.completionOverrides);
   useEffect(() => {
@@ -475,45 +521,71 @@ function Conversation({
 
   // Asking — or retrying — returns the reader to the end of the conversation
   // and re-arms the follow, whatever they were reading before.
-  const toBottom = () => {
+  const toBottom = useCallback(() => {
     stick.current = true;
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
-  };
+  }, []);
 
-  const send = (text: string, note = text) => {
-    const t = text.trim();
-    if (!t || busy) return;
-    setCancelled(false);
-    useSavedCourses.getState().addQuestion(note);
-    // The chip's own words ride along as metadata for the bubble to show; the
-    // model still gets `text`, the full prompt. Typed questions need none.
-    sendMessage(
-      {
-        text: t,
-        metadata: {
-          ...(note === t ? {} : { label: note }),
-          completionOverrides,
+  const send = useCallback(
+    (text: string, note = text, clearInput = true) => {
+      const t = text.trim();
+      if (!t || busy || sending.current) return;
+      sending.current = true;
+      setCancelled(false);
+      useSavedCourses.getState().addQuestion(note);
+      // The chip's own words ride along as metadata for the bubble to show; the
+      // model still gets `text`, the full prompt. Typed questions need none.
+      sendMessage(
+        {
+          text: t,
+          metadata: {
+            ...(note === t ? {} : { label: note }),
+            completionOverrides,
+          },
         },
+        { body: { profile: profile ?? undefined, completionOverrides } },
+      );
+      if (clearInput) setInput("");
+      toBottom();
+    },
+    [busy, completionOverrides, profile, sendMessage, toBottom],
+  );
+
+  const scheduleAction = useMemo<CourseScheduleAction>(
+    () => ({
+      busy,
+      onViewSchedule: (code) => {
+        if (busy || sending.current) return;
+        const question = courseScheduleQuestion(code);
+        scheduleRequested.current = code;
+        setAskedLabels((asked) => [...asked, question.label]);
+        send(question.prompt, question.note ?? question.label, false);
       },
-      requestOptions,
-    );
-    setInput("");
-    toBottom();
-  };
+    }),
+    [busy, send],
+  );
 
   let currentQuestion = "";
+  let currentDisplayQuestion = "";
   const turns: ReactNode[] = [];
   for (const message of messages) {
-    if (message.role === "user") currentQuestion = plainText(message);
+    if (message.role === "user") {
+      currentQuestion = plainText(message);
+      // Prompt instructions can mention instructors without the student asking
+      // for a roster. Keep schedule previews focused on the sections.
+      currentDisplayQuestion = askedLabel(message.metadata) ?? currentQuestion;
+    }
     turns.push(
       <Turn
         key={message.id}
         m={message}
         skin={skin}
         question={currentQuestion}
+        displayQuestion={currentDisplayQuestion}
+        scheduleAction={scheduleAction}
       />,
     );
   }
@@ -634,6 +706,7 @@ function Conversation({
         />
         {busy ? (
           <Button
+            key="stop"
             type="button"
             variant="ghost"
             className={skin.ghostBtn}
@@ -646,6 +719,7 @@ function Conversation({
           </Button>
         ) : (
           <Button
+            key="send"
             type="submit"
             className={skin.primaryBtn}
             disabled={!input.trim()}

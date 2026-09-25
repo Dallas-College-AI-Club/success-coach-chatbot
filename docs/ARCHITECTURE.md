@@ -39,6 +39,10 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Tools:** `apps/frontend/lib/tools/registry.ts` is the executable capability list. Each tool
   reads `knowledge_entry` directly; catalog and schedule cards display retrieved fields, and
   explanatory prose is model-generated.
+- **Schedule preview:** course cards send the shared schedule follow-up through the existing chat
+  route, without saving a course or clearing an unfinished question. Controls pause during a reply;
+  a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
+  and explicit section-save actions preserve the source's complete meetings.
 - **Conversation and notes:** `conversation-store.ts` keeps chat, unfinished input and interruption
   state in this tab's session storage, keyed to completed onboarding. Returning from the sheet or
   refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits

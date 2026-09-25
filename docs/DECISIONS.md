@@ -3,6 +3,20 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Preview a schedule before saving a class
+
+The maintainer approved a visible **View schedule** action on every course card and publishing
+the tested update to the demo. Reuse the existing schedule cards and day/time/campus/instructor
+grouping for tomorrow's presentation. The action preserves unfinished input, requests fresh
+section data and focuses the returned schedule. Viewing does not save a course or section;
+students explicitly choose **Add section to notes** to retain the actual section and its meetings.
+Empty saved results link to the official schedule. Broader filtering and a separate picker panel
+remain after-demo work; do not fabricate independent day/time combinations.
+The browser audit also exposed raw online day markers being described as daily availability.
+Unparsed meeting text stays visible in source details but is omitted from model-facing schedule
+results when no clock times were parsed. Instructor rosters expand only for the student's visible
+instructor question, not because hidden scheduling instructions mention instructors.
+
 ## 2026-09-24 — Townhall readiness and printable notes
 
 The maintainer approved audit tasks 1–5 and requested removal of two empty-schedule notices,

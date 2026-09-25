@@ -356,6 +356,14 @@ export function scheduleResultForModel(output: unknown) {
   delete result.instructor_profiles;
   if (Array.isArray(output.offerings)) {
     const sections = output.offerings.filter(isRecord);
+    // Unparsed INET day markers are not evidence of daily availability. Keep
+    // the source text in the UI, but do not invite the model to invent a schedule.
+    result.offerings = sections.map((section) => {
+      if (Array.isArray(section.meets) && section.meets.length) return section;
+      const withoutRawTimes = { ...section };
+      delete withoutRawTimes.meeting_info_raw;
+      return withoutRawTimes;
+    });
     const byModality = new Map<string, number>();
     for (const section of sections) {
       const modality =
@@ -377,7 +385,7 @@ export function scheduleResultForModel(output: unknown) {
       ).length,
     };
     result.timing_guidance =
-      "Sections without published times have UNKNOWN schedule fit. Report them separately; do not count them as unavailable, non-matching, evening, or asynchronous.";
+      "Sections without published times have UNKNOWN schedule fit and meeting days. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Unparsed source meeting text is displayed in the section cards, not evidence of a usable timetable.";
   }
   return result;
 }

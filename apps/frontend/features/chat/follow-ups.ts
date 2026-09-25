@@ -40,6 +40,15 @@ const MAX_CHIPS = 3;
 /** The faculty topics to offer when onboarding captured no interest area. */
 export const DEFAULT_TOPICS = ["teaching"];
 
+/** Shared by course-card actions and the single-course follow-up. */
+export function courseScheduleQuestion(courseCode: string): StarterQuestion {
+  return {
+    label: `When does ${courseCode} meet this Fall?`,
+    note: `When does ${courseCode} meet this Fall?`,
+    prompt: `Check the saved class schedule for this Fall for ${courseCode}. Use the schedule cards to show its sections with dates, days, times, instructors and sources. Reply with a brief summary, without repeating the section list. Missing meeting times are unknown; label the saved schedule date and do not claim live availability.`,
+  };
+}
+
 /** The student's own interest area decides which expertise the chip offers;
  *  INTEREST_GUIDE's topics are live-verified against the indexed CVs. */
 export function topicsFor(interest?: InterestArea | null): string[] {
@@ -346,11 +355,7 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
   const courseCode = course?.course_code;
   if (course?.found === true && isCourseCode(courseCode)) {
     return [
-      {
-        label: `When does ${courseCode} meet this Fall?`,
-        note: `When does ${courseCode} meet this Fall?`,
-        prompt: `Check the saved class schedule for this Fall for ${courseCode}. Use the schedule cards to show its sections with dates, days, times, instructors and sources. Reply with a brief summary, without repeating the section list. Missing meeting times are unknown; label the saved schedule date and do not claim live availability.`,
-      },
+      courseScheduleQuestion(courseCode),
       {
         label: `Who teaches ${courseCode}?`,
         prompt: `Who teaches ${courseCode} in the saved class schedule? Use the schedule cards to show every section with instructors, days, times and sources, and say which term each section comes from.`,

@@ -8,6 +8,7 @@ import {
 } from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
 import { composerCopy } from "../features/chat/seed";
+import { courseScheduleQuestion } from "../features/chat/follow-ups";
 
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -119,6 +120,115 @@ const profile: OnboardingPayload = {
   completedAt: "2026-09-20T00:00:00Z",
 };
 const skin = { link: "link", chip: "chip" } as Skin;
+
+test("course preview actions cover named courses, missing details and core choices without saving anything", () => {
+  const savedBefore = useSavedCourses.getState().courses;
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      scheduleAction: {
+        busy: false,
+        onViewSchedule: () =>
+          assert.fail("Rendering must not request a schedule"),
+      },
+      output: {
+        found: true,
+        name: "Test plan",
+        groups: [
+          {
+            name: "Semester 1",
+            courses: ["ITDA 3320", "MATH 1342", "General elective"],
+          },
+        ],
+        course_details: [
+          {
+            course_code: "ITDA 3320",
+            title: "Data Visualization Tools",
+            credit_hours: 3,
+          },
+        ],
+        component_areas: [
+          { code: "010", name: "Communication", courses: ["ENGL 1301"] },
+        ],
+      },
+    }),
+  );
+  for (const code of ["ITDA 3320", "MATH 1342", "ENGL 1301"])
+    assert.match(html, new RegExp(`View schedule for ${code}`));
+  assert.doesNotMatch(html, /View schedule for General elective/);
+  assert.equal(useSavedCourses.getState().courses, savedBefore);
+});
+
+test("single-course schedule action is disabled while another reply is running", () => {
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_course_info",
+      skin,
+      scheduleAction: {
+        busy: true,
+        onViewSchedule: () => assert.fail("No request while rendering"),
+      },
+      output: {
+        found: true,
+        course_code: "MATH 1342",
+        title: "Statistics",
+        credit_hours: 3,
+      },
+    }),
+  );
+  assert.match(html, /aria-label="View schedule for MATH 1342" disabled=""/);
+  assert.match(html, /Add MATH 1342 to my notes/);
+});
+
+test("each course schedule action forces a fresh lookup for only its selected course", () => {
+  for (const code of ["ITDA 3320", "MATH 1342", "ITSE 1303"]) {
+    const question = courseScheduleQuestion(code);
+    assert.equal(scheduleCourseForTurn(question.prompt), code);
+    assert.equal(
+      scheduleToolChoice(question.prompt, 0)?.toolName,
+      "get_class_schedule",
+    );
+    assert.match(question.prompt, /Missing meeting times are unknown/);
+  }
+});
+
+test("unparsed online meeting markers cannot become daily-availability evidence for the model", () => {
+  const raw = {
+    section_number: "1",
+    meets: [],
+    meeting_info_raw: "INET Online Lecture M T W R F S U",
+  };
+  const parsed = {
+    section_number: "2",
+    meets: ["Mon / Wed 09:00 AM–09:55 AM"],
+    meeting_info_raw: "MW 9 AM",
+  };
+  const compact = scheduleResultForModel({ offerings: [raw, parsed] }) as {
+    offerings: Record<string, unknown>[];
+  };
+  assert.equal(compact.offerings[0].meeting_info_raw, undefined);
+  assert.deepEqual(compact.offerings[1], parsed);
+  assert.equal(raw.meeting_info_raw, "INET Online Lecture M T W R F S U");
+});
+
+test("empty schedule previews offer an official lookup without inventing a section to save", () => {
+  const html = renderToStaticMarkup(
+    createElement(ScheduleResults, {
+      name: "get_class_schedule",
+      skin,
+      output: {
+        found: false,
+        course_code: "ITDA 3320",
+        offerings: [],
+        total_sections: 0,
+      },
+    }),
+  );
+  assert.match(html, /No sections found/);
+  assert.match(html, /https:\/\/schedule.dallascollege.edu\//);
+  assert.doesNotMatch(html, /Add section to notes/);
+});
 
 test("course-title teaching questions complete discovery without guessing from CVs or ambiguous courses", () => {
   const question = "who's teaching intro to mysql?";

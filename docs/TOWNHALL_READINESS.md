@@ -26,11 +26,26 @@ https://major-demo-chi.vercel.app; a draft PR or staged deployment does not chan
 
 ## Verification and evidence
 
+The subsequent schedule-preview update adds **View schedule** to course and program cards,
+including named courses without catalog detail rows. It requests fresh sections, preserves the
+unfinished question and focuses the result. Day/time/campus/instructor grouping and explicit
+section saving reuse the existing cards. The audit covered ITDA 3320 (2 Fall sections), MATH 1342
+(93), an absent course, stop/retry with a preserved draft, selecting a section, sheet refresh and
+return. Independent database reads confirmed the section counts and meeting fields; the current
+official MATH 1342 section 2 page confirmed Mon/Wed 10:25–11:45. Its current location text is more
+specific than the saved campus tag, so the source link remains the authority for current details.
+
+The audit corrected an expanded instructor roster obscuring the schedule, unsupported flexibility
+inferences from unparsed online meeting markers, and Stop reusing the Send button's DOM node and
+submitting a preserved draft. All 18 measured style/size combinations passed again; preview and
+section-save buttons provide at least 44-pixel targets. The focused four-request live suite passed
+after those fixes. This update adds five frontend regressions; the final PR records deployment checks.
+
 Local model: `openai/gpt-4.1-mini` through OpenRouter, temperature 0.2. Live source checks used
 the 2026–2027 catalog, program records scraped July 11, 2026, and Fall schedule evidence from
 August 12, 2026. Source records and original catalog/schedule pages were checked independently.
 
-- Frontend: lint, TypeScript, 168 business/UI regressions, 10 route-boundary checks, 12 course-code
+- Frontend: lint, TypeScript, 173 business/UI regressions, 10 route-boundary checks, 12 course-code
   normalization cases, 26 sheet-question cases and an optimized production build.
 - Data pipeline: 114 tests passed with Python 3.13. The first local attempt hit an inaccessible
   system temporary folder; rerunning with a fresh workspace test folder passed.

@@ -261,17 +261,47 @@ export function InstructorResults({
   );
 }
 
+export type CourseScheduleAction = {
+  onViewSchedule: (courseCode: string) => void;
+  busy: boolean;
+};
+
+function ViewScheduleButton({
+  courseCode,
+  skin,
+  action,
+}: {
+  courseCode: string;
+  skin: Skin;
+  action?: CourseScheduleAction;
+}) {
+  if (!action || !isCourseCode(courseCode)) return null;
+  return (
+    <button
+      type="button"
+      aria-label={`View schedule for ${courseCode}`}
+      disabled={action.busy}
+      className={`${skin.chip} min-h-11 shrink-0 cursor-pointer disabled:cursor-wait disabled:opacity-50`}
+      onClick={() => action.onViewSchedule(courseCode)}
+    >
+      View schedule
+    </button>
+  );
+}
+
 function CourseRow({
   course,
   skin,
   history = {},
   plan = false,
+  scheduleAction,
 }: {
   course: CourseDetails;
   skin: Skin;
   history?: CourseHistory;
   /** On a program-plan card the student can tick the course as taken. */
   plan?: boolean;
+  scheduleAction?: CourseScheduleAction;
 }) {
   const saved = useSavedCourses((s) =>
     s.courses.some((c) => c.course_code === course.course_code),
@@ -384,6 +414,11 @@ function CourseRow({
             I&apos;ve taken this
           </label>
         )}
+        <ViewScheduleButton
+          courseCode={course.course_code}
+          skin={skin}
+          action={scheduleAction}
+        />
         <button
           type="button"
           aria-pressed={saved}
@@ -414,11 +449,13 @@ export function CourseResults({
   output,
   skin,
   semesters = [],
+  scheduleAction,
 }: {
   name: string;
   output: unknown;
   skin: Skin;
   semesters?: number[];
+  scheduleAction?: CourseScheduleAction;
 }) {
   if (!hasCourseResults(name, output) || !isRecord(output)) return null;
   if (name === GET_COURSE_INFO_TOOL_NAME) {
@@ -429,6 +466,7 @@ export function CourseResults({
           course={course}
           skin={skin}
           history={readCourseHistory(output.course_history)}
+          scheduleAction={scheduleAction}
         />
       </ul>
     ) : null;
@@ -670,6 +708,7 @@ export function CourseResults({
                         course={course}
                         skin={skin}
                         history={history}
+                        scheduleAction={scheduleAction}
                         plan
                       />
                     ) : (
@@ -703,6 +742,11 @@ export function CourseResults({
                             ? "Course details are not available in this record. Check the linked program catalog."
                             : "A requirement to choose with your coach, not an individual course."}
                         </p>
+                        <ViewScheduleButton
+                          courseCode={code}
+                          skin={skin}
+                          action={scheduleAction}
+                        />
                       </li>
                     );
                   })}
@@ -762,11 +806,17 @@ export function CourseResults({
                       course={course}
                       skin={skin}
                       history={history}
+                      scheduleAction={scheduleAction}
                       plan
                     />
                   ) : (
                     <li key={code} className="py-2 text-sm">
                       {code} — course details unavailable.
+                      <ViewScheduleButton
+                        courseCode={code}
+                        skin={skin}
+                        action={scheduleAction}
+                      />
                     </li>
                   );
                 })}
@@ -877,7 +927,7 @@ export function ScheduleResults({
           {courseCode && saveable && (
             <button
               type="button"
-              className={`${skin.chip} text-xs`}
+              className={`${skin.chip} min-h-11 text-sm`}
               aria-pressed={!!saved}
               aria-label={`${saved ? "Remove" : "Add"} ${courseCode} section ${saveable.section_number ?? "unlisted"} (${saveable.term ?? "term not listed"}) ${saved ? "from" : "to"} my notes`}
               onClick={() =>
@@ -915,9 +965,10 @@ export function ScheduleResults({
   return (
     <section
       aria-label="Published class sections"
+      data-course-code={courseCode}
       className="w-full rounded-xl border border-current/20 p-4"
     >
-      <h2 className="text-lg font-bold">
+      <h2 tabIndex={-1} className="text-lg font-bold focus-visible:outline-2">
         {String(output.course_code)} — Class sections
       </h2>
       <p className="mt-1 text-sm">
@@ -973,9 +1024,17 @@ export function ScheduleResults({
         </details>
       )}
       {!sections.length && (
-        <p className="mt-2 text-sm">
-          No sections found for this request in the saved records.
-        </p>
+        <div className="mt-2 space-y-2 text-sm">
+          <p>No sections found for this request in the saved records.</p>
+          <a
+            href="https://schedule.dallascollege.edu/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={skin.link}
+          >
+            Browse the official class schedule ↗
+          </a>
+        </div>
       )}
       {sections.length > 0 && (
         <div className="mt-3">
