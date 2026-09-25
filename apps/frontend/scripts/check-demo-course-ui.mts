@@ -47,6 +47,7 @@ import {
   programGroupRules,
 } from "../lib/course-details";
 import { INPUT_SCHEMA } from "../lib/tools/getProgramRequirements";
+import { resolveElectiveOptions, readElectiveOptions } from "../lib/elective-options";
 import {
   scheduleCourseForTurn,
   scheduleToolChoice,
@@ -631,7 +632,7 @@ test("first-semester display excludes other semesters, even from an older full-p
   assert.match(missing, /not identified in this catalog record/);
 });
 
-test("long elective rules are available behind a closed disclosure, with credits still visible", () => {
+test("unresolved electives link to the catalog instead of an empty Show more button", () => {
   const rule =
     "Any 3-credit ITSE/INEW course may be used. Suggested courses and pairings: " +
     "ITSE 2370 and ITSE 2317. ".repeat(12);
@@ -641,6 +642,7 @@ test("long elective rules are available behind a closed disclosure, with credits
       name: "get_program_requirements",
       output: {
         found: true,
+        source_url: "https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3381",
         groups: [
           {
             name: "Semester 3",
@@ -653,10 +655,8 @@ test("long elective rules are available behind a closed disclosure, with credits
     }),
   );
   assert.match(html, /15 total credits/);
-  assert.match(
-    html,
-    /<details[^>]*><summary[^>]*>Elective - ITSE\/INEW Course.*Show more.*<\/summary>/,
-  );
+  assert.match(html, /View catalog options/);
+  assert.doesNotMatch(html, /Show more/);
   assert.ok(html.includes(rule.trim()));
   assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
 });
@@ -694,12 +694,143 @@ test("BAT history remains required while capstone notes stay outside its electiv
   );
   assert.match(html, /HIST 1301/);
   assert.match(html, /American History \(3 Credit Hours\)/);
-  const details = html.match(
-    /<details><summary[^>]*>Elective - American History[\s\S]*?<\/details>/,
-  )?.[0];
-  assert.ok(details?.includes(history));
-  assert.ok(!details?.includes("capstone"));
-  assert.match(html, /A required core elective/);
+  assert.ok(html.includes(history));
+  assert.doesNotMatch(html, /Show more/);
+});
+
+test("named core electives resolve actual choices, preserve exclusions and exclude requirements from other semesters", () => {
+  const science = "Elective - Life and Physical Sciences (4 Credit Hours)";
+  const history = "Elective - American History (3 Credit Hours)";
+  const group = {
+    courses: [science, history],
+    rule: "Life and Physical Science Elective: Must be selected from the Core Curriculum Life and Physical Science Foundational Component Area. American History Elective: Must be selected from the Core Curriculum American History Foundational Component Area.",
+  };
+  const core = {
+    source_url: "https://catalog.dallascollege.edu/core",
+    groups: [
+      {
+        name: "Life and Physical Sciences (CB030)",
+        courses: ["BIOL 1406", "BIOL 1408"],
+        rule: "Do not combine BIOL 1406 and BIOL 1408.",
+      },
+      { name: "American History (CB060)", courses: ["HIST 1301", "HIST 1302"] },
+    ],
+  };
+  const options = resolveElectiveOptions(
+    group,
+    [{ slot_kind: "fixed", courses: ["HIST 1301"] }, group],
+    "https://catalog.dallascollege.edu/program",
+    core,
+  );
+  assert.deepEqual(options[science].courses, ["BIOL 1406", "BIOL 1408"]);
+  assert.match(options[science].rule, /Do not combine/);
+  assert.deepEqual(options[history].courses, ["HIST 1302"]);
+  assert.deepEqual(options[history].excluded_required, ["HIST 1301"]);
+  assert.equal(options[science].source_url, core.source_url);
+  assert.deepEqual(resolveElectiveOptions(group, [], "source"), {});
+});
+
+test("technical suggestions and speech lists stay scoped to the matching elective", () => {
+  const tech = "Elective - ITNW Course (3 Credit Hours)";
+  const speech = "Elective - Speech Elective (3 Credit Hours)";
+  const group = {
+    courses: [tech, speech],
+    rule: "ITNW Elective: Any 3-credit hour ITNW course may be used. Suggested course: ITNW 1325 - Fundamentals of Networking Technologies (3 Credit Hours). Speech Elective: Must be selected from the following: SPCH 1311 - Introduction to Speech Communication (3 Credit Hours) SPCH 1315 - Public Speaking (3 Credit Hours)",
+  };
+  const options = resolveElectiveOptions(group, [], "source");
+  assert.deepEqual(options[tech].courses, ["ITNW 1325"]);
+  assert.equal(options[tech].examples, true);
+  assert.deepEqual(options[speech].courses, ["SPCH 1311", "SPCH 1315"]);
+  assert.equal(options[speech].examples, false);
+  assert.deepEqual(
+    resolveElectiveOptions(
+      { courses: [tech], rule: "ITNW Elective: Do not take ITNW 1325." },
+      [],
+      "source",
+    ),
+    {},
+  );
+});
+
+test("AAS humanities examples do not import composition and speech requirements", () => {
+  const entry = "Elective - Humanities/Fine Arts (3 Credit Hours)";
+  const options = resolveElectiveOptions(
+    {
+      courses: [entry],
+      rule: "Humanities/Fine Arts Elective: Must be selected from the AAS Core Options for Humanities/Fine Arts.",
+    },
+    [],
+    "program",
+    undefined,
+    {
+      source_url: "https://catalog.dallascollege.edu/aas",
+      groups: [
+        {
+          name: "Humanities/Fine Arts General Education Required Courses (9 Credit Hours)",
+          rule: "Select the following: ENGL 1301 AND Select ONE 3-credit Hour Course from the following: ENGL 1302 SPCH 1311 AND Select ONE 3-credit Hour Course from the following: ARCH 1311 DANC 2303 ARTS XXXX",
+        },
+      ],
+    },
+  );
+  assert.deepEqual(options[entry].courses, ["ARCH 1311", "DANC 2303"]);
+  assert.equal(options[entry].examples, true);
+  assert.equal(
+    options[entry].source_url,
+    "https://catalog.dallascollege.edu/aas",
+  );
+});
+
+test("resolved elective cards show real titles and schedule buttons with a bounded searchable list", () => {
+  const entry = "Elective - Language, Philosophy and Culture (3 Credit Hours)";
+  const codes = [
+    "COMM 2300",
+    "ENGL 2321",
+    "ENGL 2322",
+    "ENGL 2323",
+    "HUMA 1302",
+    "PHIL 1301",
+    "SPAN 2311",
+  ];
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      scheduleAction: { busy: false, onViewSchedule() {} },
+      output: {
+        found: true,
+        groups: [
+          {
+            courses: [entry],
+            elective_options: {
+              [entry]: {
+                courses: codes,
+                rule: "Choose one course.",
+                source_url: "https://catalog.dallascollege.edu/core",
+              },
+            },
+          },
+        ],
+        course_details: codes.map((code) => ({
+          ...course,
+          course_code: code,
+          title: "Verified title",
+        })),
+      },
+    }),
+  );
+  assert.match(html, /View course options \(7\)/);
+  assert.match(html, /Find a course in this elective/);
+  assert.match(html, /Verified title/);
+  assert.equal((html.match(/aria-label="View schedule for/g) ?? []).length, 5);
+  assert.match(html, /Show all 7 courses/);
+  assert.match(html, /Catalog selection rules/);
+  assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
+  assert.equal(readElectiveOptions(null), null);
+  assert.deepEqual(
+    readElectiveOptions({ courses: ["XXXX", "PHIL 1301", "PHIL 1301"] })
+      ?.courses,
+    ["PHIL 1301"],
+  );
 });
 
 test("a semester's different elective rules are matched only to their own rows", () => {

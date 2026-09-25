@@ -46,6 +46,13 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   route, without saving a course or clearing an unfinished question. Controls pause during a reply;
   a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
   and explicit section-save actions preserve the source's complete meetings.
+- **Elective choices:** `get_program_requirements` resolves named core references against the
+  same-edition CORE-42 map and explicit AAS references against its separate map. The pure resolver
+  in `lib/elective-options.ts` attaches course alternatives to each matching requirement, preserves
+  selection rules and excludes courses already assigned elsewhere in the full plan. Technical
+  suggestions and AAS examples remain labeled partial lists; unresolved requirements link to the
+  catalog. Searchable, initially bounded elective panels reuse normal course and schedule controls.
+  These lists do not turn alternatives into required courses or allocate elective credit automatically.
 - **Reply presentation:** successful routine schedule and course-plan lookups show their cards
   without a duplicate prose recap. `reply-presentation.ts` conservatively recognizes lookup-only
   wording in the student's displayed question; advice, filters, mixed requests, failed results

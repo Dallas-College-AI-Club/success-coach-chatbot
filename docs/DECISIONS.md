@@ -3,6 +3,22 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-25 — Make elective controls reveal real courses
+
+The maintainer reported that elective disclosures only repeated requirement text and broke into
+single-word fragments on phones. Resolve explicitly named core areas and source-listed technical
+choices into actual course rows with View schedule. Use the same catalog edition, preserve science
+exclusions and technical pairings, and exclude fixed requirements across the entire plan even when
+only one semester is requested. AAS humanities examples must come from its final choose-one block,
+not the composition/speech requirements on the same source page. Do not infer courses behind AAS
+XXXX placeholders; label the directly verified examples as partial and link to the full source.
+
+Keep complete named-core lists searchable and show five rows initially. Titles with unavailable
+course records remain course codes, with schedule lookup still available. Remove the generic
+elective Show more control; put View course options on its own line, and link unresolved entries
+directly to the catalog. Routine elective lookup recaps are redundant with these cards; advice and
+mixed requests retain their answer. Saving still happens only on an actual section card.
+
 ## 2026-09-24 — Final student-perspective conversation audit
 
 The maintainer requested another comprehensive audit and authorized fixes, commit and deployment.

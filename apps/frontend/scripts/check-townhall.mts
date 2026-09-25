@@ -104,6 +104,7 @@ test("routine schedule and program lookups use the complete cards without a seco
     "Show the full Python Developer Certificate course plan.",
     "Which courses are in semester 1 of Python Developer Certificate?",
     "Which classes would I start with?",
+    "Show semester 1 of Python Developer Certificate, including actual elective choices.",
   ]) {
     assert.equal(
       cardOnlyReply(reply("get_program_requirements", plan), question),
@@ -133,6 +134,7 @@ test("schedule fit, filters, prerequisites, recommendations and mixed questions 
     "Compare Python Developer Certificate and another program.",
     "What courses remain after my updated course history?",
     "What would I study in Python Developer Certificate?",
+    "Which elective should I choose for my job?",
   ]) {
     assert.equal(
       cardOnlyReply(reply("get_program_requirements", plan), question),

@@ -4,6 +4,47 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Actual elective choices (September 25)
+
+The phone screenshot reproduced a real gap: BAT names core areas in prose instead of using CB
+codes, so its elective disclosures never received actual course lists. The new resolver fills all
+11 distinct elective/group combinations in the BAT map, including 38 science choices, 67
+language/culture choices and four history alternatives. HIST 1301 remains a separate requirement;
+it is not offered again for semester 8. Technical suggestions and directly listed AAS examples
+are explicitly partial lists. No courses are invented for AAS XXXX placeholders.
+
+Panels now show actual course rows with View schedule, search by code/title (including codes
+without spaces), five initial rows, and Show all/Show fewer. The label occupies its own line on
+phones. Courses reported completed/in progress are excluded. Selection rules, prohibited science
+combinations and source links remain available. Unresolved/older results link to the program
+catalog instead of offering an empty Show more action. A new program lookup is needed to enrich
+an old persisted result; existing conversations and saved notes are retained.
+
+Validation: **249 frontend cases** (199 business/UI, 12 request-boundary, 12 normalization,
+26 sheet-question checks), warning-free lint, types, production build and 52-file embedding trace
+passed. **114 Python tests** passed; production dependency scan found **0 vulnerabilities**.
+Five local real-model conversation scenarios passed for semester 6, its PHIL 1301 schedule,
+semester 8, technical/speech electives and AAS electives. Model remains OpenRouter
+`openai/gpt-4.1-mini`, temperature 0.2. Staged/public release results are recorded in the PR.
+
+Independent database reads verified the full/scoped BAT output against the BAT and AAS records
+saved July 11 and core record saved July 15, 2026. The three original 2026–2027 catalog pages
+(poid 3381, 3040, 3388) were also checked in the browser. PHIL 1301's 53 Fall sections and the
+saved section's Monday/Wednesday 5:00–6:20 PM meeting agree with the August 12 source snapshot.
+Three core choices lack detailed course records (ENGL 2328, FREN 1411, SGNL 1301); they retain
+verified codes and schedule actions without fabricated descriptions.
+
+Browser checks covered **18 layouts**: Simple, Playful and Focus at 320×568, 390×844, 667×375,
+844×390, 768×1024 and 1280×720. No horizontal page/transcript overflow; the conversation retained
+at least 183px at the tested landscape sizes. Search inputs use 16px text. Real flows checked
+search/no match/clear, all 67 options and collapse, code search without spaces, schedule preview,
+save to sheet, refresh/return, and completed-course removal. No browser warnings/errors observed.
+The first source probe expected ten combinations but the verified map has eleven; the corrected
+probe passed. Missing detail records are handled as unavailable rather than synthesized. The
+browser fill helper did not clear an empty string; actual select-all/backspace restored the list.
+An immediate post-navigation count preceded hydration; waiting for rendered controls confirmed
+saved-section persistence. Broader physical-device and provider-cap limits below still apply.
+
 ## Final student-perspective audit (September 24)
 
 Latest main was fetched again (`3178007`) and is already incorporated. This pass reproduced and fixed:

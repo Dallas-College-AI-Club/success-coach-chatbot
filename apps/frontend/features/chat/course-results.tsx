@@ -15,6 +15,10 @@ import {
 import { citationHref } from "@/lib/constants";
 import { assessRequisites, type CourseHistory } from "@/lib/planning";
 import {
+  readElectiveOptions,
+  type ElectiveOptions,
+} from "@/lib/elective-options";
+import {
   catalogText,
   groupScheduleSections,
   isCourseCode,
@@ -422,6 +426,144 @@ function CourseRow({
   );
 }
 
+function ElectiveChoices({
+  entry,
+  options,
+  courses,
+  history,
+  skin,
+  scheduleAction,
+}: {
+  entry: string;
+  options: ElectiveOptions;
+  courses: Map<string, CourseDetails>;
+  history: CourseHistory;
+  skin: Skin;
+  scheduleAction?: CourseScheduleAction;
+}) {
+  const id = useId();
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const available = options.courses.filter(
+    (code) => !["completed", "in_progress"].includes(history[code]?.status),
+  );
+  const search = query.trim().toLowerCase();
+  const matches = available.filter(
+    (code) =>
+      `${code} ${courses.get(code)?.title ?? ""}`
+        .toLowerCase()
+        .includes(search) ||
+      code.replace(/\s/g, "").toLowerCase().includes(search.replace(/\s/g, "")),
+  );
+  const visible = showAll || search ? matches : matches.slice(0, 5);
+  const href = citationHref(options.source_url);
+  return (
+    <details className="min-w-0">
+      <summary className="cursor-pointer rounded py-1 focus-visible:outline-2 focus-visible:outline-offset-4">
+        <span className="block leading-snug">{entry}</span>
+        <span className={`${skin.link} mt-2 inline-block min-h-8 text-sm`}>
+          View course options ({available.length})
+        </span>
+      </summary>
+      <div className="mt-2 space-y-3 text-sm">
+        {options.examples && (
+          <p>
+            Catalog-listed examples. More options may be available in the
+            catalog.
+          </p>
+        )}
+        {options.excluded_required.length > 0 && (
+          <p>
+            {options.excluded_required.join(", ")} already appears elsewhere in
+            your plan and is not repeated here.
+          </p>
+        )}
+        {options.courses.length > available.length && (
+          <p>
+            Courses you reported completed or in progress are hidden from these
+            choices.
+          </p>
+        )}
+        {available.length > 5 && (
+          <div>
+            <label htmlFor={id} className="mb-1 block">
+              Find a course in this elective
+            </label>
+            <input
+              id={id}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Course code or title"
+              className="min-h-11 w-full min-w-0 rounded-lg border border-current/30 bg-transparent px-3 text-base"
+            />
+          </div>
+        )}
+        {!matches.length && (
+          <p>
+            {search
+              ? "No course matches this search. Try another code or title."
+              : "No additional courses to show for this choice."}
+          </p>
+        )}
+        <ul className="list-none">
+          {visible.map((code) => {
+            const course = courses.get(code);
+            return course ? (
+              <CourseRow
+                key={code}
+                course={course}
+                skin={skin}
+                history={history}
+                scheduleAction={scheduleAction}
+                plan
+              />
+            ) : (
+              <li key={code} className="border-b border-current/15 py-3">
+                <p className="mb-2 font-semibold">{code}</p>
+                <ViewScheduleButton
+                  courseCode={code}
+                  skin={skin}
+                  action={scheduleAction}
+                />
+              </li>
+            );
+          })}
+        </ul>
+        {!search && matches.length > 5 && (
+          <button
+            type="button"
+            className={`${skin.link} min-h-11 cursor-pointer`}
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll
+              ? "Show fewer courses"
+              : `Show all ${matches.length} courses`}
+          </button>
+        )}
+        {options.rule && (
+          <details>
+            <summary className={`${skin.link} cursor-pointer py-2`}>
+              Catalog selection rules
+            </summary>
+            <p className="mt-2 whitespace-pre-line">{options.rule}</p>
+          </details>
+        )}
+        {href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${skin.link} inline-block min-h-11 py-2`}
+          >
+            Full elective list in catalog ↗
+          </a>
+        )}
+      </div>
+    </details>
+  );
+}
+
 export function hasCourseResults(name: string, output: unknown): boolean {
   if (!isRecord(output) || output.found !== true || output.ambiguous === true)
     return false;
@@ -711,6 +853,11 @@ export function CourseResults({
                   .filter((code) => !alreadyReported(code))
                   .map((code, entryIndex) => {
                     const course = courses.get(code);
+                    const options = readElectiveOptions(
+                      isRecord(g.elective_options)
+                        ? g.elective_options[code]
+                        : null,
+                    );
                     return course ? (
                       <CourseRow
                         key={code}
@@ -725,17 +872,15 @@ export function CourseResults({
                         key={`${entryIndex}-${code}`}
                         className="border-b border-current/15 py-3 last:border-0"
                       >
-                        {/\belective\b/i.test(code) ? (
-                          <details>
-                            <summary className={`${skin.link} cursor-pointer`}>
-                              {code}{" "}
-                              <span className="ml-2 text-sm">Show more</span>
-                            </summary>
-                            <p className="mt-2 text-sm whitespace-pre-line">
-                              {rules.electives[code] ??
-                                "Choose a course that satisfies this elective with your Success Coach. Check the linked program catalog for the allowed options."}
-                            </p>
-                          </details>
+                        {options ? (
+                          <ElectiveChoices
+                            entry={code}
+                            options={options}
+                            courses={courses}
+                            history={history}
+                            skin={skin}
+                            scheduleAction={scheduleAction}
+                          />
                         ) : (
                           <>
                             <p>
@@ -744,17 +889,30 @@ export function CourseResults({
                                 ? ` — ${titles[code]}`
                                 : ""}
                             </p>
+                            {rules.electives[code] && (
+                              <p className="mt-2 text-sm whitespace-pre-line">
+                                {rules.electives[code]}
+                              </p>
+                            )}
+                            {!isCourseCode(code) &&
+                              citationHref(output.source_url) && (
+                                <a
+                                  href={citationHref(output.source_url)!}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`${skin.link} mt-2 inline-block min-h-11 py-2 text-sm`}
+                                >
+                                  View catalog options ↗
+                                </a>
+                              )}
                           </>
                         )}
-                        <p className="text-sm opacity-75">
-                          {isCourseCode(code)
-                            ? "Course details are not available in this record. Check the linked program catalog."
-                            : /Core Curriculum/i.test(
-                                  rules.electives[code] ?? "",
-                                )
-                              ? "A required core elective. Choose from the approved catalog options."
-                              : "A requirement to choose with your coach, not an individual course."}
-                        </p>
+                        {isCourseCode(code) && (
+                          <p className="text-sm opacity-75">
+                            Course details are not available in this record.
+                            Check the linked program catalog.
+                          </p>
+                        )}
                         <ViewScheduleButton
                           courseCode={code}
                           skin={skin}

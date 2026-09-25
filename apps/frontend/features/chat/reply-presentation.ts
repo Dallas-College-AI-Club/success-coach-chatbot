@@ -15,7 +15,7 @@ const LOOKUP_WORDS = {
     ),
   ),
   plan: new Set(
-    "please show list view display find look up check me the a an full entire complete published course courses class classes plan plans checklist requirements curriculum map for of in my this that program degree certificate all every what which are is do i need required semester semesters first second third fourth fifth sixth seventh eighth only starting start with would and".split(
+    "please show list view display find look up check me the a an full entire complete published actual course courses class classes elective electives choice choices option options including plan plans checklist requirements curriculum map for of in my this that program degree certificate all every what which are is do i need required semester semesters first second third fourth fifth sixth seventh eighth only starting start with would and".split(
       " ",
     ),
   ),
@@ -99,7 +99,7 @@ export function cardOnlyReply(
   const topic =
     kind === "schedule"
       ? /\b(?:schedule|sections?|when|meet|meets|meetings?|days|dates|times)\b/
-      : /\b(?:plan|checklist|requirements|curriculum|courses?|classes|semester|start)\b/;
+      : /\b(?:plan|checklist|requirements|curriculum|courses?|classes|electives?|semester|start)\b/;
   return topic.test(remainder) &&
     tokens.every((token) => LOOKUP_WORDS[kind].has(token))
     ? kind
