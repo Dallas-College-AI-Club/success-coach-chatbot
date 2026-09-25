@@ -24,6 +24,23 @@ https://major-demo-chi.vercel.app; a draft PR or staged deployment does not chan
 - Updated Next.js to 16.3.6 and compatible locked dependencies. Added bounded request parsing,
   shared expiring request counters and signatures that reject modified tool-result replay.
 
+## Clear chat follow-up (September 24)
+
+Added a visible Clear chat action beside Show suggestions. The confirmation defaults to Cancel,
+works with Escape and keeps saved classes/sections, completion selections, onboarding choices
+and sheet notes. Confirming aborts an active response and remounts a fresh conversation; old
+messages, unfinished input and suggestion history are removed only from this browser tab.
+
+Verification: 227 frontend checks (178 business/UI, 11 route, 12 normalization, 26 sheet), lint,
+types, production build and embedding trace passed; 114 Python tests passed. A regression checks
+that pending storage hydration cannot resurrect cleared messages. Browser checks passed 36
+combinations: all three styles at 320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720,
+with suggestions open/closed. No page overflow, visible composer, 44-pixel Clear chat target and
+at least 168 pixels of conversation. Checked Cancel, Escape, default focus, confirmation at
+320px, clearing while a request was pending, a successful next reply, clearing a completed
+answer, refresh and sheet return. Existing MATH 1342 and ITSE 1370 sections, name and note stayed.
+Physical-device and production spending-cap limitations below still apply.
+
 ## Verification and evidence
 
 The subsequent schedule-preview update adds **View schedule** to course and program cards,

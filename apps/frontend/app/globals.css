@@ -667,6 +667,10 @@
   align-items: center;
   gap: 4px;
 }
+.coach-chat-page[data-compact="true"] .coach-clear-chat {
+  order: 1;
+  margin-left: auto;
+}
 .coach-chat-page[data-compact="true"] .coach-followups button {
   flex-shrink: 0;
   white-space: nowrap;

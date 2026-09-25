@@ -55,6 +55,8 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   state in this tab's session storage, keyed to completed onboarding. Returning from the sheet or
   refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits
   in local storage. Neither is an official student record or cross-device account.
+  Clear chat confirms before removing this tab's messages and draft, aborts any active response
+  and remounts the conversation. It preserves onboarding, saved classes and sheet notes.
 - **Completion changes:** each user turn includes a validated checkbox snapshot. The server merges
   changes chronologically with explicit student statements and forces fresh planning for remaining
   course questions. Restored replies never overwrite newer checkbox edits.

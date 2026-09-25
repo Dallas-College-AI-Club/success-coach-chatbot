@@ -3,6 +3,14 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Clear chat without losing saved planning notes
+
+The maintainer requested a visible Clear chat option. Place it beside the suggestions toggle
+without consuming another phone row. Confirm before clearing this tab's messages, unfinished
+question and suggestion history. Abort any active response and start with the profile's opening
+message; preserve onboarding choices, completion selections, saved sections and sheet edits.
+Reloading or returning from the sheet must not resurrect the cleared conversation.
+
 ## 2026-09-24 — One course action before choosing a section
 
 The maintainer requested removal of the course-level **Add to notes / Added to notes** control.

@@ -88,9 +88,11 @@ export function saveConversation(draft: ConversationDraft): void {
   }
 }
 
-export function clearConversation(): void {
+// A mounted chat can stay ready while its Conversation component is remounted.
+// Other callers leave it unhydrated so the next visit reads fresh storage.
+export function clearConversation(readyFor: string | null = null): void {
   ++hydration;
-  useConversation.setState({ draft: null, readyFor: null });
+  useConversation.setState({ draft: null, readyFor });
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {

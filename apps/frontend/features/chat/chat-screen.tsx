@@ -9,6 +9,7 @@ import {
   type UIMessage,
 } from "ai";
 import Link from "next/link";
+import { AlertDialog } from "radix-ui";
 import {
   memo,
   useCallback,
@@ -27,6 +28,7 @@ import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
 import {
+  clearConversation,
   hydrateConversation,
   saveConversation,
   useConversation,
@@ -294,6 +296,7 @@ function Conversation({
   profile,
   interest,
   sessionKey,
+  onClear,
 }: {
   mode: Mode;
   seed: UIMessage[];
@@ -301,6 +304,7 @@ function Conversation({
   profile: StudentProfile | null;
   interest: InterestArea | null;
   sessionKey: string;
+  onClear: () => void;
 }) {
   const { skin, copy } = mode;
   const languages = useSyncExternalStore(
@@ -330,6 +334,7 @@ function Conversation({
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
   const sending = useRef(false);
+  const resetting = useRef(false);
   const scheduleRequested = useRef<string | null>(null);
   useEffect(() => {
     if (busy) return;
@@ -366,6 +371,7 @@ function Conversation({
   const taken = useSavedCourses((s) => s.taken);
   const completionOverrides = useSavedCourses((s) => s.completionOverrides);
   useEffect(() => {
+    if (resetting.current) return;
     saveConversation({
       key: sessionKey,
       messages,
@@ -391,7 +397,7 @@ function Conversation({
       ?.id ?? null,
   );
   useEffect(() => {
-    if (busy) return;
+    if (busy || resetting.current) return;
     const reply = messages.findLast((m) => m.role === "assistant");
     if (!reply || reply.id === appliedHistory.current) return;
     appliedHistory.current = reply.id;
@@ -653,23 +659,67 @@ function Conversation({
 
       {/* Keep the conversation roomy until the student asks for suggestions.
           Sending closes the drawer; streamed replies never reopen it. */}
-      <div className="coach-suggestions min-w-0 shrink-0">
+      <div className="coach-suggestions grid min-w-0 shrink-0 grid-cols-[1fr_auto] items-center">
         <button
           type="button"
           aria-expanded={suggestionsOpen}
           aria-controls={suggestionsId}
           disabled={busy || suggestions.length === 0}
           onClick={() => setSuggestionsOpen((open) => !open)}
-          className={`${skin.link} flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm focus-visible:outline-2 disabled:cursor-default disabled:opacity-50`}
+          className={`${skin.link} flex min-h-11 shrink-0 cursor-pointer items-center gap-2 justify-self-start rounded-lg px-2 text-sm focus-visible:outline-2 disabled:cursor-default disabled:opacity-50`}
         >
           <span aria-hidden>{suggestionsOpen ? "▾" : "▸"}</span>
           {suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
         </button>
+        <AlertDialog.Root>
+          <AlertDialog.Trigger asChild>
+            <button
+              type="button"
+              className={`${skin.link} coach-clear-chat min-h-11 shrink-0 cursor-pointer rounded-lg px-2 text-sm focus-visible:outline-2`}
+            >
+              Clear chat
+            </button>
+          </AlertDialog.Trigger>
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+            <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-popover p-5 text-popover-foreground shadow-xl">
+              <AlertDialog.Title className="text-lg font-semibold">
+                Clear this chat?
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-sm leading-relaxed">
+                This removes this tab’s messages and unfinished question. Your
+                saved classes, notes and program choices stay. This cannot be
+                undone.
+              </AlertDialog.Description>
+              <div className="mt-4 flex justify-end gap-2">
+                <AlertDialog.Cancel asChild>
+                  <Button variant="outline" className="min-h-11">
+                    Cancel
+                  </Button>
+                </AlertDialog.Cancel>
+                <AlertDialog.Action asChild>
+                  <Button
+                    className="min-h-11"
+                    onClick={() => {
+                      // Abort before remounting; late chunks belong to the old
+                      // hook and must never overwrite the fresh saved draft.
+                      resetting.current = true;
+                      void stop();
+                      onClear();
+                    }}
+                  >
+                    Clear chat
+                  </Button>
+                </AlertDialog.Action>
+              </div>
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
         <div
           id={suggestionsId}
           className={
             suggestionsOpen
-              ? "coach-followups flex flex-wrap gap-1.5 px-1"
+              ? "coach-followups col-span-2 flex flex-wrap gap-1.5 px-1"
               : "hidden"
           }
         >
@@ -762,6 +812,7 @@ export function ChatScreen() {
   const session = useSavedSession();
   const sessionKey = session?.payload.completedAt ?? "without-onboarding";
   const readyFor = useConversation((s) => s.readyFor);
+  const [restartCount, setRestartCount] = useState(0);
   const pageRef = useRef<HTMLElement>(null);
   useEffect(() => {
     if (hydrated) void hydrateConversation(sessionKey);
@@ -857,8 +908,12 @@ export function ChatScreen() {
             switching looks must repaint it, not reset it — the wizard's rule
             ("the answers survive because they live in the hook, not the shell"). */}
         <Conversation
-          key={sessionKey}
+          key={`${sessionKey}:${restartCount}`}
           sessionKey={sessionKey}
+          onClear={() => {
+            clearConversation(sessionKey);
+            setRestartCount((count) => count + 1);
+          }}
           mode={mode}
           seed={seed}
           starters={starters}

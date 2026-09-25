@@ -5,7 +5,13 @@ import {
   planningStatements,
   readCompletionOverrides,
 } from "../features/chat/completion-state";
-import { readConversation } from "../features/chat/conversation-store";
+import {
+  clearConversation,
+  hydrateConversation,
+  readConversation,
+  saveConversation,
+  useConversation,
+} from "../features/chat/conversation-store";
 import { followUpsFor } from "../features/chat/follow-ups";
 import {
   readSheetDraft,
@@ -330,6 +336,47 @@ test("conversation restore preserves messages, input and retry state only for it
     }),
   ])
     assert.equal(await readConversation(raw, "onboarding-a"), null);
+});
+
+test("clearing chat defeats pending hydration and preserves saved notes", async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  const storage = new Map<string, string>();
+  Object.defineProperty(globalThis, "sessionStorage", {
+    configurable: true,
+    value: {
+      getItem: (key: string) => storage.get(key) ?? null,
+      setItem: (key: string, value: string) => storage.set(key, value),
+      removeItem: (key: string) => storage.delete(key),
+    },
+  });
+  const savedBefore = useSavedCourses.getState();
+  try {
+    clearConversation();
+    saveConversation({
+      key: "onboarding-a",
+      messages: [user("Old question")],
+      input: "Unfinished question",
+      askedLabels: ["Previous suggestion"],
+      interrupted: true,
+    });
+    const pending = hydrateConversation("onboarding-a");
+    clearConversation("onboarding-a");
+    await pending;
+    assert.deepEqual(useConversation.getState(), {
+      readyFor: "onboarding-a",
+      draft: null,
+    });
+    assert.equal(storage.size, 0);
+    assert.equal(useSavedCourses.getState(), savedBefore);
+    // A later navigation/refresh also cannot restore the old messages.
+    clearConversation();
+    await hydrateConversation("onboarding-a");
+    assert.equal(useConversation.getState().draft, null);
+  } finally {
+    clearConversation();
+    if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor);
+    else Reflect.deleteProperty(globalThis, "sessionStorage");
+  }
 });
 
 test("saved sheet edits survive store serialization and clear with saved data", () => {
