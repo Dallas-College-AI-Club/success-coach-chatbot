@@ -21,7 +21,7 @@ Tool registry (apps/frontend/lib/tools/registry.ts)
   │  get_instructor · get_class_schedule · get_course_info
   │  get_program_requirements · search_knowledge
   ▼
-Neon PostgreSQL + pgvector — one table, knowledge_entry (apps/frontend/lib/schema.ts)
+Neon PostgreSQL + pgvector — knowledge_entry (apps/frontend/lib/schema.ts)
   ▲
   │  writes (batch, not at request time)
 Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
@@ -39,10 +39,73 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Tools:** `apps/frontend/lib/tools/registry.ts` is the executable capability list. Each tool
   reads `knowledge_entry` directly; catalog and schedule cards display retrieved fields, and
   explanatory prose is model-generated.
+- **Service searches:** tutoring and Success Coaching/advising queries read matching resource
+  records directly. Dense faculty CVs and unrelated catalog entries cannot displace the official
+  service contacts. Explicit faculty-background queries retain the broader discovery path.
+- **Schedule preview:** course cards send the shared schedule follow-up through the existing chat
+  route, without saving a course or clearing an unfinished question. Controls pause during a reply;
+  a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
+  and explicit section-save actions preserve the source's complete meetings.
+- **Elective choices:** `get_program_requirements` resolves named core references against the
+  same-edition CORE-42 map and explicit AAS references against its separate map. The pure resolver
+  in `lib/elective-options.ts` attaches course alternatives to each matching requirement, preserves
+  selection rules and excludes courses already assigned elsewhere in the full plan. Technical
+  suggestions and AAS examples remain labeled partial lists; unresolved requirements link to the
+  catalog. Searchable, initially bounded elective panels reuse normal course and schedule controls.
+  These lists do not turn alternatives into required courses or allocate elective credit automatically.
+- **Reply presentation:** successful routine schedule and course-plan lookups show their cards
+  without a duplicate prose recap. `reply-presentation.ts` conservatively recognizes lookup-only
+  wording in the student's displayed question; advice, filters, mixed requests, failed results
+  and unrecognized wording retain their answer. Original messages remain in conversation history.
+  Screen readers receive a short card-ready announcement instead of the hidden recap.
+- **Conversation and notes:** `conversation-store.ts` keeps chat, unfinished input and interruption
+  state in this tab's session storage, keyed to completed onboarding. Returning from the sheet or
+  refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits
+  in local storage. Neither is an official student record or cross-device account.
+  Clear chat confirms before removing this tab's messages and draft, aborts any active response
+  and remounts the conversation. It preserves onboarding, saved classes and sheet notes. Removing
+  the last section-only save removes its empty course entry; independent catalog saves remain.
+- **Completion changes:** each user turn includes a validated course-history snapshot. The editor
+  supports completion, in-progress, planned, transfer-pending and uncertain statuses. Existing boolean
+  checkbox values remain valid. Removing a reported course saves a removal marker so earlier chat
+  statements cannot resurrect it; later explicit student corrections can supersede the removal.
+  Cards reflect local edits immediately and suppress stale remaining-credit totals until refreshed.
+  The server merges
+  changes chronologically with explicit student statements and forces fresh planning for remaining
+  course questions, including free-typed next-course recommendations. Restored replies never
+  overwrite newer checkbox edits. Retrying stores a validated `completionAfterMessage` snapshot
+  on the repeated user turn so edits made after its original text win; later new turns still win
+  chronologically. The visible question is unchanged.
+- **Conversation continuity:** follow-ups keep the latest successful program after unrelated replies;
+  failed lookups do not replace it. Empty schedules offer a useful next step without implying
+  instructors exist, and schedule follow-ups carry the requested term. Openings explain how to
+  type or expand suggestions. App-help instructions match the current controls.
+- **Discovery wording:** the ingested course-summary placeholder "Prerequisites: none stated"
+  is presented as missing data, never proof that enrollment has no conditions. Original database
+  records and explicit catalog conditions are unchanged.
+- **Setup restart:** Plan options in chat and the sheet opens a confirmed restart. It clears the
+  onboarding session and this tab's conversation, optionally also clearing saved courses and sheet
+  edits. Restarting from chat aborts an active reply before navigating to the welcome page.
+- **History consistency:** typed history changes are parsed and saved when sent, even if a reply
+  is stopped or fails. Completed tool responses resolve catalog titles and prerequisite history;
+  request snapshots prevent those responses from overwriting later edits. The sheet shows every
+  reported status and supports individual section removal. Removed coach questions lose their
+  selected flag. Hidden setup answers belong to their completed onboarding session.
+- **Elective descriptions:** labeled elective rules are matched to the corresponding requirement
+  row. Unmatched notes and capstone/alternative rules stay at semester level; the source record and
+  the degree's required credits remain unchanged.
+- **Public request bounds:** at most 4 MB, 160 messages and 8,000 characters per user message,
+  retaining the 2,000 output-token, 8-step and 60-second execution bounds. Atomic counters in
+  `chat_request_budget` limit each network to 120 requests/5 minutes, all networks to 300/5 minutes
+  and 1,000/day. Network identities are keyed hashes; counters expire. Production fails closed if
+  counters cannot be read. Provider spending limits remain independent.
+- **Tool evidence:** outputs carry an HMAC over the tool name, input and output. Replayed outputs
+  without a valid signature are omitted from model context. This guards tool facts against client
+  modification; it does not authenticate the whole conversation or verify student completion.
 
 ## Data
 
-- **Storage:** a single Neon Postgres table, `knowledge_entry`, holding both prose chunks (for
+- **Knowledge storage:** Neon Postgres table `knowledge_entry`, holding both prose chunks (for
   semantic search) and structured `facts` documents (for exact lookups), discriminated by
   `doc_type`. Full design and query catalog: [DATABASE_ARCHITECTURE.md](DATABASE_ARCHITECTURE.md).
 - **Embeddings:** `Xenova/all-MiniLM-L6-v2`, 384 dimensions, computed locally with no embedding
@@ -53,7 +116,8 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   `apps/frontend/lib/embedding-contract.json`.
 - **Pipeline:** the Python pipeline in `apps/data` (uv, SQLAlchemy, psycopg 3) acquires, extracts,
   embeds and loads course, program-map, section, CV, resource and catalog data. It is a separate,
-  batch process — the frontend only reads. Full pipeline and runbook:
+  batch process — the frontend reads knowledge records and writes temporary request counters.
+  Full pipeline and runbook:
   [DATA_PIPELINE.md](DATA_PIPELINE.md), [../apps/data/REPRODUCE.md](../apps/data/REPRODUCE.md).
 
 ## Deployment

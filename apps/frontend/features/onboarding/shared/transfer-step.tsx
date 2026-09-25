@@ -9,10 +9,17 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { ToggleGroup } from "@/components/ui/toggle-group";
-import { directionOptions, schoolOptions } from "@/features/onboarding/questions";
+import {
+  directionOptions,
+  schoolOptions,
+} from "@/features/onboarding/questions";
 import { SkinnedOption } from "@/features/onboarding/shared/skinned-option";
 import type { Skin } from "@/features/onboarding/skin";
-import type { StepAnswer, TransferDirection } from "@/features/onboarding/types";
+import type {
+  StepAnswer,
+  TransferDirection,
+} from "@/features/onboarding/types";
+import { programFilter } from "@/features/onboarding/program-search";
 import { useEffect, useRef, useState } from "react";
 
 const SHORT: Record<TransferDirection, string> = {
@@ -115,7 +122,9 @@ export const TransferStep = ({
   // The bucket options fit both directions; "Not sure yet" only fits the outbound
   // "where are you transferring" question, not the visiting "where do you attend".
   const visibleSchools = schoolOptions.filter(
-    (s) => s.showFor === "both" || (direction === "outbound" && s.showFor === "outbound"),
+    (s) =>
+      s.showFor === "both" ||
+      (direction === "outbound" && s.showFor === "outbound"),
   );
 
   return (
@@ -130,13 +139,22 @@ export const TransferStep = ({
       >
         {SHORT[direction]} · change
       </button>
-      <p ref={schoolPromptRef} tabIndex={-1} className="font-medium outline-none">
+      <p
+        ref={schoolPromptRef}
+        tabIndex={-1}
+        className="font-medium outline-none"
+      >
         {schoolPrompt}
       </p>
-      <Command className={skin.picker}>
-        <CommandInput placeholder="Search for a school…" aria-label={schoolPrompt} />
+      <Command className={skin.picker} filter={programFilter}>
+        <CommandInput
+          placeholder="Search for a school…"
+          aria-label={schoolPrompt}
+        />
         <CommandList>
-          <CommandEmpty>Not listed? Clear the search and pick a broader area below.</CommandEmpty>
+          <CommandEmpty>
+            Not listed? Clear the search and pick a broader area below.
+          </CommandEmpty>
           <CommandGroup heading="Universities">
             {visibleSchools
               .filter((s) => s.tier === "partner")

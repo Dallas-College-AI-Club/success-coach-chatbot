@@ -8,8 +8,10 @@ import {
 } from "../features/chat/saved-courses";
 import { SummarySheet } from "../features/chat/summary-sheet";
 import { composerCopy } from "../features/chat/seed";
+import { courseScheduleQuestion } from "../features/chat/follow-ups";
 
 import { createElement } from "react";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { convertToModelMessages, tool } from "ai";
 import {
@@ -42,8 +44,10 @@ import {
   readCourseDetails,
   programResultForModel,
   programCourseCode,
+  programGroupRules,
 } from "../lib/course-details";
 import { INPUT_SCHEMA } from "../lib/tools/getProgramRequirements";
+import { resolveElectiveOptions, readElectiveOptions } from "../lib/elective-options";
 import {
   scheduleCourseForTurn,
   scheduleToolChoice,
@@ -57,6 +61,16 @@ import {
   surnameSortKey,
   VENUE_PREFIX,
 } from "../lib/tools/searchFacultyExpertise";
+
+// Static sheet fixtures need the same navigation context provided by Next.js.
+const renderSheet = () => renderToStaticMarkup(createElement(
+  AppRouterContext.Provider,
+  { value: {
+    back() {}, forward() {}, refresh() {}, bfcacheId: "test-sheet",
+    push() {}, replace() {}, prefetch() {},
+  } },
+  createElement(SummarySheet),
+));
 
 test("composer follows browser language order, regional tags and English fallback", () => {
   const fallback = "Ask about your classes…";
@@ -119,6 +133,116 @@ const profile: OnboardingPayload = {
   completedAt: "2026-09-20T00:00:00Z",
 };
 const skin = { link: "link", chip: "chip" } as Skin;
+
+test("course preview actions cover named courses, missing details and core choices without saving anything", () => {
+  const savedBefore = useSavedCourses.getState().courses;
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      scheduleAction: {
+        busy: false,
+        onViewSchedule: () =>
+          assert.fail("Rendering must not request a schedule"),
+      },
+      output: {
+        found: true,
+        name: "Test plan",
+        groups: [
+          {
+            name: "Semester 1",
+            courses: ["ITDA 3320", "MATH 1342", "General elective"],
+          },
+        ],
+        course_details: [
+          {
+            course_code: "ITDA 3320",
+            title: "Data Visualization Tools",
+            credit_hours: 3,
+          },
+        ],
+        component_areas: [
+          { code: "010", name: "Communication", courses: ["ENGL 1301"] },
+        ],
+      },
+    }),
+  );
+  for (const code of ["ITDA 3320", "MATH 1342", "ENGL 1301"])
+    assert.match(html, new RegExp(`View schedule for ${code}`));
+  assert.doesNotMatch(html, /View schedule for General elective/);
+  assert.doesNotMatch(html, /(?:Add|Remove) [A-Z]+ \d+ (?:to|from) my notes/);
+  assert.equal(useSavedCourses.getState().courses, savedBefore);
+});
+
+test("single-course schedule action is disabled while another reply is running", () => {
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_course_info",
+      skin,
+      scheduleAction: {
+        busy: true,
+        onViewSchedule: () => assert.fail("No request while rendering"),
+      },
+      output: {
+        found: true,
+        course_code: "MATH 1342",
+        title: "Statistics",
+        credit_hours: 3,
+      },
+    }),
+  );
+  assert.match(html, /aria-label="View schedule for MATH 1342" disabled=""/);
+  assert.doesNotMatch(html, /Add MATH 1342 to my notes/);
+});
+
+test("each course schedule action forces a fresh lookup for only its selected course", () => {
+  for (const code of ["ITDA 3320", "MATH 1342", "ITSE 1303"]) {
+    const question = courseScheduleQuestion(code);
+    assert.equal(scheduleCourseForTurn(question.prompt), code);
+    assert.equal(
+      scheduleToolChoice(question.prompt, 0)?.toolName,
+      "get_class_schedule",
+    );
+    assert.match(question.prompt, /Missing meeting times are unknown/);
+  }
+});
+
+test("unparsed online meeting markers cannot become daily-availability evidence for the model", () => {
+  const raw = {
+    section_number: "1",
+    meets: [],
+    meeting_info_raw: "INET Online Lecture M T W R F S U",
+  };
+  const parsed = {
+    section_number: "2",
+    meets: ["Mon / Wed 09:00 AM–09:55 AM"],
+    meeting_info_raw: "MW 9 AM",
+  };
+  const compact = scheduleResultForModel({ offerings: [raw, parsed] }) as {
+    offerings: Record<string, unknown>[];
+  };
+  assert.equal(compact.offerings[0].meeting_info_raw, undefined);
+  assert.deepEqual(compact.offerings[1], parsed);
+  assert.equal(raw.meeting_info_raw, "INET Online Lecture M T W R F S U");
+});
+
+test("empty schedule previews offer an official lookup without inventing a section to save", () => {
+  const html = renderToStaticMarkup(
+    createElement(ScheduleResults, {
+      name: "get_class_schedule",
+      skin,
+      output: {
+        found: false,
+        course_code: "ITDA 3320",
+        offerings: [],
+        total_sections: 0,
+      },
+    }),
+  );
+  assert.match(html, /No sections found/);
+  assert.match(html, /https:\/\/schedule.dallascollege.edu\//);
+  assert.doesNotMatch(html, /Add section to notes/);
+});
 
 test("course-title teaching questions complete discovery without guessing from CVs or ambiguous courses", () => {
   const question = "who's teaching intro to mysql?";
@@ -247,6 +371,8 @@ test("schedule summaries count unassigned sections and keep page counts separate
     scope: "loaded_page",
     total: 17,
     by_modality: { online: 9, hybrid: 5, in_person: 2, unknown: 1 },
+    with_published_times: 0,
+    without_published_times: 17,
   });
   assert.equal(result.total_sections, 942);
   assert.equal(result.truncated, true);
@@ -506,7 +632,7 @@ test("first-semester display excludes other semesters, even from an older full-p
   assert.match(missing, /not identified in this catalog record/);
 });
 
-test("long elective rules are available behind a closed disclosure, with credits still visible", () => {
+test("unresolved electives link to the catalog instead of an empty Show more button", () => {
   const rule =
     "Any 3-credit ITSE/INEW course may be used. Suggested courses and pairings: " +
     "ITSE 2370 and ITSE 2317. ".repeat(12);
@@ -516,6 +642,7 @@ test("long elective rules are available behind a closed disclosure, with credits
       name: "get_program_requirements",
       output: {
         found: true,
+        source_url: "https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3381",
         groups: [
           {
             name: "Semester 3",
@@ -528,12 +655,236 @@ test("long elective rules are available behind a closed disclosure, with credits
     }),
   );
   assert.match(html, /15 total credits/);
-  assert.match(
-    html,
-    /<details[^>]*><summary[^>]*>Elective - ITSE\/INEW Course.*Show more.*<\/summary>/,
-  );
+  assert.match(html, /View catalog options/);
+  assert.doesNotMatch(html, /Show more/);
   assert.ok(html.includes(rule.trim()));
   assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
+});
+
+test("BAT history remains required while capstone notes stay outside its elective details", () => {
+  const elective = "Elective - American History (3 Credit Hours)";
+  const capstone =
+    "ITDA 4350 Analytics Project Utilizing Bioinformatics is the capstone experience for this award.";
+  const history =
+    "American History Elective: Must be selected from the Core Curriculum American History Foundational Component Area.";
+  const rules = programGroupRules(
+    ["ITDA 4350", elective],
+    `${capstone} ${history}`,
+  );
+  assert.equal(rules.notes, capstone);
+  assert.equal(rules.electives[elective], history);
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      output: {
+        found: true,
+        name: "Bachelor of Applied Technology in Software Development",
+        total_credits: 120,
+        groups: [
+          { name: "Semester 7", courses: ["HIST 1301"] },
+          {
+            name: "Semester 8",
+            courses: ["ITDA 4350", elective],
+            rule: `${capstone} ${history}`,
+          },
+        ],
+      },
+    }),
+  );
+  assert.match(html, /HIST 1301/);
+  assert.match(html, /American History \(3 Credit Hours\)/);
+  assert.ok(html.includes(history));
+  assert.doesNotMatch(html, /Show more/);
+});
+
+test("named core electives resolve actual choices, preserve exclusions and exclude requirements from other semesters", () => {
+  const science = "Elective - Life and Physical Sciences (4 Credit Hours)";
+  const history = "Elective - American History (3 Credit Hours)";
+  const group = {
+    courses: [science, history],
+    rule: "Life and Physical Science Elective: Must be selected from the Core Curriculum Life and Physical Science Foundational Component Area. American History Elective: Must be selected from the Core Curriculum American History Foundational Component Area.",
+  };
+  const core = {
+    source_url: "https://catalog.dallascollege.edu/core",
+    groups: [
+      {
+        name: "Life and Physical Sciences (CB030)",
+        courses: ["BIOL 1406", "BIOL 1408"],
+        rule: "Do not combine BIOL 1406 and BIOL 1408.",
+      },
+      { name: "American History (CB060)", courses: ["HIST 1301", "HIST 1302"] },
+    ],
+  };
+  const options = resolveElectiveOptions(
+    group,
+    [{ slot_kind: "fixed", courses: ["HIST 1301"] }, group],
+    "https://catalog.dallascollege.edu/program",
+    core,
+  );
+  assert.deepEqual(options[science].courses, ["BIOL 1406", "BIOL 1408"]);
+  assert.match(options[science].rule, /Do not combine/);
+  assert.deepEqual(options[history].courses, ["HIST 1302"]);
+  assert.deepEqual(options[history].excluded_required, ["HIST 1301"]);
+  assert.equal(options[science].source_url, core.source_url);
+  assert.deepEqual(resolveElectiveOptions(group, [], "source"), {});
+});
+
+test("technical suggestions and speech lists stay scoped to the matching elective", () => {
+  const tech = "Elective - ITNW Course (3 Credit Hours)";
+  const speech = "Elective - Speech Elective (3 Credit Hours)";
+  const group = {
+    courses: [tech, speech],
+    rule: "ITNW Elective: Any 3-credit hour ITNW course may be used. Suggested course: ITNW 1325 - Fundamentals of Networking Technologies (3 Credit Hours). Speech Elective: Must be selected from the following: SPCH 1311 - Introduction to Speech Communication (3 Credit Hours) SPCH 1315 - Public Speaking (3 Credit Hours)",
+  };
+  const options = resolveElectiveOptions(group, [], "source");
+  assert.deepEqual(options[tech].courses, ["ITNW 1325"]);
+  assert.equal(options[tech].examples, true);
+  assert.deepEqual(options[speech].courses, ["SPCH 1311", "SPCH 1315"]);
+  assert.equal(options[speech].examples, false);
+  assert.deepEqual(
+    resolveElectiveOptions(
+      { courses: [tech], rule: "ITNW Elective: Do not take ITNW 1325." },
+      [],
+      "source",
+    ),
+    {},
+  );
+});
+
+test("AAS humanities examples do not import composition and speech requirements", () => {
+  const entry = "Elective - Humanities/Fine Arts (3 Credit Hours)";
+  const options = resolveElectiveOptions(
+    {
+      courses: [entry],
+      rule: "Humanities/Fine Arts Elective: Must be selected from the AAS Core Options for Humanities/Fine Arts.",
+    },
+    [],
+    "program",
+    undefined,
+    {
+      source_url: "https://catalog.dallascollege.edu/aas",
+      groups: [
+        {
+          name: "Humanities/Fine Arts General Education Required Courses (9 Credit Hours)",
+          rule: "Select the following: ENGL 1301 AND Select ONE 3-credit Hour Course from the following: ENGL 1302 SPCH 1311 AND Select ONE 3-credit Hour Course from the following: ARCH 1311 DANC 2303 ARTS XXXX",
+        },
+      ],
+    },
+  );
+  assert.deepEqual(options[entry].courses, ["ARCH 1311", "DANC 2303"]);
+  assert.equal(options[entry].examples, true);
+  assert.equal(
+    options[entry].source_url,
+    "https://catalog.dallascollege.edu/aas",
+  );
+});
+
+test("resolved elective cards show real titles and schedule buttons with a bounded searchable list", () => {
+  const entry = "Elective - Language, Philosophy and Culture (3 Credit Hours)";
+  const codes = [
+    "COMM 2300",
+    "ENGL 2321",
+    "ENGL 2322",
+    "ENGL 2323",
+    "HUMA 1302",
+    "PHIL 1301",
+    "SPAN 2311",
+  ];
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      scheduleAction: { busy: false, onViewSchedule() {} },
+      output: {
+        found: true,
+        groups: [
+          {
+            courses: [entry],
+            elective_options: {
+              [entry]: {
+                courses: codes,
+                rule: "Choose one course.",
+                source_url: "https://catalog.dallascollege.edu/core",
+              },
+            },
+          },
+        ],
+        course_details: codes.map((code) => ({
+          ...course,
+          course_code: code,
+          title: "Verified title",
+        })),
+      },
+    }),
+  );
+  assert.match(html, /View course options \(7\)/);
+  assert.match(html, /Find a course in this elective/);
+  assert.match(html, /Verified title/);
+  assert.equal((html.match(/aria-label="View schedule for/g) ?? []).length, 5);
+  assert.match(html, /Show all 7 courses/);
+  assert.match(html, /Catalog selection rules/);
+  assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
+  assert.equal(readElectiveOptions(null), null);
+  assert.deepEqual(
+    readElectiveOptions({ courses: ["XXXX", "PHIL 1301", "PHIL 1301"] })
+      ?.courses,
+    ["PHIL 1301"],
+  );
+});
+
+test("a semester's different elective rules are matched only to their own rows", () => {
+  const science = "Elective - Life and Physical Sciences (4 Credit Hours)";
+  const language =
+    "Elective - Language, Philosophy and Culture (3 Credit Hours)";
+  const coreRules = programGroupRules(
+    [science, language],
+    "Life and Physical Science Elective: Select from the science core. Language, Philosophy and Culture Elective: Select from the language core.",
+  );
+  assert.equal(
+    coreRules.electives[science],
+    "Life and Physical Science Elective: Select from the science core.",
+  );
+  assert.equal(
+    coreRules.electives[language],
+    "Language, Philosophy and Culture Elective: Select from the language core.",
+  );
+  const entries = [
+    "Elective - ITSC Course (3 Credit Hours)",
+    "Elective - ITSE/INEW Course (3 Credit Hours)",
+    "Elective - Speech Elective (3 Credit Hours)",
+  ];
+  const rules = programGroupRules(
+    entries,
+    "ITSC Elective: Any 3-credit ITSC course. ITSE/INEW Elective: Any 3-credit ITSE/INEW course. Speech Elective: Select SPCH 1311 or SPCH 1315.",
+  );
+  assert.equal(rules.notes, null);
+  assert.equal(
+    rules.electives[entries[0]],
+    "ITSC Elective: Any 3-credit ITSC course.",
+  );
+  assert.equal(
+    rules.electives[entries[1]],
+    "ITSE/INEW Elective: Any 3-credit ITSE/INEW course.",
+  );
+  assert.equal(
+    rules.electives[entries[2]],
+    "Speech Elective: Select SPCH 1311 or SPCH 1315.",
+  );
+  assert.equal(
+    programGroupRules(
+      ["Elective - Life and Physical Sciences (4 Credit Hours)"],
+      "Life and Physical Science Elective: Select from the core.",
+    ).notes,
+    null,
+  );
+  assert.equal(
+    programGroupRules(
+      entries,
+      "Shared program rule without a labeled elective.",
+    ).notes,
+    "Shared program rule without a labeled elective.",
+  );
 });
 
 test("schedule rows preserve distinct sections and never treat missing times as asynchronous", () => {
@@ -743,28 +1094,31 @@ test("catalog projection preserves prose recommendations and rejects placeholder
   );
 });
 
-test("verified courses render collapsed details and an explicit save action with source-backed fields", () => {
+test("verified courses render collapsed details and schedule preview with source-backed fields", () => {
   const markup = renderToStaticMarkup(
     createElement(CourseResults, {
       name: "get_course_info",
       output: { found: true, ...course },
       skin,
+      scheduleAction: { busy: false, onViewSchedule: () => {} },
     }),
   );
   assert.match(markup, /Show more/);
   assert.doesNotMatch(markup, /<details[^>]*\sopen(?:=|\s|>)/);
-  assert.match(markup, /Add CDEC 1354 to my notes/);
+  assert.match(markup, /View schedule for CDEC 1354/);
+  assert.doesNotMatch(markup, /Add CDEC 1354 to my notes/);
   assert.match(markup, /Child Growth and Development/);
   assert.match(markup, /Recommended: Check/);
   assert.match(markup, /3 credits/);
   assert.doesNotMatch(markup, /#2026-2027#facts/);
 });
 
-test("program cards retain rules and credits, never give placeholders or missing records a save button", () => {
+test("program cards retain rules, credits and distinct courses without a course-level save button", () => {
   const markup = renderToStaticMarkup(
     createElement(CourseResults, {
       name: "get_program_requirements",
       skin,
+      scheduleAction: { busy: false, onViewSchedule: () => {} },
       output: {
         found: true,
         name: "Test plan",
@@ -794,8 +1148,9 @@ test("program cards retain rules and credits, never give placeholders or missing
       },
     }),
   );
-  assert.equal((markup.match(/Add CDEC 1354 to my notes/g) ?? []).length, 1);
-  assert.doesNotMatch(markup, /Add (?:HIST XXXX|ABDR 1307) to my notes/);
+  assert.equal((markup.match(/View schedule for CDEC 1354/g) ?? []).length, 1);
+  assert.doesNotMatch(markup, /View schedule for HIST XXXX/);
+  assert.doesNotMatch(markup, /(?:Add to notes|Added to notes|to my notes)/);
   assert.match(markup, /Choose one course; do not take both/);
   assert.match(markup, /6 total credits/);
   assert.match(markup, /Other options/);
@@ -952,11 +1307,11 @@ test("the printable sheet uses the same official citation policy as chat", () =>
       { ...course, source_url: "https://untrusted.example/catalog" },
     ];
     assert.doesNotMatch(
-      renderToStaticMarkup(createElement(SummarySheet)),
+      renderSheet(),
       /untrusted.example/,
     );
     initial.courses = [course];
-    const official = renderToStaticMarkup(createElement(SummarySheet));
+    const official = renderSheet();
     assert.match(official, /<svg[^>]+sheet-bot/);
     assert.doesNotMatch(official, /dallas-college\.svg|sheet-dc-logo/);
     assert.ok(official.includes("catalog.dallascollege.edu"));
@@ -1026,7 +1381,7 @@ test("semester ranges and unavailable numbered semesters never substitute the fu
   assert.equal(scheduleCourseForTurn("Who's teaching ITSE 1303?"), "ITSE 1303");
 });
 
-test("section notes preserve different terms, validate hydration, and retain the course after removal", () => {
+test("section notes preserve different terms, validate hydration, and retain legacy catalog saves", () => {
   const state = useSavedCourses.getState();
   const original = { courses: state.courses, questions: state.questions };
   const section = {
@@ -1078,6 +1433,33 @@ test("section notes preserve different terms, validate hydration, and retain the
   }
 });
 
+test("removing the last section-only save removes its course without changing other notes", () => {
+  const original = useSavedCourses.getState();
+  const courseOnly = { course_code: "ITSC 1364", title: "Field Experience" };
+  const section = {
+    section_number: "1",
+    term: "Fall 2026",
+    meets: [],
+    source_url:
+      "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+  };
+  try {
+    useSavedCourses.setState({ courses: [course] });
+    original.toggleSection(courseOnly, section);
+    original.toggleSection(courseOnly, { ...section, section_number: "2" });
+    original.toggleSection(courseOnly, section);
+    assert.equal(useSavedCourses.getState().courses[1].sections?.length, 1);
+    original.toggleSection(courseOnly, { ...section, section_number: "2" });
+    const remaining = useSavedCourses.getState();
+    assert.deepEqual(remaining.courses, [course]);
+    assert.equal(remaining.draft, original.draft);
+    assert.equal(remaining.questions, original.questions);
+    assert.equal(remaining.taken, original.taken);
+  } finally {
+    useSavedCourses.setState(original);
+  }
+});
+
 test("the coach sheet prints selected section dates and times instead of catalog prose", () => {
   const initial = useSavedCourses.getInitialState(),
     previous = initial.courses;
@@ -1093,7 +1475,7 @@ test("the coach sheet prints selected section dates and times instead of catalog
   })!;
   try {
     initial.courses = [{ ...course, sections: [section] }];
-    const html = renderToStaticMarkup(createElement(SummarySheet));
+    const html = renderSheet();
     for (const text of [
       "Section 1001",
       "Fall 2026",
@@ -1103,6 +1485,7 @@ test("the coach sheet prints selected section dates and times instead of catalog
       "Example Instructor",
     ])
       assert.ok(html.includes(text));
+    assert.ok(html.includes(`Remove ${course.course_code} section 1001 (Fall 2026)`));
     assert.ok(!html.includes(course.description!));
     initial.courses = [
       {
@@ -1111,16 +1494,79 @@ test("the coach sheet prints selected section dates and times instead of catalog
       },
     ];
     assert.match(
-      renderToStaticMarkup(createElement(SummarySheet)),
+      renderSheet(),
       /Start date not listed|Meeting times not published/,
     );
     initial.courses = [course];
-    assert.match(
-      renderToStaticMarkup(createElement(SummarySheet)),
+    assert.doesNotMatch(
+      renderSheet(),
       /No section selected/,
     );
   } finally {
     initial.courses = previous;
+  }
+});
+
+test("the prep sheet preserves every reported status without printing removed entries as completed", () => {
+  const initial = useSavedCourses.getInitialState();
+  const previous = initial.completionOverrides;
+  try {
+    initial.completionOverrides = {
+      "HIST 1301": true,
+      "ITSE 1370": "in_progress",
+      "MATH 1314": "planned",
+      "ENGL 1301": "transfer_pending",
+      "GOVT 2306": "unknown",
+      "ITSD 3301": false,
+      "ITDA 4350": "removed",
+    };
+    const html = renderSheet();
+    for (const label of [
+      "Completed",
+      "In progress",
+      "Planned",
+      "Awaiting transfer review",
+      "Not sure",
+      "Not completed",
+    ])
+      assert.ok(html.includes(label), label);
+    assert.ok(!html.includes("ITDA 4350"));
+    assert.ok(html.includes("Remove reported ITSE 1370"));
+  } finally {
+    initial.completionOverrides = previous;
+  }
+});
+
+test("a new setup restores its own answers without discarding saved notes", () => {
+  const saved = useSavedCourses.getInitialState();
+  const student = useStudentSession.getInitialState();
+  const originalDraft = saved.draft,
+    originalSession = student.session,
+    originalHydrated = student.hasHydrated;
+  try {
+    student.hasHydrated = true;
+    student.session = {
+      payload: { ...profile, completedAt: "new-setup" },
+      summary: ["Evening classes"],
+      modeId: "simple",
+    };
+    saved.draft = {
+      ...saved.draft,
+      hiddenAnswers: ["Evening classes"],
+      answersSession: "old-setup",
+      notes: ["Ask about financial aid"],
+    };
+    let html = renderSheet();
+    assert.ok(html.includes("Evening classes"));
+    assert.ok(html.includes("Ask about financial aid"));
+    saved.draft = { ...saved.draft, answersSession: "new-setup" };
+    html = renderSheet();
+    assert.ok(!html.includes("Evening classes"));
+    assert.ok(html.includes("Ask about financial aid"));
+  } finally {
+    saved.draft = originalDraft;
+    student.session = originalSession;
+    student.hasHydrated = originalHydrated;
   }
 });
 
@@ -1270,7 +1716,10 @@ test("faculty search reads source spans only — no generated summary is ever sc
   );
   // The recovered list supersedes the sample rather than adding to it, so a
   // backfilled CV never reports the same venue twice.
-  assert.match(source, /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/);
+  assert.match(
+    source,
+    /jsonb_array_length\(\$\{entries\}\) > 0 then '\[\]'::jsonb/,
+  );
 });
 
 test("expertise rows render the surname-first label and keep the printed name in the CV card", () => {

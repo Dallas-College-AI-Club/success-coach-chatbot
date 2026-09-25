@@ -98,7 +98,8 @@ export const SimpleShell = ({
             <div className="flex justify-end">
               <button
                 type="button"
-                onClick={() => !done && api.goToStep(i)}
+                disabled={!!done}
+                onClick={() => api.goToStep(i)}
                 title={done ? undefined : "Change this answer"}
                 data-role="user"
                 className={`${skin.bubble} text-left ${

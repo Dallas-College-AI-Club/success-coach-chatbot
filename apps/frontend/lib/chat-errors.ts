@@ -17,7 +17,11 @@ export const TRANSIENT_LIMIT_MESSAGE =
 
 export const GENERIC_CHAT_ERROR = "Something went wrong reaching Major.";
 
+export const SHARED_LIMIT_MESSAGE =
+  "Major has reached its current usage limit. Please try again later.";
+
 export const SAFE_CHAT_ERRORS: ReadonlySet<string> = new Set([
   FREE_LIMIT_MESSAGE,
   TRANSIENT_LIMIT_MESSAGE,
+  SHARED_LIMIT_MESSAGE,
 ]);

@@ -1,12 +1,5 @@
-// Server-only: this module reads OPENROUTER_API_KEY and opens DB queries, so
-// it must never be bundled into a client component. "server-only" makes that
-// a build error instead of a convention.
-//
-// It sits here rather than in lib/client.ts (which would cover all three
-// DB-backed tools) because the package throws outside a react-server
-// condition, and scripts/check-course-code-normalization.mts imports
-// getCourseInfo under plain tsx in CI. The other two tools carry no secret of
-// their own, and Next blanks non-NEXT_PUBLIC_ env vars in client bundles.
+// This module opens database queries and loads the native embedding runtime.
+// Keep it out of client bundles; CLI callers use the react-server condition.
 import "server-only";
 
 import { and, cosineDistance, inArray, sql } from "drizzle-orm";
@@ -92,6 +85,28 @@ export const INPUT_SCHEMA = z.object({
 
 const BROAD_DOC_TYPES = [...SEARCHABLE_DOC_TYPES, "cv", "section", "syllabus"];
 
+/** Help finding tutoring is a service question, not evidence of faculty expertise. */
+export function asksForTutoringService(query: string): boolean {
+  return (
+    /\btutor(?:ing|s)?\b/i.test(query) &&
+    !/\b(?:professor|instructor|faculty|cv|background|experience|expertise)\b/i.test(
+      query,
+    )
+  );
+}
+
+/** Advising contact questions must reach the official service, not CV mentions. */
+export function asksForCoachingService(query: string): boolean {
+  return (
+    /\b(?:success[\s-]*coach(?:es|ing)?|academic advis(?:ing|ors?|ers?))\b/i.test(
+      query,
+    ) &&
+    !/\b(?:professor|instructor|faculty|cv|background|experience|expertise)\b/i.test(
+      query,
+    )
+  );
+}
+
 const SEARCH_FILLER = new Set(
   "a an the and or of in at to for with about what which who how is are do does can i my me all any find show list tell please dallas college course courses class classes program programs degree certificate instructor instructors professor professors faculty background information records".split(
     " ",
@@ -146,6 +161,14 @@ export function searchExcerpt(text: string, terms: string[], limit = 2400) {
     .slice(0, limit);
 }
 
+/** The ingestion placeholder means missing data, not permission to enroll. */
+export function courseSearchText(text: string): string {
+  return text.replace(
+    /Prerequisites:\s*none stated\.?/gi,
+    "Prerequisites: not recorded. Missing details do not establish that enrollment has no conditions.",
+  );
+}
+
 /** One broad recovery per turn, including after an earlier focused discovery. */
 export function recoveryToolChoice(
   steps: readonly {
@@ -195,6 +218,34 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   // the sort to the searchable rows and results are exact.
   let broad = input.broad === true;
   try {
+    // Service questions can otherwise retrieve unrelated courses or faculty CVs
+    // ahead of the short official contact record. Facts still come from the DB.
+    const coaching = asksForCoachingService(input.query);
+    if (coaching || asksForTutoringService(input.query)) {
+      const results = await getDb()
+        .select({
+          text: knowledgeEntry.chunkText,
+          source_url: knowledgeEntry.sourceUrl,
+          doc_type: knowledgeEntry.docType,
+          name: sql<string | null>`${knowledgeEntry.facts}->>'name'`,
+        })
+        .from(knowledgeEntry)
+        .where(
+          and(
+            inArray(knowledgeEntry.docType, ["resource"]),
+            sql`${knowledgeEntry.chunkText} ILIKE ${coaching ? "%success coach%" : "%tutor%"}`,
+          ),
+        )
+        .limit(TOP_K);
+      return {
+        found: results.length > 0,
+        results,
+        search_scope: "resources",
+        note: coaching
+          ? "Official Success Coaching service information. Give only the listed contacts and appointment resource; this does not identify the student's assigned coach or confirm appointment availability."
+          : "Official tutoring service information. Do not infer subject-specific tutor availability, appointments or hours unless the returned resource states them.",
+      };
+    }
     const embedding = await embedText(input.query);
     const distance = cosineDistance(knowledgeEntry.embedding, embedding);
     const terms = searchTerms(input.query);
@@ -255,8 +306,9 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     }
     const results = rows.slice(0, broad ? 6 : TOP_K).map((r) => {
       const isCourse = r.docType === "course";
+      const text = isCourse ? courseSearchText(r.text) : r.text;
       return {
-        text: broad ? searchExcerpt(r.text, terms) : r.text,
+        text: broad ? searchExcerpt(text, terms) : text,
         source_url: r.sourceUrl,
         doc_type: r.docType,
         name: isCourse ? null : r.name,
@@ -271,6 +323,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
       found: true,
       results,
       search_scope: broad ? "all" : "catalog",
+      note: "Course/program snippets identify possible records. Use get_course_info or get_program_requirements before explaining their requirements; ask the student to choose if ambiguous. Missing prerequisite details mean unknown, never no prerequisites, in every language.",
       ...(broad
         ? {
             related_only: true,

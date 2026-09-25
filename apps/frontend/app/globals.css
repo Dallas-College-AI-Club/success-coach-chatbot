@@ -190,6 +190,7 @@
   top: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
   background: #22303f;
@@ -244,6 +245,7 @@
 }
 .sheet-title {
   flex: 1;
+  min-width: 0;
 }
 .sheet-title h1 {
   font-family: var(--sheet-display);
@@ -269,6 +271,7 @@
   font: inherit;
   font-weight: 700;
   width: 1.5in;
+  max-width: 100%;
   text-align: left;
   outline: none;
 }
@@ -335,6 +338,9 @@
   color: var(--sheet-blue);
   font-weight: 700;
 }
+.sheet-reported li::before {
+  content: "•";
+}
 .sheet-row {
   display: flex;
   gap: 12px;
@@ -345,6 +351,8 @@
 }
 .sheet-row-main {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sheet-code {
   font-family: var(--sheet-display);
@@ -382,13 +390,35 @@
   padding: 6px 10px;
   margin: 6px 0;
 }
-.sheet-note input {
+.sheet-note textarea {
   flex: 1;
+  min-width: 0;
+  resize: vertical;
   border: none;
   background: transparent;
   font: inherit;
   font-size: 10pt;
   outline: none;
+}
+.sheet-note-print {
+  display: none;
+}
+.sheet-name-print {
+  display: none;
+}
+.sheet-fmeta a {
+  color: var(--sheet-blue);
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+.sheet-check-item > span {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+}
+.sheet-scope :focus-visible {
+  outline: 2px solid #4b8cff;
+  outline-offset: 3px;
 }
 .sheet-empty {
   color: #9aa2ac;
@@ -464,9 +494,189 @@
     background: transparent;
     border-color: #ccc;
   }
+  .sheet-note textarea {
+    display: none;
+  }
+  .sheet-meta input {
+    display: none;
+  }
+  .sheet-name-print {
+    display: inline;
+    overflow-wrap: anywhere;
+  }
+  .sheet-meta {
+    max-width: 2in;
+  }
+  .sheet-note-print {
+    display: block;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    margin: 0;
+  }
   @page {
     margin: 1.2cm;
   }
+}
+
+@media screen and (max-width: 640px) {
+  .sheet-page {
+    margin: 0;
+    box-shadow: none;
+  }
+  .sheet-toolbar {
+    position: static;
+    gap: 8px 12px;
+    padding: 10px 16px;
+  }
+  .sheet-toolbar .sheet-hint {
+    display: none;
+  }
+  .sheet-toolbar :is(a, button) {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .sheet-masthead {
+    flex-wrap: wrap;
+    padding: 20px 16px;
+    gap: 12px;
+  }
+  .sheet-bot {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+  }
+  .sheet-title h1 {
+    font-size: 24px;
+    line-height: 1.15;
+  }
+  .sheet-meta {
+    flex-basis: 100%;
+    text-align: left;
+  }
+  .sheet-meta input {
+    width: min(15rem, 75%);
+    font-size: 16px;
+  }
+  .sheet-section {
+    padding: 0 16px;
+  }
+  .sheet-shead {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .sheet-h2 {
+    font-size: 18px;
+    flex: 1;
+    min-width: 0;
+  }
+  .sheet-shint {
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .sheet-add,
+  .sheet-del {
+    min-height: 44px;
+    min-width: 44px;
+    flex-shrink: 0;
+  }
+  .sheet-del {
+    opacity: 0.7;
+  }
+  .sheet-scope .sheet-checkbox {
+    width: 32px;
+    height: 32px;
+  }
+  .sheet-note {
+    padding: 8px;
+    gap: 4px;
+  }
+  .sheet-note textarea {
+    font-size: 16px;
+  }
+  .sheet-editflag {
+    margin-inline: 16px;
+  }
+  .sheet-footer {
+    padding: 16px;
+    align-items: flex-start;
+  }
+  .sheet-footer > div {
+    min-width: 0;
+  }
+  .sheet-club-logo {
+    flex-shrink: 0;
+  }
+}
+
+/* Let the header take its measured height and give the rest to the chat.
+   Short windows scroll suggestion chips sideways instead of hiding replies. */
+.coach-chat-page {
+  height: var(--chat-height, 100dvh);
+  min-height: 0;
+  padding: 16px !important;
+}
+.coach-chat-shell {
+  height: 100%;
+  max-height: 1100px;
+}
+.coach-chat-header {
+  flex-shrink: 0;
+}
+.coach-chat-panel {
+  flex: 1;
+  min-height: 0;
+}
+.coach-followups {
+  flex-shrink: 0;
+}
+.coach-chat-panel form {
+  flex-shrink: 0;
+}
+@media (min-width: 768px) {
+  .coach-chat-page {
+    padding: 32px !important;
+  }
+}
+.coach-chat-page[data-compact="true"] {
+  padding: 8px !important;
+}
+.coach-chat-page[data-compact="true"] .coach-chat-shell {
+  gap: 6px;
+}
+.coach-chat-page[data-compact="true"] .coach-chat-header {
+  gap: 6px;
+}
+.coach-chat-page[data-compact="true"] .coach-chat-header img {
+  max-height: 30px;
+  width: auto !important;
+}
+.coach-chat-page[data-compact="true"] .coach-chat-header > div {
+  gap: 6px;
+}
+.coach-chat-page[data-compact="true"] .coach-chat-panel {
+  padding: 8px;
+  gap: 6px;
+}
+.coach-chat-page[data-compact="true"] .coach-followups {
+  flex: 1;
+  min-width: 0;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-height: 36px;
+}
+.coach-chat-page[data-compact="true"] .coach-suggestions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.coach-chat-page[data-compact="true"] .coach-clear-chat {
+  order: 1;
+  margin-left: auto;
+}
+.coach-chat-page[data-compact="true"] .coach-followups button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .sheet-shint {
   margin-left: auto;
@@ -635,6 +845,11 @@
     background: #111b2b;
     color-scheme: light;
   }
+}
+
+/* Email addresses, source URLs and pasted words must not widen phone replies. */
+.coach-transcript {
+  overflow-wrap: anywhere;
 }
 
 /* The chat panel grows past `lg` (chat-screen.tsx) so course, schedule and

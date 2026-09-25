@@ -4,6 +4,10 @@ import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
 import { PROGRAMS } from "@/features/onboarding/programs";
 import {
+  resolveElectiveOptions,
+  type ElectiveSource,
+} from "@/lib/elective-options";
+import {
   courseDetailsFromRow,
   programCourseCode,
   scopeProgramGroups,
@@ -38,6 +42,7 @@ export const DESCRIPTION = [
   "When truncated is true the list is incomplete; ask the user to narrow the",
   "name rather than treating the list as exhaustive.",
   "Never list degree requirements this tool did not return.",
+  "Each group's elective_options contains verified course choices for its named elective rows. These are alternatives, not additional required courses. The UI lets students browse the options and open each course's schedule. Preserve the returned rules and exclusions. examples:true means a partial list of catalog examples; never claim it is exhaustive.",
   "",
   'When a requirement reads like a placeholder ("Life and Physical',
   'Sciences XXXX (CB030)"), the real course list comes back in',
@@ -336,29 +341,48 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   }
 
   let componentAreas: ProgramRequirementsResult["component_areas"];
-  if (areaCodes.size > 0 && row.programCode !== CORE_PROGRAM_CODE) {
+  let coreSource: ElectiveSource | undefined;
+  let aasSource: ElectiveSource | undefined;
+  const namedReferences = groups.some((g) =>
+    /Core Curriculum|AAS Core Options/i.test(String(g.rule ?? "")),
+  );
+  if (
+    (areaCodes.size > 0 || namedReferences) &&
+    row.programCode !== CORE_PROGRAM_CODE
+  ) {
     try {
-      // One row, one read: CORE-42 holds all nine component
-      // areas. Filtering its groups in JS beats a lateral join
-      // over jsonb here -- fewer moving parts, and the row is
-      // tiny.
-      const [core] = await getDb()
-        .select({ facts: knowledgeEntry.facts })
+      // The same-edition core and AAS maps hold different elective lists.
+      // Read both once; resolve named requirements without changing the plan.
+      const sources = await getDb()
+        .select({
+          facts: knowledgeEntry.facts,
+          programCode: knowledgeEntry.programCode,
+          sourceUrl: knowledgeEntry.sourceUrl,
+        })
         .from(knowledgeEntry)
         .where(
           and(
             eq(knowledgeEntry.docType, "program_map"),
-            eq(knowledgeEntry.programCode, CORE_PROGRAM_CODE),
+            inArray(knowledgeEntry.programCode, [CORE_PROGRAM_CODE, "3040"]),
             row.catalogYear
               ? eq(knowledgeEntry.catalogYear, row.catalogYear)
               : undefined,
           ),
-        )
-        .limit(1);
+        );
+      const core = sources.find(
+        (source) => source.programCode === CORE_PROGRAM_CODE,
+      );
+      const aas = sources.find((source) => source.programCode === "3040");
       const coreFacts = (core?.facts ?? {}) as Record<string, unknown>;
       const coreGroups = Array.isArray(coreFacts.groups)
         ? coreFacts.groups
         : [];
+      coreSource = { groups: coreGroups, source_url: core?.sourceUrl };
+      const aasFacts = (aas?.facts ?? {}) as Record<string, unknown>;
+      aasSource = {
+        groups: Array.isArray(aasFacts.groups) ? aasFacts.groups : [],
+        source_url: aas?.sourceUrl,
+      };
       const coreRows = coreGroups
         .map((g) => (g ?? {}) as Record<string, unknown>)
         .filter((g) => areaCodes.has(String(g.component_area_code ?? "")))
@@ -399,6 +423,17 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     }
   }
 
+  const resolvedGroups = groups.map((group) => ({
+    ...group,
+    elective_options: resolveElectiveOptions(
+      group,
+      rawGroups,
+      row.sourceUrl,
+      coreSource,
+      aasSource,
+    ),
+  }));
+
   // Titles for every course code in the plan. A degree plan stores
   // bare codes, and a model asked to present one writes the titles
   // in anyway: it rendered EDUC 1300 as "Introduction to Education"
@@ -418,6 +453,11 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   }
   for (const a of componentAreas ?? []) {
     for (const c of a.courses) codes.add(c);
+  }
+  for (const group of resolvedGroups) {
+    for (const option of Object.values(group.elective_options)) {
+      for (const code of option.courses) codes.add(code);
+    }
   }
 
   let courseTitles: Record<string, string> | undefined;
@@ -466,7 +506,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     award_type: (facts.award_type as string | null | undefined) ?? null,
     total_credits:
       (facts.total_credits as string | number | null | undefined) ?? null,
-    groups,
+    groups: resolvedGroups,
     ...(requested.length
       ? {
           requested_semesters: requested,

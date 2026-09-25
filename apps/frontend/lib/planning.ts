@@ -122,6 +122,15 @@ function analyzeHistory(messages: string[], courses: CourseDetails[] = []) {
         /\?\s*$/.test(clause)
       )
         continue;
+      if (
+        /^\s*forget my course history for\b/i.test(clause) ||
+        /^\s*(?:please\s+)?(?:remove|delete|forget)\b.+\b(?:from my (?:reported courses|course history)|reported course history)\b/i.test(
+          clause,
+        )
+      ) {
+        for (const code of codes) delete history[code];
+        continue;
+      }
       let status: CourseStatus | undefined;
       if (
         /\b(?:not sure|unsure|uncertain|don't think|do not think|I think|don't remember|do not remember|may have|might have|probably|maybe|either|except)\b/i.test(
@@ -145,6 +154,10 @@ function analyzeHistory(messages: string[], courses: CourseDetails[] = []) {
       )
         status = "transfer_pending";
       else if (
+        /\b(?:no longer|not|never|isn't|aren't|am not|I'm not)\s+(?:currently\s+)?(?:taking|enrolled|in progress|planning to)\b/i.test(
+          clause,
+        ) ||
+        /\b(?:don't|do not|no longer)\s+plan to\b/i.test(clause) ||
         /\b(?:failed|withdrew|withdrawn|dropped|not yet (?:completed|taken|passed|finished)|haven't yet (?:completed|taken|passed|finished)|(?:almost|nearly) (?:completed|finished)|not taking|(?:not|never) (?:completed|taken|passed|took|finished)|haven't (?:taken|completed|passed|finished)|didn't (?:take|pass|complete|finish)|did not (?:take|pass|complete|finish)|have not (?:taken|completed|passed|finished))\b/i.test(
           clause,
         ) ||

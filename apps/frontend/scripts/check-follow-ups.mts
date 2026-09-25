@@ -78,6 +78,95 @@ const base = {
   askedLabels: [] as string[],
 };
 
+test("the latest successful program survives unrelated answers and failed lookups", () => {
+  const latestPlan = planOutput();
+  for (const tools of [
+    [],
+    [
+      {
+        name: "get_program_requirements",
+        output: { found: false, name: "Unknown award" },
+      },
+    ],
+    [
+      {
+        name: "search_faculty_expertise",
+        output: { results: [{ name: "Ada Lovelace" }] },
+      },
+    ],
+  ]) {
+    const chips = followUpsFor({
+      ...base,
+      program: "Accounting A.A.S.",
+      latestPlan,
+      tools,
+      completionOverrides: { "ITSE 1303": true },
+    });
+    assert.ok(chips.some((chip) => chip.prompt.includes(PROGRAM)));
+    assert.ok(
+      chips.every((chip) => !/Accounting|Unknown award/.test(chip.prompt)),
+    );
+  }
+  const newest = "Python Developer Certificate";
+  const chips = followUpsFor({
+    ...base,
+    latestPlan,
+    tools: [
+      {
+        name: "get_program_requirements",
+        output: planOutput({ name: newest }),
+      },
+    ],
+    completionOverrides: { "ITSE 1303": true },
+  });
+  assert.ok(chips.every((chip) => chip.prompt.includes(newest)));
+});
+
+test("an empty schedule offers a next step without implying sections or instructors exist", () => {
+  for (const found of [true, false]) {
+    const chips = followUpsFor({
+      ...base,
+      tools: [
+        {
+          name: "get_class_schedule",
+          output: { found, course_code: "ITSE 1370", offerings: [] },
+        },
+      ],
+    });
+    assert.ok(chips.some((chip) => chip.prompt.includes(PROGRAM)));
+    assert.ok(
+      chips.every(
+        (chip) =>
+          !/these instructors|sections are online|Any evening/.test(chip.label),
+      ),
+    );
+  }
+});
+
+test("schedule follow-ups preserve the requested term and unknown timing rule", () => {
+  for (const preference of ["evening", "online"]) {
+    const chips = followUpsFor({
+      ...base,
+      preference,
+      tools: [
+        {
+          name: "get_class_schedule",
+          output: {
+            found: true,
+            course_code: "ITSE 1370",
+            requested_term: "Spring 2027",
+            offerings: [{ meets: [] }],
+          },
+        },
+      ],
+    });
+    assert.match(chips[0].prompt, /Spring 2027/);
+    assert.match(chips[1].prompt, /Spring 2027/);
+    if (preference === "evening")
+      assert.match(chips[1].prompt, /missing meeting time is unknown/);
+  }
+});
+
 test("the opening keeps the onboarding starters, unchanged", () => {
   assert.deepEqual(
     followUpsFor({ ...base, started: false }),

@@ -175,6 +175,12 @@ export function requestedToolChoice(
   if (
     (context.programKnown || namedPrograms.length === 1) &&
     (requestedSemesters(text).length ||
+      /\b(?:still need|remain(?:s|ing)?|what(?:'s| is) left|courses? (?:are )?left|take this semester|updated course history)\b/i.test(
+        text,
+      ) ||
+      /\b(?:what|which)(?: courses?| classes?)? (?:should|can|do|would) I (?:take|study)\b/i.test(
+        text,
+      ) ||
       (/\b(?:completed|passed|withdrew|taking|checklist)\b/i.test(text) &&
         /\b(?:program|certificate|checklist|remaining|left)\b/i.test(text)))
   )

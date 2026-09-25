@@ -14,6 +14,13 @@ import {
   readCourseDetails,
 } from "@/lib/course-details";
 import { citationHref } from "@/lib/constants";
+import {
+  readCompletionOverrides,
+  completionStatus,
+  type CompletionChoice,
+  type CompletionOverrides,
+} from "@/features/chat/completion-state";
+import { readCourseHistory } from "@/lib/planning";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -23,7 +30,8 @@ import { citationHref } from "@/lib/constants";
 //
 // PRIVACY: this persists to localStorage, and `questions` holds the student's
 // typed words or concise starter questions. On a shared machine others can read
-// them, so `clear()` exists and /summary offers it. Nothing is sent to a server.
+// them, so `clear()` exists and /summary offers it. Sheet edits stay local;
+// chat questions and completion choices are sent with chat requests.
 
 export interface SavedCourse {
   course_code: string;
@@ -91,7 +99,53 @@ function readSavedCourse(raw: unknown): SavedCourse | null {
   };
 }
 
+export interface SheetDraft {
+  name: string;
+  notes: string[];
+  edited: boolean;
+  toAsk: string[];
+  hiddenAnswers: string[];
+  answersSession: string | null;
+}
+
+const emptyDraft = (): SheetDraft => ({
+  name: "",
+  notes: [],
+  edited: false,
+  toAsk: [],
+  hiddenAnswers: [],
+  answersSession: null,
+});
+
+export function readSheetDraft(value: unknown): SheetDraft {
+  const draft = isRecord(value) ? value : {};
+  const strings = (v: unknown) =>
+    Array.isArray(v)
+      ? v
+          .filter((x): x is string => typeof x === "string")
+          .slice(0, 100)
+          .map((x) => x.slice(0, 8000))
+      : [];
+  return {
+    name: typeof draft.name === "string" ? draft.name.slice(0, 200) : "",
+    notes: strings(draft.notes),
+    edited: draft.edited === true,
+    toAsk: strings(draft.toAsk),
+    hiddenAnswers: strings(draft.hiddenAnswers),
+    answersSession:
+      typeof draft.answersSession === "string" ? draft.answersSession : null,
+  };
+}
+
 interface SavedCoursesState {
+  completionOverrides: CompletionOverrides;
+  applyCompletionHistory: (
+    history: unknown,
+    expected?: CompletionOverrides,
+    replace?: boolean,
+  ) => void;
+  draft: SheetDraft;
+  updateDraft: (patch: Partial<SheetDraft>) => void;
   courses: SavedCourse[];
   /** Typed questions or contextual starter labels, without model instructions. */
   questions: string[];
@@ -101,6 +155,7 @@ interface SavedCoursesState {
   toggle: (course: SavedCourse) => void;
   toggleSection: (course: SavedCourse, section: unknown) => void;
   toggleTaken: (courseCode: string) => void;
+  setCourseStatus: (courseCode: string, status: CompletionChoice) => void;
   remove: (courseCode: string) => void;
   addQuestion: (q: string) => void;
   removeQuestion: (index: number) => void;
@@ -119,6 +174,38 @@ export const useSavedCourses = create<SavedCoursesState>()(
       courses: [],
       questions: [],
       taken: [],
+      completionOverrides: {},
+      applyCompletionHistory: (history, expected, replace = false) => {
+        const patch: CompletionOverrides = Object.fromEntries(
+          Object.entries(readCourseHistory(history)).map(([code, record]) => [
+            code,
+            record.status === "completed"
+              ? true
+              : record.status === "not_completed"
+                ? false
+                : record.status,
+          ]),
+        );
+        const current = get().completionOverrides;
+        if (replace)
+          for (const code of Object.keys(expected ?? current))
+            if (!(code in patch)) patch[code] = "removed";
+        const next = { ...current };
+        for (const [code, status] of Object.entries(patch)) {
+          // A reply that arrives after an edit must not restore the old status.
+          if (expected && current[code] !== expected[code]) continue;
+          next[code] = status;
+        }
+        set({
+          completionOverrides: next,
+          taken: Object.keys(next).filter(
+            (code) => completionStatus(next[code]) === "completed",
+          ),
+        });
+      },
+      draft: emptyDraft(),
+      updateDraft: (patch) =>
+        set({ draft: readSheetDraft({ ...get().draft, ...patch }) }),
       toggle: (raw) => {
         const course = readSavedCourse(raw);
         if (!course) return;
@@ -146,17 +233,30 @@ export const useSavedCourses = create<SavedCoursesState>()(
             : [...sections, section],
         };
         set({
-          courses: saved
-            ? current.map((c) => (c === saved ? next : c))
-            : [...current, next],
+          // Section-only saves have no independent catalog entry to retain.
+          // Preserve older explicitly saved catalog courses when unscheduling.
+          courses:
+            saved && !next.sections.length && !saved.source_url
+              ? current.filter((c) => c !== saved)
+              : saved
+                ? current.map((c) => (c === saved ? next : c))
+                : [...current, next],
         });
       },
-      toggleTaken: (courseCode) =>
+      toggleTaken: (courseCode) => {
+        get().setCourseStatus(courseCode, !get().taken.includes(courseCode));
+      },
+      setCourseStatus: (courseCode, status) => {
+        const patch = readCompletionOverrides({ [courseCode]: status });
+        if (!Object.hasOwn(patch, courseCode)) return;
+        const next = { ...get().completionOverrides, ...patch };
         set({
-          taken: get().taken.includes(courseCode)
-            ? get().taken.filter((c) => c !== courseCode)
-            : [...get().taken, courseCode],
-        }),
+          completionOverrides: next,
+          taken: Object.keys(next).filter(
+            (code) => completionStatus(next[code]) === "completed",
+          ),
+        });
+      },
       remove: (courseCode) =>
         set({
           courses: get().courses.filter((c) => c.course_code !== courseCode),
@@ -165,12 +265,33 @@ export const useSavedCourses = create<SavedCoursesState>()(
         const text = summarizeSheetQuestion(q);
         if (!text || get().questions.includes(text)) return;
         if (!isSheetWorthyQuestion(text)) return;
-        set({ questions: [...get().questions, text].slice(-MAX_QUESTIONS) });
+        const questions = [...get().questions, text].slice(-MAX_QUESTIONS);
+        set({
+          questions,
+          draft: {
+            ...get().draft,
+            toAsk: get().draft.toAsk.filter((q) => questions.includes(q)),
+          },
+        });
       },
-      removeQuestion: (index) =>
-        set({ questions: get().questions.filter((_, i) => i !== index) }),
+      removeQuestion: (index) => {
+        const removed = get().questions[index];
+        set({
+          questions: get().questions.filter((_, i) => i !== index),
+          draft: {
+            ...get().draft,
+            toAsk: get().draft.toAsk.filter((q) => q !== removed),
+          },
+        });
+      },
       clear: () => {
-        set({ courses: [], questions: [], taken: [] });
+        set({
+          courses: [],
+          questions: [],
+          taken: [],
+          completionOverrides: {},
+          draft: emptyDraft(),
+        });
         void useSavedCourses.persist?.clearStorage();
       },
     }),
@@ -203,6 +324,8 @@ export const useSavedCourses = create<SavedCoursesState>()(
         courses: s.courses,
         questions: s.questions,
         taken: s.taken,
+        draft: s.draft,
+        completionOverrides: s.completionOverrides,
       }),
       // Hydrate on the client after mount (see SummarySheet), never during the
       // server render — so the first client paint matches SSR and React never
@@ -212,7 +335,13 @@ export const useSavedCourses = create<SavedCoursesState>()(
       // same posture as the onboarding store's validated merge.
       merge: (persisted, current) => {
         const p = persisted as
-          | { courses?: unknown; questions?: unknown; taken?: unknown }
+          | {
+              courses?: unknown;
+              questions?: unknown;
+              taken?: unknown;
+              draft?: unknown;
+              completionOverrides?: unknown;
+            }
           | undefined;
         const courses = Array.isArray(p?.courses)
           ? p.courses.flatMap((raw) => {
@@ -223,8 +352,18 @@ export const useSavedCourses = create<SavedCoursesState>()(
         const questions = Array.isArray(p?.questions)
           ? p.questions.filter((q): q is string => typeof q === "string")
           : [];
+        const completionOverrides = readCompletionOverrides(
+          p?.completionOverrides ??
+            (Array.isArray(p?.taken)
+              ? Object.fromEntries(
+                  p.taken.filter(isCourseCode).map((code) => [code, true]),
+                )
+              : {}),
+        );
         return {
           ...current,
+          draft: readSheetDraft(p?.draft),
+          completionOverrides,
           courses: [
             ...new Map(
               courses.map((course) => [course.course_code, course]),
@@ -237,9 +376,10 @@ export const useSavedCourses = create<SavedCoursesState>()(
                 .filter(isSheetWorthyQuestion),
             ),
           ].slice(-MAX_QUESTIONS),
-          taken: Array.isArray(p?.taken)
-            ? [...new Set(p.taken.filter(isCourseCode))]
-            : [],
+          taken: Object.keys(completionOverrides).filter(
+            (code) =>
+              completionStatus(completionOverrides[code]) === "completed",
+          ),
         };
       },
     },

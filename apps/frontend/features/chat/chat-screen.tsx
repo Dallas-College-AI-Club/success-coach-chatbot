@@ -9,9 +9,14 @@ import {
   type UIMessage,
 } from "ai";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AlertDialog } from "radix-ui";
 import {
   memo,
+  useCallback,
   useEffect,
+  useId,
+  useMemo,
   useRef,
   useState,
   useSyncExternalStore,
@@ -24,13 +29,30 @@ import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
 import {
+  messagesForRetry,
+  reportedHistoryFromMessages,
+  type CompletionOverrides,
+} from "@/features/chat/completion-state";
+import { PlanningControls } from "@/features/chat/planning-controls";
+import {
+  clearConversation,
+  hydrateConversation,
+  saveConversation,
+  useConversation,
+} from "@/features/chat/conversation-store";
+import {
   CourseResults,
-  hasCourseResults,
   ScheduleResults,
   InstructorResults,
+  type CourseScheduleAction,
 } from "@/features/chat/course-results";
-import { askedLabel, followUpsFor } from "@/features/chat/follow-ups";
+import {
+  askedLabel,
+  courseScheduleQuestion,
+  followUpsFor,
+} from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
+import { cardOnlyReply } from "@/features/chat/reply-presentation";
 import {
   starterQuestionsFor,
   type StarterQuestion,
@@ -121,31 +143,21 @@ const Turn = memo(function Turn({
   m,
   skin,
   question,
+  displayQuestion,
+  scheduleAction,
+  onEditHistory,
 }: {
   m: UIMessage;
   skin: Skin;
   question: string;
+  displayQuestion: string;
+  scheduleAction: CourseScheduleAction;
+  onEditHistory: () => void;
 }) {
   const isUser = m.role === "user";
   // What a chip-sent turn SAYS, as opposed to the instructions it carries.
   const spoken = isUser ? askedLabel(m.metadata) : undefined;
-  const courseRows =
-    !isUser &&
-    m.parts.some(
-      (part) =>
-        isToolUIPart(part) &&
-        part.state === "output-available" &&
-        (hasCourseResults(getToolName(part), part.output) ||
-          getToolName(part) === "get_class_schedule" ||
-          getToolName(part) === "get_instructor" ||
-          getToolName(part) === "search_faculty_expertise" ||
-          (getToolName(part) === "search_knowledge" &&
-            isRecord(part.output) &&
-            Array.isArray(part.output.results) &&
-            part.output.results.some(
-              (result) => isRecord(result) && result.doc_type === "cv",
-            ))),
-    );
+  const cardsOnly = cardOnlyReply(m, displayQuestion);
   const parts = (
     <>
       {/* Sender attribution once per turn — position and avatar don't reach AT. */}
@@ -155,7 +167,7 @@ const Turn = memo(function Turn({
           // Multi-step turns open with an EMPTY text part when the model goes
           // straight to a tool call ([text(""), tool, text(answer)]) — painting
           // it renders a blank styled bubble above the tool chip.
-          if (!part.text) return null;
+          if (!part.text || cardsOnly) return null;
           return (
             <div
               key={i}
@@ -176,19 +188,10 @@ const Turn = memo(function Turn({
                 !isUser && "self-start",
               )}
             >
-              {courseRows && part.text.length > 300 ? (
-                <details open>
-                  <summary className={`${skin.link} cursor-pointer`}>
-                    Major&apos;s explanation
-                  </summary>
-                  <MarkdownViewer content={part.text} className="prose mt-2" />
-                </details>
-              ) : (
-                <MarkdownViewer
-                  content={spoken ?? part.text}
-                  className={isUser ? "prose-invert!" : "prose"}
-                />
-              )}
+              <MarkdownViewer
+                content={spoken ?? part.text}
+                className={isUser ? "prose-invert!" : "prose"}
+              />
             </div>
           );
         }
@@ -261,13 +264,15 @@ const Turn = memo(function Turn({
                     output={part.output}
                     skin={skin}
                     semesters={requestedSemesters(question)}
+                    scheduleAction={scheduleAction}
+                    onEditHistory={onEditHistory}
                   />
                   <ScheduleResults
                     name={getToolName(part)}
                     output={part.output}
                     skin={skin}
                     showInstructors={/\b(?:who|professors?|instructors?)\b/i.test(
-                      question,
+                      displayQuestion,
                     )}
                   />
                   <InstructorResults
@@ -300,35 +305,102 @@ function Conversation({
   starters,
   profile,
   interest,
+  sessionKey,
+  onClear,
 }: {
   mode: Mode;
   seed: UIMessage[];
   starters: StarterQuestion[];
   profile: StudentProfile | null;
   interest: InterestArea | null;
+  sessionKey: string;
+  onClear: () => void;
 }) {
   const { skin, copy } = mode;
+  const router = useRouter();
   const languages = useSyncExternalStore(
     subscribeLanguage,
     browserLanguages,
     serverLanguage,
   );
   const composer = composerCopy(languages.split(","), copy.composerPlaceholder);
-  const { messages, sendMessage, status, stop, error, regenerate } = useChat({
+  const [restored] = useState(() => useConversation.getState().draft);
+  const {
+    messages,
+    setMessages,
+    sendMessage,
+    status,
+    stop,
+    error,
+    regenerate,
+  } = useChat({
     transport,
-    messages: seed,
+    messages: restored?.messages.length ? restored.messages : seed,
     // useChat re-renders on every chunk; throttle the paint, not the stream.
     experimental_throttle: 50,
   });
 
-  const [input, setInput] = useState("");
-  const [askedLabels, setAskedLabels] = useState<string[]>([]);
+  const [input, setInput] = useState(restored?.input ?? "");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const openHistory = useCallback(() => setHistoryOpen(true), []);
+  const suggestionsId = useId();
+  const [askedLabels, setAskedLabels] = useState<string[]>(
+    restored?.askedLabels ?? [],
+  );
+  const [cancelled, setCancelled] = useState(restored?.interrupted ?? false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const transcriptRef = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
   const headingRef = useHeadingFocus(null);
   const busy = status === "submitted" || status === "streaming";
+  const sending = useRef(false);
+  const resetting = useRef(false);
+  const scheduleRequested = useRef<string | null>(null);
+  useEffect(() => {
+    if (busy) return;
+    sending.current = false;
+    const code = scheduleRequested.current;
+    if (!code) return;
+    scheduleRequested.current = null;
+    const reply = messages.at(-1);
+    if (
+      !reply?.parts.some(
+        (part) =>
+          isToolUIPart(part) &&
+          part.state === "output-available" &&
+          getToolName(part) === "get_class_schedule" &&
+          isRecord(part.output) &&
+          part.output.course_code === code,
+      )
+    )
+      return;
+    const sections = transcriptRef.current?.querySelectorAll<HTMLElement>(
+      'section[aria-label="Published class sections"]',
+    );
+    const result = Array.from(sections ?? []).findLast(
+      (section) => section.dataset.courseCode === code,
+    );
+    const pane = scrollRef.current;
+    if (!result || !pane) return;
+    // Start at the section heading, rather than the end of a long schedule.
+    stick.current = false;
+    pane.scrollTop +=
+      result.getBoundingClientRect().top - pane.getBoundingClientRect().top;
+    result.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+  }, [busy, messages]);
   const taken = useSavedCourses((s) => s.taken);
+  const completionOverrides = useSavedCourses((s) => s.completionOverrides);
+  useEffect(() => {
+    if (resetting.current) return;
+    saveConversation({
+      key: sessionKey,
+      messages,
+      input,
+      askedLabels,
+      interrupted: busy || cancelled || !!error,
+    });
+  }, [sessionKey, messages, input, askedLabels, busy, cancelled, error]);
 
   // Chips for where the conversation actually is: the opening starters, then
   // the next step the latest settled reply's tool results can answer. Computed
@@ -339,6 +411,60 @@ function Conversation({
         .filter(isToolUIPart)
         .filter((part) => part.state === "output-available")
         .map((part) => ({ name: getToolName(part), output: part.output }));
+  // A restored answer predates any checkbox edits made after that answer.
+  // Apply history only from newly completed replies, never on navigation back.
+  const appliedHistory = useRef<UIMessage | undefined>(
+    restored?.messages.findLast((message) => message.role === "assistant"),
+  );
+  const historyAtRequest = useRef<CompletionOverrides>({});
+  useEffect(() => {
+    if (busy || resetting.current) return;
+    const reply = messages.findLast((m) => m.role === "assistant");
+    if (!reply || reply === appliedHistory.current) return;
+    appliedHistory.current = reply;
+    if (!messages.some((message) => message.role === "user")) return;
+    const history = reportedHistoryFromMessages(
+      messages,
+      historyAtRequest.current,
+    );
+    for (const part of reply.parts) {
+      if (
+        isToolUIPart(part) &&
+        part.state === "output-available" &&
+        isRecord(part.output)
+      ) {
+        const reported = isRecord(part.output.planning)
+          ? part.output.planning.history
+          : part.output.course_history;
+        // Tool lookups can resolve prerequisite titles not present in the cards.
+        if (isRecord(reported))
+          for (const [code, entry] of Object.entries(reported))
+            if (!(code in history)) Object.assign(history, { [code]: entry });
+      }
+    }
+    useSavedCourses
+      .getState()
+      .applyCompletionHistory(history, historyAtRequest.current, true);
+  }, [messages, busy]);
+  const latestPlan = messages
+    .flatMap((message) => message.parts)
+    .filter(isToolUIPart)
+    .findLast(
+      (part) =>
+        getToolName(part) === "get_program_requirements" &&
+        part.state === "output-available" &&
+        isRecord(part.output) &&
+        part.output.found === true &&
+        Array.isArray(part.output.groups),
+    )?.output;
+  const latestHistory =
+    isRecord(latestPlan) && isRecord(latestPlan.planning)
+      ? latestPlan.planning.history
+      : undefined;
+  const historyProgram =
+    isRecord(latestPlan) && typeof latestPlan.name === "string"
+      ? latestPlan.name
+      : profile?.major;
   const suggestions = followUpsFor({
     program: profile?.major,
     interest,
@@ -350,6 +476,8 @@ function Conversation({
     tools: lastCoachTools,
     started: messages.some((message) => message.role === "user"),
     taken,
+    completionOverrides,
+    latestPlan,
     askedLabels,
   });
 
@@ -401,70 +529,125 @@ function Conversation({
   // once (role="status" is implicitly polite + atomic), and a regenerated
   // identical answer re-announces because the value passes through "" first.
   const last = messages[messages.length - 1];
+  const lastQuestion = messages.findLast((message) => message.role === "user");
+  const lastCards =
+    last &&
+    cardOnlyReply(
+      last,
+      lastQuestion
+        ? (askedLabel(lastQuestion.metadata) ?? plainText(lastQuestion))
+        : "",
+    );
   const incomplete =
     status === "ready" &&
     last?.role === "assistant" &&
     last.id !== SEED_ID &&
+    !lastCards &&
     !plainText(last).trim();
   const announced =
     status === "ready" && last?.role === "assistant" && last.id !== SEED_ID
-      ? plainText(last)
+      ? lastCards
+        ? lastCards === "schedule"
+          ? "Class sections are ready. Review the schedule cards in the conversation."
+          : "Your course checklist is ready. Review the course cards in the conversation."
+        : plainText(last)
       : "";
-
-  // The profile rides with EVERY request — sends and retries alike. Defined
-  // once so a retry cannot silently drop it: the route puts it in the system
-  // prompt, so it survives even if the seeded opening turn is ever trimmed
-  // out of the history.
-  const requestOptions = profile ? { body: { profile } } : undefined;
 
   // Asking — or retrying — returns the reader to the end of the conversation
   // and re-arms the follow, whatever they were reading before.
-  const toBottom = () => {
+  const toBottom = useCallback(() => {
     stick.current = true;
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: prefersReducedMotion() ? "auto" : "smooth",
     });
-  };
+  }, []);
 
-  const send = (text: string, note = text) => {
-    const t = text.trim();
-    if (!t || busy) return;
-    useSavedCourses.getState().addQuestion(note);
-    // The chip's own words ride along as metadata for the bubble to show; the
-    // model still gets `text`, the full prompt. Typed questions need none.
-    sendMessage(
-      { text: t, ...(note === t ? {} : { metadata: { label: note } }) },
-      requestOptions,
-    );
-    setInput("");
-    toBottom();
-  };
+  const send = useCallback(
+    (text: string, note = text, clearInput = true) => {
+      const t = text.trim();
+      if (!t || busy || sending.current) return;
+      sending.current = true;
+      setSuggestionsOpen(false);
+      setCancelled(false);
+      // Read at the action boundary so an editor's newest change rides on the
+      // request even when the student immediately asks for a refreshed plan.
+      const completionOverrides =
+        useSavedCourses.getState().completionOverrides;
+      useSavedCourses.getState().applyCompletionHistory(
+        reportedHistoryFromMessages([
+          ...messages,
+          {
+            id: "pending",
+            role: "user",
+            parts: [{ type: "text", text: t }],
+            metadata: { completionOverrides },
+          },
+        ]),
+        undefined,
+        true,
+      );
+      historyAtRequest.current = useSavedCourses.getState().completionOverrides;
+      useSavedCourses.getState().addQuestion(note);
+      // The chip's own words ride along as metadata for the bubble to show; the
+      // model still gets `text`, the full prompt. Typed questions need none.
+      sendMessage(
+        {
+          text: t,
+          metadata: {
+            ...(note === t ? {} : { label: note }),
+            completionOverrides,
+          },
+        },
+        { body: { profile: profile ?? undefined, completionOverrides } },
+      );
+      if (clearInput) setInput("");
+      toBottom();
+    },
+    [busy, messages, profile, sendMessage, toBottom],
+  );
+
+  const scheduleAction = useMemo<CourseScheduleAction>(
+    () => ({
+      busy,
+      onViewSchedule: (code) => {
+        if (busy || sending.current) return;
+        const question = courseScheduleQuestion(code);
+        scheduleRequested.current = code;
+        setAskedLabels((asked) => [...asked, question.label]);
+        send(question.prompt, question.note ?? question.label, false);
+      },
+    }),
+    [busy, send],
+  );
 
   let currentQuestion = "";
+  let currentDisplayQuestion = "";
   const turns: ReactNode[] = [];
   for (const message of messages) {
-    if (message.role === "user") currentQuestion = plainText(message);
+    if (message.role === "user") {
+      currentQuestion = plainText(message);
+      // Prompt instructions can mention instructors without the student asking
+      // for a roster. Keep schedule previews focused on the sections.
+      currentDisplayQuestion = askedLabel(message.metadata) ?? currentQuestion;
+    }
     turns.push(
       <Turn
         key={message.id}
         m={message}
         skin={skin}
         question={currentQuestion}
+        displayQuestion={currentDisplayQuestion}
+        scheduleAction={scheduleAction}
+        onEditHistory={openHistory}
       />,
     );
   }
 
   return (
     <div
-      // Subtract the chrome above and below, so the composer always lands
-      // inside the viewport. At md that is p-8 twice + a one-row header + the
-      // gap = 122px, and 9.5rem holds. Below md the buttons wrap the header to
-      // 158px against p-4 — 202px of chrome, which pushed the composer 34px
-      // off a 390x844 phone; 13rem covers it. The 100dvh term is what lets a
-      // short window and a landscape phone fit at all, and the 900px ceiling
-      // only binds above ~1050px of height, where 720px left the panel short.
-      className={`${skin.surface} flex h-[min(900px,calc(100dvh_-_13rem))] w-full min-w-0 flex-col gap-3 p-3 sm:p-4 md:h-[min(900px,calc(100dvh_-_9.5rem))]`}
+      // Flex uses the header's actual height rather than a fixed subtraction.
+      className={`${skin.surface} coach-chat-panel flex w-full min-w-0 flex-col gap-3 p-3 sm:p-4`}
     >
       <h1 ref={headingRef} tabIndex={-1} className="sr-only outline-none">
         Planning chat with Major
@@ -504,22 +687,35 @@ function Conversation({
             </CoachRow>
           )}
 
-          {(error || incomplete) && (
+          {(error || incomplete || cancelled) && (
             <div className="flex flex-col items-start gap-2">
               {/* Show the message only when it's one of our own mapped strings —
                   equality against the shared allowlist, never reflected text. */}
               <p className={skin.helper}>
-                {incomplete
-                  ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
-                  : error && SAFE_CHAT_ERRORS.has(error.message)
-                    ? error.message
-                    : GENERIC_CHAT_ERROR}
+                {cancelled
+                  ? "Response stopped. You can try again or ask another question."
+                  : incomplete
+                    ? "Major did not finish the explanation. You can try again; any retrieved records are shown above."
+                    : error && SAFE_CHAT_ERRORS.has(error.message)
+                      ? error.message
+                      : GENERIC_CHAT_ERROR}
               </p>
               <Button
                 variant="ghost"
                 className={skin.ghostBtn}
                 onClick={() => {
-                  regenerate(requestOptions);
+                  setCancelled(false);
+                  historyAtRequest.current =
+                    useSavedCourses.getState().completionOverrides;
+                  setMessages(
+                    messagesForRetry(messages, historyAtRequest.current),
+                  );
+                  regenerate({
+                    body: {
+                      profile: profile ?? undefined,
+                      completionOverrides: historyAtRequest.current,
+                    },
+                  });
                   toBottom();
                 }}
               >
@@ -530,25 +726,116 @@ function Conversation({
         </div>
       </div>
 
-      {/* Follow-up questions for wherever the conversation has reached. The
-          chips are EMPTIED while a reply streams, so a half-finished turn
-          never changes the set under a tapping hand; the row keeps its height
-          so the composer does not hop as they come and go. */}
-      <div className="flex min-h-9 flex-wrap gap-1.5 px-1">
-        {!busy &&
-          suggestions.map((q) => (
+      {/* Keep the conversation roomy until the student asks for suggestions.
+          Sending closes the drawer; streamed replies never reopen it. */}
+      <div className="coach-suggestions grid min-w-0 shrink-0 grid-cols-[1fr_auto_auto] items-center">
+        <button
+          type="button"
+          aria-expanded={suggestionsOpen}
+          aria-controls={suggestionsId}
+          aria-label={suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
+          disabled={busy || suggestions.length === 0}
+          onClick={() => setSuggestionsOpen((open) => !open)}
+          className={`${skin.link} flex min-h-11 shrink-0 cursor-pointer items-center gap-2 justify-self-start rounded-lg px-2 text-sm focus-visible:outline-2 disabled:cursor-default disabled:opacity-50`}
+        >
+          <span aria-hidden>{suggestionsOpen ? "▾" : "▸"}</span>
+          <span className="hidden min-[400px]:inline">
+            {suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
+          </span>
+          <span className="min-[400px]:hidden">Suggestions</span>
+        </button>
+        <AlertDialog.Root>
+          <AlertDialog.Trigger asChild>
             <button
-              key={q.prompt}
               type="button"
-              onClick={() => {
-                setAskedLabels((asked) => [...asked, q.label]);
-                send(q.prompt, q.note ?? q.label);
-              }}
-              className={`${skin.chip} pointer-coarse:min-h-11`}
+              className={`${skin.link} coach-clear-chat min-h-11 shrink-0 cursor-pointer rounded-lg px-2 text-sm focus-visible:outline-2`}
             >
-              {q.label}
+              Clear chat
             </button>
-          ))}
+          </AlertDialog.Trigger>
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
+            <AlertDialog.Content className="bg-popover text-popover-foreground fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl p-5 shadow-xl">
+              <AlertDialog.Title className="text-lg font-semibold">
+                Clear this chat?
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-sm leading-relaxed">
+                This removes this tab’s messages and unfinished question. Your
+                saved classes, notes and program choices stay. This cannot be
+                undone.
+              </AlertDialog.Description>
+              <div className="mt-4 flex justify-end gap-2">
+                <AlertDialog.Cancel asChild>
+                  <Button variant="outline" className="min-h-11">
+                    Cancel
+                  </Button>
+                </AlertDialog.Cancel>
+                <AlertDialog.Action asChild>
+                  <Button
+                    className="min-h-11"
+                    onClick={() => {
+                      // Abort before remounting; late chunks belong to the old
+                      // hook and must never overwrite the fresh saved draft.
+                      resetting.current = true;
+                      void stop();
+                      onClear();
+                    }}
+                  >
+                    Clear chat
+                  </Button>
+                </AlertDialog.Action>
+              </div>
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
+        <PlanningControls
+          history={latestHistory}
+          historyOpen={historyOpen}
+          onHistoryOpenChange={setHistoryOpen}
+          busy={busy}
+          onRefresh={
+            historyProgram
+              ? () =>
+                  send(
+                    `Refresh the full ${historyProgram} checklist using my current reported course history.`,
+                    "Update my remaining courses",
+                    false,
+                  )
+              : undefined
+          }
+          onRestart={(clearSaved) => {
+            resetting.current = true;
+            void stop();
+            clearConversation();
+            if (clearSaved) useSavedCourses.getState().clear();
+            useStudentSession.getState().resetSession();
+            router.push("/");
+          }}
+        />
+        <div
+          id={suggestionsId}
+          className={
+            suggestionsOpen
+              ? "coach-followups col-span-3 flex flex-wrap gap-1.5 px-1"
+              : "hidden"
+          }
+        >
+          {!busy &&
+            suggestions.map((q) => (
+              <button
+                key={q.prompt}
+                type="button"
+                onClick={() => {
+                  setAskedLabels((asked) => [...asked, q.label]);
+                  send(q.prompt, q.note ?? q.label);
+                  scrollRef.current?.focus({ preventScroll: true });
+                }}
+                className={`${skin.chip} min-h-11`}
+              >
+                {q.label}
+              </button>
+            ))}
+        </div>
       </div>
 
       <form
@@ -569,19 +856,25 @@ function Conversation({
           lang={composer.language}
           dir={input ? "auto" : composer.direction}
           autoComplete="off"
+          maxLength={8000}
           className="min-w-0 flex-1 bg-transparent py-1.5 text-base outline-none placeholder:opacity-55"
         />
         {busy ? (
           <Button
+            key="stop"
             type="button"
             variant="ghost"
             className={skin.ghostBtn}
-            onClick={() => stop()}
+            onClick={() => {
+              setCancelled(true);
+              stop();
+            }}
           >
             Stop
           </Button>
         ) : (
           <Button
+            key="send"
             type="submit"
             className={skin.primaryBtn}
             disabled={!input.trim()}
@@ -614,6 +907,30 @@ export function ChatScreen() {
   const hydrated = useStudentSession((s) => s.hasHydrated);
   const setModeId = useStudentSession((s) => s.setModeId);
   const session = useSavedSession();
+  const sessionKey = session?.payload.completedAt ?? "without-onboarding";
+  const readyFor = useConversation((s) => s.readyFor);
+  const [restartCount, setRestartCount] = useState(0);
+  const pageRef = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (hydrated) void hydrateConversation(sessionKey);
+  }, [hydrated, sessionKey]);
+  useEffect(() => {
+    const page = pageRef.current;
+    if (!page) return;
+    const visible = window.visualViewport;
+    const resize = () => {
+      const height = visible?.height ?? window.innerHeight;
+      page.style.setProperty("--chat-height", `${height}px`);
+      page.dataset.compact = String(height < 600);
+    };
+    resize();
+    visible?.addEventListener("resize", resize);
+    window.addEventListener("resize", resize);
+    return () => {
+      visible?.removeEventListener("resize", resize);
+      window.removeEventListener("resize", resize);
+    };
+  }, [readyFor]);
 
   // The saved look is derived from the store; `pickedId` only covers a switch
   // before any session exists (a cold visit that never onboarded).
@@ -623,7 +940,8 @@ export function ChatScreen() {
   // Arriving via <Link> from onboarding, the store is already hydrated in
   // memory, so this renders themed on the first committed frame. Only a cold
   // load of /chat shows the placeholder, and only for one frame.
-  if (!mode) return <main className={MODES[0].skin.page} />;
+  if (!mode || readyFor !== sessionKey)
+    return <main className={MODES[0].skin.page} />;
 
   const switchMode = (m: Mode) => {
     setPickedId(m.id);
@@ -637,12 +955,13 @@ export function ChatScreen() {
 
   return (
     <main
+      ref={pageRef}
       // overflow-CLIP, not hidden: clip is not a scroll container, so this box
       // has no scrollport to move and the chat cannot leave the viewport even
       // if something inside overflows again. `hidden` clips identically but
       // stays programmatically scrollable — with no scrollbar and no wheel to
       // bring it back, which is how the panel used to strand itself off-screen.
-      className={`relative overflow-clip ${mode.fontClass} ${mode.skin.page}`}
+      className={`coach-chat-page relative overflow-clip ${mode.fontClass} ${mode.skin.page}`}
     >
       {/* The mode's scene continues behind the chat. */}
       <ChatBackdrop modeId={mode.id} />
@@ -657,8 +976,8 @@ export function ChatScreen() {
           very class list. */}
       {/* z-10 so the roaming mascots (which carry their own z) pass behind the
           panel — visible in the gutters, softened under the blurred surface. */}
-      <div className="relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
-        <div className="flex w-full items-center justify-between gap-3">
+      <div className="coach-chat-shell relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
+        <div className="coach-chat-header flex w-full items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <AiClubLogo />
             <Link
@@ -670,13 +989,9 @@ export function ChatScreen() {
             </Link>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
-            {/* New tab: a client navigation unmounts this screen, and the
-                transcript lives in the useChat instance — printing would
-                otherwise discard the conversation it is printing from. */}
+            {/* The tab's saved conversation survives this same-tab round trip. */}
             <Link
               href="/summary"
-              target="_blank"
-              rel="noopener"
               className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
             >
               🖨 Print for my coach
@@ -690,6 +1005,12 @@ export function ChatScreen() {
             switching looks must repaint it, not reset it — the wizard's rule
             ("the answers survive because they live in the hook, not the shell"). */}
         <Conversation
+          key={`${sessionKey}:${restartCount}`}
+          sessionKey={sessionKey}
+          onClear={() => {
+            clearConversation(sessionKey);
+            setRestartCount((count) => count + 1);
+          }}
           mode={mode}
           seed={seed}
           starters={starters}

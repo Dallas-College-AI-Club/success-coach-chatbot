@@ -4,22 +4,27 @@ import { useId, useState } from "react";
 
 import type { Skin } from "@/features/onboarding/skin";
 import {
+  currentCourseHistory,
+  courseHistoryChanged,
+} from "@/features/chat/completion-state";
+import {
   readSavedSection,
   savedSectionKey,
   useSavedCourses,
 } from "@/features/chat/saved-courses";
 import { citationHref } from "@/lib/constants";
+import { assessRequisites, type CourseHistory } from "@/lib/planning";
 import {
-  assessRequisites,
-  readCourseHistory,
-  type CourseHistory,
-} from "@/lib/planning";
+  readElectiveOptions,
+  type ElectiveOptions,
+} from "@/lib/elective-options";
 import {
   catalogText,
   groupScheduleSections,
   isCourseCode,
   isRecord,
   programCourseCode,
+  programGroupRules,
   readCourseDetails,
   scopeProgramGroups,
   type CourseDetails,
@@ -261,22 +266,48 @@ export function InstructorResults({
   );
 }
 
+export type CourseScheduleAction = {
+  onViewSchedule: (courseCode: string) => void;
+  busy: boolean;
+};
+
+function ViewScheduleButton({
+  courseCode,
+  skin,
+  action,
+}: {
+  courseCode: string;
+  skin: Skin;
+  action?: CourseScheduleAction;
+}) {
+  if (!action || !isCourseCode(courseCode)) return null;
+  return (
+    <button
+      type="button"
+      aria-label={`View schedule for ${courseCode}`}
+      disabled={action.busy}
+      className={`${skin.chip} min-h-11 shrink-0 cursor-pointer disabled:cursor-wait disabled:opacity-50`}
+      onClick={() => action.onViewSchedule(courseCode)}
+    >
+      View schedule
+    </button>
+  );
+}
+
 function CourseRow({
   course,
   skin,
   history = {},
   plan = false,
+  scheduleAction,
 }: {
   course: CourseDetails;
   skin: Skin;
   history?: CourseHistory;
   /** On a program-plan card the student can tick the course as taken. */
   plan?: boolean;
+  scheduleAction?: CourseScheduleAction;
 }) {
-  const saved = useSavedCourses((s) =>
-    s.courses.some((c) => c.course_code === course.course_code),
-  );
-  const toggle = useSavedCourses((s) => s.toggle);
   const taken = useSavedCourses((s) => s.taken.includes(course.course_code));
   const toggleTaken = useSavedCourses((s) => s.toggleTaken);
   const href = citationHref(course.source_url);
@@ -289,7 +320,7 @@ function CourseRow({
         <span className="ml-2 text-sm whitespace-nowrap opacity-75">
           {course.credit_hours == null
             ? "Credits not listed"
-            : `${course.credit_hours} credits`}
+            : `${course.credit_hours} ${course.credit_hours === 1 ? "credit" : "credits"}`}
         </span>
       </p>
       <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2">
@@ -377,6 +408,7 @@ function CourseRow({
             <input
               type="checkbox"
               checked={taken}
+              disabled={scheduleAction?.busy}
               aria-label={`I've taken ${course.course_code}`}
               onChange={() => toggleTaken(course.course_code)}
               className="size-4 accent-current"
@@ -384,17 +416,151 @@ function CourseRow({
             I&apos;ve taken this
           </label>
         )}
-        <button
-          type="button"
-          aria-pressed={saved}
-          aria-label={`${saved ? "Remove" : "Add"} ${course.course_code} ${saved ? "from" : "to"} my notes`}
-          className={`${skin.chip} shrink-0 cursor-pointer pointer-coarse:min-h-11`}
-          onClick={() => toggle(course)}
-        >
-          {saved ? "✓ Added to notes" : "+ Add to notes"}
-        </button>
+        <ViewScheduleButton
+          courseCode={course.course_code}
+          skin={skin}
+          action={scheduleAction}
+        />
       </div>
     </li>
+  );
+}
+
+function ElectiveChoices({
+  entry,
+  options,
+  courses,
+  history,
+  skin,
+  scheduleAction,
+}: {
+  entry: string;
+  options: ElectiveOptions;
+  courses: Map<string, CourseDetails>;
+  history: CourseHistory;
+  skin: Skin;
+  scheduleAction?: CourseScheduleAction;
+}) {
+  const id = useId();
+  const [query, setQuery] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const available = options.courses.filter(
+    (code) => !["completed", "in_progress"].includes(history[code]?.status),
+  );
+  const search = query.trim().toLowerCase();
+  const matches = available.filter(
+    (code) =>
+      `${code} ${courses.get(code)?.title ?? ""}`
+        .toLowerCase()
+        .includes(search) ||
+      code.replace(/\s/g, "").toLowerCase().includes(search.replace(/\s/g, "")),
+  );
+  const visible = showAll || search ? matches : matches.slice(0, 5);
+  const href = citationHref(options.source_url);
+  return (
+    <details className="min-w-0">
+      <summary className="cursor-pointer rounded py-1 focus-visible:outline-2 focus-visible:outline-offset-4">
+        <span className="block leading-snug">{entry}</span>
+        <span className={`${skin.link} mt-2 inline-block min-h-8 text-sm`}>
+          View course options ({available.length})
+        </span>
+      </summary>
+      <div className="mt-2 space-y-3 text-sm">
+        {options.examples && (
+          <p>
+            Catalog-listed examples. More options may be available in the
+            catalog.
+          </p>
+        )}
+        {options.excluded_required.length > 0 && (
+          <p>
+            {options.excluded_required.join(", ")} already appears elsewhere in
+            your plan and is not repeated here.
+          </p>
+        )}
+        {options.courses.length > available.length && (
+          <p>
+            Courses you reported completed or in progress are hidden from these
+            choices.
+          </p>
+        )}
+        {available.length > 5 && (
+          <div>
+            <label htmlFor={id} className="mb-1 block">
+              Find a course in this elective
+            </label>
+            <input
+              id={id}
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Course code or title"
+              className="min-h-11 w-full min-w-0 rounded-lg border border-current/30 bg-transparent px-3 text-base"
+            />
+          </div>
+        )}
+        {!matches.length && (
+          <p>
+            {search
+              ? "No course matches this search. Try another code or title."
+              : "No additional courses to show for this choice."}
+          </p>
+        )}
+        <ul className="list-none">
+          {visible.map((code) => {
+            const course = courses.get(code);
+            return course ? (
+              <CourseRow
+                key={code}
+                course={course}
+                skin={skin}
+                history={history}
+                scheduleAction={scheduleAction}
+                plan
+              />
+            ) : (
+              <li key={code} className="border-b border-current/15 py-3">
+                <p className="mb-2 font-semibold">{code}</p>
+                <ViewScheduleButton
+                  courseCode={code}
+                  skin={skin}
+                  action={scheduleAction}
+                />
+              </li>
+            );
+          })}
+        </ul>
+        {!search && matches.length > 5 && (
+          <button
+            type="button"
+            className={`${skin.link} min-h-11 cursor-pointer`}
+            onClick={() => setShowAll(!showAll)}
+          >
+            {showAll
+              ? "Show fewer courses"
+              : `Show all ${matches.length} courses`}
+          </button>
+        )}
+        {options.rule && (
+          <details>
+            <summary className={`${skin.link} cursor-pointer py-2`}>
+              Catalog selection rules
+            </summary>
+            <p className="mt-2 whitespace-pre-line">{options.rule}</p>
+          </details>
+        )}
+        {href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${skin.link} inline-block min-h-11 py-2`}
+          >
+            Full elective list in catalog ↗
+          </a>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -414,12 +580,17 @@ export function CourseResults({
   output,
   skin,
   semesters = [],
+  scheduleAction,
+  onEditHistory,
 }: {
   name: string;
   output: unknown;
   skin: Skin;
   semesters?: number[];
+  scheduleAction?: CourseScheduleAction;
+  onEditHistory?: () => void;
 }) {
+  const completionOverrides = useSavedCourses((s) => s.completionOverrides);
   if (!hasCourseResults(name, output) || !isRecord(output)) return null;
   if (name === GET_COURSE_INFO_TOOL_NAME) {
     const course = readCourseDetails(output);
@@ -428,7 +599,11 @@ export function CourseResults({
         <CourseRow
           course={course}
           skin={skin}
-          history={readCourseHistory(output.course_history)}
+          history={currentCourseHistory(
+            output.course_history,
+            completionOverrides,
+          )}
+          scheduleAction={scheduleAction}
         />
       </ul>
     ) : null;
@@ -454,7 +629,11 @@ export function CourseResults({
   ).filter(isRecord);
   const planning = isRecord(output.planning) ? output.planning : null;
   const comparison = isRecord(output.comparison) ? output.comparison : null;
-  const history = readCourseHistory(planning?.history);
+  const history = currentCourseHistory(planning?.history, completionOverrides);
+  const historyChanged = courseHistoryChanged(
+    planning?.history,
+    completionOverrides,
+  );
   const alreadyReported = (code: string) =>
     ["completed", "in_progress"].includes(history[code]?.status);
   return (
@@ -536,7 +715,22 @@ export function CourseResults({
               </ul>
             </details>
           )}
-          {typeof planning.remaining_credits === "number" ? (
+          {onEditHistory && (
+            <button
+              type="button"
+              disabled={scheduleAction?.busy}
+              onClick={onEditHistory}
+              className={`${skin.link} min-h-11 cursor-pointer rounded px-1 disabled:opacity-50`}
+            >
+              Edit / remove reported courses
+            </button>
+          )}
+          {historyChanged ? (
+            <p>
+              Course history updated. Use “Update my remaining courses” in the
+              editor to refresh this checklist and its credits.
+            </p>
+          ) : typeof planning.remaining_credits === "number" ? (
             <p>
               {planning.remaining_credits} credits remain unfinished, including
               courses in progress.
@@ -547,7 +741,7 @@ export function CourseResults({
               items below.
             </p>
           )}
-          {planning.needs_history_clarification === true && (
+          {!historyChanged && planning.needs_history_clarification === true && (
             <p className="font-semibold">
               Please clarify your course history: give the course codes and
               whether each course is completed, in progress, not completed,
@@ -596,11 +790,7 @@ export function CourseResults({
             seenCourses.add(code);
             return [code];
           });
-        const electiveRule = entries.some((entry) =>
-          /\belective\b/i.test(entry),
-        )
-          ? catalogText(g.rule)
-          : null;
+        const rules = programGroupRules(entries, g.rule);
         return (
           <section
             key={index}
@@ -625,20 +815,19 @@ export function CourseResults({
                   your coach.
                 </p>
               )}
-              {!electiveRule &&
-                catalogText(g.rule) &&
-                (String(g.rule).length > 200 ? (
+              {rules.notes &&
+                (rules.notes.length > 200 ? (
                   <details className="my-2">
                     <summary className={`${skin.link} cursor-pointer text-sm`}>
                       Show options and catalog requirements
                     </summary>
                     <p className="mt-2 text-sm whitespace-pre-line">
-                      {String(g.rule)}
+                      {rules.notes}
                     </p>
                   </details>
                 ) : (
                   <p className="mt-1 text-sm whitespace-pre-line">
-                    {String(g.rule)}
+                    {rules.notes}
                   </p>
                 ))}
               {g.options_exhaustive === false && (
@@ -664,12 +853,18 @@ export function CourseResults({
                   .filter((code) => !alreadyReported(code))
                   .map((code, entryIndex) => {
                     const course = courses.get(code);
+                    const options = readElectiveOptions(
+                      isRecord(g.elective_options)
+                        ? g.elective_options[code]
+                        : null,
+                    );
                     return course ? (
                       <CourseRow
                         key={code}
                         course={course}
                         skin={skin}
                         history={history}
+                        scheduleAction={scheduleAction}
                         plan
                       />
                     ) : (
@@ -677,17 +872,15 @@ export function CourseResults({
                         key={`${entryIndex}-${code}`}
                         className="border-b border-current/15 py-3 last:border-0"
                       >
-                        {/\belective\b/i.test(code) ? (
-                          <details>
-                            <summary className={`${skin.link} cursor-pointer`}>
-                              {code}{" "}
-                              <span className="ml-2 text-sm">Show more</span>
-                            </summary>
-                            <p className="mt-2 text-sm whitespace-pre-line">
-                              {electiveRule ??
-                                "Choose a course that satisfies this elective with your Success Coach. Check the linked program catalog for the allowed options."}
-                            </p>
-                          </details>
+                        {options ? (
+                          <ElectiveChoices
+                            entry={code}
+                            options={options}
+                            courses={courses}
+                            history={history}
+                            skin={skin}
+                            scheduleAction={scheduleAction}
+                          />
                         ) : (
                           <>
                             <p>
@@ -696,13 +889,35 @@ export function CourseResults({
                                 ? ` — ${titles[code]}`
                                 : ""}
                             </p>
+                            {rules.electives[code] && (
+                              <p className="mt-2 text-sm whitespace-pre-line">
+                                {rules.electives[code]}
+                              </p>
+                            )}
+                            {!isCourseCode(code) &&
+                              citationHref(output.source_url) && (
+                                <a
+                                  href={citationHref(output.source_url)!}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={`${skin.link} mt-2 inline-block min-h-11 py-2 text-sm`}
+                                >
+                                  View catalog options ↗
+                                </a>
+                              )}
                           </>
                         )}
-                        <p className="text-sm opacity-75">
-                          {isCourseCode(code)
-                            ? "Course details are not available in this record. Check the linked program catalog."
-                            : "A requirement to choose with your coach, not an individual course."}
-                        </p>
+                        {isCourseCode(code) && (
+                          <p className="text-sm opacity-75">
+                            Course details are not available in this record.
+                            Check the linked program catalog.
+                          </p>
+                        )}
+                        <ViewScheduleButton
+                          courseCode={code}
+                          skin={skin}
+                          action={scheduleAction}
+                        />
                       </li>
                     );
                   })}
@@ -762,11 +977,17 @@ export function CourseResults({
                       course={course}
                       skin={skin}
                       history={history}
+                      scheduleAction={scheduleAction}
                       plan
                     />
                   ) : (
                     <li key={code} className="py-2 text-sm">
                       {code} — course details unavailable.
+                      <ViewScheduleButton
+                        courseCode={code}
+                        skin={skin}
+                        action={scheduleAction}
+                      />
                     </li>
                   );
                 })}
@@ -877,7 +1098,7 @@ export function ScheduleResults({
           {courseCode && saveable && (
             <button
               type="button"
-              className={`${skin.chip} text-xs`}
+              className={`${skin.chip} min-h-11 text-sm`}
               aria-pressed={!!saved}
               aria-label={`${saved ? "Remove" : "Add"} ${courseCode} section ${saveable.section_number ?? "unlisted"} (${saveable.term ?? "term not listed"}) ${saved ? "from" : "to"} my notes`}
               onClick={() =>
@@ -915,15 +1136,20 @@ export function ScheduleResults({
   return (
     <section
       aria-label="Published class sections"
+      data-course-code={courseCode}
       className="w-full rounded-xl border border-current/20 p-4"
     >
-      <h2 className="text-lg font-bold">
+      <h2 tabIndex={-1} className="text-lg font-bold focus-visible:outline-2">
         {String(output.course_code)} — Class sections
       </h2>
       <p className="mt-1 text-sm">
-        {String(output.total_sections ?? sections.length)} sections in the saved
-        schedule{output.requested_term ? ` for ${output.requested_term}` : ""}.
-        This is not live registration or seat availability.
+        {String(output.total_sections ?? sections.length)}{" "}
+        {Number(output.total_sections ?? sections.length) === 1
+          ? "section"
+          : "sections"}{" "}
+        in the saved schedule
+        {output.requested_term ? ` for ${output.requested_term}` : ""}. This is
+        not live registration or seat availability.
       </p>
       {(catalogText(output.oldest_source) ||
         catalogText(output.newest_source)) && (
@@ -941,7 +1167,10 @@ export function ScheduleResults({
           className="mt-3 rounded-lg border border-current/15 p-3"
         >
           <summary className={`${skin.link} cursor-pointer font-semibold`}>
-            All {instructors.length} named instructors · Show more
+            {instructors.length === 1
+              ? "Named instructor"
+              : `All ${instructors.length} named instructors`}{" "}
+            · Show more
           </summary>
           <p className="mt-2 text-sm">
             Complete for the selected term in the saved records, including
@@ -973,9 +1202,17 @@ export function ScheduleResults({
         </details>
       )}
       {!sections.length && (
-        <p className="mt-2 text-sm">
-          No sections found for this request in the saved records.
-        </p>
+        <div className="mt-2 space-y-2 text-sm">
+          <p>No sections found for this request in the saved records.</p>
+          <a
+            href="https://schedule.dallascollege.edu/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={skin.link}
+          >
+            Browse the official class schedule ↗
+          </a>
+        </div>
       )}
       {sections.length > 0 && (
         <div className="mt-3">

@@ -9,7 +9,32 @@ import {
   searchTerms,
   hasTopicEvidence,
   searchExcerpt,
+  courseSearchText,
+  asksForTutoringService,
+  asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
+import { COACH } from "../features/onboarding/handoff-copy";
+
+test("coach contacts use the service record without diverting faculty or course discovery", () => {
+  for (const query of [
+    COACH.prompt,
+    "How can I reach a Success Coach?",
+    "Academic advising phone number",
+    "Make an appointment with an academic advisor",
+    "Dallas College Success Coaching",
+  ]) {
+    assert.equal(asksForCoachingService(query), true, query);
+  }
+  for (const query of [
+    "Which faculty have academic advising experience?",
+    "Professor background in success coaching",
+    "Courses about sports coaching",
+    "Business success courses",
+    "Tutoring for statistics",
+  ]) {
+    assert.equal(asksForCoachingService(query), false, query);
+  }
+});
 
 test("calendar tolerates provider-filled optional defaults and uses Dallas civil dates", async () => {
   const now = await semester({
@@ -68,6 +93,11 @@ test("broad search rejects semantic lookalikes without topical evidence", () => 
 });
 
 test("broad recovery keeps late source evidence instead of only the document opening", () => {
+  assert.equal(asksForTutoringService("Find tutoring for statistics"), true);
+  assert.equal(
+    asksForTutoringService("Faculty with tutoring experience"),
+    false,
+  );
   const text =
     "Earlier unrelated teaching. ".repeat(130) +
     "Published research in machine learning and Python." +
@@ -78,6 +108,20 @@ test("broad recovery keeps late source evidence instead of only the document ope
   );
   assert.ok(excerpt.length <= 2400);
   assert.ok(excerpt.startsWith("… "));
+});
+
+test("course discovery distinguishes missing prerequisites from explicit catalog conditions", () => {
+  assert.match(
+    courseSearchText("ITSE 1370 — Python. Prerequisites: none stated."),
+    /Prerequisites: not recorded/,
+  );
+  for (const text of [
+    "Prerequisites: Recommended: ITSE 1370.",
+    "Prerequisites: Required: college-level math readiness.",
+    "No prerequisites.",
+  ]) {
+    assert.equal(courseSearchText(text), text);
+  }
 });
 
 // All provider traffic is mocked. This suite never loads local credentials.
@@ -190,7 +234,7 @@ test("embedding outages return a bounded unavailable result rather than throwing
   };
   state.__extractorFailedAt = Date.now();
   try {
-    assert.deepEqual(await search({ query: "tutoring", broad: true }), {
+    assert.deepEqual(await search({ query: "database courses", broad: true }), {
       found: false,
       search_scope: "all",
       unavailable: true,
@@ -264,7 +308,25 @@ test("a failed exact lookup forces broad recovery once, never for ambiguity or u
 test("structured follow-ups refresh facts without inventing an unidentified program", async () => {
   const { requestedToolChoice, TOOL_REGISTRY } =
     await import("../lib/tools/registry");
+  for (const question of [
+    "What courses remain?",
+    "What do I still need for my certificate?",
+    "What is left?",
+    "Actually I am still taking ITSE 1370. What should I take next?",
+    "Which classes can I take next?",
+    "What course should I study next?",
+  ]) {
+    assert.equal(
+      requestedToolChoice(question, 0, { programKnown: true })?.toolName,
+      "get_program_requirements",
+    );
+  }
   assert.equal(requestedToolChoice("Show my first semester", 0), undefined);
+  assert.equal(requestedToolChoice("What should I take next?", 0), undefined);
+  assert.equal(
+    requestedToolChoice("What does a class cost?", 0, { programKnown: true }),
+    undefined,
+  );
   assert.equal(
     requestedToolChoice("Show my first semester", 0, { programKnown: true })
       ?.toolName,

@@ -1,6 +1,7 @@
 import type { UIMessage } from "ai";
 import {
   authorityNotes,
+  CHAT_INVITATION,
   coachVerifyLine,
   handoffIntro,
 } from "@/features/onboarding/handoff-copy";
@@ -66,13 +67,11 @@ export function composerCopy(
 }
 
 // A visitor who skipped onboarding has told us nothing, so this greeting says
-// exploring first — the same place the undecided hand-off starts. It ends on
-// the same invitation every hand-off does, because the chips underneath it are
-// now real questions (COLD_VISIT_QUESTIONS) rather than an empty row.
+// exploring first, with a clear invitation to type or open the suggestions.
 const COLD_VISIT_INTRO = [
   "Hey, I'm Major 👋 — your Dallas College planning companion.",
   "I can look up what a degree or certificate requires, what you would study in one, when classes meet and who teaches them. A Success Coach reviews everything and makes your plan official.",
-  "You could ask:",
+  CHAT_INVITATION,
 ].join("\n\n");
 
 /** The coach's opening turn. With a completed onboarding it replays the
@@ -89,8 +88,7 @@ export function seedMessages(session: SavedSession | null): UIMessage[] {
           : "",
         ...authorityNotes(session.payload),
         coachVerifyLine(session.payload),
-        // Ends by inviting a question ("You could ask:"), so it goes last —
-        // it flows straight into the starter chips rendered underneath.
+        // The opening explains both ways to start: typing or opening suggestions.
         handoffIntro(session.payload),
       ]
         .filter(Boolean)

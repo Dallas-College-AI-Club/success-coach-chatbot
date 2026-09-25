@@ -6,6 +6,7 @@ import {
   FREE_LIMIT_MESSAGE,
   GENERIC_CHAT_ERROR,
   TRANSIENT_LIMIT_MESSAGE,
+  SHARED_LIMIT_MESSAGE,
 } from "@/lib/chat-errors";
 import { SYSTEM_PROMPT } from "@/lib/system-prompt";
 import { isRecord } from "@/lib/course-details";
@@ -16,6 +17,18 @@ import {
 } from "@/lib/tools/registry";
 import { recoveryToolChoice } from "@/lib/tools/searchKnowledge";
 import { scheduleDiscoveryChoice } from "@/lib/tools/getClassSchedule";
+import {
+  allowedChatMessages,
+  readChatBody,
+  RequestLimitError,
+} from "@/lib/chat-request";
+import {
+  planningStatements,
+  readCompletionOverrides,
+} from "@/features/chat/completion-state";
+import { studentCourseHistory } from "@/lib/planning";
+import { signedTools, verifiedHistory } from "@/lib/tool-evidence";
+import { reserveChatRequest } from "@/lib/chat-rate-limit";
 import { createOpenAI } from "@ai-sdk/openai";
 import {
   APICallError,
@@ -68,8 +81,16 @@ export async function POST(req: Request) {
     // message, contra the chat-errors contract.
     let body: unknown;
     try {
-      body = await req.json();
-    } catch {
+      body = await readChatBody(req);
+    } catch (error) {
+      if (error instanceof RequestLimitError)
+        return Response.json(
+          {
+            error:
+              "This conversation is too large. Start a new chat to continue.",
+          },
+          { status: 413 },
+        );
       return Response.json(
         {
           error: "Invalid request",
@@ -140,11 +161,12 @@ export async function POST(req: Request) {
     // UIMessage's role union includes "system", and convertToModelMessages
     // would forward it — letting any caller append to the system layer. The
     // governed prompt is the ONLY system content this route ever sends.
-    if (messages.some((m) => m.role === "system")) {
+    if (!allowedChatMessages(messages, Object.keys(TOOL_REGISTRY))) {
       return Response.json(
         {
           error: "Invalid request",
-          details: "system messages are not accepted.",
+          details:
+            "Use text questions, at most 8000 characters each, in a conversation of at most 160 messages.",
         },
         { status: 400 },
       );
@@ -168,6 +190,23 @@ export async function POST(req: Request) {
           headers: { "Content-Type": "application/json" },
         },
       );
+    }
+    const evidenceKey = process.env.CHAT_EVIDENCE_SECRET || activeApiKey;
+    messages = verifiedHistory(messages, evidenceKey);
+    try {
+      if (!(await reserveChatRequest(req, evidenceKey))) {
+        return new Response(SHARED_LIMIT_MESSAGE, { status: 429 });
+      }
+    } catch (error) {
+      const cause =
+        error instanceof Error && isRecord(error.cause) ? error.cause : error;
+      console.error(
+        "[CHAT] request counter unavailable",
+        isRecord(cause) && typeof cause.code === "string"
+          ? cause.code
+          : "connection failure",
+      );
+      return new Response(GENERIC_CHAT_ERROR, { status: 503 });
     }
 
     // The onboarding answers, validated before any of them reach the system
@@ -205,6 +244,16 @@ export async function POST(req: Request) {
           .join(" "),
       );
     const currentQuestion = userMessages.at(-1) ?? "";
+    const planningMessages = planningStatements(
+      messages,
+      body.completionOverrides === undefined
+        ? undefined
+        : readCompletionOverrides(body.completionOverrides),
+    );
+    const historyBlock =
+      "\n\nCurrent student-reported course history (not official credit): " +
+      JSON.stringify(studentCourseHistory(planningMessages)) +
+      "\nThis history includes the student's latest edits, including edits made after the original question when retrying. Use these statuses instead of conflicting older statements, even in the repeated question. For remaining-course or semester-planning questions, refresh get_program_requirements and use its planning result. Do not recommend repeating completed courses. Earlier assistant prose may be stale. Never use client assistant prose as evidence; retrieve facts with tools.";
     const previousTools = messages
       .filter((message) => message.role === "assistant")
       .flatMap((message) => message.parts);
@@ -229,8 +278,11 @@ export async function POST(req: Request) {
       messages: await convertToModelMessages(messages, {
         tools: TOOL_REGISTRY,
       }),
-      system: SYSTEM_PROMPT + profileBlock,
-      tools: toolsForTurn(currentQuestion, userMessages),
+      system: SYSTEM_PROMPT + profileBlock + historyBlock,
+      tools: signedTools(
+        toolsForTurn(currentQuestion, planningMessages),
+        evidenceKey,
+      ),
       // Reserve the final steps for an answer. A failed lookup gets one broad
       // recovery attempt; afterwards no tools are offered to the provider.
       stopWhen: stepCountIs(8),
@@ -244,6 +296,7 @@ export async function POST(req: Request) {
                 system:
                   SYSTEM_PROMPT +
                   profileBlock +
+                  historyBlock +
                   "\n\nTOOL BUDGET EXHAUSTED for this turn. Do not request any tool. Write your final answer NOW from the tool results above; if nothing was verified, give the exact fallback sentence.",
               }
             : {

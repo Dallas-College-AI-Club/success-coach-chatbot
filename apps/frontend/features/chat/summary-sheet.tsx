@@ -2,12 +2,23 @@
 
 import { citationHref } from "@/lib/constants";
 import { useEffect, useState, useSyncExternalStore } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { AlertDialog } from "radix-ui";
+import { Button } from "@/components/ui/button";
+import {
+  COURSE_STATUS_LABELS,
+  currentCourseHistory,
+} from "@/features/chat/completion-state";
+import { clearConversation } from "@/features/chat/conversation-store";
+import { PlanningControls } from "@/features/chat/planning-controls";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import {
   useHydrateSession,
   useSavedSession,
+  useStudentSession,
 } from "@/features/onboarding/onboarding-store";
 import {
   useSavedCourses,
@@ -48,58 +59,60 @@ function Cite({ label, url }: { label: string; url?: string | null }) {
 function ClassEntry({
   course,
   onRemove,
+  onRemoveSection,
 }: {
   course: SavedCourse;
   onRemove: () => void;
+  onRemoveSection: (
+    section: NonNullable<SavedCourse["sections"]>[number],
+  ) => void;
 }) {
   return (
     <div className="sheet-row">
       <div className="sheet-row-main">
         <span className="sheet-code">{course.course_code}</span> {course.title}
-        {course.sections?.length ? (
-          course.sections.map((section) => (
-            <div key={savedSectionKey(section)} className="sheet-req">
-              <strong>
-                Section {section.section_number ?? "not listed"} ·{" "}
-                {section.term ?? "Term not listed"}
-              </strong>
-              <div>
-                {section.start_date ?? "Start date not listed"} –{" "}
-                {section.end_date ?? "End date not listed"}
-              </div>
-              {section.meets.length ? (
-                section.meets.map((time) => <div key={time}>{time}</div>)
-              ) : (
+        {course.sections?.length
+          ? course.sections.map((section) => (
+              <div key={savedSectionKey(section)} className="sheet-req">
+                <strong>
+                  Section {section.section_number ?? "not listed"} ·{" "}
+                  {section.term ?? "Term not listed"}
+                </strong>
                 <div>
-                  <div>Meeting times not published in this record.</div>
-                  {section.meeting_info_raw && (
-                    <div>
-                      Source meeting information: {section.meeting_info_raw}
-                    </div>
-                  )}
+                  {section.start_date ?? "Start date not listed"} –{" "}
+                  {section.end_date ?? "End date not listed"}
                 </div>
-              )}
-              <div>
-                {[
-                  section.professor,
-                  section.campus,
-                  section.modality?.replaceAll("_", " "),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
+                {section.meets.length ? (
+                  section.meets.map((time) => <div key={time}>{time}</div>)
+                ) : section.meeting_info_raw ? (
+                  <div>
+                    Source meeting information: {section.meeting_info_raw}
+                  </div>
+                ) : null}
+                <div>
+                  {[
+                    section.professor,
+                    section.campus,
+                    section.modality?.replaceAll("_", " "),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </div>
+                <Cite
+                  label="Saved section · confirm current details"
+                  url={section.source_url}
+                />
+                <button
+                  type="button"
+                  className="sheet-add min-h-11 print:hidden"
+                  aria-label={`Remove ${course.course_code} section ${section.section_number ?? "unlisted"} (${section.term ?? "term not listed"})`}
+                  onClick={() => onRemoveSection(section)}
+                >
+                  Remove section
+                </button>
               </div>
-              <Cite
-                label="Saved section · confirm current details"
-                url={section.source_url}
-              />
-            </div>
-          ))
-        ) : (
-          <div className="sheet-req">
-            No section selected. Ask Major for this course&apos;s schedule and
-            add a section to save its dates and times.
-          </div>
-        )}
+            ))
+          : null}
         {course.source_url && (
           <Cite
             label={`Dallas College catalog ${course.catalog_year ?? ""}`.trim()}
@@ -123,6 +136,8 @@ function ClassEntry({
 }
 
 export function SummarySheet() {
+  const router = useRouter();
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Both stores skip auto-hydration so SSR and the first client paint match;
   // trigger them here, after mount, exactly as the chat screen does.
   useHydrateSession();
@@ -136,33 +151,32 @@ export function SummarySheet() {
 
   const session = useSavedSession();
   const courses = useSavedCourses((s) => s.courses);
-  const taken = useSavedCourses((s) => s.taken);
+  const overrides = useSavedCourses((s) => s.completionOverrides);
+  const reported = currentCourseHistory(undefined, overrides);
+  const toggleSection = useSavedCourses((s) => s.toggleSection);
   const removeCourse = useSavedCourses((s) => s.remove);
   const questions = useSavedCourses((s) => s.questions);
   const removeQuestion = useSavedCourses((s) => s.removeQuestion);
   const clearSaved = useSavedCourses((s) => s.clear);
 
-  const [name, setName] = useState("");
-  const [notes, setNotes] = useState<string[]>([]);
-  const [edited, setEdited] = useState(false);
-  // Which asked-questions the student wants to raise with their coach again.
-  // Print-time annotation, keyed by text so it survives a removal above it.
-  const [toAsk, setToAsk] = useState<Set<string>>(() => new Set());
-  // Onboarding answers the student chose not to show their coach. Sheet-local
-  // and keyed by text: this must not edit the saved onboarding session, which
-  // the chat still reads.
-  const [hiddenAnswers, setHiddenAnswers] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const {
+    name,
+    notes,
+    edited,
+    toAsk,
+    hiddenAnswers: savedHiddenAnswers,
+    answersSession,
+  } = useSavedCourses((s) => s.draft);
+  const hiddenAnswers =
+    answersSession === session?.payload.completedAt ? savedHiddenAnswers : [];
+  const updateDraft = useSavedCourses((s) => s.updateDraft);
   const toggleAsk = (q: string) =>
-    setToAsk((prev) => {
-      const next = new Set(prev);
-      if (next.has(q)) next.delete(q);
-      else next.add(q);
-      return next;
+    updateDraft({
+      toAsk: toAsk.includes(q)
+        ? toAsk.filter((item) => item !== q)
+        : [...toAsk, q],
     });
-
-  const touch = () => setEdited(true);
+  const touch = () => updateDraft({ edited: true });
 
   // Sections 01/02 are conditional, so the numbers are counted at render —
   // hardcoding them made the sheet open at "02" whenever the student had not
@@ -178,10 +192,23 @@ export function SummarySheet() {
   return (
     <div className="sheet-scope">
       <div className="sheet-toolbar">
-        <a className="sheet-back" href="/chat">
+        <Link className="sheet-back" href="/chat">
           ← Back to chat
-        </a>
+        </Link>
         <span className="sheet-hint">Edit your sheet, then print</span>
+        <PlanningControls
+          label="Edit / restart"
+          history={undefined}
+          historyOpen={historyOpen}
+          onHistoryOpenChange={setHistoryOpen}
+          busy={false}
+          onRestart={(clearSavedData) => {
+            clearConversation();
+            if (clearSavedData) clearSaved();
+            useStudentSession.getState().resetSession();
+            router.push("/");
+          }}
+        />
         <button
           type="button"
           className="sheet-print"
@@ -191,21 +218,44 @@ export function SummarySheet() {
         </button>
         {/* Shared/lab machines: the saved list and the student's own questions
             live in localStorage, so there has to be a way to wipe them. */}
-        <button
-          type="button"
-          className="sheet-back"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Clear your saved classes and questions from this browser?",
-              )
-            ) {
-              clearSaved();
-            }
-          }}
-        >
-          Clear my saved data
-        </button>
+        <AlertDialog.Root>
+          <AlertDialog.Trigger asChild>
+            <button type="button" className="sheet-back">
+              Reset prep sheet
+            </button>
+          </AlertDialog.Trigger>
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60 print:hidden" />
+            <AlertDialog.Content className="bg-popover text-popover-foreground fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl p-5 shadow-xl print:hidden">
+              <AlertDialog.Title className="text-lg font-semibold">
+                Reset your prep sheet?
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-sm">
+                Clear saved classes, reported courses, questions, sheet edits
+                and this tab’s chat. Your setup choices will stay. This cannot
+                be undone.
+              </AlertDialog.Description>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <AlertDialog.Cancel asChild>
+                  <Button variant="outline" className="min-h-11">
+                    Cancel
+                  </Button>
+                </AlertDialog.Cancel>
+                <AlertDialog.Action asChild>
+                  <Button
+                    className="min-h-11"
+                    onClick={() => {
+                      clearSaved();
+                      clearConversation();
+                    }}
+                  >
+                    Reset sheet
+                  </Button>
+                </AlertDialog.Action>
+              </div>
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
       </div>
 
       <div className="sheet-page">
@@ -220,10 +270,14 @@ export function SummarySheet() {
               Name{" "}
               <input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                maxLength={200}
+                onChange={(e) => updateDraft({ name: e.target.value })}
                 placeholder="your name"
                 aria-label="Your name"
               />
+              <span className="sheet-name-print">
+                {name || "________________"}
+              </span>
             </label>
             <div className="sheet-printed">
               Printed <b>{printedOn}</b>
@@ -243,12 +297,12 @@ export function SummarySheet() {
                 <button
                   type="button"
                   role="checkbox"
-                  aria-checked={toAsk.has(q)}
+                  aria-checked={toAsk.includes(q)}
                   aria-label={`Ask my coach: ${q}`}
                   className="sheet-checkbox"
                   onClick={() => toggleAsk(q)}
                 >
-                  {toAsk.has(q) ? "✓" : ""}
+                  {toAsk.includes(q) ? "✓" : ""}
                 </button>
                 <span>{q}</span>
                 <button
@@ -267,7 +321,7 @@ export function SummarySheet() {
           </section>
         ) : null}
 
-        {session && session.summary.some((a) => !hiddenAnswers.has(a)) ? (
+        {session && session.summary.some((a) => !hiddenAnswers.includes(a)) ? (
           <section className="sheet-section">
             <h2 className="sheet-shead">
               <span className="sheet-idx">{nextIdx()}</span>
@@ -275,7 +329,7 @@ export function SummarySheet() {
             </h2>
             <ul className="sheet-answers">
               {session.summary
-                .filter((a) => !hiddenAnswers.has(a))
+                .filter((a) => !hiddenAnswers.includes(a))
                 .map((a) => (
                   <li key={a}>
                     <span>{a}</span>
@@ -284,7 +338,10 @@ export function SummarySheet() {
                       className="sheet-del"
                       aria-label={`Remove ${a}`}
                       onClick={() => {
-                        setHiddenAnswers((prev) => new Set(prev).add(a));
+                        updateDraft({
+                          hiddenAnswers: [...hiddenAnswers, a],
+                          answersSession: session.payload.completedAt,
+                        });
                         touch();
                       }}
                     >
@@ -296,18 +353,40 @@ export function SummarySheet() {
           </section>
         ) : null}
 
-        {taken.length ? (
+        {Object.keys(reported).length ? (
           <section className="sheet-section">
             <h2 className="sheet-shead">
               <span className="sheet-idx">{nextIdx()}</span>
               <span className="sheet-h2">
-                Courses I reported as completed (not a transcript)
+                Courses I reported (not a transcript)
               </span>
+              <button
+                type="button"
+                className="sheet-add min-h-11 print:hidden"
+                onClick={() => setHistoryOpen(true)}
+              >
+                Edit
+              </button>
             </h2>
-            <ul className="sheet-answers">
-              {taken.map((code) => (
+            <ul className="sheet-answers sheet-reported">
+              {Object.entries(reported).map(([code, entry]) => (
                 <li key={code}>
-                  <span className="sheet-code">{code}</span>
+                  <span>
+                    <strong className="sheet-code">{code}</strong> ·{" "}
+                    {COURSE_STATUS_LABELS[entry.status]}
+                  </span>
+                  <button
+                    type="button"
+                    className="sheet-del"
+                    aria-label={`Remove reported ${code}`}
+                    onClick={() =>
+                      useSavedCourses
+                        .getState()
+                        .setCourseStatus(code, "removed")
+                    }
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>
@@ -324,6 +403,10 @@ export function SummarySheet() {
               <ClassEntry
                 key={c.course_code}
                 course={c}
+                onRemoveSection={(section) => {
+                  toggleSection(c, section);
+                  touch();
+                }}
                 onRemove={() => {
                   removeCourse(c.course_code);
                   touch();
@@ -345,7 +428,7 @@ export function SummarySheet() {
               type="button"
               className="sheet-add"
               onClick={() => {
-                setNotes([...notes, ""]);
+                updateDraft({ notes: [...notes, ""] });
                 touch();
               }}
             >
@@ -356,23 +439,26 @@ export function SummarySheet() {
             notes.map((n, i) => (
               <div key={i} className="sheet-note">
                 <span aria-hidden>✎</span>
-                <input
+                <textarea
                   value={n}
                   placeholder="Type your note…"
                   aria-label="Note"
+                  maxLength={8000}
+                  rows={3}
                   onChange={(e) => {
                     const next = [...notes];
                     next[i] = e.target.value;
-                    setNotes(next);
+                    updateDraft({ notes: next });
                     touch();
                   }}
                 />
+                <p className="sheet-note-print">{n}</p>
                 <button
                   type="button"
                   className="sheet-del"
                   aria-label="Remove note"
                   onClick={() => {
-                    setNotes(notes.filter((_, j) => j !== i));
+                    updateDraft({ notes: notes.filter((_, j) => j !== i) });
                     touch();
                   }}
                 >
@@ -400,8 +486,14 @@ export function SummarySheet() {
               Major helps you plan. <b>A Success Coach makes it official.</b>
             </p>
             <p className="sheet-fmeta">
-              Prepared with Major · Book a coach →
-              dallascollege.edu/resources/success-coaching
+              Prepared with Major · Book a coach →{" "}
+              <a
+                href="https://www.dallascollege.edu/resources/success-coaching/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                dallascollege.edu/resources/success-coaching
+              </a>
             </p>
           </div>
           <AiClubLogo className="sheet-club-logo" />

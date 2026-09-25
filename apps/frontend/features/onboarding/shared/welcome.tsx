@@ -158,7 +158,7 @@ export function Welcome({
                   Welcome back!
                 </span>
                 <span className="coach-helper text-sm text-[#1E2A3A]/60">
-                  Pick up right where you left off.
+                  Reopen your saved answers.
                 </span>
               </span>
               <span

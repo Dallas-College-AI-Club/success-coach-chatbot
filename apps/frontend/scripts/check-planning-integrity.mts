@@ -273,12 +273,13 @@ test("completed and in-progress courses leave the suggested list but remain in t
       name: "get_program_requirements",
       output,
       skin,
+      scheduleAction: { busy: false, onViewSchedule: () => {} },
     }),
   );
   assert.ok(html.includes("ITSE 1370</strong>: completed"));
-  assert.ok(html.includes("Add MATH 1314 to my notes"));
-  assert.ok(!html.includes("Add ITSE 1370 to my notes"));
-  assert.ok(!html.includes("Add ITSE 2370 to my notes"));
+  assert.ok(html.includes("View schedule for MATH 1314"));
+  assert.ok(!html.includes("View schedule for ITSE 1370"));
+  assert.ok(!html.includes("View schedule for ITSE 2370"));
 });
 test("expertise search distinguishes AND/OR and does not infer LLM from NLP", () => {
   const spans = [
