@@ -9,7 +9,7 @@ import { SEARCHABLE_DOC_TYPES } from "@/lib/constants";
 import { knowledgeEntry } from "@/lib/schema";
 
 import { embedText } from "@/lib/embedding";
-import { isRecord } from "@/lib/course-details";
+import { isKnownScheduleGap, isRecord } from "@/lib/course-details";
 
 import z from "zod";
 
@@ -199,6 +199,7 @@ export function recoveryToolChoice(
         "get_instructor",
         "search_faculty_expertise",
       ].includes(result.toolName) &&
+      !(result.toolName === "get_class_schedule" && isKnownScheduleGap(result.output)) &&
       isRecord(result.output) &&
       result.output.found === false,
   );

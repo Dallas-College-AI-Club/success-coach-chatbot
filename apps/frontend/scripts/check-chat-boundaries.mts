@@ -15,6 +15,7 @@ import {
   asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
 import { COACH } from "../features/onboarding/handoff-copy";
+import { scheduleResultForModel } from "../lib/course-details";
 
 test("coach contacts use the service record without diverting faculty or course discovery", () => {
   for (const query of [
@@ -315,6 +316,21 @@ test("a failed exact lookup forces broad recovery once, never for ambiguity or u
     undefined,
   );
   assert.equal(recoveryToolChoice([]), undefined);
+});
+
+test("a known course's missing term does not force older-section recovery", () => {
+  const gap = { found: false, total_sections: 0, requested_term: "spring 2027",
+    terms_on_record: ["fall 2026"], offerings: [] };
+  const step = (output: unknown) => [{ toolResults: [{ toolName: "get_class_schedule", output }] }];
+  assert.equal(recoveryToolChoice(step(gap)), undefined);
+  assert.deepEqual(recoveryToolChoice(step({ ...gap, terms_on_record: [] })),
+    { type: "tool", toolName: "search_knowledge" });
+  assert.deepEqual(recoveryToolChoice(step({ found: false })),
+    { type: "tool", toolName: "search_knowledge" });
+  const projected = scheduleResultForModel(gap) as Record<string, unknown>;
+  assert.deepEqual(projected.offerings, []);
+  assert.match(String(projected.availability_guidance), /Do not search for or substitute older-term/);
+  assert.equal('availability_guidance' in (scheduleResultForModel({ ...gap, found: true, total_sections: 1 }) as object), false);
 });
 
 test("structured follow-ups refresh facts without inventing an unidentified program", async () => {

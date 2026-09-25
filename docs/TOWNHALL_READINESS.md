@@ -26,11 +26,17 @@ strings are removed from cards and sheets; parsed times remain, and unknown time
 Repeated "Online · online" is deduplicated. Name now has its own label line and a 6px gap;
 screen form controls have 44px touch targets, including on tablets and desktops.
 
-Validation: **254 frontend cases** (203 business/UI, 13 boundaries, 12 normalization, 26 sheet),
+Validation: **255 frontend cases** (203 business/UI, 14 boundaries, 12 normalization, 26 sheet),
 warning-free lint/types, production build, 52-file embedding trace and **114 Python tests** passed.
 Four real-model schedule scenarios passed locally: ITSD 4340's corrected exact link, mixed
 direct/library ITSC 1305 links, unknown PHIL 1301 online times versus a 9-to-5 job, and absent
 ITNW 1308 Spring 2027 sections. These checks reviewed generated prose as well as tool data.
+The public repeat exposed a further error: a forced broad recovery after a known course's
+missing term pulled in older instructor snippets and generalized their missing times. A known
+course with no sections for the requested term now reports that coverage gap without forcing
+historical search; unknown course identities still receive recovery. A regression checks both
+paths, and final local/staged/public repeats must include exactly one schedule lookup for the
+missing-term example with no older instructor or meeting-time claims.
 
 Eight populated-sheet viewports passed: 320×568, 360×800, 390×844, 430×932, 667×375,
 768×1024, 1024×768 and 1440×900. No horizontal overflow, clipped controls or form controls

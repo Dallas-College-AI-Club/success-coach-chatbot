@@ -21,6 +21,10 @@ The name label sits above its input with an explicit gap; screen edit controls h
 targets. Remove unparsed meeting strings from both cards and sheets while retaining parsed
 meeting times and the model's unknown-time guard.
 
+The public answer check exposed forced broad recovery for a known course missing the requested
+term, which introduced older section snippets and an unsupported timing generalization. Treat
+that case as a schedule-coverage gap; retain broad recovery for unresolved course identities.
+
 ## 2026-09-25 — Post-townhall branding and answer quality
 
 The maintainer reported squeezed header logos and requested another UI and answer audit.

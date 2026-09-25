@@ -11,6 +11,7 @@ import {
   scheduleResultForModel,
   requestedSemesters,
   readCourseDetails,
+  isKnownScheduleGap,
 } from "@/lib/course-details";
 import * as getClassSchedule from "./getClassSchedule";
 import * as getCourseInfo from "./getCourseInfo";
@@ -243,12 +244,11 @@ export function toolsForTurn(
             }),
           };
         }
-        return record(
-          await getClassSchedule.EXECUTE({
-            ...input,
-            ...(courseCode ? { courseCode } : {}),
-          }),
-        );
+        const result = await getClassSchedule.EXECUTE({
+          ...input,
+          ...(courseCode ? { courseCode } : {}),
+        });
+        return isKnownScheduleGap(result) ? result : record(result);
       },
     }),
     get_program_requirements: tool({

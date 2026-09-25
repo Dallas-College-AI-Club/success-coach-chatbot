@@ -413,11 +413,23 @@ export function instructorCvLinks(
   );
 }
 
+/** A known course with no rows in the requested term is a data-coverage gap,
+ * not an unresolved identity that needs unrelated historical search results. */
+export function isKnownScheduleGap(output: unknown): boolean {
+  return isRecord(output) && output.found === false &&
+    output.total_sections === 0 && !!catalogText(output.requested_term) &&
+    Array.isArray(output.terms_on_record) && output.terms_on_record.length > 0;
+}
+
 /** Inline CV text is UI detail; avoid replaying every biography to the model. */
 export function scheduleResultForModel(output: unknown) {
   if (!isRecord(output)) return output;
   const result = { ...output };
   delete result.instructor_profiles;
+  if (isKnownScheduleGap(output)) {
+    result.availability_guidance =
+      "The course is known, but the requested term has no sections in this snapshot. State that limited result. Do not search for or substitute older-term section/instructor samples, and do not infer meeting times for other terms. You may offer to look up one of terms_on_record if the student wants it. This does not prove the college will not offer the course.";
+  }
   if (Array.isArray(output.offerings)) {
     const sections = output.offerings.filter(isRecord);
     // Unparsed INET day markers are not evidence of daily availability. Keep
