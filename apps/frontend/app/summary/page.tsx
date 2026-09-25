@@ -7,7 +7,8 @@ import { SummarySheet } from "@/features/chat/summary-sheet";
 // resolves offline and the printed PDF matches the screen.
 const bricolage = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["700", "800"],
+  // One variable face covers both heading weights without duplicate font URLs.
+  weight: "variable",
   variable: "--font-bricolage",
 });
 
@@ -17,7 +18,7 @@ export const metadata = {
 
 // The printable hand-off. A plain client-rendered page: it reads the saved
 // class list and onboarding answers from the browser stores, so it needs no
-// server data and writes nothing — closing the tab is the whole privacy story.
+// server data; edits stay in this browser until the student clears them.
 export default function SummaryPage() {
   return (
     <main className={bricolage.variable}>

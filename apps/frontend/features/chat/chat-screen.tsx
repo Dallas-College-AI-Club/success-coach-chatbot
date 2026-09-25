@@ -29,6 +29,7 @@ import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
 import {
+  messagesForRetry,
   reportedHistoryFromMessages,
   type CompletionOverrides,
 } from "@/features/chat/completion-state";
@@ -324,7 +325,15 @@ function Conversation({
   );
   const composer = composerCopy(languages.split(","), copy.composerPlaceholder);
   const [restored] = useState(() => useConversation.getState().draft);
-  const { messages, sendMessage, status, stop, error, regenerate } = useChat({
+  const {
+    messages,
+    setMessages,
+    sendMessage,
+    status,
+    stop,
+    error,
+    regenerate,
+  } = useChat({
     transport,
     messages: restored?.messages.length ? restored.messages : seed,
     // useChat re-renders on every chunk; throttle the paint, not the stream.
@@ -443,7 +452,10 @@ function Conversation({
     .findLast(
       (part) =>
         getToolName(part) === "get_program_requirements" &&
-        part.state === "output-available",
+        part.state === "output-available" &&
+        isRecord(part.output) &&
+        part.output.found === true &&
+        Array.isArray(part.output.groups),
     )?.output;
   const latestHistory =
     isRecord(latestPlan) && isRecord(latestPlan.planning)
@@ -541,14 +553,6 @@ function Conversation({
         : plainText(last)
       : "";
 
-  // The profile rides with EVERY request — sends and retries alike. Defined
-  // once so a retry cannot silently drop it: the route puts it in the system
-  // prompt, so it survives even if the seeded opening turn is ever trimmed
-  // out of the history.
-  const requestOptions = {
-    body: { profile: profile ?? undefined, completionOverrides },
-  };
-
   // Asking — or retrying — returns the reader to the end of the conversation
   // and re-arms the follow, whatever they were reading before.
   const toBottom = useCallback(() => {
@@ -570,21 +574,19 @@ function Conversation({
       // request even when the student immediately asks for a refreshed plan.
       const completionOverrides =
         useSavedCourses.getState().completionOverrides;
-      useSavedCourses
-        .getState()
-        .applyCompletionHistory(
-          reportedHistoryFromMessages([
-            ...messages,
-            {
-              id: "pending",
-              role: "user",
-              parts: [{ type: "text", text: t }],
-              metadata: { completionOverrides },
-            },
-          ]),
-          undefined,
-          true,
-        );
+      useSavedCourses.getState().applyCompletionHistory(
+        reportedHistoryFromMessages([
+          ...messages,
+          {
+            id: "pending",
+            role: "user",
+            parts: [{ type: "text", text: t }],
+            metadata: { completionOverrides },
+          },
+        ]),
+        undefined,
+        true,
+      );
       historyAtRequest.current = useSavedCourses.getState().completionOverrides;
       useSavedCourses.getState().addQuestion(note);
       // The chip's own words ride along as metadata for the bubble to show; the
@@ -705,7 +707,15 @@ function Conversation({
                   setCancelled(false);
                   historyAtRequest.current =
                     useSavedCourses.getState().completionOverrides;
-                  regenerate(requestOptions);
+                  setMessages(
+                    messagesForRetry(messages, historyAtRequest.current),
+                  );
+                  regenerate({
+                    body: {
+                      profile: profile ?? undefined,
+                      completionOverrides: historyAtRequest.current,
+                    },
+                  });
                   toBottom();
                 }}
               >

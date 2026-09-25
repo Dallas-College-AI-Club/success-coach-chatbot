@@ -3,6 +3,7 @@
 import { citationHref } from "@/lib/constants";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertDialog } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import {
@@ -135,6 +136,7 @@ function ClassEntry({
 }
 
 export function SummarySheet() {
+  const router = useRouter();
   const [historyOpen, setHistoryOpen] = useState(false);
   // Both stores skip auto-hydration so SSR and the first client paint match;
   // trigger them here, after mount, exactly as the chat screen does.
@@ -204,7 +206,7 @@ export function SummarySheet() {
             clearConversation();
             if (clearSavedData) clearSaved();
             useStudentSession.getState().resetSession();
-            window.location.assign("/");
+            router.push("/");
           }}
         />
         <button

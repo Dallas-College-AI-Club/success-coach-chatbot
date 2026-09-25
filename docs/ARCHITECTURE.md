@@ -65,7 +65,17 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   Cards reflect local edits immediately and suppress stale remaining-credit totals until refreshed.
   The server merges
   changes chronologically with explicit student statements and forces fresh planning for remaining
-  course questions. Restored replies never overwrite newer checkbox edits.
+  course questions, including free-typed next-course recommendations. Restored replies never
+  overwrite newer checkbox edits. Retrying stores a validated `completionAfterMessage` snapshot
+  on the repeated user turn so edits made after its original text win; later new turns still win
+  chronologically. The visible question is unchanged.
+- **Conversation continuity:** follow-ups keep the latest successful program after unrelated replies;
+  failed lookups do not replace it. Empty schedules offer a useful next step without implying
+  instructors exist, and schedule follow-ups carry the requested term. Openings explain how to
+  type or expand suggestions. App-help instructions match the current controls.
+- **Discovery wording:** the ingested course-summary placeholder "Prerequisites: none stated"
+  is presented as missing data, never proof that enrollment has no conditions. Original database
+  records and explicit catalog conditions are unchanged.
 - **Setup restart:** Plan options in chat and the sheet opens a confirmed restart. It clears the
   onboarding session and this tab's conversation, optionally also clearing saved courses and sheet
   edits. Restarting from chat aborts an active reply before navigating to the welcome page.

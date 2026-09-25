@@ -4,6 +4,57 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Final student-perspective audit (September 24)
+
+Latest main was fetched again (`3178007`) and is already incorporated. This pass reproduced and fixed:
+
+- Retry replayed an old "completed" statement after the student corrected it in the editor.
+  A retry now preserves edits/removals after the repeated question; refresh and later turns agree.
+- "What should I take next?" could answer from an old checklist and suggest completed MATH 1314.
+  Known-program recommendations now force a fresh planning lookup before answering.
+- Follow-ups after a program switch could return to the original onboarding program. They now keep
+  the last successful plan; failed lookups cannot replace it. Empty schedules no longer suggest
+  nonexistent instructors, and schedule follow-ups retain their requested term.
+- The collapsed suggestions made the opening's "You could ask:" misleading. The opening now explains
+  typing or opening Suggestions. App-help wording matches the current save/edit/reset controls.
+- Spanish discovery interpreted "Prerequisites: none stated" as "no prerequisites." That generated
+  search-summary placeholder now explicitly means missing data. Retesting used the exact course
+  record and described unrecorded requirements without asserting unrestricted enrollment.
+- Final rebuilds exposed a font-loader failure for the sheet's two fixed font weights. One variable
+  face now supplies the same heading weights. Sheet restart uses Next navigation, removing its
+  existing lint warning and avoiding a full page reload.
+
+Verification: **245 frontend cases** (195 business/UI, 12 route boundaries, 12 normalization,
+26 sheet-question cases), lint, types, optimized build and 52-file embedding trace passed.
+**114 Python tests** passed. A fresh dependency scan reports **0 vulnerabilities**.
+**11/11 real-model scenarios** passed after fixes: app help, history/corrections, next-course planning,
+Python-to-BAT switch, course-title discovery, unknown schedule fit, absent Spring 2027 sections,
+Spanish discovery and Success Coach contacts. Model: OpenRouter `openai/gpt-4.1-mini`, temperature 0.2.
+The source comparison independently read Python/BAT program maps, course requirements and 17 saved
+Fall sections. The original Python catalog page agrees on its six required courses and 18 credits.
+Catalog source dates remain July 11; schedules remain August 12. No source records were modified.
+
+Fresh browser checks covered schedule-fit and undecided onboarding, stop/edit/retry, refresh, program switching
+through a conversational reply, section preview/group/save/remove, persistent name/notes, sheet return,
+and restart confirmation. **18 onboarding layouts**, **72 standard chat combinations**, **24 reduced-
+height chat combinations**, **12 dialog layouts**, and **6 sheet sizes** were measured. Standard sizes:
+320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720. All three styles and both chat themes were
+checked with suggestions open/closed. Standard chat retained at least 168px of transcript; reduced
+390×360 / 667×250 viewports retained the composer and scrollable transcript (minimum 43px with
+suggestions open at the extreme 250px height). No page/transcript horizontal overflow was observed.
+Dialogs remained within the viewport and scrollable. The sheet's controls fit all six measured widths.
+
+One overly literal model assertion was changed to check the correct schedule-card action. An initial
+sheet measurement targeted the background tab; the corrected active-tab measurements verified all six
+actual viewport sizes. Windows locked a generated build folder; moving it aside inside the project
+allowed a fresh build attempt. A separate font-loader failure reproduced twice and was fixed with the
+variable-font configuration above. The sheet test fixture was updated for the current Next router API.
+
+Staged and public checks, release SHA and rollback are recorded in the PR. Public request limits remain
+120/network/5 minutes, 300 globally/5 minutes and 1,000/day (267 used at the first check in this pass).
+The production provider-key spending cap remains unavailable to this environment. Physical Safari,
+phone keyboards, native print pagination and 200 simultaneous users are not certified by these checks.
+
 ## Related editing/removal audit (September 24)
 
 Latest GitHub main was fetched again and remains `3178007`. The broader follow-up fixes:

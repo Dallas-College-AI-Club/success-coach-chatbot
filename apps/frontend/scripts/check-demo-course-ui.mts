@@ -11,6 +11,7 @@ import { composerCopy } from "../features/chat/seed";
 import { courseScheduleQuestion } from "../features/chat/follow-ups";
 
 import { createElement } from "react";
+import { AppRouterContext } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 import { convertToModelMessages, tool } from "ai";
 import {
@@ -59,6 +60,16 @@ import {
   surnameSortKey,
   VENUE_PREFIX,
 } from "../lib/tools/searchFacultyExpertise";
+
+// Static sheet fixtures need the same navigation context provided by Next.js.
+const renderSheet = () => renderToStaticMarkup(createElement(
+  AppRouterContext.Provider,
+  { value: {
+    back() {}, forward() {}, refresh() {}, bfcacheId: "test-sheet",
+    push() {}, replace() {}, prefetch() {},
+  } },
+  createElement(SummarySheet),
+));
 
 test("composer follows browser language order, regional tags and English fallback", () => {
   const fallback = "Ask about your classes…";
@@ -1165,11 +1176,11 @@ test("the printable sheet uses the same official citation policy as chat", () =>
       { ...course, source_url: "https://untrusted.example/catalog" },
     ];
     assert.doesNotMatch(
-      renderToStaticMarkup(createElement(SummarySheet)),
+      renderSheet(),
       /untrusted.example/,
     );
     initial.courses = [course];
-    const official = renderToStaticMarkup(createElement(SummarySheet));
+    const official = renderSheet();
     assert.match(official, /<svg[^>]+sheet-bot/);
     assert.doesNotMatch(official, /dallas-college\.svg|sheet-dc-logo/);
     assert.ok(official.includes("catalog.dallascollege.edu"));
@@ -1333,7 +1344,7 @@ test("the coach sheet prints selected section dates and times instead of catalog
   })!;
   try {
     initial.courses = [{ ...course, sections: [section] }];
-    const html = renderToStaticMarkup(createElement(SummarySheet));
+    const html = renderSheet();
     for (const text of [
       "Section 1001",
       "Fall 2026",
@@ -1352,12 +1363,12 @@ test("the coach sheet prints selected section dates and times instead of catalog
       },
     ];
     assert.match(
-      renderToStaticMarkup(createElement(SummarySheet)),
+      renderSheet(),
       /Start date not listed|Meeting times not published/,
     );
     initial.courses = [course];
     assert.doesNotMatch(
-      renderToStaticMarkup(createElement(SummarySheet)),
+      renderSheet(),
       /No section selected/,
     );
   } finally {
@@ -1378,7 +1389,7 @@ test("the prep sheet preserves every reported status without printing removed en
       "ITSD 3301": false,
       "ITDA 4350": "removed",
     };
-    const html = renderToStaticMarkup(createElement(SummarySheet));
+    const html = renderSheet();
     for (const label of [
       "Completed",
       "In progress",
@@ -1414,11 +1425,11 @@ test("a new setup restores its own answers without discarding saved notes", () =
       answersSession: "old-setup",
       notes: ["Ask about financial aid"],
     };
-    let html = renderToStaticMarkup(createElement(SummarySheet));
+    let html = renderSheet();
     assert.ok(html.includes("Evening classes"));
     assert.ok(html.includes("Ask about financial aid"));
     saved.draft = { ...saved.draft, answersSession: "new-setup" };
-    html = renderToStaticMarkup(createElement(SummarySheet));
+    html = renderSheet();
     assert.ok(!html.includes("Evening classes"));
     assert.ok(html.includes("Ask about financial aid"));
   } finally {

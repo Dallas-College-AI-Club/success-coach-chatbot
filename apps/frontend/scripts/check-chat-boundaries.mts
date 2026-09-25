@@ -9,6 +9,7 @@ import {
   searchTerms,
   hasTopicEvidence,
   searchExcerpt,
+  courseSearchText,
   asksForTutoringService,
   asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
@@ -107,6 +108,20 @@ test("broad recovery keeps late source evidence instead of only the document ope
   );
   assert.ok(excerpt.length <= 2400);
   assert.ok(excerpt.startsWith("… "));
+});
+
+test("course discovery distinguishes missing prerequisites from explicit catalog conditions", () => {
+  assert.match(
+    courseSearchText("ITSE 1370 — Python. Prerequisites: none stated."),
+    /Prerequisites: not recorded/,
+  );
+  for (const text of [
+    "Prerequisites: Recommended: ITSE 1370.",
+    "Prerequisites: Required: college-level math readiness.",
+    "No prerequisites.",
+  ]) {
+    assert.equal(courseSearchText(text), text);
+  }
 });
 
 // All provider traffic is mocked. This suite never loads local credentials.
@@ -297,6 +312,9 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
     "What courses remain?",
     "What do I still need for my certificate?",
     "What is left?",
+    "Actually I am still taking ITSE 1370. What should I take next?",
+    "Which classes can I take next?",
+    "What course should I study next?",
   ]) {
     assert.equal(
       requestedToolChoice(question, 0, { programKnown: true })?.toolName,
@@ -304,6 +322,11 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
     );
   }
   assert.equal(requestedToolChoice("Show my first semester", 0), undefined);
+  assert.equal(requestedToolChoice("What should I take next?", 0), undefined);
+  assert.equal(
+    requestedToolChoice("What does a class cost?", 0, { programKnown: true }),
+    undefined,
+  );
   assert.equal(
     requestedToolChoice("Show my first semester", 0, { programKnown: true })
       ?.toolName,

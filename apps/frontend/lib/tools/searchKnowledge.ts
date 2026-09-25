@@ -161,6 +161,14 @@ export function searchExcerpt(text: string, terms: string[], limit = 2400) {
     .slice(0, limit);
 }
 
+/** The ingestion placeholder means missing data, not permission to enroll. */
+export function courseSearchText(text: string): string {
+  return text.replace(
+    /Prerequisites:\s*none stated\.?/gi,
+    "Prerequisites: not recorded. Missing details do not establish that enrollment has no conditions.",
+  );
+}
+
 /** One broad recovery per turn, including after an earlier focused discovery. */
 export function recoveryToolChoice(
   steps: readonly {
@@ -298,8 +306,9 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     }
     const results = rows.slice(0, broad ? 6 : TOP_K).map((r) => {
       const isCourse = r.docType === "course";
+      const text = isCourse ? courseSearchText(r.text) : r.text;
       return {
-        text: broad ? searchExcerpt(r.text, terms) : r.text,
+        text: broad ? searchExcerpt(text, terms) : text,
         source_url: r.sourceUrl,
         doc_type: r.docType,
         name: isCourse ? null : r.name,
@@ -314,6 +323,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
       found: true,
       results,
       search_scope: broad ? "all" : "catalog",
+      note: "Course/program snippets identify possible records. Use get_course_info or get_program_requirements before explaining their requirements; ask the student to choose if ambiguous. Missing prerequisite details mean unknown, never no prerequisites, in every language.",
       ...(broad
         ? {
             related_only: true,

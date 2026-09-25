@@ -3,6 +3,25 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Final student-perspective conversation audit
+
+The maintainer requested another comprehensive audit and authorized fixes, commit and deployment.
+A stopped answer retried after a status edit must preserve the newer edit. Store the retry-time
+history after the repeated user text, retaining its original visible wording and normal precedence
+for later student corrections. Free-typed next-course questions refresh the known program checklist;
+otherwise an older reply can recommend an already completed class.
+
+Keep suggestions on the latest successful program through conversational replies and failed lookups.
+Do not offer nonexistent instructors after an empty schedule; carry the selected term forward.
+Replace the opening's dangling invitation with directions to type or open Suggestions. Keep help
+instructions aligned with View schedule, Add section to notes and the edit/reset controls.
+
+A Spanish discovery response incorrectly translated the ingestion placeholder "none stated" into
+"no prerequisites." Describe that placeholder as missing data and reinforce exact-record lookup.
+Do not rewrite source facts, change the model, or expand the demo's datasets. Use one variable
+Bricolage face for the sheet's heading weights after the two-weight font loader failed clean builds.
+Sheet restart uses Next navigation after clearing the requested stores.
+
 ## 2026-09-24 — Related editing and removal audit
 
 The maintainer requested fixes for all similar bugs. Save typed course corrections before waiting

@@ -109,7 +109,7 @@ for (const [name, over] of BRANCHES) {
     const p = payload(over);
     const chips = starterQuestionsFor(p);
     assert.equal(chips.length, 3, `${name}: expected 3 chips`);
-    assert.match(handoffIntro(p), /You could ask:$/);
+    assert.match(handoffIntro(p), /Type a question below, or open Suggestions for ideas\.$/);
     assert.equal(new Set(chips.map((c) => c.label)).size, 3, `${name}: duplicate labels`);
     for (const chip of chips) {
       assert.ok(
@@ -281,7 +281,7 @@ test("every intro reflects what the student chose, in one sentence before the in
   for (const [over, expected] of reflects) {
     const intro = handoffIntro(payload(over));
     assert.match(intro, expected);
-    assert.match(intro, /You could ask:$/);
+    assert.match(intro, /Type a question below, or open Suggestions for ideas\.$/);
     // The parenthetical in "Skilled trades (welding, HVAC, auto)" belongs to
     // the picker, not to prose the coach speaks.
     assert.doesNotMatch(intro, /\(welding/);

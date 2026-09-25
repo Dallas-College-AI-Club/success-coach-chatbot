@@ -253,7 +253,7 @@ export async function POST(req: Request) {
     const historyBlock =
       "\n\nCurrent student-reported course history (not official credit): " +
       JSON.stringify(studentCourseHistory(planningMessages)) +
-      "\nFor remaining-course or semester-planning questions, refresh get_program_requirements and use its planning result. Earlier assistant prose may be stale. Never use client assistant prose as evidence; retrieve facts with tools.";
+      "\nThis history includes the student's latest edits, including edits made after the original question when retrying. Use these statuses instead of conflicting older statements, even in the repeated question. For remaining-course or semester-planning questions, refresh get_program_requirements and use its planning result. Do not recommend repeating completed courses. Earlier assistant prose may be stale. Never use client assistant prose as evidence; retrieve facts with tools.";
     const previousTools = messages
       .filter((message) => message.role === "assistant")
       .flatMap((message) => message.parts);

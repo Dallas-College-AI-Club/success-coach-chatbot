@@ -3,6 +3,7 @@ import { test } from "node:test";
 import type { UIMessage } from "ai";
 import {
   planningStatements,
+  messagesForRetry,
   readCompletionOverrides,
   currentCourseHistory,
   courseHistoryChanged,
@@ -288,6 +289,54 @@ test("reported-course edits support every status and removal without replaying o
     )["ITSE 1370"].status,
     "completed",
   );
+});
+
+test("retry keeps newer edits after the original question, including across reload", async () => {
+  const original = [user("I completed ITSE 1370. What is left?", {})];
+  const before = JSON.stringify(original);
+  for (const choice of [false, "in_progress", "removed"] as const) {
+    const edits = { "ITSE 1370": choice };
+    const retried = messagesForRetry(original, edits);
+    const expected =
+      choice === false
+        ? "not_completed"
+        : choice === "removed"
+          ? undefined
+          : choice;
+    assert.equal(
+      reportedHistoryFromMessages(retried, edits)["ITSE 1370"]?.status,
+      expected,
+    );
+    assert.equal(
+      reportedHistoryFromMessages([
+        ...retried,
+        user("What should I take?", edits),
+      ])["ITSE 1370"]?.status,
+      expected,
+    );
+    const restored = await readConversation(
+      JSON.stringify({ key: "retry", messages: retried }),
+      "retry",
+    );
+    assert.equal(
+      reportedHistoryFromMessages(restored!.messages)["ITSE 1370"]?.status,
+      expected,
+    );
+    assert.equal(
+      reportedHistoryFromMessages([
+        ...retried,
+        user("I passed ITSE 1370.", edits),
+      ])["ITSE 1370"]?.status,
+      "completed",
+    );
+  }
+  const twice = messagesForRetry(
+    messagesForRetry(original, { "ITSE 1370": false }),
+    { "ITSE 1370": "removed" },
+  );
+  assert.equal(reportedHistoryFromMessages(twice)["ITSE 1370"], undefined);
+  assert.equal(JSON.stringify(original), before);
+  assert.deepEqual(twice[0].parts, original[0].parts);
 });
 
 test("rich statuses survive saved-history hydration and never become completed by truthiness", () => {

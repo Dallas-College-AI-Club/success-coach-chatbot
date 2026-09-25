@@ -297,7 +297,7 @@ function interestHandoff(area: InterestArea | null): Handoff {
   if (!area) {
     return {
       intro:
-        "No area picked yet — that's the thing to narrow down first, and then we'll look at real programs. You could ask:",
+        "No area picked yet — that's the thing to narrow down first, and then we'll look at real programs.",
       questions: [PICK_AREA, COACH, TUITION],
     };
   }
@@ -305,7 +305,7 @@ function interestHandoff(area: InterestArea | null): Handoff {
   const { examplePrograms } = INTEREST_GUIDE[area];
   const [first, second] = examplePrograms;
   return {
-    intro: `${plainInterest(interest)}, then. Here are real programs in it to look at — examples, not a choice made for you. You could ask:`,
+    intro: `${plainInterest(interest)}, then. Here are real programs in it to look at — examples, not a choice made for you.`,
     questions: [
       {
         label: `Example programs for ${plainInterest(interest)}`,
@@ -333,14 +333,14 @@ function selectHandoff(p: OnboardingPayload): Handoff {
   if (p.student_type === "dual_credit") {
     return {
       intro:
-        "A college class while you're still in high school — let's look at one, and the free help around it. You could ask:",
+        "A college class while you're still in high school — let's look at one, and the free help around it.",
       questions: [courseQuestion("prerequisite"), TUTORING, COACH],
     };
   }
   if (p.goal === "settle_in") {
     return {
       intro:
-        "Getting here comes before picking classes. Our records cover housing help, getting around and free tutoring. You could ask:",
+        "Getting here comes before picking classes. Our records cover housing help, getting around and free tutoring.",
       questions: [HOUSING, DART, TUTORING],
     };
   }
@@ -348,10 +348,10 @@ function selectHandoff(p: OnboardingPayload): Handoff {
     return {
       intro:
         p.oneoff_purpose === "prerequisite"
-          ? "One class to get you ready for the program you want — let's find it and what it asks for. You could ask:"
+          ? "One class to get you ready for the program you want — let's find it and what it asks for."
           : p.oneoff_purpose === "job_licensure"
-            ? "A class your job or licence asks for — let's find it and what it costs. You could ask:"
-            : "One class, because you want to learn it — let's find it and what it costs. You could ask:",
+            ? "A class your job or licence asks for — let's find it and what it costs."
+            : "One class, because you want to learn it — let's find it and what it costs.",
       questions: [courseQuestion(p.oneoff_purpose), TUITION, COACH],
     };
   }
@@ -367,10 +367,10 @@ function selectHandoff(p: OnboardingPayload): Handoff {
     const context = program ? sentence(`I am working toward ${program}.`) + " " : "";
     return {
       intro: transferringIn
-        ? "You already have credit, and Dallas College Admissions decides what counts. Let's gather the course facts for that review. You could ask:"
+        ? "You already have credit, and Dallas College Admissions decides what counts. Let's gather the course facts for that review."
         : p.transfer_direction === "transfer_back"
-          ? `One class here to count at ${school} — let's get the Dallas College course facts they'll want. You could ask:`
-          : `Heading to ${school} later. Only they can confirm what counts, so let's collect the Dallas College course facts to send. You could ask:`,
+          ? `One class here to count at ${school} — let's get the Dallas College course facts they'll want.`
+          : `Heading to ${school} later. Only they can confirm what counts, so let's collect the Dallas College course facts to send.`,
       questions: [
         program ? coursePlan(program) : courseQuestion("visiting"),
         {
@@ -391,7 +391,7 @@ function selectHandoff(p: OnboardingPayload): Handoff {
     // is left. Every prompt repeats that their history is self-reported: the
     // planning object is only ever as good as what they typed.
     return {
-      intro: `Let's put the ${program} checklist on screen and work out what's left. What you tell me is student-reported, not a transcript. You could ask:`,
+      intro: `Let's put the ${program} checklist on screen and work out what's left. What you tell me is student-reported, not a transcript.`,
       questions: [
         { ...coursePlan(program), label: "What's on my checklist?" },
         courseHistoryCheck(program),
@@ -406,8 +406,8 @@ function selectHandoff(p: OnboardingPayload): Handoff {
   const preference = preferenceOf(p);
   return {
     intro: preference
-      ? `${program}, around ${preference} classes. The full plan first, then what you'd take in your first semester. You could ask:`
-      : `${program} it is. The full plan first, then what you'd take in your first semester. You could ask:`,
+      ? `${program}, around ${preference} classes. The full plan first, then what you'd take in your first semester.`
+      : `${program} it is. The full plan first, then what you'd take in your first semester.`,
     questions: [
       coursePlan(program),
       coursePlan(program, true),
@@ -416,8 +416,11 @@ function selectHandoff(p: OnboardingPayload): Handoff {
   };
 }
 
+export const CHAT_INVITATION =
+  "Type a question below, or open Suggestions for ideas.";
+
 export function handoffIntro(p: OnboardingPayload): string {
-  return selectHandoff(p).intro;
+  return `${selectHandoff(p).intro} ${CHAT_INVITATION}`;
 }
 
 export function starterQuestionsFor(p: OnboardingPayload): StarterQuestion[] {

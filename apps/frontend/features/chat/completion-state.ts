@@ -92,6 +92,26 @@ function completionStatement(code: string, value: CompletionChoice): string {
   }
 }
 
+/** Retrying repeats an earlier question, but edits made since that question
+ * are newer. Preserve them after its text without changing the visible bubble. */
+export function messagesForRetry(
+  messages: UIMessage[],
+  current: CompletionOverrides,
+): UIMessage[] {
+  const lastUser = messages.findLastIndex((message) => message.role === "user");
+  return messages.map((message, index) =>
+    index === lastUser
+      ? {
+          ...message,
+          metadata: {
+            ...(isRecord(message.metadata) ? message.metadata : {}),
+            completionAfterMessage: readCompletionOverrides(current),
+          },
+        }
+      : message,
+  );
+}
+
 /** Replay checkbox CHANGES before their user turn, so later typed corrections
  * keep precedence. Reapplying every checked code on every turn would silently
  * undo a student's later "I haven't passed that course" correction. */
@@ -117,11 +137,22 @@ export function planningStatements(
         ? []
         : [completionStatement(code, choice)],
     );
-    previous = next;
+    const after = readCompletionOverrides(
+      isRecord(message.metadata)
+        ? message.metadata.completionAfterMessage
+        : undefined,
+    );
+    previous = { ...next, ...after };
     const text = message.parts
       .flatMap((p) => (p.type === "text" ? [p.text] : []))
       .join(" ");
-    return [...changes, text];
+    return [
+      ...changes,
+      text,
+      ...Object.entries(after).map(([code, choice]) =>
+        completionStatement(code, choice),
+      ),
+    ];
   });
 }
 

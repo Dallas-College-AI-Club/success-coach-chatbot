@@ -83,7 +83,7 @@ export function askedLabel(metadata: unknown): string | undefined {
 }
 
 export interface FollowUpContext {
-  /** Program to name in prompts: the onboarding pick, else the plan shown. */
+  /** Onboarding program; a more recent successful plan takes precedence. */
   program?: string;
   /** Onboarding's interest area, which picks the faculty topics to offer. */
   interest?: InterestArea | null;
@@ -214,7 +214,10 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
     ];
   }
 
-  const plan = output("get_program_requirements");
+  const plan = output(
+    "get_program_requirements",
+    (value) => value.found === true && Array.isArray(value.groups),
+  );
   // The plan ON SCREEN wins over the onboarding pick. A student who onboarded
   // with Accounting and then asked about Cyber Security was offered chips
   // naming Accounting, and their Cyber Security ticks were attributed to it.
@@ -324,6 +327,10 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
   const schedule = output("get_class_schedule");
   const code = schedule?.course_code;
   if (Array.isArray(schedule?.offerings) && isCourseCode(code)) {
+    if (schedule.found === false || !schedule.offerings.length)
+      return [onwards(ctx), COACH];
+    const term = catalogText(schedule.requested_term);
+    const when = term ? ` for ${term}` : "";
     // A student who told onboarding they can only study at weekends should
     // not be offered "which of these are online" as their next question.
     const daypart =
@@ -333,19 +340,19 @@ function candidates(ctx: FollowUpContext): StarterQuestion[] {
     return [
       {
         label: "Who are these instructors?",
-        note: `Who are the instructors listed for ${code}?`,
-        prompt: `Who are the instructors listed for ${code} in the saved class schedule? Use the complete instructor roster and say which sections each one teaches; the interface shows their CV details.`,
+        note: `Who are the instructors listed for ${code}${when}?`,
+        prompt: `Who are the instructors listed for ${code}${when} in the saved class schedule? Use the complete instructor roster and say which sections each one teaches; the interface shows their CV details.`,
       },
       daypart
         ? {
             label: `Any ${daypart} sections of ${code}?`,
-            note: `Which ${code} sections meet at the ${daypart}?`,
-            prompt: `Which sections of ${code} in the saved class schedule have published meeting times in the ${daypart}? Use the schedule cards; a missing meeting time is unknown, not a match, and do not substitute a closest time for a matching time. If none of the listed sections match, say so plainly.`,
+            note: `Which ${code} sections${when} have ${daypart} meeting times?`,
+            prompt: `Which sections of ${code}${when} in the saved class schedule have published ${daypart} meeting times? Use the schedule cards; a missing meeting time is unknown, not a match, and do not substitute a closest time for a matching time. If none of the listed sections match, say so plainly.`,
           }
         : {
             label: "Which sections are online?",
-            note: `Which ${code} sections are online?`,
-            prompt: `Which sections of ${code} in the saved class schedule are online, and which meet in person? Use the loaded section counts by modality and the schedule cards; online does not mean asynchronous.`,
+            note: `Which ${code} sections${when} are online?`,
+            prompt: `Which sections of ${code}${when} in the saved class schedule are online, and which meet in person? Use the loaded section counts by modality and the schedule cards; online does not mean asynchronous.`,
           },
       COACH,
     ];
@@ -493,15 +500,17 @@ export function followUpsFor(ctx: FollowUpContext): StarterQuestion[] {
   if (!ctx.started)
     return ctx.starters.length ? ctx.starters : COLD_VISIT_QUESTIONS;
   const seen = new Set(ctx.askedLabels);
+  const usablePlan = (value: unknown): value is Record<string, unknown> =>
+    isRecord(value) && value.found === true && Array.isArray(value.groups);
   const plan =
-    ctx.latestPlan ??
-    ctx.tools.find(
-      (t) => t.name === "get_program_requirements" && isRecord(t.output),
-    )?.output;
+    ctx.tools.findLast(
+      (t) => t.name === "get_program_requirements" && usablePlan(t.output),
+    )?.output ?? (usablePlan(ctx.latestPlan) ? ctx.latestPlan : undefined);
   const planning =
     isRecord(plan) && isRecord(plan.planning) ? plan.planning : {};
   const history = isRecord(planning.history) ? planning.history : {};
-  const program = isRecord(plan) ? catalogText(plan.name) : ctx.program;
+  const program =
+    (isRecord(plan) ? catalogText(plan.name) : null) ?? ctx.program;
   const changed = courseHistoryChanged(history, ctx.completionOverrides ?? {});
   const refresh =
     program && changed
@@ -515,7 +524,7 @@ export function followUpsFor(ctx: FollowUpContext): StarterQuestion[] {
       : [];
   return [
     ...refresh,
-    ...candidates(ctx).filter((q) => {
+    ...candidates({ ...ctx, program }).filter((q) => {
       if (q.label.length > MAX_LABEL || seen.has(q.label)) return false;
       seen.add(q.label);
       return true;
