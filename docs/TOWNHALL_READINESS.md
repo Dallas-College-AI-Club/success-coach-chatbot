@@ -45,6 +45,15 @@ This is browser viewport coverage, not certification of every physical phone, na
 screen-reader combination or print driver. Schedules remain saved snapshots and model prose
 can vary; these checks cannot establish that every possible answer is correct.
 
+The first Vercel build restored a stale stylesheet despite new page markup. Public verification
+caught it; the prior deployment was restored, and a cache-free build passed direct stylesheet
+inspection and the public layout checks. The release runbook now requires `--force` and checking
+staged stylesheets before promotion. One clean-build attempt failed with an invalid Vercel API
+response before creating a deployment; its retry succeeded. A subsequent public prose check also
+generalized two courses' recommended preparation to all three A+ courses. The prompt now explicitly
+keeps recommendations scoped to the course that records them and preserves null requisites as
+unknown. Final targeted answer repeats and release identity are recorded in the PR.
+
 ## Actual elective choices (September 25)
 
 The phone screenshot reproduced a real gap: BAT names core areas in prose instead of using CB

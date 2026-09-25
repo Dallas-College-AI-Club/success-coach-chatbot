@@ -73,8 +73,10 @@ The demo is Vercel project `major-demo` in scope `ai-c64d`, with root directory 
 3. From the repository root, stage the release without moving the public URL:
 
    ```sh
-   vercel deploy --project major-demo --scope ai-c64d --prod --skip-domain
+   vercel deploy --project major-demo --scope ai-c64d --prod --skip-domain --force
    ```
+
+   Use a cache-free build: the September 25 release reproduced new page markup paired with old CSS after restoring Vercel's build cache. Do not add `--with-cache` to this release command. Before promotion, fetch the staged page and its referenced stylesheets with authenticated `vercel curl` and verify that the changed style rules are present.
 
 4. Verify the returned deployment: the seven approved Playful characters, Simple/Focus switching, transfer onboarding, answerable starter and follow-up questions, repeated completion changes, course details/notes, and complete schedule/faculty results. Check small phones and landscape, sheet-to-chat return, refresh and restored edits. Compare sampled answers with configured source records and check a small concurrent burst. A successful build alone is insufficient.
 5. Promote the tested deployment with `vercel promote <deployment-url> --scope ai-c64d`. Recheck the **public** URL in a fresh navigation and record the release commit, deployment URL, model, checks and previous deployment for rollback in the PR. Do not call a local or staged fix live before this check.

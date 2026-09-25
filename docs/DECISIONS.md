@@ -16,6 +16,9 @@ correction producing an answer before refreshing its checklist. Normalize assign
 placeholders in cards, rosters and search excerpts, explicitly label missing meeting times
 in model inputs, and refresh a known program first when the student reports a course status.
 Keep original source records and saved conversations intact; no model or dataset changes.
+The public prose check also generalized a recommendation across courses; explicitly scope each
+recommendation to the course that records it. After a cached Vercel build mixed new markup with
+old styles, require a cache-free release build and inspect the staged CSS before promotion.
 
 ## 2026-09-25 — Make elective controls reveal real courses
 
