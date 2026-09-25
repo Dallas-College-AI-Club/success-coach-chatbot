@@ -3,6 +3,13 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — One course action before choosing a section
+
+The maintainer requested removal of the course-level **Add to notes / Added to notes** control.
+Course cards keep **View schedule**, expandable details and completion checkboxes. Students save
+an actual section from its schedule card. Existing saved courses remain available in the prep
+sheet, where students can still remove them; this UI change does not rewrite saved notes.
+
 ## 2026-09-24 — Remove redundant reply text
 
 The maintainer requested removal of schedule explanations that repeat the cards and a review of

@@ -303,10 +303,6 @@ function CourseRow({
   plan?: boolean;
   scheduleAction?: CourseScheduleAction;
 }) {
-  const saved = useSavedCourses((s) =>
-    s.courses.some((c) => c.course_code === course.course_code),
-  );
-  const toggle = useSavedCourses((s) => s.toggle);
   const taken = useSavedCourses((s) => s.taken.includes(course.course_code));
   const toggleTaken = useSavedCourses((s) => s.toggleTaken);
   const href = citationHref(course.source_url);
@@ -419,15 +415,6 @@ function CourseRow({
           skin={skin}
           action={scheduleAction}
         />
-        <button
-          type="button"
-          aria-pressed={saved}
-          aria-label={`${saved ? "Remove" : "Add"} ${course.course_code} ${saved ? "from" : "to"} my notes`}
-          className={`${skin.chip} shrink-0 cursor-pointer pointer-coarse:min-h-11`}
-          onClick={() => toggle(course)}
-        >
-          {saved ? "✓ Added to notes" : "+ Add to notes"}
-        </button>
       </div>
     </li>
   );

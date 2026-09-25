@@ -35,6 +35,11 @@ return. Independent database reads confirmed the section counts and meeting fiel
 official MATH 1342 section 2 page confirmed Mon/Wed 10:25–11:45. Its current location text is more
 specific than the saved campus tag, so the source link remains the authority for current details.
 
+The course-level **Add to notes / Added to notes** button was subsequently removed at the
+maintainer's request. **View schedule** is the course action; **Add section to notes** remains
+on each schedule section. Existing saved courses, completion checkboxes and sheet removal remain
+available. The existing rendering checks now guard this distinction.
+
 The audit corrected an expanded instructor roster obscuring the schedule, unsupported flexibility
 inferences from unparsed online meeting markers, and Stop reusing the Send button's DOM node and
 submitting a preserved draft. All 18 measured style/size combinations passed again; preview and

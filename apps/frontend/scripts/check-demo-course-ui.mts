@@ -157,6 +157,7 @@ test("course preview actions cover named courses, missing details and core choic
   for (const code of ["ITDA 3320", "MATH 1342", "ENGL 1301"])
     assert.match(html, new RegExp(`View schedule for ${code}`));
   assert.doesNotMatch(html, /View schedule for General elective/);
+  assert.doesNotMatch(html, /(?:Add|Remove) [A-Z]+ \d+ (?:to|from) my notes/);
   assert.equal(useSavedCourses.getState().courses, savedBefore);
 });
 
@@ -178,7 +179,7 @@ test("single-course schedule action is disabled while another reply is running",
     }),
   );
   assert.match(html, /aria-label="View schedule for MATH 1342" disabled=""/);
-  assert.match(html, /Add MATH 1342 to my notes/);
+  assert.doesNotMatch(html, /Add MATH 1342 to my notes/);
 });
 
 test("each course schedule action forces a fresh lookup for only its selected course", () => {
@@ -855,28 +856,31 @@ test("catalog projection preserves prose recommendations and rejects placeholder
   );
 });
 
-test("verified courses render collapsed details and an explicit save action with source-backed fields", () => {
+test("verified courses render collapsed details and schedule preview with source-backed fields", () => {
   const markup = renderToStaticMarkup(
     createElement(CourseResults, {
       name: "get_course_info",
       output: { found: true, ...course },
       skin,
+      scheduleAction: { busy: false, onViewSchedule: () => {} },
     }),
   );
   assert.match(markup, /Show more/);
   assert.doesNotMatch(markup, /<details[^>]*\sopen(?:=|\s|>)/);
-  assert.match(markup, /Add CDEC 1354 to my notes/);
+  assert.match(markup, /View schedule for CDEC 1354/);
+  assert.doesNotMatch(markup, /Add CDEC 1354 to my notes/);
   assert.match(markup, /Child Growth and Development/);
   assert.match(markup, /Recommended: Check/);
   assert.match(markup, /3 credits/);
   assert.doesNotMatch(markup, /#2026-2027#facts/);
 });
 
-test("program cards retain rules and credits, never give placeholders or missing records a save button", () => {
+test("program cards retain rules, credits and distinct courses without a course-level save button", () => {
   const markup = renderToStaticMarkup(
     createElement(CourseResults, {
       name: "get_program_requirements",
       skin,
+      scheduleAction: { busy: false, onViewSchedule: () => {} },
       output: {
         found: true,
         name: "Test plan",
@@ -906,8 +910,9 @@ test("program cards retain rules and credits, never give placeholders or missing
       },
     }),
   );
-  assert.equal((markup.match(/Add CDEC 1354 to my notes/g) ?? []).length, 1);
-  assert.doesNotMatch(markup, /Add (?:HIST XXXX|ABDR 1307) to my notes/);
+  assert.equal((markup.match(/View schedule for CDEC 1354/g) ?? []).length, 1);
+  assert.doesNotMatch(markup, /View schedule for HIST XXXX/);
+  assert.doesNotMatch(markup, /(?:Add to notes|Added to notes|to my notes)/);
   assert.match(markup, /Choose one course; do not take both/);
   assert.match(markup, /6 total credits/);
   assert.match(markup, /Other options/);
