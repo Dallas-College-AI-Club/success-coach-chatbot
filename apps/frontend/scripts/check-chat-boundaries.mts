@@ -10,6 +10,7 @@ import {
   hasTopicEvidence,
   searchExcerpt,
   courseSearchText,
+  sectionSearchText,
   asksForTutoringService,
   asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
@@ -122,6 +123,17 @@ test("course discovery distinguishes missing prerequisites from explicit catalog
   ]) {
     assert.equal(courseSearchText(text), text);
   }
+});
+
+test("section discovery never turns an unassigned instructor into a professor", () => {
+  for (const placeholder of ["To be Announced", "TBA", "to be announced"]) {
+    assert.equal(
+      sectionSearchText(`ITNW 1308, section 6, 2026FA, online, Prof. ${placeholder}. Location: Online.`),
+      "ITNW 1308, section 6, 2026FA, online, Instructor not yet assigned. Location: Online.",
+    );
+  }
+  const named = "ITNW 1308, Prof. Williams, Joselle. Location: Online.";
+  assert.equal(sectionSearchText(named), named);
 });
 
 // All provider traffic is mocked. This suite never loads local credentials.
@@ -313,6 +325,8 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
     "What do I still need for my certificate?",
     "What is left?",
     "Actually I am still taking ITSE 1370. What should I take next?",
+    "Correction: I am still taking ITSC 1325, not done with it.",
+    "I completed ITNW 1308.",
     "Which classes can I take next?",
     "What course should I study next?",
   ]) {
@@ -323,6 +337,10 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
   }
   assert.equal(requestedToolChoice("Show my first semester", 0), undefined);
   assert.equal(requestedToolChoice("What should I take next?", 0), undefined);
+  assert.equal(
+    requestedToolChoice("Correction: I am still taking ITSC 1325, not done with it.", 0),
+    undefined,
+  );
   assert.equal(
     requestedToolChoice("What does a class cost?", 0, { programKnown: true }),
     undefined,

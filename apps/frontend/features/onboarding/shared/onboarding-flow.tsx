@@ -117,19 +117,19 @@ export function OnboardingFlow({ modes = MODES }: { modes?: Mode[] }) {
   return (
     <main className={`overflow-x-hidden ${mode.fontClass} ${mode.skin.page}`}>
       <div className={mode.skin.shell}>
-        <div className="flex w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <div className="coach-header">
+          <div className="coach-header-brand">
             <AiClubLogo />
             <button
               type="button"
               onClick={goHome}
               aria-label="Success Coach — back to the welcome page"
-              className="rounded focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] motion-safe:transition-transform motion-safe:hover:scale-[1.03]"
+              className="shrink-0 rounded focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] motion-safe:transition-transform motion-safe:hover:scale-[1.03]"
             >
               <SuccessCoachWordmark height={46} />
             </button>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="coach-header-preferences">
             <ModeSwitcher modes={modes} current={mode} onSwitch={switchMode} />
             <ThemeToggle />
           </div>

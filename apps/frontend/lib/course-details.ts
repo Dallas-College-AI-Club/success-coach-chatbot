@@ -18,6 +18,12 @@ export function catalogText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
+/** Assignment placeholders are not people and must not be described as faculty. */
+export function namedInstructor(value: unknown): string | null {
+  const name = catalogText(value);
+  return name && !/^(?:to be announced|tba)$/i.test(name) ? name : null;
+}
+
 export function isCourseCode(value: unknown): value is string {
   return typeof value === "string" && /^[A-Z]{3,4} \d{4}$/.test(value);
 }
@@ -301,7 +307,7 @@ export function scheduleSection(row: {
     section_number:
       catalogText(facts.section_number) ?? catalogText(meta.section),
     term: [season, row.year].filter(Boolean).join(" ") || "Term not listed",
-    professor: row.professor,
+    professor: namedInstructor(row.professor),
     modality: catalogText(facts.modality) ?? catalogText(meta.modality),
     campus: catalogText(facts.campus) ?? catalogText(meta.campus),
     start_date: catalogText(facts.start_date),
@@ -405,8 +411,15 @@ export function scheduleResultForModel(output: unknown) {
     // Unparsed INET day markers are not evidence of daily availability. Keep
     // the source text in the UI, but do not invite the model to invent a schedule.
     result.offerings = sections.map((section) => {
-      if (Array.isArray(section.meets) && section.meets.length) return section;
-      const withoutRawTimes = { ...section };
+      const normalized = { ...section };
+      if ("professor" in section)
+        normalized.professor = namedInstructor(section.professor);
+      if (Array.isArray(section.meets) && section.meets.length) return normalized;
+      const withoutRawTimes: Record<string, unknown> = {
+        ...normalized,
+        meeting_time_summary:
+          "Meeting times are not published in these records. Whether fixed meetings are required is unknown.",
+      };
       delete withoutRawTimes.meeting_info_raw;
       return withoutRawTimes;
     });
@@ -431,7 +444,7 @@ export function scheduleResultForModel(output: unknown) {
       ).length,
     };
     result.timing_guidance =
-      "Sections without published times have UNKNOWN schedule fit and meeting days. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Unparsed source meeting text is displayed in the section cards, not evidence of a usable timetable.";
+      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Unparsed source meeting text is displayed in the section cards, not evidence of a usable timetable.";
   }
   return result;
 }

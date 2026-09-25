@@ -609,6 +609,54 @@
   }
 }
 
+/* Brand artwork keeps its native proportions. On phones the preferences get
+   their own row instead of compressing the logos beside three stacked controls. */
+.coach-header {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.coach-header-brand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+}
+.coach-header-actions {
+  display: contents;
+}
+.coach-header-preferences {
+  display: flex;
+  flex: 1 0 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.coach-header-preferences > [role="group"] {
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .coach-header {
+    flex-wrap: nowrap;
+  }
+  .coach-header-actions {
+    display: flex;
+    min-width: 0;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+  .coach-header-preferences {
+    flex: 0 1 auto;
+  }
+}
+
 /* Let the header take its measured height and give the rest to the chat.
    Short windows scroll suggestion chips sideways instead of hiding replies. */
 .coach-chat-page {

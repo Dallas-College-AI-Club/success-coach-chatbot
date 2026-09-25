@@ -169,6 +169,14 @@ export function courseSearchText(text: string): string {
   );
 }
 
+/** Old section summaries prefix unassigned placeholders with "Prof.". */
+export function sectionSearchText(text: string): string {
+  return text.replace(
+    /\bProf\.\s*(?:To be Announced|TBA)\b\.?/gi,
+    "Instructor not yet assigned.",
+  );
+}
+
 /** One broad recovery per turn, including after an earlier focused discovery. */
 export function recoveryToolChoice(
   steps: readonly {
@@ -306,7 +314,11 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     }
     const results = rows.slice(0, broad ? 6 : TOP_K).map((r) => {
       const isCourse = r.docType === "course";
-      const text = isCourse ? courseSearchText(r.text) : r.text;
+      const text = isCourse
+        ? courseSearchText(r.text)
+        : r.docType === "section"
+          ? sectionSearchText(r.text)
+          : r.text;
       return {
         text: broad ? searchExcerpt(text, terms) : text,
         source_url: r.sourceUrl,

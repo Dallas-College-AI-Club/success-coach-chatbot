@@ -174,7 +174,8 @@ export function requestedToolChoice(
     return { type: "tool" as const, toolName: "compare_programs" as const };
   if (
     (context.programKnown || namedPrograms.length === 1) &&
-    (requestedSemesters(text).length ||
+    (Object.keys(studentCourseHistory([text])).length > 0 ||
+      requestedSemesters(text).length ||
       /\b(?:still need|remain(?:s|ing)?|what(?:'s| is) left|courses? (?:are )?left|take this semester|updated course history)\b/i.test(
         text,
       ) ||

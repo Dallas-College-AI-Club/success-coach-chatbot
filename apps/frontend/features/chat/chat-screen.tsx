@@ -977,27 +977,29 @@ export function ChatScreen() {
       {/* z-10 so the roaming mascots (which carry their own z) pass behind the
           panel — visible in the gutters, softened under the blurred surface. */}
       <div className="coach-chat-shell relative z-10 mx-auto flex w-full max-w-2xl flex-col items-stretch gap-3 lg:max-w-3xl xl:max-w-5xl 2xl:max-w-6xl">
-        <div className="coach-chat-header flex w-full items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
+        <div className="coach-header coach-chat-header">
+          <div className="coach-header-brand">
             <AiClubLogo />
             <Link
               href="/"
               aria-label="Success Coach — back to the start"
-              className="rounded focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] motion-safe:transition-transform motion-safe:hover:scale-[1.03]"
+              className="shrink-0 rounded focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] motion-safe:transition-transform motion-safe:hover:scale-[1.03]"
             >
               <SuccessCoachWordmark height={46} />
             </Link>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="coach-header-actions">
             {/* The tab's saved conversation survives this same-tab round trip. */}
             <Link
               href="/summary"
-              className="rounded-lg border border-[color:var(--ring)] px-3 py-1.5 text-sm font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)]"
+              className="ml-auto min-h-11 shrink-0 content-center rounded-lg border border-[color:var(--ring)] px-2 py-1.5 text-xs font-semibold whitespace-nowrap focus-visible:ring-2 focus-visible:ring-[color:var(--ring)] sm:px-3 sm:text-sm"
             >
               🖨 Print for my coach
             </Link>
-            <ModeSwitcher modes={MODES} current={mode} onSwitch={switchMode} />
-            <ThemeToggle />
+            <div className="coach-header-preferences">
+              <ModeSwitcher modes={MODES} current={mode} onSwitch={switchMode} />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
 

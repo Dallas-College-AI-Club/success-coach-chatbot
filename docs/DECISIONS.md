@@ -3,6 +3,20 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-25 — Post-townhall branding and answer quality
+
+The maintainer reported squeezed header logos and requested another UI and answer audit.
+Preserve the artwork's native proportions in nonshrinking brand groups; phone preferences
+wrap onto their own row and desktop controls share the header. Both onboarding and chat use
+the same layout rules. The compact-height layout still reserves space for the conversation.
+
+The real-answer pass reproduced an unassigned instructor being called "Professor To be
+Announced", missing online times being described as "no fixed meeting times", and a course
+correction producing an answer before refreshing its checklist. Normalize assignment
+placeholders in cards, rosters and search excerpts, explicitly label missing meeting times
+in model inputs, and refresh a known program first when the student reports a course status.
+Keep original source records and saved conversations intact; no model or dataset changes.
+
 ## 2026-09-25 — Make elective controls reveal real courses
 
 The maintainer reported that elective disclosures only repeated requirement text and broke into

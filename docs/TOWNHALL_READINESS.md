@@ -4,6 +4,47 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Post-townhall quality pass (September 25)
+
+Fetched GitHub main at `54c30cc` after PR #201 merged. Reproduced compressed logos at 390×844:
+the AI Club image box was 22.31×44 instead of 41.22×44, and Success Coach was 34.56×46 instead
+of 63.81×46. Shared nonshrinking branding and wrapped phone preferences restore both native
+aspect ratios. The chat header is now 88px at that size, compared with the previous 116px.
+
+The answer audit also corrected unassigned instructor placeholders being described as faculty,
+unknown online times being described as no fixed meetings, and duplicated pre-lookup guidance
+after a standalone course-status correction. New regression coverage checks placeholder handling,
+unchanged real instructor names and published meetings, source preservation and first-step routing.
+
+Validation: 251 frontend cases (200 business/UI, 13 boundaries, 12 normalization, 26 sheet cases),
+warning-free lint/types, production build and 52-file embedding trace passed. The first run exposed
+an added null professor field on a legacy fixture; retaining absent fields fixed the regression.
+114 Python tests passed and the production dependency scan found 0 known vulnerabilities.
+
+Ten final real-model scenarios passed on the production build after the audit/fix loop: A+ full
+plan, two completions, in-progress correction, Fall sections, recommended preparation, absent
+Spring sections, a switch to BAT electives, PHIL 1301 sections and Success Coach appointments.
+Model: OpenRouter `openai/gpt-4.1-mini`, temperature 0.2. Independent database reads verified
+the A+ award's three courses/nine credits and 29 Fall sections across those courses; the original
+2026–2027 catalog page (poid 2760) agrees. Program/course records date to July 11 and sections to
+August 12, 2026. BAT and PHIL comparisons reuse the independently verified records below.
+Review included generated prose, not just successful tool calls: the first nominally passing
+API run contained the wording issues above. Final responses no longer repeated those errors.
+
+Browser checks: 18 onboarding layouts across all three styles; 36 production chat layouts across
+three styles, light/dark and 320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720; five
+prep-sheet sizes. Measured image ratios, header controls, page/transcript overflow and composer
+visibility. All passed; the small-landscape transcript retained at least 173px. Fresh A+ onboarding,
+starter lookup, schedule preview, day grouping, section saving, name/multiline-note refresh and
+return to preserved chat/draft were exercised. Another 18 layouts with suggestions expanded passed,
+with at least 158px of conversation space. Clear-chat cancellation and changing/removing a reported
+course were checked through their actual controls. Browser helper timing failures were retried only
+after inspecting current rendered state. Staged/public checks and rollback belong in the PR.
+
+This is browser viewport coverage, not certification of every physical phone, native keyboard,
+screen-reader combination or print driver. Schedules remain saved snapshots and model prose
+can vary; these checks cannot establish that every possible answer is correct.
+
 ## Actual elective choices (September 25)
 
 The phone screenshot reproduced a real gap: BAT names core areas in prose instead of using CB

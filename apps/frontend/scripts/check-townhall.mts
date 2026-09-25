@@ -35,7 +35,11 @@ import {
   verifiedHistory,
 } from "../lib/tool-evidence";
 import { requestBuckets } from "../lib/chat-rate-limit";
-import { scheduleResultForModel } from "../lib/course-details";
+import {
+  namedInstructor,
+  scheduleResultForModel,
+  scheduleSection,
+} from "../lib/course-details";
 import { cardOnlyReply } from "../features/chat/reply-presentation";
 
 const user = (
@@ -207,6 +211,33 @@ test("schedule timing counts keep unknown sections separate from non-matches", (
     with_published_times: 1,
     without_published_times: 8,
   });
+});
+
+test("unassigned faculty and empty meeting records stay unknown in cards and model replay", () => {
+  for (const placeholder of [null, "", " TBA ", "To be Announced"]) {
+    assert.equal(namedInstructor(placeholder), null);
+    const card = scheduleSection({
+      professor: placeholder,
+      semester: "fall", year: 2026, metadata: {},
+      sourceUrl: "https://example.test/section",
+      facts: { modality: "online", meeting_info_raw: "INET", meetings: [] },
+    });
+    assert.equal(card.professor, null);
+    const before = JSON.stringify(card);
+    const model = scheduleResultForModel({ offerings: [card] }) as {
+      offerings: Record<string, unknown>[];
+    };
+    assert.equal(model.offerings[0].professor, null);
+    assert.equal(model.offerings[0].meeting_info_raw, undefined);
+    assert.match(String(model.offerings[0].meeting_time_summary), /fixed meetings are required is unknown/);
+    assert.equal(JSON.stringify(card), before);
+  }
+  assert.equal(namedInstructor(" Williams, Joselle "), "Williams, Joselle");
+  const named = { professor: "Williams, Joselle", meets: ["Mon 09:00 AM–10:00 AM"] };
+  const model = scheduleResultForModel({ offerings: [named] }) as {
+    offerings: Record<string, unknown>[];
+  };
+  assert.deepEqual(model.offerings[0], named);
 });
 
 test("a second checkbox and an uncheck update free-typed remaining-course answers", () => {

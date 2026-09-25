@@ -46,6 +46,10 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   route, without saving a course or clearing an unfinished question. Controls pause during a reply;
   a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
   and explicit section-save actions preserve the source's complete meetings.
+  Assignment placeholders are normalized as unnamed instructors in section cards and rosters;
+  legacy search snippets no longer label them as professors. Model inputs distinguish missing
+  meeting times from evidence that a class has no fixed meetings. Explicit course-status reports
+  refresh a known program before the model answers, even without a follow-up planning question.
 - **Elective choices:** `get_program_requirements` resolves named core references against the
   same-edition CORE-42 map and explicit AAS references against its separate map. The pure resolver
   in `lib/elective-options.ts` attaches course alternatives to each matching requirement, preserves
