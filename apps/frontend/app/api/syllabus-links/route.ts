@@ -1,11 +1,15 @@
 import { and, eq, sql } from "drizzle-orm";
 import { getDb } from "@/lib/client";
 import { knowledgeEntry } from "@/lib/schema";
-import { readSyllabusLink, type SyllabusLink } from "@/lib/syllabus-links";
+import { isLegacyFallSection, readSyllabusLink, type SyllabusLink } from "@/lib/syllabus-links";
 
 /** Public, metadata-only corrections for sections saved before the update.
- * One cached response serves every card; no student data or model call. */
-export async function GET() {
+ * Browser requests fetch one old section, never the full college directory. */
+export async function GET(request: Request) {
+  const source = new URL(request.url).searchParams.get("source");
+  if (source !== null && (source.length > 2000 || !isLegacyFallSection({term: "Fall 2026", source_url: source}))) {
+    return Response.json({}, {status: 400, headers: {"Cache-Control": "no-store"}});
+  }
   try {
     const rows = await getDb()
       .select({
@@ -19,6 +23,7 @@ export async function GET() {
           eq(knowledgeEntry.year, 2026),
           eq(knowledgeEntry.semester, "fall"),
           sql`${knowledgeEntry.metadata}->'syllabus_link'->>'kind' = 'direct'`,
+          ...(source ? [eq(knowledgeEntry.sourceUrl, source)] : []),
         ),
       )
       .limit(15000);
@@ -38,7 +43,7 @@ export async function GET() {
       },
     });
   } catch {
-    // The official library remains usable if the database is unavailable.
+    // Keep saved verified links usable; never substitute a library page.
     return Response.json(
       {},
       {

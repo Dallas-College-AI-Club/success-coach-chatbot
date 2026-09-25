@@ -43,7 +43,6 @@ import {
   readSyllabusLink,
   sectionSyllabusLink,
   sectionLinkLabel,
-  SYLLABUS_LIBRARY,
 } from "../lib/syllabus-links";
 import {
   courseDetailsFromRow,
@@ -139,13 +138,14 @@ const profile: OnboardingPayload = {
   completedAt: "2026-09-20T00:00:00Z",
 };
 const skin = { link: "link", chip: "chip" } as Skin;
+const SYLLABUS_LIBRARY = "https://dallascollege.simplesyllabus.com/en-US/syllabus-library";
 
 test("Fall syllabus corrections resolve old saved links without changing section identity", () => {
   const source_url = "https://dallascollege.campusconcourse.com/view_syllabus?course_id=147727";
   const direct = { kind: "direct" as const, url: "https://dallascollege.simplesyllabus.com/en-US/doc/ehrrxpu10/" };
   const section = readSavedSection({ source_url, term: "Fall 2026", section_number: "1" })!;
   const identity = savedSectionKey(section);
-  assert.deepEqual(sectionSyllabusLink(section), { kind: "library", url: SYLLABUS_LIBRARY });
+  assert.equal(sectionSyllabusLink(section), null);
   assert.deepEqual(sectionSyllabusLink(section, { [source_url]: direct }), direct);
   assert.equal(savedSectionKey(section), identity);
   assert.equal(section.source_url, source_url);
@@ -154,7 +154,7 @@ test("Fall syllabus corrections resolve old saved links without changing section
   const search = "https://dallascollege.campusconcourse.com/search?search_performed=1&keyword=78&prefix=ARTS&number=1301&session=Fall&year=2026";
   assert.deepEqual(sectionSyllabusLink({term:"Fall 2026",source_url:search}, {[search]:direct}), direct);
   assert.equal(sectionLinkLabel(direct), "View syllabus");
-  assert.equal(sectionLinkLabel({ kind:"library",url:SYLLABUS_LIBRARY }), "Find syllabus in library");
+  assert.equal(sectionSyllabusLink({ ...section, syllabus_link: {kind:"library",url:SYLLABUS_LIBRARY} }), null);
 });
 
 test("syllabus URLs reject lookalikes, credentials, redirects and unsafe schemes", () => {
@@ -166,6 +166,10 @@ test("syllabus URLs reject lookalikes, credentials, redirects and unsafe schemes
     "http://dallascollege.simplesyllabus.com/en-US/doc/abc",
   ]) assert.equal(readSyllabusLink({kind:"direct",url}), null);
   assert.equal(readSyllabusLink({kind:"direct",url:SYLLABUS_LIBRARY}), null);
+  assert.equal(readSyllabusLink({kind:"library",url:SYLLABUS_LIBRARY}), null);
+  const full = 'https://dallascollege.simplesyllabus.com/en-US/doc/vyr36is0a/2026-Fall-ITSD-4350-1-Continuous-Integration-Continuous-Delivery-Principles-in-Action-Projects?mode=view';
+  assert.deepEqual(readSyllabusLink({kind:'direct',url:full}), {kind:'direct',url:full});
+  assert.equal(readSyllabusLink({kind:'direct',url:full+'&redirect=https://evil.example'}), null);
   assert.equal(sectionSyllabusLink({source_url:"javascript:alert(1)"}), null);
 });
 
@@ -183,8 +187,11 @@ test("schedule output exposes verified syllabus metadata and never labels a libr
   assert.equal(model.offerings[0].source_url,link.url);
   assert.equal(model.offerings[0].syllabus_link_kind,"direct");
   const fallback = scheduleResultForModel({offerings:[{...card,syllabus_link:null}]}) as {offerings:Record<string,unknown>[]};
-  assert.equal(fallback.offerings[0].source_url,SYLLABUS_LIBRARY);
-  assert.equal(fallback.offerings[0].syllabus_link_kind,"library");
+  assert.equal(fallback.offerings[0].source_url,undefined);
+  assert.equal(fallback.offerings[0].syllabus_link_kind,undefined);
+  assert.match(String(fallback.offerings[0].syllabus_link_status), /No verified direct/);
+  const oldLibrary = renderToStaticMarkup(createElement(ScheduleResults, {name:"get_class_schedule",skin,output:{course_code:"ITSD 4340",offerings:[{...card,syllabus_link:{kind:'library',url:SYLLABUS_LIBRARY}}]}}));
+  assert.doesNotMatch(oldLibrary, /syllabus-library|campusconcourse.com|Find syllabus/);
 });
 
 test("course preview actions cover named courses, missing details and core choices without saving anything", () => {

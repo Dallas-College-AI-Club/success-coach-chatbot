@@ -1,20 +1,17 @@
 import { citationHref } from "./constants";
 
-export const SYLLABUS_LIBRARY =
-  "https://dallascollege.simplesyllabus.com/en-US/syllabus-library";
-
-export type SyllabusLink = { url: string; kind: "direct" | "library" };
+export type SyllabusLink = { url: string; kind: "direct" };
 export type SectionLink = SyllabusLink | { url: string; kind: "source" };
 
-/** Accept only Dallas College's public library or an exact document URL. */
+/** Accept only Dallas College document links, including the public title URL.
+ * A library/search page is never a replacement for a section's syllabus. */
 export function readSyllabusLink(value: unknown): SyllabusLink | null {
   if (!value || typeof value !== "object") return null;
   const { url, kind } = value as Record<string, unknown>;
   if (typeof url !== "string") return null;
-  if (kind === "library" && url === SYLLABUS_LIBRARY) return { url, kind };
   if (
     kind === "direct" &&
-    /^https:\/\/dallascollege\.simplesyllabus\.com\/en-US\/doc\/[a-zA-Z0-9_-]+\/?$/.test(
+    /^https:\/\/dallascollege\.simplesyllabus\.com\/(?:en-US\/)?doc\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?\/?(?:\?mode=view)?$/.test(
       url,
     )
   )
@@ -48,19 +45,10 @@ export function sectionSyllabusLink(
   if (updated) return updated;
   const recorded = readSyllabusLink(section.syllabus_link);
   if (recorded) return recorded;
-  if (isLegacyFallSection(section)) {
-    return {
-      url: SYLLABUS_LIBRARY,
-      kind: "library",
-    };
-  }
+  if (isLegacyFallSection(section)) return null;
   return source ? { url: source, kind: "source" } : null;
 }
 
 export function sectionLinkLabel(link: SectionLink): string {
-  return link.kind === "direct"
-    ? "View syllabus"
-    : link.kind === "library"
-      ? "Find syllabus in library"
-      : "Section source";
+  return link.kind === "direct" ? "View syllabus" : "Section source";
 }

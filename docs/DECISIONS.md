@@ -3,6 +3,20 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-25 — Require exact syllabus hyperlinks across the Fall inventory
+
+The maintainer rejected official-library fallbacks and requested exact document links for every
+Fall section in Neon. This supersedes the library-substitute decision below. Discover the full
+public Fall directory as metadata only, reconcile course/section/term identities, preserve
+document-ID and link evidence, and report absent or conflicting identities explicitly. Never
+guess an opaque document ID or use a neighboring section. Do not resume syllabus-body ingestion.
+
+Only verified document URLs are accepted by the app, including titled `?mode=view` links.
+Old persisted library values are ignored, and model projections omit unverified legacy URLs.
+Existing direct links require no browser lookup; older saved sections request one small cached
+correction by source URL instead of downloading the full directory. Database writes remain
+limited to `metadata.syllabus_link`, with a before-state backup and unchanged-field comparisons.
+
 ## 2026-09-25 — Correct syllabus links without importing syllabus content
 
 The maintainer requested corrected Neon syllabus hyperlinks, readable prep-sheet fields and

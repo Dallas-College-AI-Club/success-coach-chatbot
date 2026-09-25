@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
 import { POST } from "../app/api/chat/route";
+import { GET as syllabusLinks } from "../app/api/syllabus-links/route";
 import { EXECUTE as semester } from "../lib/tools/getSemester";
 import {
   EXECUTE as search,
@@ -16,6 +17,16 @@ import {
 } from "../lib/tools/searchKnowledge";
 import { COACH } from "../features/onboarding/handoff-copy";
 import { scheduleResultForModel } from "../lib/course-details";
+
+test("saved syllabus lookup rejects unrelated and oversized source URLs before querying", async () => {
+  for (const source of ["", "javascript:alert(1)", "https://evil.example/view_syllabus?course_id=1",
+    "https://dallascollege.campusconcourse.com.evil.example/view_syllabus?course_id=1", "x".repeat(2001)]) {
+    const response = await syllabusLinks(new Request(`https://example.test/api/syllabus-links?source=${encodeURIComponent(source)}`));
+    assert.equal(response.status, 400);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), {});
+  }
+});
 
 test("coach contacts use the service record without diverting faculty or course discovery", () => {
   for (const query of [

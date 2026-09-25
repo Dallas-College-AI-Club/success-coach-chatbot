@@ -1,4 +1,4 @@
-import { readSyllabusLink, sectionSyllabusLink } from "./syllabus-links";
+import { isLegacyFallSection, readSyllabusLink, sectionSyllabusLink } from "./syllabus-links";
 
 // Shared serializable catalog fields. No database or browser dependencies.
 export interface CourseDetails {
@@ -440,6 +440,12 @@ export function scheduleResultForModel(output: unknown) {
       if (syllabus) {
         normalized.source_url = syllabus.url;
         normalized.syllabus_link_kind = syllabus.kind;
+      } else if (isLegacyFallSection(section)) {
+        // Preserve provenance in the tool/UI payload, but never offer a stale
+        // syllabus or a library substitute to the model as a document link.
+        delete normalized.source_url;
+        delete normalized.syllabus_link;
+        normalized.syllabus_link_status = "No verified direct syllabus link available.";
       }
       if ("professor" in section)
         normalized.professor = namedInstructor(section.professor);
@@ -473,7 +479,7 @@ export function scheduleResultForModel(output: unknown) {
       ).length,
     };
     result.timing_guidance =
-      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. A library link is a place to find a syllabus, not a verified document for the section. Linked syllabus content has not been read by this tool.";
+      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Only offer a verified direct syllabus link supplied by this tool; never substitute a library/search page or another section. Linked syllabus content has not been read by this tool.";
   }
   return result;
 }

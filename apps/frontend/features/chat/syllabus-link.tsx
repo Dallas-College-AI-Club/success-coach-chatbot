@@ -9,10 +9,11 @@ import {
   type SyllabusLink as LinkValue,
 } from "@/lib/syllabus-links";
 
-let pendingLinks: Promise<Record<string, LinkValue>> | undefined;
-function currentLinks() {
-  if (!pendingLinks) {
-    pendingLinks = fetch("/api/syllabus-links", {
+const pendingLinks = new Map<string, Promise<Record<string, LinkValue>>>();
+function currentLinks(source: string) {
+  let pending = pendingLinks.get(source);
+  if (!pending) {
+    pending = fetch(`/api/syllabus-links?source=${encodeURIComponent(source)}`, {
       cache: "no-cache",
       signal: AbortSignal.timeout(10000),
     })
@@ -28,11 +29,12 @@ function currentLinks() {
         );
       })
       .catch(() => {
-        pendingLinks = undefined;
+        pendingLinks.delete(source);
         return {};
       });
+    pendingLinks.set(source, pending);
   }
-  return pendingLinks;
+  return pending;
 }
 
 export function SyllabusLink({
@@ -43,17 +45,18 @@ export function SyllabusLink({
   className?: string;
 }) {
   const [links, setLinks] = useState<Record<string, LinkValue>>({});
-  const refresh = isLegacyFallSection(section);
+  const source = typeof section.source_url === "string" ? section.source_url : "";
+  const refresh = isLegacyFallSection(section) && !readSyllabusLink(section.syllabus_link);
   useEffect(() => {
     if (!refresh) return;
     let active = true;
-    void currentLinks().then((value) => {
+    void currentLinks(source).then((value) => {
       if (active) setLinks(value);
     });
     return () => {
       active = false;
     };
-  }, [refresh]);
+  }, [refresh, source]);
   const link = sectionSyllabusLink(section, links);
   return link ? (
     <a
