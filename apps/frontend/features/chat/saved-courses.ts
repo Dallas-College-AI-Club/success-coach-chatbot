@@ -16,8 +16,11 @@ import {
 import { citationHref } from "@/lib/constants";
 import {
   readCompletionOverrides,
+  completionStatus,
+  type CompletionChoice,
   type CompletionOverrides,
 } from "@/features/chat/completion-state";
+import { readCourseHistory } from "@/lib/planning";
 
 // The student's saved class list ("cart"). Holds the ACTUAL tool-result fields
 // the student chose to keep — real catalog data, never model prose — so the
@@ -144,6 +147,7 @@ interface SavedCoursesState {
   toggle: (course: SavedCourse) => void;
   toggleSection: (course: SavedCourse, section: unknown) => void;
   toggleTaken: (courseCode: string) => void;
+  setCourseStatus: (courseCode: string, status: CompletionChoice) => void;
   remove: (courseCode: string) => void;
   addQuestion: (q: string) => void;
   removeQuestion: (index: number) => void;
@@ -164,20 +168,22 @@ export const useSavedCourses = create<SavedCoursesState>()(
       taken: [],
       completionOverrides: {},
       applyCompletionHistory: (history) => {
-        if (!isRecord(history)) return;
         const patch = Object.fromEntries(
-          Object.entries(history).flatMap(([code, record]) =>
-            isCourseCode(code) &&
-            isRecord(record) &&
-            ["completed", "not_completed"].includes(String(record.status))
-              ? [[code, record.status === "completed"]]
-              : [],
-          ),
+          Object.entries(readCourseHistory(history)).map(([code, record]) => [
+            code,
+            record.status === "completed"
+              ? true
+              : record.status === "not_completed"
+                ? false
+                : record.status,
+          ]),
         );
         const next = { ...get().completionOverrides, ...patch };
         set({
           completionOverrides: next,
-          taken: Object.keys(next).filter((code) => next[code]),
+          taken: Object.keys(next).filter(
+            (code) => completionStatus(next[code]) === "completed",
+          ),
         });
       },
       draft: emptyDraft(),
@@ -221,15 +227,17 @@ export const useSavedCourses = create<SavedCoursesState>()(
         });
       },
       toggleTaken: (courseCode) => {
-        if (!isCourseCode(courseCode)) return;
+        get().setCourseStatus(courseCode, !get().taken.includes(courseCode));
+      },
+      setCourseStatus: (courseCode, status) => {
+        const patch = readCompletionOverrides({ [courseCode]: status });
+        if (!Object.hasOwn(patch, courseCode)) return;
+        const next = { ...get().completionOverrides, ...patch };
         set({
-          completionOverrides: {
-            ...get().completionOverrides,
-            [courseCode]: !get().taken.includes(courseCode),
-          },
-          taken: get().taken.includes(courseCode)
-            ? get().taken.filter((c) => c !== courseCode)
-            : [...get().taken, courseCode],
+          completionOverrides: next,
+          taken: Object.keys(next).filter(
+            (code) => completionStatus(next[code]) === "completed",
+          ),
         });
       },
       remove: (courseCode) =>
@@ -312,17 +320,18 @@ export const useSavedCourses = create<SavedCoursesState>()(
         const questions = Array.isArray(p?.questions)
           ? p.questions.filter((q): q is string => typeof q === "string")
           : [];
+        const completionOverrides = readCompletionOverrides(
+          p?.completionOverrides ??
+            (Array.isArray(p?.taken)
+              ? Object.fromEntries(
+                  p.taken.filter(isCourseCode).map((code) => [code, true]),
+                )
+              : {}),
+        );
         return {
           ...current,
           draft: readSheetDraft(p?.draft),
-          completionOverrides: readCompletionOverrides(
-            p?.completionOverrides ??
-              (Array.isArray(p?.taken)
-                ? Object.fromEntries(
-                    p.taken.filter(isCourseCode).map((code) => [code, true]),
-                  )
-                : {}),
-          ),
+          completionOverrides,
           courses: [
             ...new Map(
               courses.map((course) => [course.course_code, course]),
@@ -335,9 +344,10 @@ export const useSavedCourses = create<SavedCoursesState>()(
                 .filter(isSheetWorthyQuestion),
             ),
           ].slice(-MAX_QUESTIONS),
-          taken: Array.isArray(p?.taken)
-            ? [...new Set(p.taken.filter(isCourseCode))]
-            : [],
+          taken: Object.keys(completionOverrides).filter(
+            (code) =>
+              completionStatus(completionOverrides[code]) === "completed",
+          ),
         };
       },
     },

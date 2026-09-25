@@ -19,7 +19,10 @@ import {
 } from "@/features/onboarding/handoff-copy";
 import { INTEREST_GUIDE } from "@/features/onboarding/interests";
 import type { InterestArea } from "@/features/onboarding/types";
-import type { CompletionOverrides } from "@/features/chat/completion-state";
+import {
+  courseHistoryChanged,
+  type CompletionOverrides,
+} from "@/features/chat/completion-state";
 import {
   catalogText,
   isCourseCode,
@@ -499,12 +502,7 @@ export function followUpsFor(ctx: FollowUpContext): StarterQuestion[] {
     isRecord(plan) && isRecord(plan.planning) ? plan.planning : {};
   const history = isRecord(planning.history) ? planning.history : {};
   const program = isRecord(plan) ? catalogText(plan.name) : ctx.program;
-  const changed = Object.entries(ctx.completionOverrides ?? {}).some(
-    ([code, completed]) =>
-      completed
-        ? !isRecord(history[code]) || history[code].status !== "completed"
-        : isRecord(history[code]) && history[code].status === "completed",
-  );
+  const changed = courseHistoryChanged(history, ctx.completionOverrides ?? {});
   const refresh =
     program && changed
       ? [

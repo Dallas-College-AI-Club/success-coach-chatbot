@@ -3,6 +3,21 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Edit reported courses and restart setup
+
+The maintainer requested course-history editing/removal, a discoverable form restart and a check
+of the BAT American History elective. Add an editor from the checklist and the compact Plan options
+menu beside Clear chat. Changes persist and use the same chronological planning path as checkboxes;
+explicit removals override earlier completion statements. The prep sheet exposes the same editor
+and per-course removal. Restart setup confirms its scope and keeps saved notes/courses by default,
+with an explicit option to clear them. Reset prep sheet keeps onboarding choices.
+
+The current official 2026–2027 BAT Software Development catalog (poid 3381) lists HIST 1301 in
+semester 7 and a 3-credit American History elective in semester 8. Keep that valid core requirement.
+The UI had repeated the semester's entire rule under each elective, including the unrelated ITDA
+4350 capstone note. Match labeled elective rules to their own rows and retain other semester notes
+at group level. No catalog/database facts or credit totals were rewritten.
+
 ## 2026-09-24 — Final demo audit fixes
 
 The maintainer authorized a final audit, fixes, review by dbracewell and public deployment.

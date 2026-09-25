@@ -9,6 +9,7 @@ import {
   type UIMessage,
 } from "ai";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { AlertDialog } from "radix-ui";
 import {
   memo,
@@ -27,6 +28,7 @@ import { Button } from "@/components/ui/button";
 import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
+import { PlanningControls } from "@/features/chat/planning-controls";
 import {
   clearConversation,
   hydrateConversation,
@@ -138,12 +140,14 @@ const Turn = memo(function Turn({
   question,
   displayQuestion,
   scheduleAction,
+  onEditHistory,
 }: {
   m: UIMessage;
   skin: Skin;
   question: string;
   displayQuestion: string;
   scheduleAction: CourseScheduleAction;
+  onEditHistory: () => void;
 }) {
   const isUser = m.role === "user";
   // What a chip-sent turn SAYS, as opposed to the instructions it carries.
@@ -256,6 +260,7 @@ const Turn = memo(function Turn({
                     skin={skin}
                     semesters={requestedSemesters(question)}
                     scheduleAction={scheduleAction}
+                    onEditHistory={onEditHistory}
                   />
                   <ScheduleResults
                     name={getToolName(part)}
@@ -307,6 +312,7 @@ function Conversation({
   onClear: () => void;
 }) {
   const { skin, copy } = mode;
+  const router = useRouter();
   const languages = useSyncExternalStore(
     subscribeLanguage,
     browserLanguages,
@@ -323,6 +329,8 @@ function Conversation({
 
   const [input, setInput] = useState(restored?.input ?? "");
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const openHistory = useCallback(() => setHistoryOpen(true), []);
   const suggestionsId = useId();
   const [askedLabels, setAskedLabels] = useState<string[]>(
     restored?.askedLabels ?? [],
@@ -414,6 +422,22 @@ function Conversation({
       }
     }
   }, [messages, busy]);
+  const latestPlan = messages
+    .flatMap((message) => message.parts)
+    .filter(isToolUIPart)
+    .findLast(
+      (part) =>
+        getToolName(part) === "get_program_requirements" &&
+        part.state === "output-available",
+    )?.output;
+  const latestHistory =
+    isRecord(latestPlan) && isRecord(latestPlan.planning)
+      ? latestPlan.planning.history
+      : undefined;
+  const historyProgram =
+    isRecord(latestPlan) && typeof latestPlan.name === "string"
+      ? latestPlan.name
+      : profile?.major;
   const suggestions = followUpsFor({
     program: profile?.major,
     interest,
@@ -426,14 +450,7 @@ function Conversation({
     started: messages.some((message) => message.role === "user"),
     taken,
     completionOverrides,
-    latestPlan: messages
-      .flatMap((message) => message.parts)
-      .filter(isToolUIPart)
-      .findLast(
-        (part) =>
-          getToolName(part) === "get_program_requirements" &&
-          part.state === "output-available",
-      )?.output,
+    latestPlan,
     askedLabels,
   });
 
@@ -486,10 +503,14 @@ function Conversation({
   // identical answer re-announces because the value passes through "" first.
   const last = messages[messages.length - 1];
   const lastQuestion = messages.findLast((message) => message.role === "user");
-  const lastCards = last && cardOnlyReply(
-    last,
-    lastQuestion ? askedLabel(lastQuestion.metadata) ?? plainText(lastQuestion) : "",
-  );
+  const lastCards =
+    last &&
+    cardOnlyReply(
+      last,
+      lastQuestion
+        ? (askedLabel(lastQuestion.metadata) ?? plainText(lastQuestion))
+        : "",
+    );
   const incomplete =
     status === "ready" &&
     last?.role === "assistant" &&
@@ -530,6 +551,10 @@ function Conversation({
       sending.current = true;
       setSuggestionsOpen(false);
       setCancelled(false);
+      // Read at the action boundary so an editor's newest change rides on the
+      // request even when the student immediately asks for a refreshed plan.
+      const completionOverrides =
+        useSavedCourses.getState().completionOverrides;
       useSavedCourses.getState().addQuestion(note);
       // The chip's own words ride along as metadata for the bubble to show; the
       // model still gets `text`, the full prompt. Typed questions need none.
@@ -546,7 +571,7 @@ function Conversation({
       if (clearInput) setInput("");
       toBottom();
     },
-    [busy, completionOverrides, profile, sendMessage, toBottom],
+    [busy, profile, sendMessage, toBottom],
   );
 
   const scheduleAction = useMemo<CourseScheduleAction>(
@@ -581,6 +606,7 @@ function Conversation({
         question={currentQuestion}
         displayQuestion={currentDisplayQuestion}
         scheduleAction={scheduleAction}
+        onEditHistory={openHistory}
       />,
     );
   }
@@ -659,17 +685,21 @@ function Conversation({
 
       {/* Keep the conversation roomy until the student asks for suggestions.
           Sending closes the drawer; streamed replies never reopen it. */}
-      <div className="coach-suggestions grid min-w-0 shrink-0 grid-cols-[1fr_auto] items-center">
+      <div className="coach-suggestions grid min-w-0 shrink-0 grid-cols-[1fr_auto_auto] items-center">
         <button
           type="button"
           aria-expanded={suggestionsOpen}
           aria-controls={suggestionsId}
+          aria-label={suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
           disabled={busy || suggestions.length === 0}
           onClick={() => setSuggestionsOpen((open) => !open)}
           className={`${skin.link} flex min-h-11 shrink-0 cursor-pointer items-center gap-2 justify-self-start rounded-lg px-2 text-sm focus-visible:outline-2 disabled:cursor-default disabled:opacity-50`}
         >
           <span aria-hidden>{suggestionsOpen ? "▾" : "▸"}</span>
-          {suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
+          <span className="hidden min-[400px]:inline">
+            {suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
+          </span>
+          <span className="min-[400px]:hidden">Suggestions</span>
         </button>
         <AlertDialog.Root>
           <AlertDialog.Trigger asChild>
@@ -682,7 +712,7 @@ function Conversation({
           </AlertDialog.Trigger>
           <AlertDialog.Portal>
             <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60" />
-            <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl bg-popover p-5 text-popover-foreground shadow-xl">
+            <AlertDialog.Content className="bg-popover text-popover-foreground fixed top-1/2 left-1/2 z-50 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-2xl p-5 shadow-xl">
               <AlertDialog.Title className="text-lg font-semibold">
                 Clear this chat?
               </AlertDialog.Title>
@@ -715,11 +745,35 @@ function Conversation({
             </AlertDialog.Content>
           </AlertDialog.Portal>
         </AlertDialog.Root>
+        <PlanningControls
+          history={latestHistory}
+          historyOpen={historyOpen}
+          onHistoryOpenChange={setHistoryOpen}
+          busy={busy}
+          onRefresh={
+            historyProgram
+              ? () =>
+                  send(
+                    `Refresh the full ${historyProgram} checklist using my current reported course history.`,
+                    "Update my remaining courses",
+                    false,
+                  )
+              : undefined
+          }
+          onRestart={(clearSaved) => {
+            resetting.current = true;
+            void stop();
+            clearConversation();
+            if (clearSaved) useSavedCourses.getState().clear();
+            useStudentSession.getState().resetSession();
+            router.push("/");
+          }}
+        />
         <div
           id={suggestionsId}
           className={
             suggestionsOpen
-              ? "coach-followups col-span-2 flex flex-wrap gap-1.5 px-1"
+              ? "coach-followups col-span-3 flex flex-wrap gap-1.5 px-1"
               : "hidden"
           }
         >

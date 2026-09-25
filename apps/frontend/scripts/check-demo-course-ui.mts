@@ -43,6 +43,7 @@ import {
   readCourseDetails,
   programResultForModel,
   programCourseCode,
+  programGroupRules,
 } from "../lib/course-details";
 import { INPUT_SCHEMA } from "../lib/tools/getProgramRequirements";
 import {
@@ -649,6 +650,101 @@ test("long elective rules are available behind a closed disclosure, with credits
   assert.doesNotMatch(html, /<details[^>]*\bopen\b/);
 });
 
+test("BAT history remains required while capstone notes stay outside its elective details", () => {
+  const elective = "Elective - American History (3 Credit Hours)";
+  const capstone =
+    "ITDA 4350 Analytics Project Utilizing Bioinformatics is the capstone experience for this award.";
+  const history =
+    "American History Elective: Must be selected from the Core Curriculum American History Foundational Component Area.";
+  const rules = programGroupRules(
+    ["ITDA 4350", elective],
+    `${capstone} ${history}`,
+  );
+  assert.equal(rules.notes, capstone);
+  assert.equal(rules.electives[elective], history);
+  const html = renderToStaticMarkup(
+    createElement(CourseResults, {
+      name: "get_program_requirements",
+      skin,
+      output: {
+        found: true,
+        name: "Bachelor of Applied Technology in Software Development",
+        total_credits: 120,
+        groups: [
+          { name: "Semester 7", courses: ["HIST 1301"] },
+          {
+            name: "Semester 8",
+            courses: ["ITDA 4350", elective],
+            rule: `${capstone} ${history}`,
+          },
+        ],
+      },
+    }),
+  );
+  assert.match(html, /HIST 1301/);
+  assert.match(html, /American History \(3 Credit Hours\)/);
+  const details = html.match(
+    /<details><summary[^>]*>Elective - American History[\s\S]*?<\/details>/,
+  )?.[0];
+  assert.ok(details?.includes(history));
+  assert.ok(!details?.includes("capstone"));
+  assert.match(html, /A required core elective/);
+});
+
+test("a semester's different elective rules are matched only to their own rows", () => {
+  const science = "Elective - Life and Physical Sciences (4 Credit Hours)";
+  const language =
+    "Elective - Language, Philosophy and Culture (3 Credit Hours)";
+  const coreRules = programGroupRules(
+    [science, language],
+    "Life and Physical Science Elective: Select from the science core. Language, Philosophy and Culture Elective: Select from the language core.",
+  );
+  assert.equal(
+    coreRules.electives[science],
+    "Life and Physical Science Elective: Select from the science core.",
+  );
+  assert.equal(
+    coreRules.electives[language],
+    "Language, Philosophy and Culture Elective: Select from the language core.",
+  );
+  const entries = [
+    "Elective - ITSC Course (3 Credit Hours)",
+    "Elective - ITSE/INEW Course (3 Credit Hours)",
+    "Elective - Speech Elective (3 Credit Hours)",
+  ];
+  const rules = programGroupRules(
+    entries,
+    "ITSC Elective: Any 3-credit ITSC course. ITSE/INEW Elective: Any 3-credit ITSE/INEW course. Speech Elective: Select SPCH 1311 or SPCH 1315.",
+  );
+  assert.equal(rules.notes, null);
+  assert.equal(
+    rules.electives[entries[0]],
+    "ITSC Elective: Any 3-credit ITSC course.",
+  );
+  assert.equal(
+    rules.electives[entries[1]],
+    "ITSE/INEW Elective: Any 3-credit ITSE/INEW course.",
+  );
+  assert.equal(
+    rules.electives[entries[2]],
+    "Speech Elective: Select SPCH 1311 or SPCH 1315.",
+  );
+  assert.equal(
+    programGroupRules(
+      ["Elective - Life and Physical Sciences (4 Credit Hours)"],
+      "Life and Physical Science Elective: Select from the core.",
+    ).notes,
+    null,
+  );
+  assert.equal(
+    programGroupRules(
+      entries,
+      "Shared program rule without a labeled elective.",
+    ).notes,
+    "Shared program rule without a labeled elective.",
+  );
+});
+
 test("schedule rows preserve distinct sections and never treat missing times as asynchronous", () => {
   const common = {
     year: 2026,
@@ -1202,7 +1298,8 @@ test("removing the last section-only save removes its course without changing ot
     section_number: "1",
     term: "Fall 2026",
     meets: [],
-    source_url: "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+    source_url:
+      "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
   };
   try {
     useSavedCourses.setState({ courses: [course] });

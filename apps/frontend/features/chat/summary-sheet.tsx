@@ -1,15 +1,17 @@
 "use client";
 
 import { citationHref } from "@/lib/constants";
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { clearConversation } from "@/features/chat/conversation-store";
+import { PlanningControls } from "@/features/chat/planning-controls";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
 import {
   useHydrateSession,
   useSavedSession,
+  useStudentSession,
 } from "@/features/onboarding/onboarding-store";
 import {
   useSavedCourses,
@@ -115,6 +117,7 @@ function ClassEntry({
 }
 
 export function SummarySheet() {
+  const [historyOpen, setHistoryOpen] = useState(false);
   // Both stores skip auto-hydration so SSR and the first client paint match;
   // trigger them here, after mount, exactly as the chat screen does.
   useHydrateSession();
@@ -164,6 +167,19 @@ export function SummarySheet() {
           ← Back to chat
         </Link>
         <span className="sheet-hint">Edit your sheet, then print</span>
+        <PlanningControls
+          label="Edit / restart"
+          history={undefined}
+          historyOpen={historyOpen}
+          onHistoryOpenChange={setHistoryOpen}
+          busy={false}
+          onRestart={(clearSavedData) => {
+            clearConversation();
+            if (clearSavedData) clearSaved();
+            useStudentSession.getState().resetSession();
+            window.location.assign("/");
+          }}
+        />
         <button
           type="button"
           className="sheet-print"
@@ -179,7 +195,7 @@ export function SummarySheet() {
           onClick={() => {
             if (
               window.confirm(
-                "Clear your saved classes, questions, sheet edits, and this tab's chat history?",
+                "Clear your saved classes, reported courses, questions, sheet edits, and this tab's chat history? Your setup choices will stay.",
               )
             ) {
               clearSaved();
@@ -187,7 +203,7 @@ export function SummarySheet() {
             }
           }}
         >
-          Clear my saved data
+          Reset prep sheet
         </button>
       </div>
 
@@ -290,11 +306,30 @@ export function SummarySheet() {
               <span className="sheet-h2">
                 Courses I reported as completed (not a transcript)
               </span>
+              <button
+                type="button"
+                className="sheet-add min-h-11 print:hidden"
+                onClick={() => setHistoryOpen(true)}
+              >
+                Edit
+              </button>
             </h2>
             <ul className="sheet-answers">
               {taken.map((code) => (
                 <li key={code}>
                   <span className="sheet-code">{code}</span>
+                  <button
+                    type="button"
+                    className="sheet-del"
+                    aria-label={`Remove reported ${code}`}
+                    onClick={() =>
+                      useSavedCourses
+                        .getState()
+                        .setCourseStatus(code, "removed")
+                    }
+                  >
+                    ×
+                  </button>
                 </li>
               ))}
             </ul>

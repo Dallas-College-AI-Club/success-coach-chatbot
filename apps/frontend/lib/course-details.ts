@@ -33,6 +33,52 @@ export function programCourseCode(value: unknown): string | null {
   return `${match[1]} ${match[2]}`;
 }
 
+/** Semester notes combine several elective rules and sometimes a capstone note.
+ * Attach only a matching labeled rule to an elective; keep the rest at group level. */
+export function programGroupRules(entries: string[], value: unknown) {
+  const rule = catalogText(value);
+  const electives: Record<string, string> = {};
+  if (!rule) return { notes: null, electives };
+  const labels = [
+    ...rule.matchAll(
+      /(?:^|(?<=[.!?])\s+)([A-Za-z][A-Za-z ,/&-]*? Elective):\s*/g,
+    ),
+  ];
+  const key = (label: string) =>
+    label
+      .toLowerCase()
+      .replace(/^elective\s*[-–—]\s*/, "")
+      .replace(/\([^)]*\)|\b(?:elective|course)\b/g, "")
+      .replace(/sciences/g, "science")
+      .replace(/[^a-z0-9]/g, "");
+  if (!labels.length) {
+    const unique = [...new Set(entries.filter((e) => /\belective\b/i.test(e)))];
+    // An unlabeled rule is safe to attach only when there is one elective kind
+    // and it doesn't contain unrelated notes or course alternatives.
+    if (
+      unique.length === 1 &&
+      /^(?:Any|Choose|Select|Must be selected)\b/i.test(rule)
+    ) {
+      electives[unique[0]] = rule;
+      return { notes: null, electives };
+    }
+    return { notes: rule, electives };
+  }
+  const notes = [rule.slice(0, labels[0].index).trim()].filter(Boolean);
+  labels.forEach((label, index) => {
+    const text = rule
+      .slice(label.index, labels[index + 1]?.index ?? rule.length)
+      .trim();
+    const matching = entries.filter((entry) => key(entry) === key(label[1]));
+    if (matching.length)
+      matching.forEach((entry) => {
+        electives[entry] = text;
+      });
+    else notes.push(text);
+  });
+  return { notes: notes.join("\n") || null, electives };
+}
+
 // Keep the catalog's wording, including "Recommended" and prose requirements.
 // Older records may only retain that wording inside the structured groups.
 function requisiteText(value: Record<string, unknown>): string | null {

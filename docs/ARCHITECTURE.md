@@ -58,9 +58,20 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   Clear chat confirms before removing this tab's messages and draft, aborts any active response
   and remounts the conversation. It preserves onboarding, saved classes and sheet notes. Removing
   the last section-only save removes its empty course entry; independent catalog saves remain.
-- **Completion changes:** each user turn includes a validated checkbox snapshot. The server merges
+- **Completion changes:** each user turn includes a validated course-history snapshot. The editor
+  supports completion, in-progress, planned, transfer-pending and uncertain statuses. Existing boolean
+  checkbox values remain valid. Removing a reported course saves a removal marker so earlier chat
+  statements cannot resurrect it; later explicit student corrections can supersede the removal.
+  Cards reflect local edits immediately and suppress stale remaining-credit totals until refreshed.
+  The server merges
   changes chronologically with explicit student statements and forces fresh planning for remaining
   course questions. Restored replies never overwrite newer checkbox edits.
+- **Setup restart:** Plan options in chat and the sheet opens a confirmed restart. It clears the
+  onboarding session and this tab's conversation, optionally also clearing saved courses and sheet
+  edits. Restarting from chat aborts an active reply before navigating to the welcome page.
+- **Elective descriptions:** labeled elective rules are matched to the corresponding requirement
+  row. Unmatched notes and capstone/alternative rules stay at semester level; the source record and
+  the degree's required credits remain unchanged.
 - **Public request bounds:** at most 4 MB, 160 messages and 8,000 characters per user message,
   retaining the 2,000 output-token, 8-step and 60-second execution bounds. Atomic counters in
   `chat_request_budget` limit each network to 120 requests/5 minutes, all networks to 300/5 minutes

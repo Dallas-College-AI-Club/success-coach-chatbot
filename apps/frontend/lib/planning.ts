@@ -122,6 +122,10 @@ function analyzeHistory(messages: string[], courses: CourseDetails[] = []) {
         /\?\s*$/.test(clause)
       )
         continue;
+      if (/^\s*forget my course history for\b/i.test(clause)) {
+        for (const code of codes) delete history[code];
+        continue;
+      }
       let status: CourseStatus | undefined;
       if (
         /\b(?:not sure|unsure|uncertain|don't think|do not think|I think|don't remember|do not remember|may have|might have|probably|maybe|either|except)\b/i.test(

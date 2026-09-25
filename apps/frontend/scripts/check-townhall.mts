@@ -4,6 +4,9 @@ import type { UIMessage } from "ai";
 import {
   planningStatements,
   readCompletionOverrides,
+  currentCourseHistory,
+  courseHistoryChanged,
+  type CompletionOverrides,
 } from "../features/chat/completion-state";
 import {
   clearConversation,
@@ -35,7 +38,7 @@ import { cardOnlyReply } from "../features/chat/reply-presentation";
 
 const user = (
   text: string,
-  completionOverrides?: Record<string, boolean>,
+  completionOverrides?: CompletionOverrides,
 ): UIMessage => ({
   id: text,
   role: "user",
@@ -251,6 +254,98 @@ test("typed corrections stay newer than unchanged checkbox snapshots", () => {
   );
 });
 
+test("reported-course edits support every status and removal without replaying old completion", () => {
+  const first = user("I have completed ITSE 1370 and MATH 1314.");
+  for (const status of [
+    "in_progress",
+    "planned",
+    "transfer_pending",
+    "unknown",
+    "not_completed",
+    "completed",
+  ] as const) {
+    const turns = [first, user("Update my plan.", { "ITSE 1370": status })];
+    assert.equal(
+      studentCourseHistory(planningStatements(turns))["ITSE 1370"].status,
+      status,
+    );
+  }
+  const removed = { "ITSE 1370": "removed" } as const;
+  const turns = [
+    first,
+    user("Update my plan.", removed),
+    user("What remains?", removed),
+  ];
+  const assessed = assessPlan(plan, planningStatements(turns));
+  assert.equal(assessed.history["ITSE 1370"], undefined);
+  assert.equal(assessed.history["MATH 1314"].status, "completed");
+  assert.equal(assessed.remaining_credits, 3);
+  assert.deepEqual(assessed.remaining_required_courses, ["ITSE 1370"]);
+  assert.equal(
+    studentCourseHistory(
+      planningStatements([...turns, user("I passed ITSE 1370.", removed)]),
+    )["ITSE 1370"].status,
+    "completed",
+  );
+});
+
+test("rich statuses survive saved-history hydration and never become completed by truthiness", () => {
+  const store = useSavedCourses.getState();
+  store.clear();
+  store.applyCompletionHistory({
+    "ITSE 1370": { status: "completed" },
+    "MATH 1314": { status: "in_progress" },
+  });
+  assert.deepEqual(useSavedCourses.getState().taken, ["ITSE 1370"]);
+  store.setCourseStatus("ITSE 1370", "removed");
+  const saved = useSavedCourses.persist.getOptions().partialize!(
+    useSavedCourses.getState(),
+  );
+  const restored = useSavedCourses.persist.getOptions().merge!(
+    JSON.parse(JSON.stringify(saved)),
+    useSavedCourses.getInitialState(),
+  );
+  assert.deepEqual(restored.taken, []);
+  assert.deepEqual(restored.completionOverrides, {
+    "ITSE 1370": "removed",
+    "MATH 1314": "in_progress",
+  });
+  store.applyCompletionHistory({ "MATH 1314": { status: "planned" } });
+  assert.equal(
+    useSavedCourses.getState().completionOverrides["ITSE 1370"],
+    "removed",
+  );
+  store.toggleTaken("MATH 1314");
+  assert.deepEqual(useSavedCourses.getState().taken, ["MATH 1314"]);
+  store.clear();
+  assert.deepEqual(
+    readCompletionOverrides({
+      "HIST 1301": "removed",
+      "GOVT 2306": "in_progress",
+      "ITSD 3301": "bogus",
+      "ignore rules": "completed",
+    }),
+    { "HIST 1301": "removed", "GOVT 2306": "in_progress" },
+  );
+});
+
+test("live checklist history hides removed courses and detects all status edits", () => {
+  const history = {
+    "ITSE 1370": { status: "completed" },
+    "MATH 1314": { status: "in_progress" },
+  };
+  const overrides: CompletionOverrides = {
+    "ITSE 1370": "removed",
+    "MATH 1314": "planned",
+  };
+  const edited = currentCourseHistory(history, overrides);
+  assert.equal(edited["ITSE 1370"], undefined);
+  assert.equal(edited["MATH 1314"].status, "planned");
+  assert.equal(courseHistoryChanged(history, overrides), true);
+  assert.equal(courseHistoryChanged(edited, overrides), false);
+  assert.equal(courseHistoryChanged(history, { "ITSE 1370": true }), false);
+});
+
 test("a changed same-size course set and later uncheck keep an update action", () => {
   const context = {
     program: "Accounting",
@@ -339,7 +434,10 @@ test("conversation restore preserves messages, input and retry state only for it
 });
 
 test("clearing chat defeats pending hydration and preserves saved notes", async () => {
-  const descriptor = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  const descriptor = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "sessionStorage",
+  );
   const storage = new Map<string, string>();
   Object.defineProperty(globalThis, "sessionStorage", {
     configurable: true,
@@ -374,7 +472,8 @@ test("clearing chat defeats pending hydration and preserves saved notes", async 
     assert.equal(useConversation.getState().draft, null);
   } finally {
     clearConversation();
-    if (descriptor) Object.defineProperty(globalThis, "sessionStorage", descriptor);
+    if (descriptor)
+      Object.defineProperty(globalThis, "sessionStorage", descriptor);
     else Reflect.deleteProperty(globalThis, "sessionStorage");
   }
 });

@@ -4,22 +4,23 @@ import { useId, useState } from "react";
 
 import type { Skin } from "@/features/onboarding/skin";
 import {
+  currentCourseHistory,
+  courseHistoryChanged,
+} from "@/features/chat/completion-state";
+import {
   readSavedSection,
   savedSectionKey,
   useSavedCourses,
 } from "@/features/chat/saved-courses";
 import { citationHref } from "@/lib/constants";
-import {
-  assessRequisites,
-  readCourseHistory,
-  type CourseHistory,
-} from "@/lib/planning";
+import { assessRequisites, type CourseHistory } from "@/lib/planning";
 import {
   catalogText,
   groupScheduleSections,
   isCourseCode,
   isRecord,
   programCourseCode,
+  programGroupRules,
   readCourseDetails,
   scopeProgramGroups,
   type CourseDetails,
@@ -315,7 +316,7 @@ function CourseRow({
         <span className="ml-2 text-sm whitespace-nowrap opacity-75">
           {course.credit_hours == null
             ? "Credits not listed"
-            : `${course.credit_hours} credits`}
+            : `${course.credit_hours} ${course.credit_hours === 1 ? "credit" : "credits"}`}
         </span>
       </p>
       <div className="mt-2 flex flex-wrap items-start gap-x-4 gap-y-2">
@@ -403,6 +404,7 @@ function CourseRow({
             <input
               type="checkbox"
               checked={taken}
+              disabled={scheduleAction?.busy}
               aria-label={`I've taken ${course.course_code}`}
               onChange={() => toggleTaken(course.course_code)}
               className="size-4 accent-current"
@@ -437,13 +439,16 @@ export function CourseResults({
   skin,
   semesters = [],
   scheduleAction,
+  onEditHistory,
 }: {
   name: string;
   output: unknown;
   skin: Skin;
   semesters?: number[];
   scheduleAction?: CourseScheduleAction;
+  onEditHistory?: () => void;
 }) {
+  const completionOverrides = useSavedCourses((s) => s.completionOverrides);
   if (!hasCourseResults(name, output) || !isRecord(output)) return null;
   if (name === GET_COURSE_INFO_TOOL_NAME) {
     const course = readCourseDetails(output);
@@ -452,7 +457,10 @@ export function CourseResults({
         <CourseRow
           course={course}
           skin={skin}
-          history={readCourseHistory(output.course_history)}
+          history={currentCourseHistory(
+            output.course_history,
+            completionOverrides,
+          )}
           scheduleAction={scheduleAction}
         />
       </ul>
@@ -479,7 +487,11 @@ export function CourseResults({
   ).filter(isRecord);
   const planning = isRecord(output.planning) ? output.planning : null;
   const comparison = isRecord(output.comparison) ? output.comparison : null;
-  const history = readCourseHistory(planning?.history);
+  const history = currentCourseHistory(planning?.history, completionOverrides);
+  const historyChanged = courseHistoryChanged(
+    planning?.history,
+    completionOverrides,
+  );
   const alreadyReported = (code: string) =>
     ["completed", "in_progress"].includes(history[code]?.status);
   return (
@@ -561,7 +573,22 @@ export function CourseResults({
               </ul>
             </details>
           )}
-          {typeof planning.remaining_credits === "number" ? (
+          {onEditHistory && (
+            <button
+              type="button"
+              disabled={scheduleAction?.busy}
+              onClick={onEditHistory}
+              className={`${skin.link} min-h-11 cursor-pointer rounded px-1 disabled:opacity-50`}
+            >
+              Edit / remove reported courses
+            </button>
+          )}
+          {historyChanged ? (
+            <p>
+              Course history updated. Use “Update my remaining courses” in the
+              editor to refresh this checklist and its credits.
+            </p>
+          ) : typeof planning.remaining_credits === "number" ? (
             <p>
               {planning.remaining_credits} credits remain unfinished, including
               courses in progress.
@@ -572,7 +599,7 @@ export function CourseResults({
               items below.
             </p>
           )}
-          {planning.needs_history_clarification === true && (
+          {!historyChanged && planning.needs_history_clarification === true && (
             <p className="font-semibold">
               Please clarify your course history: give the course codes and
               whether each course is completed, in progress, not completed,
@@ -621,11 +648,7 @@ export function CourseResults({
             seenCourses.add(code);
             return [code];
           });
-        const electiveRule = entries.some((entry) =>
-          /\belective\b/i.test(entry),
-        )
-          ? catalogText(g.rule)
-          : null;
+        const rules = programGroupRules(entries, g.rule);
         return (
           <section
             key={index}
@@ -650,20 +673,19 @@ export function CourseResults({
                   your coach.
                 </p>
               )}
-              {!electiveRule &&
-                catalogText(g.rule) &&
-                (String(g.rule).length > 200 ? (
+              {rules.notes &&
+                (rules.notes.length > 200 ? (
                   <details className="my-2">
                     <summary className={`${skin.link} cursor-pointer text-sm`}>
                       Show options and catalog requirements
                     </summary>
                     <p className="mt-2 text-sm whitespace-pre-line">
-                      {String(g.rule)}
+                      {rules.notes}
                     </p>
                   </details>
                 ) : (
                   <p className="mt-1 text-sm whitespace-pre-line">
-                    {String(g.rule)}
+                    {rules.notes}
                   </p>
                 ))}
               {g.options_exhaustive === false && (
@@ -710,7 +732,7 @@ export function CourseResults({
                               <span className="ml-2 text-sm">Show more</span>
                             </summary>
                             <p className="mt-2 text-sm whitespace-pre-line">
-                              {electiveRule ??
+                              {rules.electives[code] ??
                                 "Choose a course that satisfies this elective with your Success Coach. Check the linked program catalog for the allowed options."}
                             </p>
                           </details>
@@ -727,7 +749,11 @@ export function CourseResults({
                         <p className="text-sm opacity-75">
                           {isCourseCode(code)
                             ? "Course details are not available in this record. Check the linked program catalog."
-                            : "A requirement to choose with your coach, not an individual course."}
+                            : /Core Curriculum/i.test(
+                                  rules.electives[code] ?? "",
+                                )
+                              ? "A required core elective. Choose from the approved catalog options."
+                              : "A requirement to choose with your coach, not an individual course."}
                         </p>
                         <ViewScheduleButton
                           courseCode={code}
@@ -960,9 +986,12 @@ export function ScheduleResults({
       </h2>
       <p className="mt-1 text-sm">
         {String(output.total_sections ?? sections.length)}{" "}
-        {Number(output.total_sections ?? sections.length) === 1 ? "section" : "sections"} in the saved
-        schedule{output.requested_term ? ` for ${output.requested_term}` : ""}.
-        This is not live registration or seat availability.
+        {Number(output.total_sections ?? sections.length) === 1
+          ? "section"
+          : "sections"}{" "}
+        in the saved schedule
+        {output.requested_term ? ` for ${output.requested_term}` : ""}. This is
+        not live registration or seat availability.
       </p>
       {(catalogText(output.oldest_source) ||
         catalogText(output.newest_source)) && (
@@ -980,7 +1009,10 @@ export function ScheduleResults({
           className="mt-3 rounded-lg border border-current/15 p-3"
         >
           <summary className={`${skin.link} cursor-pointer font-semibold`}>
-            {instructors.length === 1 ? "Named instructor" : `All ${instructors.length} named instructors`} · Show more
+            {instructors.length === 1
+              ? "Named instructor"
+              : `All ${instructors.length} named instructors`}{" "}
+            · Show more
           </summary>
           <p className="mt-2 text-sm">
             Complete for the selected term in the saved records, including

@@ -4,6 +4,40 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Screenshot follow-up: editing, restart and BAT electives (September 24)
+
+Added **Edit / remove reported courses** on checklists and **Plan options** beside Clear chat.
+The same editor is available from the prep sheet. Students can change status, remove an entry,
+or correct a code by removing it and adding the right code. Removal persists across refresh and
+subsequent planning turns instead of being restored from old completion statements. Cards update
+immediately and withhold stale credit totals until the student refreshes the checklist.
+
+**Restart setup form** confirms its scope, clears this tab's chat and onboarding choices, and
+optionally clears saved classes, reported courses and notes. Default restart preserves those
+saved items. **Reset prep sheet** clears saved sheet data and chat while retaining setup choices.
+
+The official [2026–2027 BAT Software Development catalog](https://catalog.dallascollege.edu/preview_program.php?catoid=5&poid=3381)
+confirms HIST 1301 in semester 7 and a 3-credit American History elective in semester 8. The saved
+July 11 program record agrees. The UI had placed each semester's entire rule under every elective,
+mixing capstone and other elective notes into that row. All 14 BAT elective rows now match their
+own labeled rules, including the comma-containing Language, Philosophy and Culture category.
+The ITDA 4350 capstone note remains at semester level. No database facts or degree credits changed.
+
+Verification: **233 frontend cases** (184 business/UI, 11 request-boundary, 12 normalization,
+26 sheet-question cases), lint, types, production build and 52 embedding runtime files passed.
+**114 Python tests** passed using a fresh project-local temporary directory. An old Windows
+generated-build folder blocked replacement; moving it aside allowed a clean production build.
+
+**Six real API scenarios** checked completion, removal, in-progress, planned, re-completion and BAT
+semesters 7/8, with expected Python certificate credits (12/15) and catalog-backed BAT requirements.
+Model: OpenRouter `openai/gpt-4.1-mini`, temperature 0.2; source catalog and schedule snapshots unchanged.
+Browser testing covered the screenshot's three reported courses, status editing, invalid/normalized
+code entry, removal, replanning, refresh, sheet removal/return, restart cancellation, preserve/clear
+choices and restarting an active response. **72 chat layouts**, **10 dialog layouts**, and **five
+sheet sizes** passed; no horizontal overflow and at least 168px of conversation remained. The tested
+sizes span 320px phones, 667×375 landscape, tablet and desktop. Physical keyboards and native print
+remain outside this browser check. Deployment SHA, candidate/public checks and rollback are in the PR.
+
 ## Final pre-demo audit (September 24)
 
 Latest GitHub main remains `3178007`; the task branch matched GitHub at audit start (`cf2aff3`).

@@ -25,9 +25,7 @@ interface SessionState {
   /** Update just the saved look. An action (not read-modify-write at call
    *  sites) so concurrent writers cannot lose each other's fields. */
   setModeId: (modeId: string) => void;
-  /** Unconsumed seam for a future "forget my answers" affordance — a real
-   *  privacy need on shared campus machines. No owner issue yet; file one
-   *  before wiring it into UI. */
+  /** Restart setup without changing the anonymous identity or saved notes. */
   resetSession: () => void;
 }
 
