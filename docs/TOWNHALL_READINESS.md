@@ -6,7 +6,52 @@ https://major-demo-chi.vercel.app; a draft PR or staged deployment does not chan
 
 ## Post-townhall quality pass (September 25)
 
+### Complete exact-syllabus link reconciliation
+
+Supersedes the library fallbacks described in the earlier follow-up below. All 10,577 public
+Fall 2026 Simple Syllabus offerings were inventoried across 212 contiguous pages. Two independent
+checks agreed on complete coverage, unique offering identities and unique document IDs. Evidence
+distinguishes 424 individually observed View anchors from 10,153 canonical document URLs based
+on public card IDs, with the anchor pattern checked on the first/last offering of every page.
+No new syllabus bodies were retained or imported; the body-collection automation remains paused.
+
+Reconciled all 12,872 Fall section rows in Neon and committed only `metadata.syllabus_link`:
+
+- **10,218** exact Simple Syllabus documents matched by course, section and term.
+- **2,653** exact Concourse documents remain where no replacement is published in the new
+  directory. Their public headers were checked against course, section, term and dates.
+- **1 unresolved:** CETT 1409 section 2 has no matching public document on either platform.
+  Its previous library fallback was removed; sections 1 and 3 are not substitutes.
+- **359** public Simple Syllabus offerings have no corresponding section in the current Neon
+  schedule snapshot. This link-only update does not create or rewrite schedule records.
+
+ITSD 4350 section 1 uses the maintainer's full `vyr36is0a` URL. Its live document confirms
+Jamie Smith and August 24–December 10, 2026. Stable canonical document addresses are used for
+other new-platform links; observed title URLs remain in the local evidence. The archive also
+contains 238 instructor-name discrepancies, including credentials and changed assignments;
+these are recorded, not silently applied to the older schedule facts.
+
+The transactional dry run and write compared every targeted row with the before-state snapshot.
+Source URLs, facts, content hashes, scrape dates and other metadata were unchanged. Local backup:
+`.tmp/direct-syllabus-backup-20260925T223112Z.json`. Inventory SHA-256:
+`020506f69aa68fcde6790254ca5d9adee3bc2f28591f20965f43c786d0ec81cd`.
+The local audit is `output/syllabus-link-audit-20260925/` (all-section CSV, unresolved CSV, summary).
+Backups, credentials, bulk evidence and local QA data are excluded from the release archive.
+
+Validation: **257 frontend cases** (204 business/UI, 15 boundaries, 12 normalization, 26 sheet),
+lint/types, production build and the 52-file deployment trace passed; GitHub data tests and
+both CodeQL checks passed. The local API matched all **12,871** exact links against the write
+plan, with zero library links; the single-section example returned one mapping in 268 bytes.
+Four real-model scenarios passed: ITSD 4350's exact link, ITSC 1305's section links, unknown
+online PHIL 1301 times versus a 9-to-5 job, and absent ITNW 1308 Spring 2027 coverage without
+historical recovery. A section saved before migration gained its corrected link after refresh;
+the prep-sheet round trip preserved the section, name, notes, conversation and unfinished draft.
+The earlier responsive checks below remain applicable; this follow-up changes link resolution,
+not layout. Links do not imply Major has read the syllabus body or refreshed the schedule facts.
+
 ### Syllabus links and prep-sheet spacing follow-up
+
+Historical release record; library fallbacks were superseded by the exact-link reconciliation above.
 
 The paused syllabus task supplied its existing reviewed mappings; no collection was resumed.
 Updated only `metadata.syllabus_link` on all 12,872 Fall 2026 section rows in Neon: 538 exact
