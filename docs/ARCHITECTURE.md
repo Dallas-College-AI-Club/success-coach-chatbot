@@ -46,6 +46,11 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   route, without saving a course or clearing an unfinished question. Controls pause during a reply;
   a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
   and explicit section-save actions preserve the source's complete meetings.
+- **Reply presentation:** successful routine schedule and course-plan lookups show their cards
+  without a duplicate prose recap. `reply-presentation.ts` conservatively recognizes lookup-only
+  wording in the student's displayed question; advice, filters, mixed requests, failed results
+  and unrecognized wording retain their answer. Original messages remain in conversation history.
+  Screen readers receive a short card-ready announcement instead of the hidden recap.
 - **Conversation and notes:** `conversation-store.ts` keeps chat, unfinished input and interruption
   state in this tab's session storage, keyed to completed onboarding. Returning from the sheet or
   refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits

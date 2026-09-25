@@ -33,7 +33,6 @@ import {
 } from "@/features/chat/conversation-store";
 import {
   CourseResults,
-  hasCourseResults,
   ScheduleResults,
   InstructorResults,
   type CourseScheduleAction,
@@ -44,6 +43,7 @@ import {
   followUpsFor,
 } from "@/features/chat/follow-ups";
 import { composerCopy, SEED_ID, seedMessages } from "@/features/chat/seed";
+import { cardOnlyReply } from "@/features/chat/reply-presentation";
 import {
   starterQuestionsFor,
   type StarterQuestion,
@@ -146,23 +146,7 @@ const Turn = memo(function Turn({
   const isUser = m.role === "user";
   // What a chip-sent turn SAYS, as opposed to the instructions it carries.
   const spoken = isUser ? askedLabel(m.metadata) : undefined;
-  const courseRows =
-    !isUser &&
-    m.parts.some(
-      (part) =>
-        isToolUIPart(part) &&
-        part.state === "output-available" &&
-        (hasCourseResults(getToolName(part), part.output) ||
-          getToolName(part) === "get_class_schedule" ||
-          getToolName(part) === "get_instructor" ||
-          getToolName(part) === "search_faculty_expertise" ||
-          (getToolName(part) === "search_knowledge" &&
-            isRecord(part.output) &&
-            Array.isArray(part.output.results) &&
-            part.output.results.some(
-              (result) => isRecord(result) && result.doc_type === "cv",
-            ))),
-    );
+  const cardsOnly = cardOnlyReply(m, displayQuestion);
   const parts = (
     <>
       {/* Sender attribution once per turn — position and avatar don't reach AT. */}
@@ -172,7 +156,7 @@ const Turn = memo(function Turn({
           // Multi-step turns open with an EMPTY text part when the model goes
           // straight to a tool call ([text(""), tool, text(answer)]) — painting
           // it renders a blank styled bubble above the tool chip.
-          if (!part.text) return null;
+          if (!part.text || cardsOnly) return null;
           return (
             <div
               key={i}
@@ -193,19 +177,10 @@ const Turn = memo(function Turn({
                 !isUser && "self-start",
               )}
             >
-              {courseRows && part.text.length > 300 ? (
-                <details open>
-                  <summary className={`${skin.link} cursor-pointer`}>
-                    Major&apos;s explanation
-                  </summary>
-                  <MarkdownViewer content={part.text} className="prose mt-2" />
-                </details>
-              ) : (
-                <MarkdownViewer
-                  content={spoken ?? part.text}
-                  className={isUser ? "prose-invert!" : "prose"}
-                />
-              )}
+              <MarkdownViewer
+                content={spoken ?? part.text}
+                className={isUser ? "prose-invert!" : "prose"}
+              />
             </div>
           );
         }
@@ -504,14 +479,24 @@ function Conversation({
   // once (role="status" is implicitly polite + atomic), and a regenerated
   // identical answer re-announces because the value passes through "" first.
   const last = messages[messages.length - 1];
+  const lastQuestion = messages.findLast((message) => message.role === "user");
+  const lastCards = last && cardOnlyReply(
+    last,
+    lastQuestion ? askedLabel(lastQuestion.metadata) ?? plainText(lastQuestion) : "",
+  );
   const incomplete =
     status === "ready" &&
     last?.role === "assistant" &&
     last.id !== SEED_ID &&
+    !lastCards &&
     !plainText(last).trim();
   const announced =
     status === "ready" && last?.role === "assistant" && last.id !== SEED_ID
-      ? plainText(last)
+      ? lastCards
+        ? lastCards === "schedule"
+          ? "Class sections are ready. Review the schedule cards in the conversation."
+          : "Your course checklist is ready. Review the course cards in the conversation."
+        : plainText(last)
       : "";
 
   // The profile rides with EVERY request — sends and retries alike. Defined

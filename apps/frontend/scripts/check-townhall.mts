@@ -25,6 +25,7 @@ import {
 } from "../lib/tool-evidence";
 import { requestBuckets } from "../lib/chat-rate-limit";
 import { scheduleResultForModel } from "../lib/course-details";
+import { cardOnlyReply } from "../features/chat/reply-presentation";
 
 const user = (
   text: string,
@@ -56,6 +57,128 @@ const plan = {
     catalog_year: "2026-2027",
   })),
 };
+
+const schedule = {
+  found: true,
+  course_code: "ITSC 1364",
+  offerings: [{ section_number: "1", meets: [], term: "Fall 2026" }],
+};
+const reply = (name: string, output: unknown): UIMessage => ({
+  id: "reply",
+  role: "assistant",
+  parts: [
+    {
+      type: `tool-${name}`,
+      toolCallId: "lookup",
+      state: "output-available",
+      input: {},
+      output,
+    },
+    { type: "text", text: "A redundant recap." },
+  ],
+});
+
+test("routine schedule and program lookups use the complete cards without a second recap", () => {
+  for (const question of [
+    "When does ITSC 1364 meet this Fall?",
+    "Show Fall 2026 sections for ITSC 1364.",
+    "View schedule",
+  ]) {
+    assert.equal(
+      cardOnlyReply(reply("get_class_schedule", schedule), question),
+      "schedule",
+    );
+  }
+  for (const question of [
+    "Show the full Python Developer Certificate course plan.",
+    "Which courses are in semester 1 of Python Developer Certificate?",
+    "Which classes would I start with?",
+  ]) {
+    assert.equal(
+      cardOnlyReply(reply("get_program_requirements", plan), question),
+      "plan",
+    );
+  }
+});
+
+test("schedule fit, filters, prerequisites, recommendations and mixed questions retain their answer", () => {
+  for (const question of [
+    "Will ITSC 1364 fit around my work schedule?",
+    "Which sections are online?",
+    "Are any sections in the evening?",
+    "Show ITSC 1364 sections and explain how to enroll.",
+    "Show sections for ITSC 1364 and MATH 1342.",
+    "Show ITSC 1364 and what does it cost?",
+    "Muéstrame las clases en línea.",
+  ]) {
+    assert.equal(
+      cardOnlyReply(reply("get_class_schedule", schedule), question),
+      null,
+    );
+  }
+  for (const question of [
+    "What should I take this semester?",
+    "What are the prerequisites for Python Developer Certificate?",
+    "Compare Python Developer Certificate and another program.",
+    "What courses remain after my updated course history?",
+    "What would I study in Python Developer Certificate?",
+  ]) {
+    assert.equal(
+      cardOnlyReply(reply("get_program_requirements", plan), question),
+      null,
+    );
+  }
+});
+
+test("failed, partial, ambiguous and mixed-result lookups never hide clarifications", () => {
+  const question = "Show ITSC 1364 sections";
+  for (const output of [
+    { found: false, offerings: [] },
+    { ...schedule, ambiguous: true },
+    { ...schedule, unavailable: true },
+    { ...schedule, offerings: [] },
+  ]) {
+    assert.equal(
+      cardOnlyReply(reply("get_class_schedule", output), question),
+      null,
+    );
+  }
+  const mixed = reply("get_class_schedule", schedule);
+  mixed.parts.push(
+    ...reply("search_knowledge", {
+      found: true,
+      results: [{ doc_type: "resource", text: "Contact details" }],
+    }).parts,
+  );
+  assert.equal(cardOnlyReply(mixed, question), null);
+  const pending = reply("get_class_schedule", schedule);
+  pending.parts.push({
+    type: "tool-get_course_info",
+    toolCallId: "pending",
+    state: "input-available",
+    input: {},
+  });
+  assert.equal(cardOnlyReply(pending, question), null);
+  assert.equal(
+    cardOnlyReply(reply("get_program_requirements", plan), "Show semester 8"),
+    null,
+  );
+  assert.equal(cardOnlyReply(user(question), question), null);
+});
+
+test("discovery and calendar tools do not bring back a routine recap or alter stored history", () => {
+  const message = reply("get_class_schedule", schedule);
+  message.parts.unshift(...reply("get_semester", { found: true }).parts);
+  message.parts.unshift(
+    ...reply("search_knowledge", {
+      found: true,
+      results: [{ doc_type: "course" }],
+    }).parts,
+  );
+  const before = JSON.stringify(message);
+  assert.equal(cardOnlyReply(message, "When does ITSC 1364 meet?"), "schedule");
+  assert.equal(JSON.stringify(message), before);
+});
 
 test("schedule timing counts keep unknown sections separate from non-matches", () => {
   const result = scheduleResultForModel({

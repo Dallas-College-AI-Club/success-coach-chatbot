@@ -48,6 +48,19 @@ toggle. At 390×844, closing the three questions returns 144 pixels to the conve
 toggle/selection, draft preservation, hidden-question focus exclusion and automatic closing were
 checked in the real browser. The choice starts closed again after a page reload.
 
+Routine schedule previews and published program checklist lookups no longer repeat their cards
+in a separate explanation. The generic "Major's explanation" heading is removed. Schedule-fit
+questions, filters, prerequisites, recommendations, comparisons, resource answers and lookup
+failures still show prose. The system prompt no longer asks for an unsolicited insight or a
+routine coach closer. Four regression scenarios guard presentation, mixed/failed lookups and
+unchanged stored history; the PR records the corresponding live browser and deployment checks.
+All 18 style/viewport combinations passed with the streamlined replies. The real ITSC 1364
+preview matched an independent database read (one Fall section, Hart at ECC, no parsed times),
+and its work-schedule follow-up remained visible. A full Python checklist and its ITSE 1370
+preview omitted recaps; saving section 3 retained both Friday meetings in the sheet. Returning
+preserved the conversation and unfinished question. Four schedule API cases and three coach
+contact cases passed locally using the unchanged model and source records.
+
 The public suggestion check then exposed a coach-contact miss: "academic advising" returned
 faculty biographies instead of the existing service record. Coaching/advising service searches
 now read matching resource records directly, just as tutoring does. The saved August 21 record
@@ -59,7 +72,7 @@ Local model: `openai/gpt-4.1-mini` through OpenRouter, temperature 0.2. Live sou
 the 2026–2027 catalog, program records scraped July 11, 2026, and Fall schedule evidence from
 August 12, 2026. Source records and original catalog/schedule pages were checked independently.
 
-- Frontend: lint, TypeScript, 173 business/UI regressions, 11 route-boundary checks, 12 course-code
+- Frontend: lint, TypeScript, 177 business/UI regressions, 11 route-boundary checks, 12 course-code
   normalization cases, 26 sheet-question cases and an optimized production build.
 - Data pipeline: 114 tests passed with Python 3.13. The first local attempt hit an inaccessible
   system temporary folder; rerunning with a fresh workspace test folder passed.

@@ -3,6 +3,16 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Remove redundant reply text
+
+The maintainer requested removal of schedule explanations that repeat the cards and a review of
+other low-value text. Routine schedule previews and published course checklists now use cards as
+the answer. Preserve actual advice, schedule-fit/filter answers, comparisons, prerequisites,
+resource contacts and unsuccessful or mixed lookups. Unknown wording keeps its prose rather than
+risk discarding an answer. Remove the "Major's explanation" wrapper; useful prose reads normally.
+Stop prompting the model for unsolicited extra insights or a coach closer after every lookup.
+Source links, dates, unknown-time labels and plan-review context remain with their relevant cards.
+
 ## 2026-09-24 — Success Coach contact retrieval
 
 The maintainer-authorized audit found that the coach-contact suggestion could miss the existing
