@@ -3,6 +3,13 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Collapsible suggested questions
+
+The maintainer requested open/close controls because suggested questions occupied too much of
+the phone screen. Start closed behind **Show suggestions**, allow **Hide suggestions**, and close
+after sending a question. Opening or closing does not modify the transcript or draft. In short
+windows, the toggle and horizontally scrollable questions share one row to preserve chat space.
+
 ## 2026-09-24 — Preview a schedule before saving a class
 
 The maintainer approved a visible **View schedule** action on every course card and publishing

@@ -13,6 +13,7 @@ import {
   memo,
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -342,6 +343,8 @@ function Conversation({
   });
 
   const [input, setInput] = useState(restored?.input ?? "");
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const suggestionsId = useId();
   const [askedLabels, setAskedLabels] = useState<string[]>(
     restored?.askedLabels ?? [],
   );
@@ -534,6 +537,7 @@ function Conversation({
       const t = text.trim();
       if (!t || busy || sending.current) return;
       sending.current = true;
+      setSuggestionsOpen(false);
       setCancelled(false);
       useSavedCourses.getState().addQuestion(note);
       // The chip's own words ride along as metadata for the bubble to show; the
@@ -662,25 +666,44 @@ function Conversation({
         </div>
       </div>
 
-      {/* Follow-up questions for wherever the conversation has reached. The
-          chips are EMPTIED while a reply streams, so a half-finished turn
-          never changes the set under a tapping hand; the row keeps its height
-          so the composer does not hop as they come and go. */}
-      <div className="coach-followups flex min-h-9 flex-wrap gap-1.5 px-1">
-        {!busy &&
-          suggestions.map((q) => (
-            <button
-              key={q.prompt}
-              type="button"
-              onClick={() => {
-                setAskedLabels((asked) => [...asked, q.label]);
-                send(q.prompt, q.note ?? q.label);
-              }}
-              className={`${skin.chip} pointer-coarse:min-h-11`}
-            >
-              {q.label}
-            </button>
-          ))}
+      {/* Keep the conversation roomy until the student asks for suggestions.
+          Sending closes the drawer; streamed replies never reopen it. */}
+      <div className="coach-suggestions min-w-0 shrink-0">
+        <button
+          type="button"
+          aria-expanded={suggestionsOpen}
+          aria-controls={suggestionsId}
+          disabled={busy || suggestions.length === 0}
+          onClick={() => setSuggestionsOpen((open) => !open)}
+          className={`${skin.link} flex min-h-11 shrink-0 cursor-pointer items-center gap-2 rounded-lg px-2 text-sm focus-visible:outline-2 disabled:cursor-default disabled:opacity-50`}
+        >
+          <span aria-hidden>{suggestionsOpen ? "▾" : "▸"}</span>
+          {suggestionsOpen ? "Hide suggestions" : "Show suggestions"}
+        </button>
+        <div
+          id={suggestionsId}
+          className={
+            suggestionsOpen
+              ? "coach-followups flex flex-wrap gap-1.5 px-1"
+              : "hidden"
+          }
+        >
+          {!busy &&
+            suggestions.map((q) => (
+              <button
+                key={q.prompt}
+                type="button"
+                onClick={() => {
+                  setAskedLabels((asked) => [...asked, q.label]);
+                  send(q.prompt, q.note ?? q.label);
+                  scrollRef.current?.focus({ preventScroll: true });
+                }}
+                className={`${skin.chip} min-h-11`}
+              >
+                {q.label}
+              </button>
+            ))}
+        </div>
       </div>
 
       <form

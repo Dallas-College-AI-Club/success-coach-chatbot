@@ -656,9 +656,16 @@
   gap: 6px;
 }
 .coach-chat-page[data-compact="true"] .coach-followups {
+  flex: 1;
+  min-width: 0;
   flex-wrap: nowrap;
   overflow-x: auto;
   min-height: 36px;
+}
+.coach-chat-page[data-compact="true"] .coach-suggestions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .coach-chat-page[data-compact="true"] .coach-followups button {
   flex-shrink: 0;

@@ -41,6 +41,13 @@ submitting a preserved draft. All 18 measured style/size combinations passed aga
 section-save buttons provide at least 44-pixel targets. The focused four-request live suite passed
 after those fixes. This update adds five frontend regressions; the final PR records deployment checks.
 
+Suggested questions now start collapsed behind **Show suggestions** and can be closed with
+**Hide suggestions**. Sending closes them automatically. All 36 open/closed combinations of the
+same three styles and six sizes passed: no horizontal overflow, a visible composer and a 44-pixel
+toggle. At 390×844, closing the three questions returns 144 pixels to the conversation. Keyboard
+toggle/selection, draft preservation, hidden-question focus exclusion and automatic closing were
+checked in the real browser. The choice starts closed again after a page reload.
+
 Local model: `openai/gpt-4.1-mini` through OpenRouter, temperature 0.2. Live source checks used
 the 2026–2027 catalog, program records scraped July 11, 2026, and Fall schedule evidence from
 August 12, 2026. Source records and original catalog/schedule pages were checked independently.
@@ -51,7 +58,8 @@ August 12, 2026. Source records and original catalog/schedule pages were checked
   system temporary folder; rerunning with a fresh workspace test folder passed.
 - Browser: 18 measured combinations of 3 styles and 6 sizes, from 320×568 to 1280×720,
   including 667×375 and 844×390 landscape. Chat and composer fit every measured viewport.
-  The small landscape transcript improved from 8 pixels to at least 184 pixels.
+  With the collapsible controls, small-landscape transcript height is at least 183 pixels closed
+  and 168 pixels open, compared with the original 8 pixels.
 - Sheet: 320, 390, 667, 768 and 1280 pixel widths, no horizontal overflow; both requested notices
   absent with a saved course and a section without published clock times. Coaching link verified.
 - Real return journey: course selection, checkbox edits, unfinished question, sheet name, multiline
