@@ -131,11 +131,15 @@ link identifies the published course, term and section. Verification evidence di
 rendered document checks (including instructor/dates) from public directory document identities.
 Library/search pages are never syllabus substitutes. Schedule provenance and saved-section
 identity remain in `source_url`; tools return link metadata without retrieving syllabus text.
+Simple Syllabus documents take priority. Where the complete directory has no replacement,
+a Concourse `view_syllabus?course_id=...` document may be retained only after its public header
+matches the course, section, Fall 2026 term and dates. Search URLs are never accepted as direct.
 
 Chat and prep-sheet links share a client-safe validator. `/api/syllabus-links` returns only
 Fall 2026 direct-link corrections, cached publicly for ten minutes, so older saved sections
 also update. Browser requests use a validated `source` parameter and cache duplicate lookups;
-sections already carrying a direct link need no request. They never download the full college
+sections already carrying a Simple Syllabus direct link need no request. Saved Concourse
+document links still refresh so a later migration can replace them. They never download the full college
 directory. An unfiltered endpoint remains available for release inventory checks. Failed requests
 keep existing verified links; missing links are omitted. Lookalike hosts, credentials, arbitrary
 query parameters and library URLs are rejected. No student data is sent to this endpoint.

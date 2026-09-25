@@ -13,9 +13,16 @@ guess an opaque document ID or use a neighboring section. Do not resume syllabus
 
 Only verified document URLs are accepted by the app, including titled `?mode=view` links.
 Old persisted library values are ignored, and model projections omit unverified legacy URLs.
-Existing direct links require no browser lookup; older saved sections request one small cached
+Existing Simple Syllabus links require no browser lookup; older saved sections request one small cached
 correction by source URL instead of downloading the full directory. Database writes remain
 limited to `metadata.syllabus_link`, with a before-state backup and unchanged-field comparisons.
+
+Some exact Fall 2026 documents still exist on Concourse but have no published replacement in
+the new directory. Retain these only after checking their public course/section/term/date header;
+resolve original search URLs to individually checked documents where possible. Prefer a new
+Simple Syllabus document whenever the complete directory identifies one. Saved Concourse
+documents remain eligible for refresh. Keep the platform distinction in the audit report, and
+never describe a legacy document as a newly migrated syllabus.
 
 ## 2026-09-25 — Correct syllabus links without importing syllabus content
 

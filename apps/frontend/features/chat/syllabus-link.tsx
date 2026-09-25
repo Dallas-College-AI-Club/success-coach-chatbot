@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  isLegacyFallSection,
+  needsSyllabusRefresh,
   readSyllabusLink,
   sectionLinkLabel,
   sectionSyllabusLink,
@@ -46,7 +46,7 @@ export function SyllabusLink({
 }) {
   const [links, setLinks] = useState<Record<string, LinkValue>>({});
   const source = typeof section.source_url === "string" ? section.source_url : "";
-  const refresh = isLegacyFallSection(section) && !readSyllabusLink(section.syllabus_link);
+  const refresh = needsSyllabusRefresh(section);
   useEffect(() => {
     if (!refresh) return;
     let active = true;

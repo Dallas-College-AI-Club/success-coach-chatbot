@@ -11,12 +11,23 @@ export function readSyllabusLink(value: unknown): SyllabusLink | null {
   if (typeof url !== "string") return null;
   if (
     kind === "direct" &&
-    /^https:\/\/dallascollege\.simplesyllabus\.com\/(?:en-US\/)?doc\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?\/?(?:\?mode=view)?$/.test(
-      url,
-    )
+    (/^https:\/\/dallascollege\.simplesyllabus\.com\/(?:en-US\/)?doc\/[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)?\/?(?:\?mode=view)?$/.test(url) ||
+      /^https:\/\/dallascollege\.campusconcourse\.com\/view_syllabus\?course_id=\d+$/.test(url))
   )
     return { url, kind };
   return null;
+}
+
+/** Previously saved Concourse documents may have migrated since they were saved.
+ * A bare source URL remains provenance, not proof of a verified syllabus. */
+export function needsSyllabusRefresh(section: {
+  term?: unknown;
+  source_url?: unknown;
+  syllabus_link?: unknown;
+}): boolean {
+  if (!isLegacyFallSection(section)) return false;
+  const recorded = readSyllabusLink(section.syllabus_link);
+  return !recorded || new URL(recorded.url).hostname === "dallascollege.campusconcourse.com";
 }
 
 export function isLegacyFallSection(section: {

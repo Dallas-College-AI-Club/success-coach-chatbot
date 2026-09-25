@@ -41,6 +41,7 @@ import {
 import { citationHref } from "../lib/constants";
 import {
   readSyllabusLink,
+  needsSyllabusRefresh,
   sectionSyllabusLink,
   sectionLinkLabel,
 } from "../lib/syllabus-links";
@@ -164,6 +165,9 @@ test("syllabus URLs reject lookalikes, credentials, redirects and unsafe schemes
     "https://evil.example@dallascollege.simplesyllabus.com/en-US/doc/abc",
     "https://dallascollege.simplesyllabus.com/en-US/doc/abc?redirect=https://evil.example",
     "http://dallascollege.simplesyllabus.com/en-US/doc/abc",
+    "https://dallascollege.campusconcourse.com/search?keyword=ITSD",
+    "https://dallascollege.campusconcourse.com/view_syllabus?course_id=1&redirect=https://evil.example",
+    "https://dallascollege.campusconcourse.com.evil.example/view_syllabus?course_id=1",
   ]) assert.equal(readSyllabusLink({kind:"direct",url}), null);
   assert.equal(readSyllabusLink({kind:"direct",url:SYLLABUS_LIBRARY}), null);
   assert.equal(readSyllabusLink({kind:"library",url:SYLLABUS_LIBRARY}), null);
@@ -171,6 +175,21 @@ test("syllabus URLs reject lookalikes, credentials, redirects and unsafe schemes
   assert.deepEqual(readSyllabusLink({kind:'direct',url:full}), {kind:'direct',url:full});
   assert.equal(readSyllabusLink({kind:'direct',url:full+'&redirect=https://evil.example'}), null);
   assert.equal(sectionSyllabusLink({source_url:"javascript:alert(1)"}), null);
+});
+
+test("verified older documents remain usable and saved copies refresh after migration", () => {
+  const source_url = "https://dallascollege.campusconcourse.com/view_syllabus?course_id=137389";
+  const legacy = { kind: "direct" as const, url: source_url };
+  const migrated = { kind: "direct" as const, url: "https://dallascollege.simplesyllabus.com/en-US/doc/abc123/" };
+  const section = { term: "Fall 2026", source_url, syllabus_link: legacy };
+  assert.deepEqual(readSyllabusLink(legacy), legacy);
+  assert.deepEqual(sectionSyllabusLink(section), legacy);
+  assert.equal(sectionSyllabusLink({ ...section, syllabus_link: undefined }), null);
+  assert.deepEqual(sectionSyllabusLink(section, { [source_url]: migrated }), migrated);
+  assert.equal(needsSyllabusRefresh(section), true);
+  assert.equal(needsSyllabusRefresh({ ...section, syllabus_link: migrated }), false);
+  assert.equal(needsSyllabusRefresh({ ...section, syllabus_link: undefined }), true);
+  assert.equal(needsSyllabusRefresh({ ...section, term: "Spring 2026" }), false);
 });
 
 test("schedule output exposes verified syllabus metadata and never labels a library as an exact syllabus", () => {
