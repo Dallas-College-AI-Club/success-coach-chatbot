@@ -39,6 +39,9 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Tools:** `apps/frontend/lib/tools/registry.ts` is the executable capability list. Each tool
   reads `knowledge_entry` directly; catalog and schedule cards display retrieved fields, and
   explanatory prose is model-generated.
+- **Service searches:** tutoring and Success Coaching/advising queries read matching resource
+  records directly. Dense faculty CVs and unrelated catalog entries cannot displace the official
+  service contacts. Explicit faculty-background queries retain the broader discovery path.
 - **Schedule preview:** course cards send the shared schedule follow-up through the existing chat
   route, without saving a course or clearing an unfinished question. Controls pause during a reply;
   a completed preview focuses its section heading. Existing day/time/campus/instructor grouping

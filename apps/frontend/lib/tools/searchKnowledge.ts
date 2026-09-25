@@ -95,6 +95,18 @@ export function asksForTutoringService(query: string): boolean {
   );
 }
 
+/** Advising contact questions must reach the official service, not CV mentions. */
+export function asksForCoachingService(query: string): boolean {
+  return (
+    /\b(?:success[\s-]*coach(?:es|ing)?|academic advis(?:ing|ors?|ers?))\b/i.test(
+      query,
+    ) &&
+    !/\b(?:professor|instructor|faculty|cv|background|experience|expertise)\b/i.test(
+      query,
+    )
+  );
+}
+
 const SEARCH_FILLER = new Set(
   "a an the and or of in at to for with about what which who how is are do does can i my me all any find show list tell please dallas college course courses class classes program programs degree certificate instructor instructors professor professors faculty background information records".split(
     " ",
@@ -198,9 +210,10 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   // the sort to the searchable rows and results are exact.
   let broad = input.broad === true;
   try {
-    // A subject-specific tutoring search otherwise lets dense faculty CVs
-    // outrank the official service page and implies those people offer tutoring.
-    if (asksForTutoringService(input.query)) {
+    // Service questions can otherwise retrieve unrelated courses or faculty CVs
+    // ahead of the short official contact record. Facts still come from the DB.
+    const coaching = asksForCoachingService(input.query);
+    if (coaching || asksForTutoringService(input.query)) {
       const results = await getDb()
         .select({
           text: knowledgeEntry.chunkText,
@@ -212,7 +225,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
         .where(
           and(
             inArray(knowledgeEntry.docType, ["resource"]),
-            sql`${knowledgeEntry.chunkText} ILIKE '%tutor%'`,
+            sql`${knowledgeEntry.chunkText} ILIKE ${coaching ? "%success coach%" : "%tutor%"}`,
           ),
         )
         .limit(TOP_K);
@@ -220,7 +233,9 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
         found: results.length > 0,
         results,
         search_scope: "resources",
-        note: "Official tutoring service information. Do not infer subject-specific tutor availability, appointments or hours unless the returned resource states them.",
+        note: coaching
+          ? "Official Success Coaching service information. Give only the listed contacts and appointment resource; this does not identify the student's assigned coach or confirm appointment availability."
+          : "Official tutoring service information. Do not infer subject-specific tutor availability, appointments or hours unless the returned resource states them.",
       };
     }
     const embedding = await embedText(input.query);

@@ -3,6 +3,15 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Success Coach contact retrieval
+
+The maintainer-authorized audit found that the coach-contact suggestion could miss the existing
+resource and incorrectly claim that contact data was unavailable. Like tutoring, Success Coaching
+and academic-advising service searches now read matching resource records directly. Contacts stay
+in the database; no contact facts or new datasets were added. Faculty-background searches retain
+the broader search path. The saved August 21 resource and the current official page agree on the
+phone, email and Navigate appointment resource.
+
 ## 2026-09-24 — Collapsible suggested questions
 
 The maintainer requested open/close controls because suggested questions occupied too much of

@@ -48,11 +48,18 @@ toggle. At 390×844, closing the three questions returns 144 pixels to the conve
 toggle/selection, draft preservation, hidden-question focus exclusion and automatic closing were
 checked in the real browser. The choice starts closed again after a page reload.
 
+The public suggestion check then exposed a coach-contact miss: "academic advising" returned
+faculty biographies instead of the existing service record. Coaching/advising service searches
+now read matching resource records directly, just as tutoring does. The saved August 21 record
+was compared independently with the current official Success Coaching page (updated September
+16): phone, email and Navigate agree. All three local contact/appointment phrasings returned that
+resource and the correct contacts after the fix; the final PR records staged and public repeats.
+
 Local model: `openai/gpt-4.1-mini` through OpenRouter, temperature 0.2. Live source checks used
 the 2026–2027 catalog, program records scraped July 11, 2026, and Fall schedule evidence from
 August 12, 2026. Source records and original catalog/schedule pages were checked independently.
 
-- Frontend: lint, TypeScript, 173 business/UI regressions, 10 route-boundary checks, 12 course-code
+- Frontend: lint, TypeScript, 173 business/UI regressions, 11 route-boundary checks, 12 course-code
   normalization cases, 26 sheet-question cases and an optimized production build.
 - Data pipeline: 114 tests passed with Python 3.13. The first local attempt hit an inaccessible
   system temporary folder; rerunning with a fresh workspace test folder passed.

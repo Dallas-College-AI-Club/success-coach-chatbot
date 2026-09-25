@@ -10,7 +10,30 @@ import {
   hasTopicEvidence,
   searchExcerpt,
   asksForTutoringService,
+  asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
+import { COACH } from "../features/onboarding/handoff-copy";
+
+test("coach contacts use the service record without diverting faculty or course discovery", () => {
+  for (const query of [
+    COACH.prompt,
+    "How can I reach a Success Coach?",
+    "Academic advising phone number",
+    "Make an appointment with an academic advisor",
+    "Dallas College Success Coaching",
+  ]) {
+    assert.equal(asksForCoachingService(query), true, query);
+  }
+  for (const query of [
+    "Which faculty have academic advising experience?",
+    "Professor background in success coaching",
+    "Courses about sports coaching",
+    "Business success courses",
+    "Tutoring for statistics",
+  ]) {
+    assert.equal(asksForCoachingService(query), false, query);
+  }
+});
 
 test("calendar tolerates provider-filled optional defaults and uses Dallas civil dates", async () => {
   const now = await semester({
