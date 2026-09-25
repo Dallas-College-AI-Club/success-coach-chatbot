@@ -4,6 +4,144 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Post-townhall quality pass (September 25)
+
+### Complete exact-syllabus link reconciliation
+
+Supersedes the library fallbacks described in the earlier follow-up below. All 10,577 public
+Fall 2026 Simple Syllabus offerings were inventoried across 212 contiguous pages. Two independent
+checks agreed on complete coverage, unique offering identities and unique document IDs. Evidence
+distinguishes 424 individually observed View anchors from 10,153 canonical document URLs based
+on public card IDs, with the anchor pattern checked on the first/last offering of every page.
+No new syllabus bodies were retained or imported; the body-collection automation remains paused.
+
+Reconciled all 12,872 Fall section rows in Neon and committed only `metadata.syllabus_link`:
+
+- **10,218** exact Simple Syllabus documents matched by course, section and term.
+- **2,653** exact Concourse documents remain where no replacement is published in the new
+  directory. Their public headers were checked against course, section, term and dates.
+- **1 unresolved:** CETT 1409 section 2 has no matching public document on either platform.
+  Its previous library fallback was removed; sections 1 and 3 are not substitutes.
+- **359** public Simple Syllabus offerings have no corresponding section in the current Neon
+  schedule snapshot. This link-only update does not create or rewrite schedule records.
+
+ITSD 4350 section 1 uses the maintainer's full `vyr36is0a` URL. Its live document confirms
+Jamie Smith and August 24–December 10, 2026. Stable canonical document addresses are used for
+other new-platform links; observed title URLs remain in the local evidence. The archive also
+contains 238 instructor-name discrepancies, including credentials and changed assignments;
+these are recorded, not silently applied to the older schedule facts.
+
+The transactional dry run and write compared every targeted row with the before-state snapshot.
+Source URLs, facts, content hashes, scrape dates and other metadata were unchanged. Local backup:
+`.tmp/direct-syllabus-backup-20260925T223112Z.json`. Inventory SHA-256:
+`020506f69aa68fcde6790254ca5d9adee3bc2f28591f20965f43c786d0ec81cd`.
+The local audit is `output/syllabus-link-audit-20260925/` (all-section CSV, unresolved CSV, summary).
+Backups, credentials, bulk evidence and local QA data are excluded from the release archive.
+
+Validation: **257 frontend cases** (204 business/UI, 15 boundaries, 12 normalization, 26 sheet),
+lint/types, production build and the 52-file deployment trace passed; GitHub data tests and
+both CodeQL checks passed. The local API matched all **12,871** exact links against the write
+plan, with zero library links; the single-section example returned one mapping in 268 bytes.
+Four real-model scenarios passed: ITSD 4350's exact link, ITSC 1305's section links, unknown
+online PHIL 1301 times versus a 9-to-5 job, and absent ITNW 1308 Spring 2027 coverage without
+historical recovery. A section saved before migration gained its corrected link after refresh;
+the prep-sheet round trip preserved the section, name, notes, conversation and unfinished draft.
+The earlier responsive checks below remain applicable; this follow-up changes link resolution,
+not layout. Links do not imply Major has read the syllabus body or refreshed the schedule facts.
+
+### Syllabus links and prep-sheet spacing follow-up
+
+Historical release record; library fallbacks were superseded by the exact-link reconciliation above.
+
+The paused syllabus task supplied its existing reviewed mappings; no collection was resumed.
+Updated only `metadata.syllabus_link` on all 12,872 Fall 2026 section rows in Neon: 538 exact
+document links and 12,334 explicitly labeled official-library fallbacks. The exact matches
+include the 536 existing verified joins and two manually checked public documents: ITSD 4340
+section 1 (Jamie Smith) and ITNW 1308 section 8 (Brandy Adams), both August 24–December 10.
+The update ran in a transaction with a full before-state backup and comparisons confirming
+unchanged source URLs, facts, content hashes, scrape dates and other metadata. The local
+backup is `.tmp/syllabus-link-backup-20260925T181824Z.json`; it is not committed or deployed.
+No syllabus text or embeddings were imported. A direct link does not imply that Major read it.
+
+Schedule cards and saved sheets use the new links. A cached, public metadata endpoint also
+corrects sections saved in browsers before this release without changing their identity.
+Unmatched sections say **Find syllabus in library**, not **View syllabus**. The original
+Concourse URL remains provenance and the saved-section key. Raw "Source meeting information"
+strings are removed from cards and sheets; parsed times remain, and unknown times stay unknown.
+Repeated "Online · online" is deduplicated. Name now has its own label line and a 6px gap;
+screen form controls have 44px touch targets, including on tablets and desktops.
+
+Validation: **255 frontend cases** (203 business/UI, 14 boundaries, 12 normalization, 26 sheet),
+warning-free lint/types, production build, 52-file embedding trace and **114 Python tests** passed.
+Four real-model schedule scenarios passed locally: ITSD 4340's corrected exact link, mixed
+direct/library ITSC 1305 links, unknown PHIL 1301 online times versus a 9-to-5 job, and absent
+ITNW 1308 Spring 2027 sections. These checks reviewed generated prose as well as tool data.
+The public repeat exposed a further error: a forced broad recovery after a known course's
+missing term pulled in older instructor snippets and generalized their missing times. A known
+course with no sections for the requested term now reports that coverage gap without forcing
+historical search; unknown course identities still receive recovery. A regression checks both
+paths, and final local/staged/public repeats must include exactly one schedule lookup for the
+missing-term example with no older instructor or meeting-time claims.
+
+Eight populated-sheet viewports passed: 320×568, 360×800, 390×844, 430×932, 667×375,
+768×1024, 1024×768 and 1440×900. No horizontal overflow, clipped controls or form controls
+under 44px; the two correct syllabus links, long name and multiline notes survived refresh.
+Actual controls exercised adding/removing a note and canceling reset without losing the sheet.
+Nine schedule-chat layouts across Simple, Playful and Focus at 320×568, 390×844 and 667×375
+retained the corrected links, native logo ratios and visible composer without horizontal overflow;
+the smallest landscape conversation measured 173px. Removing/re-adding a saved section and
+returning from the form retained the schedule conversation and an unsent draft.
+Staged/public release evidence is recorded in the PR. Physical-device and print-driver limits
+described below still apply.
+
+Fetched GitHub main at `54c30cc` after PR #201 merged. Reproduced compressed logos at 390×844:
+the AI Club image box was 22.31×44 instead of 41.22×44, and Success Coach was 34.56×46 instead
+of 63.81×46. Shared nonshrinking branding and wrapped phone preferences restore both native
+aspect ratios. The chat header is now 88px at that size, compared with the previous 116px.
+
+The answer audit also corrected unassigned instructor placeholders being described as faculty,
+unknown online times being described as no fixed meetings, and duplicated pre-lookup guidance
+after a standalone course-status correction. New regression coverage checks placeholder handling,
+unchanged real instructor names and published meetings, source preservation and first-step routing.
+
+Validation: 251 frontend cases (200 business/UI, 13 boundaries, 12 normalization, 26 sheet cases),
+warning-free lint/types, production build and 52-file embedding trace passed. The first run exposed
+an added null professor field on a legacy fixture; retaining absent fields fixed the regression.
+114 Python tests passed and the production dependency scan found 0 known vulnerabilities.
+
+Ten final real-model scenarios passed on the production build after the audit/fix loop: A+ full
+plan, two completions, in-progress correction, Fall sections, recommended preparation, absent
+Spring sections, a switch to BAT electives, PHIL 1301 sections and Success Coach appointments.
+Model: OpenRouter `openai/gpt-4.1-mini`, temperature 0.2. Independent database reads verified
+the A+ award's three courses/nine credits and 29 Fall sections across those courses; the original
+2026–2027 catalog page (poid 2760) agrees. Program/course records date to July 11 and sections to
+August 12, 2026. BAT and PHIL comparisons reuse the independently verified records below.
+Review included generated prose, not just successful tool calls: the first nominally passing
+API run contained the wording issues above. Final responses no longer repeated those errors.
+
+Browser checks: 18 onboarding layouts across all three styles; 36 production chat layouts across
+three styles, light/dark and 320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720; five
+prep-sheet sizes. Measured image ratios, header controls, page/transcript overflow and composer
+visibility. All passed; the small-landscape transcript retained at least 173px. Fresh A+ onboarding,
+starter lookup, schedule preview, day grouping, section saving, name/multiline-note refresh and
+return to preserved chat/draft were exercised. Another 18 layouts with suggestions expanded passed,
+with at least 158px of conversation space. Clear-chat cancellation and changing/removing a reported
+course were checked through their actual controls. Browser helper timing failures were retried only
+after inspecting current rendered state. Staged/public checks and rollback belong in the PR.
+
+This is browser viewport coverage, not certification of every physical phone, native keyboard,
+screen-reader combination or print driver. Schedules remain saved snapshots and model prose
+can vary; these checks cannot establish that every possible answer is correct.
+
+The first Vercel build restored a stale stylesheet despite new page markup. Public verification
+caught it; the prior deployment was restored, and a cache-free build passed direct stylesheet
+inspection and the public layout checks. The release runbook now requires `--force` and checking
+staged stylesheets before promotion. One clean-build attempt failed with an invalid Vercel API
+response before creating a deployment; its retry succeeded. A subsequent public prose check also
+generalized two courses' recommended preparation to all three A+ courses. The prompt now explicitly
+keeps recommendations scoped to the course that records them and preserves null requisites as
+unknown. Final targeted answer repeats and release identity are recorded in the PR.
+
 ## Actual elective choices (September 25)
 
 The phone screenshot reproduced a real gap: BAT names core areas in prose instead of using CB

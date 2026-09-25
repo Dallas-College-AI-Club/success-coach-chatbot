@@ -46,6 +46,10 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   route, without saving a course or clearing an unfinished question. Controls pause during a reply;
   a completed preview focuses its section heading. Existing day/time/campus/instructor grouping
   and explicit section-save actions preserve the source's complete meetings.
+  Assignment placeholders are normalized as unnamed instructors in section cards and rosters;
+  legacy search snippets no longer label them as professors. Model inputs distinguish missing
+  meeting times from evidence that a class has no fixed meetings. Explicit course-status reports
+  refresh a known program before the model answers, even without a follow-up planning question.
 - **Elective choices:** `get_program_requirements` resolves named core references against the
   same-edition CORE-42 map and explicit AAS references against its separate map. The pure resolver
   in `lib/elective-options.ts` attaches course alternatives to each matching requirement, preserves
@@ -119,6 +123,27 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   batch process — the frontend reads knowledge records and writes temporary request counters.
   Full pipeline and runbook:
   [DATA_PIPELINE.md](DATA_PIPELINE.md), [../apps/data/REPRODUCE.md](../apps/data/REPRODUCE.md).
+
+## Syllabus hyperlink corrections
+
+Fall section metadata may carry `syllabus_link` (`url`, `kind: direct`, `verified_at`). A direct
+link identifies the published course, term and section. Verification evidence distinguishes
+rendered document checks (including instructor/dates) from public directory document identities.
+Library/search pages are never syllabus substitutes. Schedule provenance and saved-section
+identity remain in `source_url`; tools return link metadata without retrieving syllabus text.
+Simple Syllabus documents take priority. Where the complete directory has no replacement,
+a Concourse `view_syllabus?course_id=...` document may be retained only after its public header
+matches the course, section, Fall 2026 term and dates. Search URLs are never accepted as direct.
+
+Chat and prep-sheet links share a client-safe validator. `/api/syllabus-links` returns only
+Fall 2026 direct-link corrections, cached publicly for ten minutes, so older saved sections
+also update. Browser requests use a validated `source` parameter and cache duplicate lookups;
+sections already carrying a Simple Syllabus direct link need no request. Saved Concourse
+document links still refresh so a later migration can replace them. They never download the full college
+directory. An unfiltered endpoint remains available for release inventory checks. Failed requests
+keep existing verified links; missing links are omitted. Lookalike hosts, credentials, arbitrary
+query parameters and library URLs are rejected. No student data is sent to this endpoint.
+This is a link correction, not syllabus ingestion or a schedule freshness update.
 
 ## Deployment
 

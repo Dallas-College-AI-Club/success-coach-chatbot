@@ -1,3 +1,5 @@
+import { isLegacyFallSection, readSyllabusLink, sectionSyllabusLink } from "./syllabus-links";
+
 // Shared serializable catalog fields. No database or browser dependencies.
 export interface CourseDetails {
   course_code: string;
@@ -16,6 +18,21 @@ export function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function catalogText(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+/** Assignment placeholders are not people and must not be described as faculty. */
+export function namedInstructor(value: unknown): string | null {
+  const name = catalogText(value);
+  return name && !/^(?:to be announced|tba)$/i.test(name) ? name : null;
+}
+
+/** The campus can itself be "Online"; do not repeat it as the delivery mode. */
+export function sectionLocation(campus: unknown, modality: unknown): string {
+  const parts = [catalogText(campus), catalogText(modality)?.replaceAll("_", " ")]
+    .filter((value): value is string => !!value);
+  return parts.filter((value, index) =>
+    parts.findIndex((other) => other.toLowerCase() === value.toLowerCase()) === index,
+  ).join(" · ");
 }
 
 export function isCourseCode(value: unknown): value is string {
@@ -301,7 +318,7 @@ export function scheduleSection(row: {
     section_number:
       catalogText(facts.section_number) ?? catalogText(meta.section),
     term: [season, row.year].filter(Boolean).join(" ") || "Term not listed",
-    professor: row.professor,
+    professor: namedInstructor(row.professor),
     modality: catalogText(facts.modality) ?? catalogText(meta.modality),
     campus: catalogText(facts.campus) ?? catalogText(meta.campus),
     start_date: catalogText(facts.start_date),
@@ -314,6 +331,7 @@ export function scheduleSection(row: {
         ? "source_text_only"
         : "not_loaded",
     source_url: row.sourceUrl,
+    syllabus_link: readSyllabusLink(meta.syllabus_link),
   };
 }
 
@@ -395,18 +413,48 @@ export function instructorCvLinks(
   );
 }
 
+/** A known course with no rows in the requested term is a data-coverage gap,
+ * not an unresolved identity that needs unrelated historical search results. */
+export function isKnownScheduleGap(output: unknown): boolean {
+  return isRecord(output) && output.found === false &&
+    output.total_sections === 0 && !!catalogText(output.requested_term) &&
+    Array.isArray(output.terms_on_record) && output.terms_on_record.length > 0;
+}
+
 /** Inline CV text is UI detail; avoid replaying every biography to the model. */
 export function scheduleResultForModel(output: unknown) {
   if (!isRecord(output)) return output;
   const result = { ...output };
   delete result.instructor_profiles;
+  if (isKnownScheduleGap(output)) {
+    result.availability_guidance =
+      "The course is known, but the requested term has no sections in this snapshot. State that limited result. Do not search for or substitute older-term section/instructor samples, and do not infer meeting times for other terms. You may offer to look up one of terms_on_record if the student wants it. This does not prove the college will not offer the course.";
+  }
   if (Array.isArray(output.offerings)) {
     const sections = output.offerings.filter(isRecord);
     // Unparsed INET day markers are not evidence of daily availability. Keep
-    // the source text in the UI, but do not invite the model to invent a schedule.
+    // the original source text in the saved data, not in the student interface.
     result.offerings = sections.map((section) => {
-      if (Array.isArray(section.meets) && section.meets.length) return section;
-      const withoutRawTimes = { ...section };
+      const normalized = { ...section };
+      const syllabus = sectionSyllabusLink(section);
+      if (syllabus) {
+        normalized.source_url = syllabus.url;
+        normalized.syllabus_link_kind = syllabus.kind;
+      } else if (isLegacyFallSection(section)) {
+        // Preserve provenance in the tool/UI payload, but never offer a stale
+        // syllabus or a library substitute to the model as a document link.
+        delete normalized.source_url;
+        delete normalized.syllabus_link;
+        normalized.syllabus_link_status = "No verified direct syllabus link available.";
+      }
+      if ("professor" in section)
+        normalized.professor = namedInstructor(section.professor);
+      if (Array.isArray(section.meets) && section.meets.length) return normalized;
+      const withoutRawTimes: Record<string, unknown> = {
+        ...normalized,
+        meeting_time_summary:
+          "Meeting times are not published in these records. Whether fixed meetings are required is unknown.",
+      };
       delete withoutRawTimes.meeting_info_raw;
       return withoutRawTimes;
     });
@@ -431,7 +479,7 @@ export function scheduleResultForModel(output: unknown) {
       ).length,
     };
     result.timing_guidance =
-      "Sections without published times have UNKNOWN schedule fit and meeting days. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Unparsed source meeting text is displayed in the section cards, not evidence of a usable timetable.";
+      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Only offer a verified direct syllabus link supplied by this tool; never substitute a library/search page or another section. Linked syllabus content has not been read by this tool.";
   }
   return result;
 }
