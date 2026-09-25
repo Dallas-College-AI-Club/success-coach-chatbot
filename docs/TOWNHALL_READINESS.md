@@ -4,6 +4,42 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Related editing/removal audit (September 24)
+
+Latest GitHub main was fetched again and remains `3178007`. The broader follow-up fixes:
+
+- Typed course corrections previously left the saved editor on an older status unless a program
+  lookup ran. Changes now save when sent, survive cancelled/failed answers, and synchronize course
+  lookup history too. Later edits are protected from older response snapshots.
+- Negative statements such as "I am no longer taking ITSE 1370" no longer become active enrollment.
+  Explicit requests to remove a code from reported courses work across later planning turns.
+- Duplicate additions no longer silently reset an existing status to Completed.
+- The prep sheet shows all six reported statuses with labels; non-completed courses no longer
+  disappear from the handoff. Individual saved sections can be removed independently.
+- Removing a question removes its coach-selection flag. Hidden setup answers are scoped to the
+  corresponding setup, so a new form can show its own answers. Sheet reset has a mobile confirmation.
+
+The independent read of **337 program maps** included **840 groups with rules**, **258 with elective
+rows**. The existing rule association produced no unrelated capstone/grade notes under elective
+rows. This is a structured-description scan, not a new advisor certification of all programs.
+Python certificate and BAT source records remain July 11, 2026, catalog 2026–2027; no records changed.
+
+Verification: **240 frontend cases** (191 business/UI, 11 route boundaries, 12 normalization and
+26 sheet-question cases), lint, types, optimized build and 52 embedding runtime files passed.
+**114 data tests** passed. One new assertion initially used the wrong fixture course code; it was
+corrected before the full passing run. **5/5 local real-model requests** covered course-lookup
+correction, active/withdrawn enrollment, typed removal and later completion; expected Python
+remaining-credit totals were 18 and 15. Model remains OpenRouter `openai/gpt-4.1-mini`, temperature 0.2.
+
+Browser journeys confirmed duplicate protection, status correction after a non-program reply,
+stopped-response persistence, typed removal, refresh, individual/last section removal, sheet names
+and notes, reset cancellation and confirmed reset. **72 chat combinations, 12 dialog layouts and
+6 sheet sizes** fit without horizontal overflow; minimum transcript height was 168px. Sizes were
+320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720. A measurement script initially used the
+wrong composer element and a later oversized batch timed out; corrected bounded batches passed.
+Staged/public deployment checks and the exact release SHA are recorded in the PR. Native print,
+physical keyboards and broader model-answer coverage remain subject to the limitations below.
+
 ## Screenshot follow-up: editing, restart and BAT electives (September 24)
 
 Added **Edit / remove reported courses** on checklists and **Plan options** beside Clear chat.

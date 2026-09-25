@@ -28,6 +28,10 @@ import { Button } from "@/components/ui/button";
 import { ChatBackdrop } from "@/features/chat/backdrops";
 import { studentProfile, type StudentProfile } from "@/features/chat/profile";
 import { useSavedCourses } from "@/features/chat/saved-courses";
+import {
+  reportedHistoryFromMessages,
+  type CompletionOverrides,
+} from "@/features/chat/completion-state";
 import { PlanningControls } from "@/features/chat/planning-controls";
 import {
   clearConversation,
@@ -400,27 +404,38 @@ function Conversation({
         .map((part) => ({ name: getToolName(part), output: part.output }));
   // A restored answer predates any checkbox edits made after that answer.
   // Apply history only from newly completed replies, never on navigation back.
-  const appliedHistory = useRef<string | null>(
-    restored?.messages.findLast((message) => message.role === "assistant")
-      ?.id ?? null,
+  const appliedHistory = useRef<UIMessage | undefined>(
+    restored?.messages.findLast((message) => message.role === "assistant"),
   );
+  const historyAtRequest = useRef<CompletionOverrides>({});
   useEffect(() => {
     if (busy || resetting.current) return;
     const reply = messages.findLast((m) => m.role === "assistant");
-    if (!reply || reply.id === appliedHistory.current) return;
-    appliedHistory.current = reply.id;
+    if (!reply || reply === appliedHistory.current) return;
+    appliedHistory.current = reply;
+    if (!messages.some((message) => message.role === "user")) return;
+    const history = reportedHistoryFromMessages(
+      messages,
+      historyAtRequest.current,
+    );
     for (const part of reply.parts) {
       if (
         isToolUIPart(part) &&
         part.state === "output-available" &&
-        isRecord(part.output) &&
-        isRecord(part.output.planning)
+        isRecord(part.output)
       ) {
-        useSavedCourses
-          .getState()
-          .applyCompletionHistory(part.output.planning.history);
+        const reported = isRecord(part.output.planning)
+          ? part.output.planning.history
+          : part.output.course_history;
+        // Tool lookups can resolve prerequisite titles not present in the cards.
+        if (isRecord(reported))
+          for (const [code, entry] of Object.entries(reported))
+            if (!(code in history)) Object.assign(history, { [code]: entry });
       }
     }
+    useSavedCourses
+      .getState()
+      .applyCompletionHistory(history, historyAtRequest.current, true);
   }, [messages, busy]);
   const latestPlan = messages
     .flatMap((message) => message.parts)
@@ -555,6 +570,22 @@ function Conversation({
       // request even when the student immediately asks for a refreshed plan.
       const completionOverrides =
         useSavedCourses.getState().completionOverrides;
+      useSavedCourses
+        .getState()
+        .applyCompletionHistory(
+          reportedHistoryFromMessages([
+            ...messages,
+            {
+              id: "pending",
+              role: "user",
+              parts: [{ type: "text", text: t }],
+              metadata: { completionOverrides },
+            },
+          ]),
+          undefined,
+          true,
+        );
+      historyAtRequest.current = useSavedCourses.getState().completionOverrides;
       useSavedCourses.getState().addQuestion(note);
       // The chip's own words ride along as metadata for the bubble to show; the
       // model still gets `text`, the full prompt. Typed questions need none.
@@ -571,7 +602,7 @@ function Conversation({
       if (clearInput) setInput("");
       toBottom();
     },
-    [busy, profile, sendMessage, toBottom],
+    [busy, messages, profile, sendMessage, toBottom],
   );
 
   const scheduleAction = useMemo<CourseScheduleAction>(
@@ -672,6 +703,8 @@ function Conversation({
                 className={skin.ghostBtn}
                 onClick={() => {
                   setCancelled(false);
+                  historyAtRequest.current =
+                    useSavedCourses.getState().completionOverrides;
                   regenerate(requestOptions);
                   toBottom();
                 }}

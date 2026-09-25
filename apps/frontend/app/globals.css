@@ -338,6 +338,9 @@
   color: var(--sheet-blue);
   font-weight: 700;
 }
+.sheet-reported li::before {
+  content: "•";
+}
 .sheet-row {
   display: flex;
   gap: 12px;

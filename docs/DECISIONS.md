@@ -3,6 +3,19 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Related editing and removal audit
+
+The maintainer requested fixes for all similar bugs. Save typed course corrections before waiting
+for a model response, apply course lookup history as well as program history, and protect later
+edits from stale replies. Negative enrollment and planning statements must not become positive
+statuses. Duplicate additions point to the existing editor instead of silently resetting status.
+
+Show all self-reported statuses on the prep sheet, allow removal of one saved section, remove a
+deleted question's coach-selection flag, and scope hidden setup answers to the current setup.
+Use an accessible, phone-sized confirmation for Reset prep sheet. Preserve catalog facts and
+verified program requirements; the broader program-rule scan found no further capstone text
+attached to unrelated elective rows.
+
 ## 2026-09-24 — Edit reported courses and restart setup
 
 The maintainer requested course-history editing/removal, a discoverable form restart and a check

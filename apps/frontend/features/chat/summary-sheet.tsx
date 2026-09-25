@@ -3,6 +3,12 @@
 import { citationHref } from "@/lib/constants";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
+import { AlertDialog } from "radix-ui";
+import { Button } from "@/components/ui/button";
+import {
+  COURSE_STATUS_LABELS,
+  currentCourseHistory,
+} from "@/features/chat/completion-state";
 import { clearConversation } from "@/features/chat/conversation-store";
 import { PlanningControls } from "@/features/chat/planning-controls";
 
@@ -52,9 +58,13 @@ function Cite({ label, url }: { label: string; url?: string | null }) {
 function ClassEntry({
   course,
   onRemove,
+  onRemoveSection,
 }: {
   course: SavedCourse;
   onRemove: () => void;
+  onRemoveSection: (
+    section: NonNullable<SavedCourse["sections"]>[number],
+  ) => void;
 }) {
   return (
     <div className="sheet-row">
@@ -91,6 +101,14 @@ function ClassEntry({
                   label="Saved section · confirm current details"
                   url={section.source_url}
                 />
+                <button
+                  type="button"
+                  className="sheet-add min-h-11 print:hidden"
+                  aria-label={`Remove ${course.course_code} section ${section.section_number ?? "unlisted"} (${section.term ?? "term not listed"})`}
+                  onClick={() => onRemoveSection(section)}
+                >
+                  Remove section
+                </button>
               </div>
             ))
           : null}
@@ -131,15 +149,24 @@ export function SummarySheet() {
 
   const session = useSavedSession();
   const courses = useSavedCourses((s) => s.courses);
-  const taken = useSavedCourses((s) => s.taken);
+  const overrides = useSavedCourses((s) => s.completionOverrides);
+  const reported = currentCourseHistory(undefined, overrides);
+  const toggleSection = useSavedCourses((s) => s.toggleSection);
   const removeCourse = useSavedCourses((s) => s.remove);
   const questions = useSavedCourses((s) => s.questions);
   const removeQuestion = useSavedCourses((s) => s.removeQuestion);
   const clearSaved = useSavedCourses((s) => s.clear);
 
-  const { name, notes, edited, toAsk, hiddenAnswers } = useSavedCourses(
-    (s) => s.draft,
-  );
+  const {
+    name,
+    notes,
+    edited,
+    toAsk,
+    hiddenAnswers: savedHiddenAnswers,
+    answersSession,
+  } = useSavedCourses((s) => s.draft);
+  const hiddenAnswers =
+    answersSession === session?.payload.completedAt ? savedHiddenAnswers : [];
   const updateDraft = useSavedCourses((s) => s.updateDraft);
   const toggleAsk = (q: string) =>
     updateDraft({
@@ -189,22 +216,44 @@ export function SummarySheet() {
         </button>
         {/* Shared/lab machines: the saved list and the student's own questions
             live in localStorage, so there has to be a way to wipe them. */}
-        <button
-          type="button"
-          className="sheet-back"
-          onClick={() => {
-            if (
-              window.confirm(
-                "Clear your saved classes, reported courses, questions, sheet edits, and this tab's chat history? Your setup choices will stay.",
-              )
-            ) {
-              clearSaved();
-              clearConversation();
-            }
-          }}
-        >
-          Reset prep sheet
-        </button>
+        <AlertDialog.Root>
+          <AlertDialog.Trigger asChild>
+            <button type="button" className="sheet-back">
+              Reset prep sheet
+            </button>
+          </AlertDialog.Trigger>
+          <AlertDialog.Portal>
+            <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/60 print:hidden" />
+            <AlertDialog.Content className="bg-popover text-popover-foreground fixed top-1/2 left-1/2 z-50 max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-2xl p-5 shadow-xl print:hidden">
+              <AlertDialog.Title className="text-lg font-semibold">
+                Reset your prep sheet?
+              </AlertDialog.Title>
+              <AlertDialog.Description className="mt-2 text-sm">
+                Clear saved classes, reported courses, questions, sheet edits
+                and this tab’s chat. Your setup choices will stay. This cannot
+                be undone.
+              </AlertDialog.Description>
+              <div className="mt-4 flex flex-wrap justify-end gap-2">
+                <AlertDialog.Cancel asChild>
+                  <Button variant="outline" className="min-h-11">
+                    Cancel
+                  </Button>
+                </AlertDialog.Cancel>
+                <AlertDialog.Action asChild>
+                  <Button
+                    className="min-h-11"
+                    onClick={() => {
+                      clearSaved();
+                      clearConversation();
+                    }}
+                  >
+                    Reset sheet
+                  </Button>
+                </AlertDialog.Action>
+              </div>
+            </AlertDialog.Content>
+          </AlertDialog.Portal>
+        </AlertDialog.Root>
       </div>
 
       <div className="sheet-page">
@@ -287,7 +336,10 @@ export function SummarySheet() {
                       className="sheet-del"
                       aria-label={`Remove ${a}`}
                       onClick={() => {
-                        updateDraft({ hiddenAnswers: [...hiddenAnswers, a] });
+                        updateDraft({
+                          hiddenAnswers: [...hiddenAnswers, a],
+                          answersSession: session.payload.completedAt,
+                        });
                         touch();
                       }}
                     >
@@ -299,12 +351,12 @@ export function SummarySheet() {
           </section>
         ) : null}
 
-        {taken.length ? (
+        {Object.keys(reported).length ? (
           <section className="sheet-section">
             <h2 className="sheet-shead">
               <span className="sheet-idx">{nextIdx()}</span>
               <span className="sheet-h2">
-                Courses I reported as completed (not a transcript)
+                Courses I reported (not a transcript)
               </span>
               <button
                 type="button"
@@ -314,10 +366,13 @@ export function SummarySheet() {
                 Edit
               </button>
             </h2>
-            <ul className="sheet-answers">
-              {taken.map((code) => (
+            <ul className="sheet-answers sheet-reported">
+              {Object.entries(reported).map(([code, entry]) => (
                 <li key={code}>
-                  <span className="sheet-code">{code}</span>
+                  <span>
+                    <strong className="sheet-code">{code}</strong> ·{" "}
+                    {COURSE_STATUS_LABELS[entry.status]}
+                  </span>
                   <button
                     type="button"
                     className="sheet-del"
@@ -346,6 +401,10 @@ export function SummarySheet() {
               <ClassEntry
                 key={c.course_code}
                 course={c}
+                onRemoveSection={(section) => {
+                  toggleSection(c, section);
+                  touch();
+                }}
                 onRemove={() => {
                   removeCourse(c.course_code);
                   touch();

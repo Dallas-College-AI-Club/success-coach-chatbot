@@ -1,7 +1,12 @@
 import type { UIMessage } from "ai";
-import { isRecord, isCourseCode } from "@/lib/course-details";
+import {
+  isRecord,
+  isCourseCode,
+  readCourseDetails,
+} from "@/lib/course-details";
 import {
   readCourseHistory,
+  studentCourseHistory,
   type CourseHistory,
   type CourseStatus,
 } from "@/lib/planning";
@@ -118,4 +123,28 @@ export function planningStatements(
       .join(" ");
     return [...changes, text];
   });
+}
+
+/** Save the student's statements even when the answer has no planning tool,
+ * fails, or is stopped. Catalog titles can resolve once a lookup returns. */
+export function reportedHistoryFromMessages(
+  messages: UIMessage[],
+  current?: CompletionOverrides,
+): CourseHistory {
+  const outputs = messages
+    .filter((message) => message.role === "assistant")
+    .flatMap((message) => message.parts)
+    .flatMap((part) =>
+      "output" in part && isRecord(part.output) ? [part.output] : [],
+    );
+  const courses = outputs.flatMap((output) =>
+    [
+      output,
+      ...(Array.isArray(output.course_details) ? output.course_details : []),
+    ].flatMap((raw) => {
+      const course = readCourseDetails(raw);
+      return course ? [course] : [];
+    }),
+  );
+  return studentCourseHistory(planningStatements(messages, current), courses);
 }

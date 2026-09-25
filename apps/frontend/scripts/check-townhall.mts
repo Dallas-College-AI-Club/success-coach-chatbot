@@ -6,6 +6,7 @@ import {
   readCompletionOverrides,
   currentCourseHistory,
   courseHistoryChanged,
+  reportedHistoryFromMessages,
   type CompletionOverrides,
 } from "../features/chat/completion-state";
 import {
@@ -344,6 +345,163 @@ test("live checklist history hides removed courses and detects all status edits"
   assert.equal(courseHistoryChanged(history, overrides), true);
   assert.equal(courseHistoryChanged(edited, overrides), false);
   assert.equal(courseHistoryChanged(history, { "ITSE 1370": true }), false);
+});
+
+test("typed corrections and removals persist without a program lookup, including stopped answers", () => {
+  const before = useSavedCourses.getState();
+  try {
+    before.clear();
+    before.setCourseStatus("ITSE 1370", "completed");
+    let turns = [
+      user("I have not completed ITSE 1370. What are its prerequisites?", {
+        "ITSE 1370": true,
+      }),
+    ];
+    before.applyCompletionHistory(
+      reportedHistoryFromMessages(turns),
+      undefined,
+      true,
+    );
+    assert.deepEqual(useSavedCourses.getState().taken, []);
+    assert.equal(
+      useSavedCourses.getState().completionOverrides["ITSE 1370"],
+      false,
+    );
+    turns = [
+      ...turns,
+      user("Remove ITSE 1370 from my reported courses.", {
+        "ITSE 1370": false,
+      }),
+    ];
+    before.applyCompletionHistory(
+      reportedHistoryFromMessages(turns),
+      undefined,
+      true,
+    );
+    assert.equal(
+      useSavedCourses.getState().completionOverrides["ITSE 1370"],
+      "removed",
+    );
+    assert.deepEqual(
+      currentCourseHistory(
+        undefined,
+        useSavedCourses.getState().completionOverrides,
+      ),
+      {},
+    );
+    // Following an unrelated question must not replay the removed completion.
+    turns.push(
+      user(
+        "When do classes start?",
+        useSavedCourses.getState().completionOverrides,
+      ),
+    );
+    assert.deepEqual(reportedHistoryFromMessages(turns), {});
+  } finally {
+    useSavedCourses.setState(before);
+  }
+});
+
+test("late course responses preserve edits and a cleared sheet", () => {
+  const before = useSavedCourses.getState();
+  try {
+    before.clear();
+    before.setCourseStatus("ITSE 1370", "completed");
+    const submitted = useSavedCourses.getState().completionOverrides;
+    before.setCourseStatus("ITSE 1370", "removed");
+    before.applyCompletionHistory(
+      { "ITSE 1370": { status: "completed" } },
+      submitted,
+    );
+    assert.equal(
+      useSavedCourses.getState().completionOverrides["ITSE 1370"],
+      "removed",
+    );
+    before.clear();
+    before.applyCompletionHistory(
+      { "ITSE 1370": { status: "completed" } },
+      submitted,
+    );
+    assert.deepEqual(useSavedCourses.getState().completionOverrides, {});
+  } finally {
+    useSavedCourses.setState(before);
+  }
+});
+
+test("course titles resolve in saved history once their catalog cards arrive", () => {
+  const turns: UIMessage[] = [
+    user("I completed Introduction to Python Programming."),
+    {
+      id: "lookup",
+      role: "assistant",
+      parts: [
+        {
+          type: "tool-get_course_info",
+          toolCallId: "course",
+          state: "output-available",
+          input: {},
+          output: {
+            course_code: "ITSE 1370",
+            title: "Introduction to Python Programming",
+          },
+        },
+      ],
+    },
+  ];
+  assert.equal(
+    reportedHistoryFromMessages(turns)["ITSE 1370"].status,
+    "completed",
+  );
+  // A retry includes the newest edits even though its user message is reused.
+  assert.equal(
+    reportedHistoryFromMessages(
+      [user("Show my plan.", { "ITSE 1370": true })],
+      { "ITSE 1370": false },
+    )["ITSE 1370"].status,
+    "not_completed",
+  );
+});
+
+test("negative enrollment and plan corrections never become positive course statuses", () => {
+  for (const correction of [
+    "I am no longer taking ITSE 1370.",
+    "I'm not currently enrolled in ITSE 1370.",
+    "I don't plan to take ITSE 1370.",
+    "ITSE 1370 is not in progress.",
+  ]) {
+    const history = studentCourseHistory([
+      "I am taking ITSE 1370.",
+      correction,
+    ]);
+    assert.equal(history["ITSE 1370"].status, "not_completed", correction);
+  }
+  assert.equal(
+    studentCourseHistory([
+      "Should I remove ITSE 1370 from my reported courses?",
+    ])["ITSE 1370"],
+    undefined,
+  );
+});
+
+test("removing a saved question also removes its coach selection", () => {
+  const before = useSavedCourses.getState();
+  try {
+    before.clear();
+    before.addQuestion(
+      "What are the requirements for the Python Developer Certificate?",
+    );
+    const question = useSavedCourses.getState().questions[0];
+    assert.ok(question);
+    before.updateDraft({ toAsk: [question], notes: ["Keep this note"] });
+    before.removeQuestion(0);
+    before.addQuestion(question);
+    assert.deepEqual(useSavedCourses.getState().draft.toAsk, []);
+    assert.deepEqual(useSavedCourses.getState().draft.notes, [
+      "Keep this note",
+    ]);
+  } finally {
+    useSavedCourses.setState(before);
+  }
 });
 
 test("a changed same-size course set and later uncheck keep an update action", () => {

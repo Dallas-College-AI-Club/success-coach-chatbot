@@ -105,6 +105,7 @@ export interface SheetDraft {
   edited: boolean;
   toAsk: string[];
   hiddenAnswers: string[];
+  answersSession: string | null;
 }
 
 const emptyDraft = (): SheetDraft => ({
@@ -113,6 +114,7 @@ const emptyDraft = (): SheetDraft => ({
   edited: false,
   toAsk: [],
   hiddenAnswers: [],
+  answersSession: null,
 });
 
 export function readSheetDraft(value: unknown): SheetDraft {
@@ -130,12 +132,18 @@ export function readSheetDraft(value: unknown): SheetDraft {
     edited: draft.edited === true,
     toAsk: strings(draft.toAsk),
     hiddenAnswers: strings(draft.hiddenAnswers),
+    answersSession:
+      typeof draft.answersSession === "string" ? draft.answersSession : null,
   };
 }
 
 interface SavedCoursesState {
   completionOverrides: CompletionOverrides;
-  applyCompletionHistory: (history: unknown) => void;
+  applyCompletionHistory: (
+    history: unknown,
+    expected?: CompletionOverrides,
+    replace?: boolean,
+  ) => void;
   draft: SheetDraft;
   updateDraft: (patch: Partial<SheetDraft>) => void;
   courses: SavedCourse[];
@@ -167,8 +175,8 @@ export const useSavedCourses = create<SavedCoursesState>()(
       questions: [],
       taken: [],
       completionOverrides: {},
-      applyCompletionHistory: (history) => {
-        const patch = Object.fromEntries(
+      applyCompletionHistory: (history, expected, replace = false) => {
+        const patch: CompletionOverrides = Object.fromEntries(
           Object.entries(readCourseHistory(history)).map(([code, record]) => [
             code,
             record.status === "completed"
@@ -178,7 +186,16 @@ export const useSavedCourses = create<SavedCoursesState>()(
                 : record.status,
           ]),
         );
-        const next = { ...get().completionOverrides, ...patch };
+        const current = get().completionOverrides;
+        if (replace)
+          for (const code of Object.keys(expected ?? current))
+            if (!(code in patch)) patch[code] = "removed";
+        const next = { ...current };
+        for (const [code, status] of Object.entries(patch)) {
+          // A reply that arrives after an edit must not restore the old status.
+          if (expected && current[code] !== expected[code]) continue;
+          next[code] = status;
+        }
         set({
           completionOverrides: next,
           taken: Object.keys(next).filter(
@@ -248,10 +265,25 @@ export const useSavedCourses = create<SavedCoursesState>()(
         const text = summarizeSheetQuestion(q);
         if (!text || get().questions.includes(text)) return;
         if (!isSheetWorthyQuestion(text)) return;
-        set({ questions: [...get().questions, text].slice(-MAX_QUESTIONS) });
+        const questions = [...get().questions, text].slice(-MAX_QUESTIONS);
+        set({
+          questions,
+          draft: {
+            ...get().draft,
+            toAsk: get().draft.toAsk.filter((q) => questions.includes(q)),
+          },
+        });
       },
-      removeQuestion: (index) =>
-        set({ questions: get().questions.filter((_, i) => i !== index) }),
+      removeQuestion: (index) => {
+        const removed = get().questions[index];
+        set({
+          questions: get().questions.filter((_, i) => i !== index),
+          draft: {
+            ...get().draft,
+            toAsk: get().draft.toAsk.filter((q) => q !== removed),
+          },
+        });
+      },
       clear: () => {
         set({
           courses: [],

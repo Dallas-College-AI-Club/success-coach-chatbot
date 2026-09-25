@@ -149,6 +149,12 @@ export function PlanningControls({
                   setError("Enter a course code such as HIST 1301.");
                   return;
                 }
+                if (current[normalized]) {
+                  setError(
+                    `${normalized} is already listed. Change its status above.`,
+                  );
+                  return;
+                }
                 setStatus(normalized, addStatus);
                 setCode("");
                 setError("");

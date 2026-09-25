@@ -69,6 +69,11 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
 - **Setup restart:** Plan options in chat and the sheet opens a confirmed restart. It clears the
   onboarding session and this tab's conversation, optionally also clearing saved courses and sheet
   edits. Restarting from chat aborts an active reply before navigating to the welcome page.
+- **History consistency:** typed history changes are parsed and saved when sent, even if a reply
+  is stopped or fails. Completed tool responses resolve catalog titles and prerequisite history;
+  request snapshots prevent those responses from overwriting later edits. The sheet shows every
+  reported status and supports individual section removal. Removed coach questions lose their
+  selected flag. Hidden setup answers belong to their completed onboarding session.
 - **Elective descriptions:** labeled elective rules are matched to the corresponding requirement
   row. Unmatched notes and capstone/alternative rules stay at semester level; the source record and
   the degree's required credits remain unchanged.

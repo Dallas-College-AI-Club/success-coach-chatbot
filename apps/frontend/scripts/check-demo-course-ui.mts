@@ -1343,6 +1343,7 @@ test("the coach sheet prints selected section dates and times instead of catalog
       "Example Instructor",
     ])
       assert.ok(html.includes(text));
+    assert.ok(html.includes(`Remove ${course.course_code} section 1001 (Fall 2026)`));
     assert.ok(!html.includes(course.description!));
     initial.courses = [
       {
@@ -1361,6 +1362,69 @@ test("the coach sheet prints selected section dates and times instead of catalog
     );
   } finally {
     initial.courses = previous;
+  }
+});
+
+test("the prep sheet preserves every reported status without printing removed entries as completed", () => {
+  const initial = useSavedCourses.getInitialState();
+  const previous = initial.completionOverrides;
+  try {
+    initial.completionOverrides = {
+      "HIST 1301": true,
+      "ITSE 1370": "in_progress",
+      "MATH 1314": "planned",
+      "ENGL 1301": "transfer_pending",
+      "GOVT 2306": "unknown",
+      "ITSD 3301": false,
+      "ITDA 4350": "removed",
+    };
+    const html = renderToStaticMarkup(createElement(SummarySheet));
+    for (const label of [
+      "Completed",
+      "In progress",
+      "Planned",
+      "Awaiting transfer review",
+      "Not sure",
+      "Not completed",
+    ])
+      assert.ok(html.includes(label), label);
+    assert.ok(!html.includes("ITDA 4350"));
+    assert.ok(html.includes("Remove reported ITSE 1370"));
+  } finally {
+    initial.completionOverrides = previous;
+  }
+});
+
+test("a new setup restores its own answers without discarding saved notes", () => {
+  const saved = useSavedCourses.getInitialState();
+  const student = useStudentSession.getInitialState();
+  const originalDraft = saved.draft,
+    originalSession = student.session,
+    originalHydrated = student.hasHydrated;
+  try {
+    student.hasHydrated = true;
+    student.session = {
+      payload: { ...profile, completedAt: "new-setup" },
+      summary: ["Evening classes"],
+      modeId: "simple",
+    };
+    saved.draft = {
+      ...saved.draft,
+      hiddenAnswers: ["Evening classes"],
+      answersSession: "old-setup",
+      notes: ["Ask about financial aid"],
+    };
+    let html = renderToStaticMarkup(createElement(SummarySheet));
+    assert.ok(html.includes("Evening classes"));
+    assert.ok(html.includes("Ask about financial aid"));
+    saved.draft = { ...saved.draft, answersSession: "new-setup" };
+    html = renderToStaticMarkup(createElement(SummarySheet));
+    assert.ok(!html.includes("Evening classes"));
+    assert.ok(html.includes("Ask about financial aid"));
+  } finally {
+    saved.draft = originalDraft;
+    student.session = originalSession;
+    student.hasHydrated = originalHydrated;
   }
 });
 
