@@ -6,6 +6,43 @@ https://major-demo-chi.vercel.app; a draft PR or staged deployment does not chan
 
 ## Post-townhall quality pass (September 25)
 
+### Syllabus links and prep-sheet spacing follow-up
+
+The paused syllabus task supplied its existing reviewed mappings; no collection was resumed.
+Updated only `metadata.syllabus_link` on all 12,872 Fall 2026 section rows in Neon: 538 exact
+document links and 12,334 explicitly labeled official-library fallbacks. The exact matches
+include the 536 existing verified joins and two manually checked public documents: ITSD 4340
+section 1 (Jamie Smith) and ITNW 1308 section 8 (Brandy Adams), both August 24–December 10.
+The update ran in a transaction with a full before-state backup and comparisons confirming
+unchanged source URLs, facts, content hashes, scrape dates and other metadata. The local
+backup is `.tmp/syllabus-link-backup-20260925T181824Z.json`; it is not committed or deployed.
+No syllabus text or embeddings were imported. A direct link does not imply that Major read it.
+
+Schedule cards and saved sheets use the new links. A cached, public metadata endpoint also
+corrects sections saved in browsers before this release without changing their identity.
+Unmatched sections say **Find syllabus in library**, not **View syllabus**. The original
+Concourse URL remains provenance and the saved-section key. Raw "Source meeting information"
+strings are removed from cards and sheets; parsed times remain, and unknown times stay unknown.
+Repeated "Online · online" is deduplicated. Name now has its own label line and a 6px gap;
+screen form controls have 44px touch targets, including on tablets and desktops.
+
+Validation: **254 frontend cases** (203 business/UI, 13 boundaries, 12 normalization, 26 sheet),
+warning-free lint/types, production build, 52-file embedding trace and **114 Python tests** passed.
+Four real-model schedule scenarios passed locally: ITSD 4340's corrected exact link, mixed
+direct/library ITSC 1305 links, unknown PHIL 1301 online times versus a 9-to-5 job, and absent
+ITNW 1308 Spring 2027 sections. These checks reviewed generated prose as well as tool data.
+
+Eight populated-sheet viewports passed: 320×568, 360×800, 390×844, 430×932, 667×375,
+768×1024, 1024×768 and 1440×900. No horizontal overflow, clipped controls or form controls
+under 44px; the two correct syllabus links, long name and multiline notes survived refresh.
+Actual controls exercised adding/removing a note and canceling reset without losing the sheet.
+Nine schedule-chat layouts across Simple, Playful and Focus at 320×568, 390×844 and 667×375
+retained the corrected links, native logo ratios and visible composer without horizontal overflow;
+the smallest landscape conversation measured 173px. Removing/re-adding a saved section and
+returning from the form retained the schedule conversation and an unsent draft.
+Staged/public release evidence is recorded in the PR. Physical-device and print-driver limits
+described below still apply.
+
 Fetched GitHub main at `54c30cc` after PR #201 merged. Reproduced compressed logos at 390×844:
 the AI Club image box was 22.31×44 instead of 41.22×44, and Success Coach was 34.56×46 instead
 of 63.81×46. Shared nonshrinking branding and wrapped phone preferences restore both native

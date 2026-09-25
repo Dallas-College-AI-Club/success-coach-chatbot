@@ -197,6 +197,11 @@
   color: #fff;
   padding: 10px 16px;
 }
+.sheet-toolbar :is(a, button) {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
 .sheet-back {
   color: #cbd8e6;
   font-weight: 600;
@@ -237,6 +242,7 @@
   print-color-adjust: exact;
 }
 .sheet-bot {
+  flex-shrink: 0;
   height: 64px;
   width: 64px;
   background: #fff;
@@ -262,25 +268,37 @@
 .sheet-meta {
   text-align: right;
   font-size: 9pt;
+  min-width: 0;
+}
+.sheet-name-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  text-align: left;
 }
 .sheet-meta input {
-  background: transparent;
   border: none;
   border-bottom: 1px solid rgba(255, 255, 255, 0.5);
   color: #fff;
   font: inherit;
+  font-size: 16px;
   font-weight: 700;
   width: 1.5in;
   max-width: 100%;
   text-align: left;
   outline: none;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 4px 4px 0 0;
+  background: rgba(255, 255, 255, 0.08);
 }
 .sheet-meta input::placeholder {
   color: rgba(255, 255, 255, 0.6);
   font-weight: 400;
 }
 .sheet-printed {
-  margin-top: 5px;
+  margin-top: 10px;
   opacity: 0.85;
 }
 .sheet-section {
@@ -330,6 +348,8 @@
 }
 .sheet-answers li > span {
   flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .sheet-answers li::before {
   content: "✓";
@@ -366,7 +386,7 @@
 .sheet-cite {
   font-size: 8.5pt;
   color: var(--sheet-muted);
-  word-break: break-all;
+  overflow-wrap: anywhere;
   display: block;
   margin-top: 2px;
 }
@@ -374,6 +394,13 @@
   color: var(--sheet-blue);
   text-decoration: underline;
   text-underline-offset: 2px;
+}
+@media screen {
+  .sheet-req .sheet-cite a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
 }
 .sheet-cr {
   font-size: 9pt;
@@ -428,11 +455,17 @@
 .sheet-del {
   border: none;
   background: none;
-  color: #b0b7c0;
-  font-size: 15px;
+  color: #64748b;
+  font-size: 20px;
   line-height: 1;
   cursor: pointer;
   padding: 0 2px;
+}
+.sheet-add,
+.sheet-del {
+  min-height: 44px;
+  min-width: 44px;
+  flex-shrink: 0;
 }
 .sheet-del:hover {
   color: #e52626;
@@ -531,11 +564,6 @@
   .sheet-toolbar .sheet-hint {
     display: none;
   }
-  .sheet-toolbar :is(a, button) {
-    min-height: 44px;
-    display: inline-flex;
-    align-items: center;
-  }
   .sheet-masthead {
     flex-wrap: wrap;
     padding: 20px 16px;
@@ -555,8 +583,10 @@
     text-align: left;
   }
   .sheet-meta input {
-    width: min(15rem, 75%);
-    font-size: 16px;
+    width: 100%;
+  }
+  .sheet-name-field {
+    max-width: 24rem;
   }
   .sheet-section {
     padding: 0 16px;
@@ -573,19 +603,6 @@
   .sheet-shint {
     flex-basis: 100%;
     margin-left: 0;
-  }
-  .sheet-add,
-  .sheet-del {
-    min-height: 44px;
-    min-width: 44px;
-    flex-shrink: 0;
-  }
-  .sheet-del {
-    opacity: 0.7;
-  }
-  .sheet-scope .sheet-checkbox {
-    width: 32px;
-    height: 32px;
   }
   .sheet-note {
     padding: 8px;
@@ -757,6 +774,13 @@
   padding: 0;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+}
+@media screen {
+  .sheet-checkbox {
+    width: 44px;
+    height: 44px;
+    font-size: 16px;
+  }
 }
 
 /* Shared color-mode layer: skins keep their light palettes and geometry.

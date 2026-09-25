@@ -124,6 +124,19 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   Full pipeline and runbook:
   [DATA_PIPELINE.md](DATA_PIPELINE.md), [../apps/data/REPRODUCE.md](../apps/data/REPRODUCE.md).
 
+## Syllabus hyperlink corrections
+
+Fall section metadata may carry `syllabus_link` (`url`, `kind`, `verified_at`). A `direct` link
+matches the exact course, term, section, instructor and dates; `library` means the official
+Simple Syllabus library, not an exact document. Schedule provenance and saved-section identity
+remain in `source_url`. Schedule tools return the link metadata without retrieving syllabus text.
+
+Chat and prep-sheet links share a client-safe validator. `/api/syllabus-links` returns only
+verified Fall 2026 direct-link corrections, cached publicly for ten minutes, so older saved
+sections also update. Cards share one browser request. Failed requests keep the official-library
+fallback usable; lookalike hosts and arbitrary URLs are rejected. No student data is sent to this
+endpoint. This is a link correction, not syllabus ingestion or a schedule freshness update.
+
 ## Deployment
 
 Manual `vercel deploy`/`vercel promote` from a clean checkout — the Vercel project is not

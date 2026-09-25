@@ -3,6 +3,24 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-25 — Correct syllabus links without importing syllabus content
+
+The maintainer requested corrected Neon syllabus hyperlinks, readable prep-sheet fields and
+removal of raw meeting-source text. The paused collection task supplied 536 verified exact
+offering matches. Two additional public links (ITSD 4340 section 1 and ITNW 1308 section 8)
+were checked against their live document identity, instructor and dates. Collection stays paused.
+
+Store `metadata.syllabus_link` separately from schedule `source_url`, which remains provenance
+and the saved-section identity. All 12,872 Fall 2026 section rows receive either a verified
+direct link (538) or an explicitly labeled official-library fallback (12,334). Do not infer an
+opaque Simple Syllabus ID, substitute a sibling section, or imply the model read a linked
+document. Original schedule facts, hashes, timestamps and other metadata are unchanged.
+
+Old browser-saved sections resolve the corrections through one public cached metadata response.
+The name label sits above its input with an explicit gap; screen edit controls have 44px touch
+targets. Remove unparsed meeting strings from both cards and sheets while retaining parsed
+meeting times and the model's unknown-time guard.
+
 ## 2026-09-25 — Post-townhall branding and answer quality
 
 The maintainer reported squeezed header logos and requested another UI and answer audit.

@@ -14,6 +14,7 @@ import {
   readCourseDetails,
 } from "@/lib/course-details";
 import { citationHref } from "@/lib/constants";
+import { readSyllabusLink, type SyllabusLink } from "@/lib/syllabus-links";
 import {
   readCompletionOverrides,
   completionStatus,
@@ -46,6 +47,7 @@ export interface SavedCourse {
 }
 
 export interface SavedSection {
+  syllabus_link?: SyllabusLink | null;
   section_number: string | null;
   term: string | null;
   professor: string | null;
@@ -79,6 +81,7 @@ export function readSavedSection(raw: unknown): SavedSection | null {
     ],
     meeting_info_raw: catalogText(raw.meeting_info_raw),
     source_url: source,
+    syllabus_link: readSyllabusLink(raw.syllabus_link),
   };
 }
 

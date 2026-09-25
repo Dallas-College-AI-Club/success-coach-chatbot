@@ -1,3 +1,5 @@
+import { readSyllabusLink, sectionSyllabusLink } from "./syllabus-links";
+
 // Shared serializable catalog fields. No database or browser dependencies.
 export interface CourseDetails {
   course_code: string;
@@ -22,6 +24,15 @@ export function catalogText(value: unknown): string | null {
 export function namedInstructor(value: unknown): string | null {
   const name = catalogText(value);
   return name && !/^(?:to be announced|tba)$/i.test(name) ? name : null;
+}
+
+/** The campus can itself be "Online"; do not repeat it as the delivery mode. */
+export function sectionLocation(campus: unknown, modality: unknown): string {
+  const parts = [catalogText(campus), catalogText(modality)?.replaceAll("_", " ")]
+    .filter((value): value is string => !!value);
+  return parts.filter((value, index) =>
+    parts.findIndex((other) => other.toLowerCase() === value.toLowerCase()) === index,
+  ).join(" · ");
 }
 
 export function isCourseCode(value: unknown): value is string {
@@ -320,6 +331,7 @@ export function scheduleSection(row: {
         ? "source_text_only"
         : "not_loaded",
     source_url: row.sourceUrl,
+    syllabus_link: readSyllabusLink(meta.syllabus_link),
   };
 }
 
@@ -409,9 +421,14 @@ export function scheduleResultForModel(output: unknown) {
   if (Array.isArray(output.offerings)) {
     const sections = output.offerings.filter(isRecord);
     // Unparsed INET day markers are not evidence of daily availability. Keep
-    // the source text in the UI, but do not invite the model to invent a schedule.
+    // the original source text in the saved data, not in the student interface.
     result.offerings = sections.map((section) => {
       const normalized = { ...section };
+      const syllabus = sectionSyllabusLink(section);
+      if (syllabus) {
+        normalized.source_url = syllabus.url;
+        normalized.syllabus_link_kind = syllabus.kind;
+      }
       if ("professor" in section)
         normalized.professor = namedInstructor(section.professor);
       if (Array.isArray(section.meets) && section.meets.length) return normalized;
@@ -444,7 +461,7 @@ export function scheduleResultForModel(output: unknown) {
       ).length,
     };
     result.timing_guidance =
-      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. Unparsed source meeting text is displayed in the section cards, not evidence of a usable timetable.";
+      "Sections without published times have UNKNOWN schedule fit and meeting days. Say 'meeting times are not published', never 'no fixed meeting times' or 'no scheduled meetings'. Report them separately; do not count them as unavailable, non-matching, evening, asynchronous, or available every day. A library link is a place to find a syllabus, not a verified document for the section. Linked syllabus content has not been read by this tool.";
   }
   return result;
 }
