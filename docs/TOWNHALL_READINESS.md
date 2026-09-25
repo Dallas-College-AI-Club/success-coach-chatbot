@@ -4,6 +4,55 @@ Prepared September 24, 2026, from the latest GitHub main (`3178007`). Audience: 
 with a handful expected to try the public app concurrently. The audience URL is
 https://major-demo-chi.vercel.app; a draft PR or staged deployment does not change it.
 
+## Final pre-demo audit (September 24)
+
+Latest GitHub main remains `3178007`; the task branch matched GitHub at audit start (`cf2aff3`).
+The final pass reproduced and fixed:
+
+- A coaching email made the 320px chat transcript 309px wide inside a 273px scrollport. Long
+  words now wrap inside messages and cards; the retest has no horizontal transcript overflow.
+- Removing the last saved section left an empty course on the prep sheet. Section-only entries
+  now disappear when their final section is removed, while older catalog-only saves remain.
+- Single-section and single-instructor headings incorrectly used plural wording.
+
+Final local checks: **228 frontend cases** (179 business/UI, 11 request boundaries, 12 course-code
+normalization, 26 sheet-question cases), lint, TypeScript, optimized build and the 52-file embedding
+trace passed. **114 Python tests** passed. The current dependency scan reports **0 vulnerabilities**.
+
+Browser coverage includes welcome, help, search/no-match recovery, changing styles mid-flow,
+first-semester and schedule-fit handoffs, graduation wording, international incoming/returning,
+dual-credit/back, transfer outbound/visiting/inbound, interest-area and nondegree routing, skipping,
+resume and restart. The academic-calendar link loaded its 2026–2027 collection in the browser;
+tutoring, Student Care Network and events links were checked against their official pages.
+
+**72 chat layouts passed**: three styles × light/dark × six sizes × suggestions open/closed.
+Sizes: 320×568, 390×844, 667×375, 844×390, 768×1024 and 1280×720. The composer remained visible,
+Clear chat stayed at least 44px tall, the transcript retained at least 168px, and neither the page
+nor transcript overflowed horizontally. Five sheet sizes passed with a long name and two notes.
+Name and multiline-note edits survived refresh; removing the test note preserved the original.
+
+Real interactions verified course disclosures, two completion checkboxes (12 credits remain and
+both courses excluded), contextual update, schedule preview without losing the draft, all five
+section groupings, expanding the remaining sections, instructor/CV disclosure, section save/unsave,
+sheet course removal and return, 404 recovery and confirmed/cancelled chat clearing. An intentional
+local-server outage produced the friendly error; Try again succeeded after service resumed.
+
+**36/36 public model requests passed** on the pre-fix deployment (answer/retrieval code is unchanged):
+planning with second completion/uncheck, evening/unknown times, tutoring, embedding-backed search,
+5- and 10-request bursts, schedule counts, missing course, three coaching phrasings, prerequisites,
+program comparison, instructor roster, faculty expertise, Spanish, missing program and transfer
+review. No unavailable tool results or stream errors were observed. Independent database reads
+confirmed 2 Fall ITDA 3320 sections and 93 MATH 1342 sections plus their saved meeting fields.
+Four public boundary probes returned the expected 400/403/405 responses, and the QR redirected
+to the audience site with HTTP 200. Model remains OpenRouter `openai/gpt-4.1-mini`, temperature 0.2;
+the catalog and schedule snapshots are unchanged. Exact candidate/live verification is in the PR.
+
+The shared daily counter was 195 of 1,000 requests when checked. Public limits remain 120 per
+network/5 minutes, 300 globally/5 minutes and 1,000/day. This is not a 200-concurrent-user load test.
+The production provider-key spending cap still requires account-owner confirmation; physical
+phone keyboards, Safari and native Print/Save PDF pagination remain outside browser-emulation
+coverage. These checks cannot guarantee every possible model answer or external-site response.
+
 ## Changes
 
 - Removed the two requested empty-schedule notices from the coach sheet. Kept actual section

@@ -1143,7 +1143,7 @@ test("semester ranges and unavailable numbered semesters never substitute the fu
   assert.equal(scheduleCourseForTurn("Who's teaching ITSE 1303?"), "ITSE 1303");
 });
 
-test("section notes preserve different terms, validate hydration, and retain the course after removal", () => {
+test("section notes preserve different terms, validate hydration, and retain legacy catalog saves", () => {
   const state = useSavedCourses.getState();
   const original = { courses: state.courses, questions: state.questions };
   const section = {
@@ -1190,6 +1190,32 @@ test("section notes preserve different terms, validate hydration, and retain the
     state.toggleSection(course, { ...section, term: "Spring 2027" });
     assert.equal(useSavedCourses.getState().courses[0].sections?.length, 0);
     assert.equal(useSavedCourses.getState().courses.length, 1);
+  } finally {
+    useSavedCourses.setState(original);
+  }
+});
+
+test("removing the last section-only save removes its course without changing other notes", () => {
+  const original = useSavedCourses.getState();
+  const courseOnly = { course_code: "ITSC 1364", title: "Field Experience" };
+  const section = {
+    section_number: "1",
+    term: "Fall 2026",
+    meets: [],
+    source_url: "https://dallascollege.campusconcourse.com/view_syllabus?course_id=12345",
+  };
+  try {
+    useSavedCourses.setState({ courses: [course] });
+    original.toggleSection(courseOnly, section);
+    original.toggleSection(courseOnly, { ...section, section_number: "2" });
+    original.toggleSection(courseOnly, section);
+    assert.equal(useSavedCourses.getState().courses[1].sections?.length, 1);
+    original.toggleSection(courseOnly, { ...section, section_number: "2" });
+    const remaining = useSavedCourses.getState();
+    assert.deepEqual(remaining.courses, [course]);
+    assert.equal(remaining.draft, original.draft);
+    assert.equal(remaining.questions, original.questions);
+    assert.equal(remaining.taken, original.taken);
   } finally {
     useSavedCourses.setState(original);
   }

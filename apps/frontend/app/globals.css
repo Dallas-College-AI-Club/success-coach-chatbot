@@ -844,6 +844,11 @@
   }
 }
 
+/* Email addresses, source URLs and pasted words must not widen phone replies. */
+.coach-transcript {
+  overflow-wrap: anywhere;
+}
+
 /* The chat panel grows past `lg` (chat-screen.tsx) so course, schedule and
    faculty ROWS can use a big screen. Running text does not benefit: at the
    1152px panel a 14px paragraph sets ~150 characters to the line, roughly

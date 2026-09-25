@@ -3,6 +3,14 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-24 — Final demo audit fixes
+
+The maintainer authorized a final audit, fixes, review by dbracewell and public deployment.
+Long email addresses and URLs wrap inside chat replies rather than widening a phone transcript.
+Removing the last section-only save removes its otherwise empty course entry; older independent
+catalog saves (identified by their catalog source) remain. Other sections, notes and completion
+choices are unaffected. Singular schedule/instructor labels use singular wording.
+
 ## 2026-09-24 — Clear chat without losing saved planning notes
 
 The maintainer requested a visible Clear chat option. Place it beside the suggestions toggle

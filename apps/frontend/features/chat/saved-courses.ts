@@ -210,9 +210,14 @@ export const useSavedCourses = create<SavedCoursesState>()(
             : [...sections, section],
         };
         set({
-          courses: saved
-            ? current.map((c) => (c === saved ? next : c))
-            : [...current, next],
+          // Section-only saves have no independent catalog entry to retain.
+          // Preserve older explicitly saved catalog courses when unscheduling.
+          courses:
+            saved && !next.sections.length && !saved.source_url
+              ? current.filter((c) => c !== saved)
+              : saved
+                ? current.map((c) => (c === saved ? next : c))
+                : [...current, next],
         });
       },
       toggleTaken: (courseCode) => {

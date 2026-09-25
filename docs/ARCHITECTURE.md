@@ -56,7 +56,8 @@ Python data pipeline (apps/data, uv + SQLAlchemy + psycopg 3)
   refreshing restores it. `saved-courses.ts` persists courses, completion choices and sheet edits
   in local storage. Neither is an official student record or cross-device account.
   Clear chat confirms before removing this tab's messages and draft, aborts any active response
-  and remounts the conversation. It preserves onboarding, saved classes and sheet notes.
+  and remounts the conversation. It preserves onboarding, saved classes and sheet notes. Removing
+  the last section-only save removes its empty course entry; independent catalog saves remain.
 - **Completion changes:** each user turn includes a validated checkbox snapshot. The server merges
   changes chronologically with explicit student statements and forces fresh planning for remaining
   course questions. Restored replies never overwrite newer checkbox edits.

@@ -959,7 +959,8 @@ export function ScheduleResults({
         {String(output.course_code)} — Class sections
       </h2>
       <p className="mt-1 text-sm">
-        {String(output.total_sections ?? sections.length)} sections in the saved
+        {String(output.total_sections ?? sections.length)}{" "}
+        {Number(output.total_sections ?? sections.length) === 1 ? "section" : "sections"} in the saved
         schedule{output.requested_term ? ` for ${output.requested_term}` : ""}.
         This is not live registration or seat availability.
       </p>
@@ -979,7 +980,7 @@ export function ScheduleResults({
           className="mt-3 rounded-lg border border-current/15 p-3"
         >
           <summary className={`${skin.link} cursor-pointer font-semibold`}>
-            All {instructors.length} named instructors · Show more
+            {instructors.length === 1 ? "Named instructor" : `All ${instructors.length} named instructors`} · Show more
           </summary>
           <p className="mt-2 text-sm">
             Complete for the selected term in the saved records, including
