@@ -5,6 +5,7 @@ import { knowledgeEntry } from "@/lib/schema";
 import {
   instructorCvLinks,
   isRecord,
+  namedInstructor,
   scheduleSection,
 } from "@/lib/course-details";
 import { normalizeCourseCode } from "./getCourseInfo";
@@ -198,12 +199,8 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
   }
   const namedInstructors = new Map<string, (typeof instructorRows)[number]>();
   for (const row of instructorRows) {
-    if (
-      row.professor &&
-      !/^(?:to be announced|tba)$/i.test(row.professor.trim()) &&
-      !namedInstructors.has(row.professor)
-    )
-      namedInstructors.set(row.professor, row);
+    const name = namedInstructor(row.professor);
+    if (name && !namedInstructors.has(name)) namedInstructors.set(name, row);
   }
   const profiles = new Map(cvRows.map((row) => [row.slug, row]));
   const total = counts[0]?.count ?? 0;
@@ -228,8 +225,7 @@ export const EXECUTE = async (input: z.infer<typeof INPUT_SCHEMA>) => {
     })),
     unassigned_instructor: instructorRows.some(
       (row) =>
-        !row.professor ||
-        /^(?:to be announced|tba)$/i.test(row.professor.trim()),
+        !namedInstructor(row.professor),
     ),
     instructor_profiles: [...cvLinks].flatMap(([slug, url]) => {
       const profile = profiles.get(slug);

@@ -13,6 +13,7 @@ import {
   useSavedCourses,
 } from "@/features/chat/saved-courses";
 import { citationHref } from "@/lib/constants";
+import { SyllabusLink } from "@/features/chat/syllabus-link";
 import { assessRequisites, type CourseHistory } from "@/lib/planning";
 import {
   readElectiveOptions,
@@ -27,6 +28,7 @@ import {
   programGroupRules,
   readCourseDetails,
   scopeProgramGroups,
+  sectionLocation,
   type CourseDetails,
   type ScheduleGrouping,
 } from "@/lib/course-details";
@@ -1046,7 +1048,6 @@ export function ScheduleResults({
       savedSections.some(
         (s) => savedSectionKey(s) === savedSectionKey(saveable),
       );
-    const href = citationHref(section.source_url);
     const cvHref = citationHref(section.professor_cv_url);
     const profile = profiles.find((p) => citationHref(p.source_url) === cvHref);
     const times = Array.isArray(section.meets)
@@ -1063,9 +1064,8 @@ export function ScheduleResults({
             {catalogText(section.professor) ?? "Instructor not listed"}
           </strong>{" "}
           ·{" "}
-          {catalogText(section.modality)?.replaceAll("_", " ") ??
-            "Format not listed"}{" "}
-          · {catalogText(section.campus) ?? "Campus not listed"}
+          {sectionLocation(section.campus, section.modality) ||
+            "Location and format not listed"}
         </p>
         <p className="mt-1 text-sm">
           {section.start_date && section.end_date
@@ -1084,14 +1084,6 @@ export function ScheduleResults({
               No published clock times in this record. Check the section source
               before planning your schedule.
             </p>
-            {catalogText(section.meeting_info_raw) && (
-              <details className="mt-1">
-                <summary className={`${skin.link} cursor-pointer`}>
-                  Source meeting information
-                </summary>
-                <p className="mt-1">{String(section.meeting_info_raw)}</p>
-              </details>
-            )}
           </div>
         )}
         <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
@@ -1111,16 +1103,10 @@ export function ScheduleResults({
               {saved ? "✓ Section in notes" : "+ Add section to notes"}
             </button>
           )}
-          {href && (
-            <a
-              className={`${skin.link} inline-block text-sm`}
-              href={href}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Section source ↗
-            </a>
-          )}
+          <SyllabusLink
+            section={section}
+            className={`${skin.link} inline-flex min-h-11 items-center text-sm`}
+          />
           {cvHref && (
             <ProfessorDetails
               name={catalogText(section.professor) ?? "this instructor"}

@@ -35,7 +35,7 @@ export function SuccessCoachWordmark({
       height={852}
       priority
       style={{ height, width: "auto" }}
-      className={className}
+      className={`max-w-none shrink-0 object-contain ${className}`}
     />
   );
 }
@@ -48,7 +48,7 @@ export function AiClubLogo({ className = "" }: { className?: string }) {
       target="_blank"
       rel="noopener noreferrer"
       aria-label="Dallas College AI Club — opens in a new tab"
-      className={`inline-flex items-center ${className}`}
+      className={`inline-flex shrink-0 items-center ${className}`}
     >
       <Image
         src="/logo.png"
@@ -56,7 +56,7 @@ export function AiClubLogo({ className = "" }: { className?: string }) {
         width={356}
         height={380}
         priority
-        className="h-11 w-auto object-contain"
+        className="h-11 w-auto max-w-none shrink-0 object-contain"
       />
     </a>
   );

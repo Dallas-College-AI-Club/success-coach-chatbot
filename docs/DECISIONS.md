@@ -3,6 +3,66 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-09-25 — Require exact syllabus hyperlinks across the Fall inventory
+
+The maintainer rejected official-library fallbacks and requested exact document links for every
+Fall section in Neon. This supersedes the library-substitute decision below. Discover the full
+public Fall directory as metadata only, reconcile course/section/term identities, preserve
+document-ID and link evidence, and report absent or conflicting identities explicitly. Never
+guess an opaque document ID or use a neighboring section. Do not resume syllabus-body ingestion.
+
+Only verified document URLs are accepted by the app, including titled `?mode=view` links.
+Old persisted library values are ignored, and model projections omit unverified legacy URLs.
+Existing Simple Syllabus links require no browser lookup; older saved sections request one small cached
+correction by source URL instead of downloading the full directory. Database writes remain
+limited to `metadata.syllabus_link`, with a before-state backup and unchanged-field comparisons.
+
+Some exact Fall 2026 documents still exist on Concourse but have no published replacement in
+the new directory. Retain these only after checking their public course/section/term/date header;
+resolve original search URLs to individually checked documents where possible. Prefer a new
+Simple Syllabus document whenever the complete directory identifies one. Saved Concourse
+documents remain eligible for refresh. Keep the platform distinction in the audit report, and
+never describe a legacy document as a newly migrated syllabus.
+
+## 2026-09-25 — Correct syllabus links without importing syllabus content
+
+The maintainer requested corrected Neon syllabus hyperlinks, readable prep-sheet fields and
+removal of raw meeting-source text. The paused collection task supplied 536 verified exact
+offering matches. Two additional public links (ITSD 4340 section 1 and ITNW 1308 section 8)
+were checked against their live document identity, instructor and dates. Collection stays paused.
+
+Store `metadata.syllabus_link` separately from schedule `source_url`, which remains provenance
+and the saved-section identity. All 12,872 Fall 2026 section rows receive either a verified
+direct link (538) or an explicitly labeled official-library fallback (12,334). Do not infer an
+opaque Simple Syllabus ID, substitute a sibling section, or imply the model read a linked
+document. Original schedule facts, hashes, timestamps and other metadata are unchanged.
+
+Old browser-saved sections resolve the corrections through one public cached metadata response.
+The name label sits above its input with an explicit gap; screen edit controls have 44px touch
+targets. Remove unparsed meeting strings from both cards and sheets while retaining parsed
+meeting times and the model's unknown-time guard.
+
+The public answer check exposed forced broad recovery for a known course missing the requested
+term, which introduced older section snippets and an unsupported timing generalization. Treat
+that case as a schedule-coverage gap; retain broad recovery for unresolved course identities.
+
+## 2026-09-25 — Post-townhall branding and answer quality
+
+The maintainer reported squeezed header logos and requested another UI and answer audit.
+Preserve the artwork's native proportions in nonshrinking brand groups; phone preferences
+wrap onto their own row and desktop controls share the header. Both onboarding and chat use
+the same layout rules. The compact-height layout still reserves space for the conversation.
+
+The real-answer pass reproduced an unassigned instructor being called "Professor To be
+Announced", missing online times being described as "no fixed meeting times", and a course
+correction producing an answer before refreshing its checklist. Normalize assignment
+placeholders in cards, rosters and search excerpts, explicitly label missing meeting times
+in model inputs, and refresh a known program first when the student reports a course status.
+Keep original source records and saved conversations intact; no model or dataset changes.
+The public prose check also generalized a recommendation across courses; explicitly scope each
+recommendation to the course that records it. After a cached Vercel build mixed new markup with
+old styles, require a cache-free release build and inspect the staged CSS before promotion.
+
 ## 2026-09-25 — Make elective controls reveal real courses
 
 The maintainer reported that elective disclosures only repeated requirement text and broke into

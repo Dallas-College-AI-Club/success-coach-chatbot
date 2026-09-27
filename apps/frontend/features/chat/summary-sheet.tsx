@@ -12,6 +12,8 @@ import {
 } from "@/features/chat/completion-state";
 import { clearConversation } from "@/features/chat/conversation-store";
 import { PlanningControls } from "@/features/chat/planning-controls";
+import { SyllabusLink } from "@/features/chat/syllabus-link";
+import { sectionLocation } from "@/lib/course-details";
 
 import { AiClubLogo } from "@/features/onboarding/shared/brand";
 import { SuccessCoachBot } from "@/features/onboarding/shared/success-coach-bot";
@@ -84,24 +86,18 @@ function ClassEntry({
                 </div>
                 {section.meets.length ? (
                   section.meets.map((time) => <div key={time}>{time}</div>)
-                ) : section.meeting_info_raw ? (
-                  <div>
-                    Source meeting information: {section.meeting_info_raw}
-                  </div>
                 ) : null}
                 <div>
                   {[
                     section.professor,
-                    section.campus,
-                    section.modality?.replaceAll("_", " "),
+                    sectionLocation(section.campus, section.modality),
                   ]
                     .filter(Boolean)
                     .join(" · ")}
                 </div>
-                <Cite
-                  label="Saved section · confirm current details"
-                  url={section.source_url}
-                />
+                <div className="sheet-cite">
+                  <SyllabusLink section={section} />
+                </div>
                 <button
                   type="button"
                   className="sheet-add min-h-11 print:hidden"
@@ -266,13 +262,13 @@ export function SummarySheet() {
             <p>Notes I made with Major, the Dallas College AI Club planner.</p>
           </div>
           <div className="sheet-meta">
-            <label>
-              Name{" "}
+            <label className="sheet-name-field">
+              <span>Name</span>
               <input
                 value={name}
                 maxLength={200}
                 onChange={(e) => updateDraft({ name: e.target.value })}
-                placeholder="your name"
+                placeholder="Enter your name"
                 aria-label="Your name"
               />
               <span className="sheet-name-print">

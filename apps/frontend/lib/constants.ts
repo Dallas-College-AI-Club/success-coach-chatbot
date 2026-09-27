@@ -47,12 +47,14 @@ export const DALLAS_COLLEGE_TIME_ZONE = "America/Chicago";
 
 /**
  * Every host the verified corpus cites: the catalog serves course and
- * program_map rows; Concourse serves section/syllabus and cv rows. Both are
- * Dallas College systems. Add a host only when a row actually emits it.
+ * program_map rows; Concourse preserves historical section and CV citations;
+ * Simple Syllabus supplies the verified Fall syllabus links. Add a host only
+ * when a row actually emits it.
  */
 const CITATION_HOSTS: ReadonlySet<string> = new Set([
   "catalog.dallascollege.edu",
   "dallascollege.campusconcourse.com",
+  "dallascollege.simplesyllabus.com",
   "www.dallascollege.edu",
   "dallascollege.edu",
 ]);

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createRequire } from "node:module";
 import { POST } from "../app/api/chat/route";
+import { GET as syllabusLinks } from "../app/api/syllabus-links/route";
 import { EXECUTE as semester } from "../lib/tools/getSemester";
 import {
   EXECUTE as search,
@@ -10,10 +11,22 @@ import {
   hasTopicEvidence,
   searchExcerpt,
   courseSearchText,
+  sectionSearchText,
   asksForTutoringService,
   asksForCoachingService,
 } from "../lib/tools/searchKnowledge";
 import { COACH } from "../features/onboarding/handoff-copy";
+import { scheduleResultForModel } from "../lib/course-details";
+
+test("saved syllabus lookup rejects unrelated and oversized source URLs before querying", async () => {
+  for (const source of ["", "javascript:alert(1)", "https://evil.example/view_syllabus?course_id=1",
+    "https://dallascollege.campusconcourse.com.evil.example/view_syllabus?course_id=1", "x".repeat(2001)]) {
+    const response = await syllabusLinks(new Request(`https://example.test/api/syllabus-links?source=${encodeURIComponent(source)}`));
+    assert.equal(response.status, 400);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    assert.deepEqual(await response.json(), {});
+  }
+});
 
 test("coach contacts use the service record without diverting faculty or course discovery", () => {
   for (const query of [
@@ -122,6 +135,17 @@ test("course discovery distinguishes missing prerequisites from explicit catalog
   ]) {
     assert.equal(courseSearchText(text), text);
   }
+});
+
+test("section discovery never turns an unassigned instructor into a professor", () => {
+  for (const placeholder of ["To be Announced", "TBA", "to be announced"]) {
+    assert.equal(
+      sectionSearchText(`ITNW 1308, section 6, 2026FA, online, Prof. ${placeholder}. Location: Online.`),
+      "ITNW 1308, section 6, 2026FA, online, Instructor not yet assigned. Location: Online.",
+    );
+  }
+  const named = "ITNW 1308, Prof. Williams, Joselle. Location: Online.";
+  assert.equal(sectionSearchText(named), named);
 });
 
 // All provider traffic is mocked. This suite never loads local credentials.
@@ -305,6 +329,21 @@ test("a failed exact lookup forces broad recovery once, never for ambiguity or u
   assert.equal(recoveryToolChoice([]), undefined);
 });
 
+test("a known course's missing term does not force older-section recovery", () => {
+  const gap = { found: false, total_sections: 0, requested_term: "spring 2027",
+    terms_on_record: ["fall 2026"], offerings: [] };
+  const step = (output: unknown) => [{ toolResults: [{ toolName: "get_class_schedule", output }] }];
+  assert.equal(recoveryToolChoice(step(gap)), undefined);
+  assert.deepEqual(recoveryToolChoice(step({ ...gap, terms_on_record: [] })),
+    { type: "tool", toolName: "search_knowledge" });
+  assert.deepEqual(recoveryToolChoice(step({ found: false })),
+    { type: "tool", toolName: "search_knowledge" });
+  const projected = scheduleResultForModel(gap) as Record<string, unknown>;
+  assert.deepEqual(projected.offerings, []);
+  assert.match(String(projected.availability_guidance), /Do not search for or substitute older-term/);
+  assert.equal('availability_guidance' in (scheduleResultForModel({ ...gap, found: true, total_sections: 1 }) as object), false);
+});
+
 test("structured follow-ups refresh facts without inventing an unidentified program", async () => {
   const { requestedToolChoice, TOOL_REGISTRY } =
     await import("../lib/tools/registry");
@@ -313,6 +352,8 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
     "What do I still need for my certificate?",
     "What is left?",
     "Actually I am still taking ITSE 1370. What should I take next?",
+    "Correction: I am still taking ITSC 1325, not done with it.",
+    "I completed ITNW 1308.",
     "Which classes can I take next?",
     "What course should I study next?",
   ]) {
@@ -323,6 +364,10 @@ test("structured follow-ups refresh facts without inventing an unidentified prog
   }
   assert.equal(requestedToolChoice("Show my first semester", 0), undefined);
   assert.equal(requestedToolChoice("What should I take next?", 0), undefined);
+  assert.equal(
+    requestedToolChoice("Correction: I am still taking ITSC 1325, not done with it.", 0),
+    undefined,
+  );
   assert.equal(
     requestedToolChoice("What does a class cost?", 0, { programKnown: true }),
     undefined,
