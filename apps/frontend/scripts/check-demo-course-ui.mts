@@ -1675,7 +1675,7 @@ test("published schedule rows offer section-specific note actions only with an o
 });
 
 // --- faculty search: publication evidence and surname order -----------------
-// The professors Minjoo asked about are named by surname, and the evidence
+// The professors students ask about are named by surname, and the evidence
 // that proves their expertise often survives only as a publication venue.
 
 const facultyRow = (

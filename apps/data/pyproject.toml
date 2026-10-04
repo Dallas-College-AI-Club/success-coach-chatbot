@@ -24,7 +24,7 @@ dependencies = [
 dev = ["pytest>=9.1.1"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]  # archive/tests/ is frozen with its modules; never collected
+testpaths = ["tests"]
 
 [build-system]
 requires = ["hatchling"]

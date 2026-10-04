@@ -110,6 +110,16 @@ def test_empty_verification_never_passes(tmp_path):
     assert result.value.code == 1
 
 
+def test_raw_root_defaults_to_data_dir(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATA_DIR", raising=False)
+    with pytest.raises(SystemExit) as result:
+        golden_gate(["--gate-dir", str(tmp_path)])
+    assert result.value.code == 2  # argparse: --raw-root is required without DATA_DIR
+    monkeypatch.setenv("DATA_DIR", str(tmp_path))
+    with pytest.raises(SystemExit, match="No golden fixtures"):
+        golden_gate(["--gate-dir", str(tmp_path)])
+
+
 def test_changed_title_fails_source_verification():
     facts = valid_row()["facts"]
     source = "ABDR 1307 - Completely Different Title (3 Credit Hours)"

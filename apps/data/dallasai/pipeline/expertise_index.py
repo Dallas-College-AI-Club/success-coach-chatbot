@@ -20,6 +20,7 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .compute_cv import _norm_prof
 
 CURRENCY_ORDER = {"current": 0, "recent": 1, "historical": 2}
@@ -160,7 +161,7 @@ def main(argv=None) -> None:
     ap.add_argument(
         "--drafts", type=Path, help="dir of cv2 DRAFT-*.md exemplars (demo mode)"
     )
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     ap.add_argument(
         "--out", type=Path, required=True, help="output basename (writes .json and .md)"
     )

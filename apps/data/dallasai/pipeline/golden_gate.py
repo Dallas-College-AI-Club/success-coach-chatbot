@@ -20,6 +20,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .extract import extract, html_to_text
 
 REL = {
@@ -63,7 +64,7 @@ def diff_paths(a, b, path="$", ws_only=None):
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     ap.add_argument(
         "--gate-dir",
         type=Path,

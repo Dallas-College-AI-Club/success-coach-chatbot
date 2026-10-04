@@ -35,6 +35,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .compute_cv import (
     SUMMARY_TOKENS,
     _norm_prof,
@@ -485,11 +486,7 @@ def main(argv=None) -> None:
     ap.add_argument("--draft", type=Path, help="single DRAFT-*.md exemplar to verify")
     ap.add_argument("--source", type=Path, help="source .txt (draft mode)")
     ap.add_argument("--as-of", type=int, required=True)
-    ap.add_argument(
-        "--raw-root",
-        type=Path,
-        help="corpus root: source docs + manifests (enables teaching_record check)",
-    )
+    add_data_dir_arg(ap, required=False)  # enables the teaching_record check
     args = ap.parse_args(argv)
     if bool(args.facts) == bool(args.draft):
         ap.error("Specify exactly one of --facts or --draft")

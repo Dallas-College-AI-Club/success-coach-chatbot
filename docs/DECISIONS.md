@@ -3,6 +3,28 @@
 Append-only log of release-scoped decisions that would otherwise go stale in the README or get
 lost in a closed PR. Newest first. Each entry is dated and says who decided, not an AI persona.
 
+## 2026-10-03 — Clean the shared repository before November
+
+Minjoo Kim decided to make the tree readable for new teammates:
+
+- Superseded documents (`docs/archive/`) and retired pipeline code with its raw sample files
+  (`apps/data/archive/`) are deleted rather than archived. This reverses the "archived rather than
+  deleted" note of 2026-09-20 below. Git history keeps them; links that pointed at them now point
+  at commit `65f85ae`. Also removed: the placeholder `drizzle.config` and unused
+  `tsconfig.drizzle-tests.json`, the retired gate exemplars, the unused mock seed and the
+  superseded extraction prompts v1 and v2.
+- `docs/TOWNHALL_READINESS.md` is retired: its decisions are the 2026-09-24 and 2026-09-25 entries
+  below, the open after-demo items are listed under "Townhall readiness and printable notes", and
+  the packaging lesson lives in `next.config.ts` and `scripts/check-embedding-trace.mts`. Its
+  release evidence stays in Git history at `65f85ae`.
+- The raw-corpus setting is renamed from `RAW_ROOT` to `DATA_DIR`. Every pipeline command now
+  defaults `--raw-root` (and the scrapers' `--out`) to it, and nothing falls back to a folder
+  inside the repository. Rename `RAW_ROOT=` to `DATA_DIR=` in your local `apps/data/.env`.
+- Superseded Alembic wording is removed from the database design doc and schema comments; the
+  schema is created by `dallasai.database --init`, and existing databases change only through a
+  separately reviewed migration.
+- Rules for coding agents live in `AGENTS.md`; `CLAUDE.md` only imports it.
+
 ## 2026-09-25 — Require exact syllabus hyperlinks across the Fall inventory
 
 The maintainer rejected official-library fallbacks and requested exact document links for every
@@ -244,8 +266,8 @@ refresh, longer-lived sessions and stronger operational controls using actual us
 
 The team completed the responsive Playful scene, section-note and dark-mode requests on the
 merged #194 baseline. No schema, database content or model configuration changed. Full evidence
-is archived at [archive/2026-09-20-SHOWCASE_EXECUTIVE_DECISIONS.md](archive/2026-09-20-SHOWCASE_EXECUTIVE_DECISIONS.md)
-and [archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md](archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md).
+is archived at [archive/2026-09-20-SHOWCASE_EXECUTIVE_DECISIONS.md](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/2026-09-20-SHOWCASE_EXECUTIVE_DECISIONS.md)
+and [archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md).
 
 - **Model:** `openai/gpt-4.1-mini` via OpenRouter, chosen for the best latency/quality/cost
   balance of the models compared (`GPT-OSS 20B`, `GPT-4.1 mini`, `GPT-5.6 Luna`).

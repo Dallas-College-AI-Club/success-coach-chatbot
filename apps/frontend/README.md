@@ -16,7 +16,7 @@ npm run dev
 
 On PowerShell, use `Copy-Item .env.example .env.local`. Open http://localhost:3000. The example selects `openai/gpt-4.1-mini`; calls use paid OpenRouter credits. Keep credentials in ignored local configuration or the hosting platform's secret store. Never place them in source, screenshots, issues or PRs.
 
-The app queries existing data; startup does not import or repair the database. Follow the [data runbook](../data/REPRODUCE.md) for ingestion. An empty database cannot answer the demo questions. The historical SQL seed is illustrative, not the audited catalog/schedule corpus.
+The app queries existing data; startup does not import or repair the database. Follow the [data runbook](../data/REPRODUCE.md) for ingestion. An empty database cannot answer the demo questions.
 
 ## How an answer reaches the student
 
@@ -47,7 +47,7 @@ flowchart LR
 npm run verify
 ```
 
-The regression scripts use `node:test` through `tsx`; provider traffic is mocked in the boundary suite. They do not need production credentials. CI also builds the app and tests the Python pipeline. A build may need internet access for fonts. Read-only database comparisons and real model/browser checks are recorded separately in the [archived showcase audit](../../docs/archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint); their local traces are intentionally ignored.
+The regression scripts use `node:test` through `tsx`; provider traffic is mocked in the boundary suite. They do not need production credentials. CI also builds the app and tests the Python pipeline. A build may need internet access for fonts. Read-only database comparisons and real model/browser checks are recorded separately in the [archived showcase audit](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/2026-09-20-SHOWCASE_AUDIT_AND_CLEANUP_STRATEGY.md#final-review-checkpoint); their local traces are intentionally ignored.
 
 ## Demo boundaries
 

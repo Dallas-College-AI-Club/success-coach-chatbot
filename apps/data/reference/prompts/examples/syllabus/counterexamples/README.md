@@ -2,7 +2,7 @@
 
 **Never splice these into an extraction prompt.** The planned `build_prompt()` EXAMPLES
 splice globs `apps/data/prompts/examples/<doc_type>/*.md` (see the header of
-`extract_v2.md`); this subfolder exists precisely so these files stay OUT of that glob.
+`extract_v3.md`); this subfolder exists precisely so these files stay OUT of that glob.
 If the splice implementation ever changes to a recursive glob, it must exclude
 `counterexamples/` — a wrong output injected as a worked example would teach the model
 the exact failures the gold gate exists to catch.

@@ -24,6 +24,7 @@ import json
 import re
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .compute_cv import (
     ORD_TERM,
     _norm_prof,
@@ -89,7 +90,7 @@ def main(argv=None) -> None:
         "--facts", type=Path, required=True, help="extract_batch cv envelope dir"
     )
     ap.add_argument("--out", type=Path, required=True)
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     ap.add_argument(
         "--as-of",
         type=int,
