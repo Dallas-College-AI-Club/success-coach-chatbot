@@ -21,6 +21,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .archive_syllabi_cv import _modality_from_meeting, _session_label
 from .build_knowledge import (
     _section_metadata,
@@ -116,7 +117,7 @@ def catalog_rows(facts_dir: Path):
 
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     ap.add_argument("--facts", type=Path, required=True)
     ap.add_argument("--terms", nargs="+", default=["2026SP", "2026SU"])
     ap.add_argument("--out", type=Path, required=True)

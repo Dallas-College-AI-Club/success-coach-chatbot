@@ -1,7 +1,7 @@
 """Self-healing sequential driver for the archive backfill (one process =
 polite rate). Runs to completion without supervision.
 
-Term-agnostic: it discovers EVERY schedule CSV in apps/data/raw/schedule/
+Term-agnostic: it discovers EVERY schedule CSV in $DATA_DIR/schedule/
 (dallas_classes_*.csv) and processes them. Steps, in priority order (smallest/
 highest-value first), all resumable so a stop/restart loses nothing:
     1. CVs      — every distinct professor across ALL schedule CSVs (deduped)
@@ -31,14 +31,9 @@ try:
 except ModuleNotFoundError:
     from apps.data.dallasai.pipeline import archive_syllabi_cv as A
 
-# Raw corpus lives in apps/data/raw/ (gitignored, OneDrive-shared). This file is
-# apps/data/dallasai/pipeline/run_archive_today.py, so apps/data is three parents
-# up — not two. Prefer $RAW_ROOT when it is set, which is what every other stage
-# keys on.
-DATA = Path(
-    os.environ.get("RAW_ROOT")
-    or Path(__file__).resolve().parent.parent.parent / "raw"
-)
+# Raw corpus root, outside the repo: the DATA_DIR setting every stage keys on
+# (apps/data/.env.example).
+DATA = Path(os.environ["DATA_DIR"])
 SCHEDULE_DIR = DATA / "schedule"
 DELAY = "2"
 

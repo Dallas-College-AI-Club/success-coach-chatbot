@@ -45,8 +45,8 @@ uv run python -m dallasai.pipeline.<module>
 
 Setup never drops existing tables, and status checks never initialize the
 database. Retired code (ChromaDB prototypes, the pre-loader write path, the
-Alembic scaffold) lives in [`archive/`](archive/README.md); nothing there is
-imported by the pipeline or CI.
+Alembic scaffold) was removed from the tree; it stays in Git history at
+[`65f85ae`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/tree/65f85ae/apps/data/archive).
 
 ## Adding a library
 

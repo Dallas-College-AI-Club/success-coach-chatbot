@@ -12,7 +12,7 @@ Two-pass, so we fetch exactly the courses degree plans actually use:
           harvest the course coids it references
   pass 2  fetch those course pages
 
-Layout under --out (default apps/data/raw/):
+Layout under --out (default $DATA_DIR):
     catalog/<catalog_year>/index.html            the program index (provenance)
     catalog/<catalog_year>/programs/<poid>.html  one per degree/certificate plan
     catalog/<catalog_year>/courses/<coid>.html   one per referenced course
@@ -42,6 +42,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from . import add_data_dir_arg
 
 BASE = "https://catalog.dallascollege.edu"
 PROGRAM_INDEX_NAVOID = 1227  # "Degrees and Certificates (by Program)"
@@ -174,8 +176,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--catoid", required=True, help="Acalog catalog id (2026-2027 = 5)")
     ap.add_argument("--catalog-year", required=True, help="e.g. 2026-2027 (the scoping key)")
-    ap.add_argument("--out", type=Path,
-                    default=Path(__file__).resolve().parent.parent / "raw")
+    add_data_dir_arg(ap, "--out")
     ap.add_argument("--navoid", type=int, default=PROGRAM_INDEX_NAVOID,
                     help="program-index navoid (default 1227)")
     ap.add_argument("--poids-file", type=Path, default=None,

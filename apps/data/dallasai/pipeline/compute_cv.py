@@ -27,6 +27,8 @@ import re
 from collections import defaultdict
 from pathlib import Path
 
+from . import add_data_dir_arg
+
 # Real postal codes only: a bare [A-Z]{2} read ", UK" / ", RO" / ", AT"
 # as US states and reported "United States" for London, Bucharest, Vienna.
 US_STATE = re.compile(
@@ -284,7 +286,7 @@ def teaching_records(raw_root: Path) -> dict[str, dict]:
 def main(argv=None) -> None:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--facts", type=Path, required=True, help="cv facts envelopes dir")
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     ap.add_argument(
         "--as-of", type=int, required=True, help="scrape year resolving 'Present'"
     )

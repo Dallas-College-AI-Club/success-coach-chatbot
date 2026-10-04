@@ -18,6 +18,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from bs4 import BeautifulSoup
 
+from . import add_data_dir_arg
 from .build_knowledge import compose_course, content_hash
 from .extract import validate
 from .verify_catalog import check_course, fold
@@ -269,7 +270,7 @@ def reconcile(
 
 def main(argv=None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(parser)
     parser.add_argument("--snapshot", type=Path, required=True)
     parser.add_argument("--catalog-year", default="2026-2027")
     parser.add_argument("--out", type=Path, required=True)

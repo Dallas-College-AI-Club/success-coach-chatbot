@@ -2,7 +2,7 @@
 
 How the pieces fit together as they run today. For the reasoning behind design choices and
 release-specific numbers, see [DECISIONS.md](DECISIONS.md); for the original detailed proposals
-these implementations grew from, see [archive/](archive/).
+these implementations grew from, see [archive/](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/tree/65f85ae/docs/archive).
 
 ## Components
 

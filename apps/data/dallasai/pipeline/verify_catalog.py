@@ -24,6 +24,7 @@ import re
 import sys
 from pathlib import Path
 
+from . import add_data_dir_arg
 from .extract import html_to_text
 
 NOISE = [
@@ -176,7 +177,7 @@ def main(argv=None) -> None:
         required=True,
         help="facts output dir (from extract_batch)",
     )
-    ap.add_argument("--raw-root", type=Path, required=True)
+    add_data_dir_arg(ap)
     args = ap.parse_args(argv)
 
     adjudications = (
