@@ -1,4 +1,4 @@
-# Catalog extraction runner — stages per CATALOG_TO_NEON_HANDOFF.md.
+# Catalog extraction runner — stages per EXTRACTION_MANUAL.md.
 #   .\run_catalog.ps1 -Stage gate | pilot | bulk | verify
 # Requires ANTHROPIC_API_KEY in apps\data\.env. A red gate BLOCKS later stages.
 param([Parameter(Mandatory=$true)][ValidateSet("gate","pilot","bulk","verify")][string]$Stage)
@@ -11,7 +11,7 @@ Get-Content "$here\.env" | Where-Object { $_ -match "^\s*[^#].*=" } | ForEach-Ob
 }
 if (-not $env:ANTHROPIC_API_KEY) { Write-Error "ANTHROPIC_API_KEY is empty in apps\data\.env"; exit 1 }
 $env:PYTHONIOENCODING = "utf-8"
-$raw = $env:RAW_ROOT
+$raw = $env:DATA_DIR
 $out = $env:FACTS_OUT
 
 if ($Stage -eq "gate") {

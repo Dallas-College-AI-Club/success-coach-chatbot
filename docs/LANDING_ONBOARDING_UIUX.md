@@ -4,10 +4,10 @@
 |---|---|
 | **Issue** | [#52 — Landing & Onboarding Page UI Implementation](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/52) |
 | **App** | `apps/frontend` (Next.js App Router, React, Tailwind v4, ShadCN) |
-| **Builds on** | [`conversation-entry-design.md`](archive/conversation-entry-design.md) (#40, archived) · [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) · [`DATABASE_ARCHITECTURE.md`](DATABASE_ARCHITECTURE.md) (#36) · [`AGENT_PERSONALITIES.md`](archive/AGENT_PERSONALITIES.md) (#41, archived) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
+| **Builds on** | [`conversation-entry-design.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/conversation-entry-design.md) (#40, archived) · [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) · [`DATABASE_ARCHITECTURE.md`](DATABASE_ARCHITECTURE.md) (#36) · [`AGENT_PERSONALITIES.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/AGENT_PERSONALITIES.md) (#41, archived) · governance RFCs 0001–0006 (#54) · [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) |
 | **Audience** | First-time reader — teammate, reviewer, or Success Coach. No code knowledge assumed. |
 
-The first screen a student sees. It carries the team's [conversational entry flow](archive/conversation-entry-design.md) (#40) into a working surface: a student picks a look, answers a few optional, tap-answerable questions that scope their first request, and is handed into the planning chat. The question set is the intake a Success Coach identified as what students should arrive with (#42); the captured payload is shaped to the profile allowlist in the two-table schema (#36); the copy holds to the trust invariants in the governance RFCs (#54).
+The first screen a student sees. It carries the team's [conversational entry flow](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/conversation-entry-design.md) (#40) into a working surface: a student picks a look, answers a few optional, tap-answerable questions that scope their first request, and is handed into the planning chat. The question set is the intake a Success Coach identified as what students should arrive with (#42); the captured payload is shaped to the profile allowlist in the two-table schema (#36); the copy holds to the trust invariants in the governance RFCs (#54).
 
 ---
 
@@ -26,7 +26,7 @@ The seam between stage 1 and the rest is a single console-logged payload whose k
 ## 2. The screen
 
 - **Welcome.** The *Success Coach* brand cover (`public/title.png`, served through `next/image`), a one-line greeting, a style picker — **Simple · Playful · Focus** — and a Start button. The Dallas College AI Club logo (`public/logo.png`) links to the club site.
-- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Sessions are saved by the anonymous client store (#50): `onboarding-store.ts` persists the completed session to `localStorage` (key `student-session-store`), and the **"Welcome back"** entry renders only for a returning student, resuming their saved summary. [`handoff/ISSUE_50_HANDOFF.md`](archive/ISSUE_50_HANDOFF.md) records the design history.
+- **First-time vs returning** — the fork the entry design (#40) opens with. A first-time student picks a look and starts the questions; a returning student resumes from a saved summary instead. Sessions are saved by the anonymous client store (#50): `onboarding-store.ts` persists the completed session to `localStorage` (key `student-session-store`), and the **"Welcome back"** entry renders only for a returning student, resuming their saved summary. [`handoff/ISSUE_50_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_50_HANDOFF.md) records the design history.
 - **Persistent style switcher.** A control at the top changes the look at any point and preserves every answer; the wordmark returns to the welcome page.
 - **Single-mode ship.** Each mode is data — a `Skin` (class strings), a `Copy` (strings), a font, and a wizard shell. Setting the mode list to one entry drops the picker and switcher and gives every student that one look.
 
@@ -223,7 +223,7 @@ Completion logs one object to the console and persists it through the client sto
 
 Two properties keep the payload stable for whoever consumes it next. **Closed-list values only:** each answer stores an exact value; *"I'm still figuring it out"* is a real answer (`null`), distinct from a skip. **Skips are derived at completion** from the resolved branch, so back-navigation and branch changes still yield a correct record.
 
-Persisting this object so a returning student can resume is the anonymous client store's job (#50): [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) persists it to `localStorage` under `student-session-store` alongside a client-generated `studentId`, and the welcome screen shows the returning-student entry only when a saved session exists. [`handoff/ISSUE_50_HANDOFF.md`](archive/ISSUE_50_HANDOFF.md) records the handoff that shaped it. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
+Persisting this object so a returning student can resume is the anonymous client store's job (#50): [`onboarding-store.ts`](../apps/frontend/features/onboarding/onboarding-store.ts) persists it to `localStorage` under `student-session-store` alongside a client-generated `studentId`, and the welcome screen shows the returning-student entry only when a saved session exists. [`handoff/ISSUE_50_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_50_HANDOFF.md) records the handoff that shaped it. The payload is designed never to leave the browser or reach a student record; the welcome footer says exactly that.
 
 ---
 
@@ -318,10 +318,10 @@ Why "Major": it is the product's own vocabulary — declaring a major, planning 
 
 ## References
 
-- [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) — the engagement & onboarding strategy this implements
-- [`conversation-entry-design.md`](archive/conversation-entry-design.md) (#40) — the entry flow this carries forward
+- [`ENGAGEMENT_ONBOARDING_STRATEGY.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ENGAGEMENT_ONBOARDING_STRATEGY.md) — the engagement & onboarding strategy this implements
+- [`conversation-entry-design.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/conversation-entry-design.md) (#40) — the entry flow this carries forward
 - [`success-coach-interview-summary.md`](success-coach-interview-summary.md) (#42) — source of the question set
 - [`DEGREE_PLANNING_STORIES.md`](user-stories/DEGREE_PLANNING_STORIES.md) — intents and sprint order
 - [`onboarding-flow-stress.ts`](onboarding-flow-stress.ts) — the flow verification harness
-- [`handoff/CHAT_UI_HANDOFF.md`](archive/CHAT_UI_HANDOFF.md) — what the planning-chat build (#37) inherits from onboarding
+- [`handoff/CHAT_UI_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/CHAT_UI_HANDOFF.md) — what the planning-chat build (#37) inherits from onboarding
 - Issues [#36](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/36) (schema) · [#37](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/37) (chat) · [#41](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/41) (personalities) · [#50](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/50) (persistence & analytics) · [#51](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/issues/51) (backend models)

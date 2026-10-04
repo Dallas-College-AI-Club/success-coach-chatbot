@@ -303,7 +303,7 @@ uv sync                       # installs the pipeline's dependencies
 cp .env.example .env          # then set EXTRACTOR / ANTHROPIC_API_KEY / DATABASE_URL
 ```
 
-**Acquire raw files** (schedule CSVs go in `apps/data/raw/schedule/` first):
+**Acquire raw files** (schedule CSVs go in `$DATA_DIR/schedule/` first; set `DATA_DIR` in `.env` to the raw-corpus folder outside the repo):
 
 ```bash
 python -m dallasai.pipeline.run_archive_today                       # all terms present
@@ -321,8 +321,8 @@ envelope is skipped); assemble, embed and load are full re-runs, and the load sk
 whose `content_hash` is unchanged:
 
 ```bash
-python -m dallasai.pipeline.extract_batch --raw-root "$RAW_ROOT" --doc-type course --out out/facts
-python -m dallasai.pipeline.assemble_delivery --raw-root "$RAW_ROOT" --facts out/facts --terms 2026SP --out out/delivery --fail-on-acceptance
+python -m dallasai.pipeline.extract_batch --raw-root "$DATA_DIR" --doc-type course --out out/facts
+python -m dallasai.pipeline.assemble_delivery --raw-root "$DATA_DIR" --facts out/facts --terms 2026SP --out out/delivery --fail-on-acceptance
 python -m dallasai.pipeline.carry_embeddings out/delivery/rows.json <previous>.embedded.json out/delivery/rows.carried.json
 python -m dallasai.pipeline.embed_rows --rows out/delivery/rows.carried.json --out out/delivery/rows.embedded.json
 python -m dallasai.load_catalog_to_neon out/delivery/rows.embedded.json --load --batch-size 100

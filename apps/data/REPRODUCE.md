@@ -11,21 +11,21 @@ uv run python -m dallasai.database --schema   # print SQL; no connection
 uv run python -m dallasai.database --status   # read-only counts; never initializes
 ```
 
-For a **new disposable database**, review [the generated baseline](reference/db/schema.sql), configure that target, then explicitly run `uv run python -m dallasai.database --init`. Setup enables `vector` and `pg_trgm`, creates missing tables, and never drops tables. It fails clearly on errors. It does not upgrade an existing table layout. There is no Alembic migration path; the old scaffold (no revisions) sits in [`archive/alembic`](archive/README.md).
+For a **new disposable database**, review [the generated baseline](reference/db/schema.sql), configure that target, then explicitly run `uv run python -m dallasai.database --init`. Setup enables `vector` and `pg_trgm`, creates missing tables, and never drops tables. It fails clearly on errors. It does not upgrade an existing table layout. There is no Alembic migration path; the old scaffold (no revisions) is in [Git history](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/tree/65f85ae/apps/data/archive/alembic).
 
 SQLAlchemy models are authoritative; TypeScript mirrors them. The supported baseline uses `halfvec(384)` and exact filtered vector search, without an HNSW index. Existing databases require a separately reviewed migration. Regenerate the reference SQL with `database --schema` after an approved model change; a regression test detects drift.
 
 ## Source evidence and extraction
 
-Keep the archived `catalog`, `schedule`, `cv`, `cv_profiles`, `syllabi` and `manifests` folders together under a configurable raw root. Archive manifests retain public source URLs and original fetch timestamps. HTTP success alone does not prove a page contains the intended document: login/error pages, absent headings, wrong identities and missing files must be quarantined.
+Keep the archived `catalog`, `schedule`, `cv`, `cv_profiles`, `syllabi` and `manifests` folders together in one folder outside the repository, named by the `DATA_DIR` setting. Archive manifests retain public source URLs and original fetch timestamps. HTTP success alone does not prove a page contains the intended document: login/error pages, absent headings, wrong identities and missing files must be quarantined.
 
 Use `python -m dallasai.pipeline.extract_batch --help` for the manifest filters and replay mode. The [extraction manual](EXTRACTION_MANUAL.md) explains the per-document schemas and prompt versions. Paid extraction requires an explicitly selected `EXTRACTOR`; replay accepts already reviewed payloads. Tests clear provider configuration and do not call paid extraction services.
 
 ```sh
-uv run python -m dallasai.pipeline.golden_gate --raw-root <raw> --gate-dir <verified-fixtures>
-uv run python -m dallasai.pipeline.extract_batch --raw-root <raw> --doc-type course --out <facts>
-uv run python -m dallasai.pipeline.verify_catalog --raw-root <raw> --facts <facts>
-uv run python -m dallasai.pipeline.verify_cv --raw-root <raw> --facts <facts/cv> --as-of 2026
+uv run python -m dallasai.pipeline.golden_gate --raw-root "$DATA_DIR" --gate-dir <verified-fixtures>
+uv run python -m dallasai.pipeline.extract_batch --raw-root "$DATA_DIR" --doc-type course --out <facts>
+uv run python -m dallasai.pipeline.verify_catalog --raw-root "$DATA_DIR" --facts <facts>
+uv run python -m dallasai.pipeline.verify_cv --raw-root "$DATA_DIR" --facts <facts/cv> --as-of 2026
 ```
 
 Golden fixtures must be supplied and reviewed; an empty fixture directory cannot unlock a bulk run. The repository's unit tests cover failure cases but do not replace the extractor's source-specific golden fixtures. Catalog verification checks titles as well as codes and credits. Adjudications waive only explicitly named diagnostics, never every error in a document. Missing CV sources and empty verification runs fail.
@@ -81,7 +81,7 @@ These commands validate only. The loader rejects empty deliveries/text, duplicat
 
 Full imports commit in batches and report failure if any batch fails; already committed batches remain and an idempotent retry is required. Facts-only updates require an `expected_content_hash` captured from each reviewed target, use one transaction, and roll back the entire delivery if any target is absent or its hash changed. `build_section_meetings` supplies this precondition automatically. Regenerate older proposals that lack it; never copy the proposed replacement hash into this field. Facts-only updates must only be used when source text and its embedding are unchanged. A stale proposal or a repeat of an already applied repair must be regenerated and reviewed before loading.
 
-The legacy `dallasai.main` write path is retired and kept in [`archive/legacy_write_path`](archive/README.md). `course_extractor` is import-safe and has an explicit local-output CLI; it does not bypass the supported loader.
+The legacy `dallasai.main` write path is retired; it is in [Git history](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/tree/65f85ae/apps/data/archive/legacy_write_path). `course_extractor` is import-safe and has an explicit local-output CLI; it does not bypass the supported loader.
 
 ## Acceptance
 

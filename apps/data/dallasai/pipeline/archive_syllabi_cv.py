@@ -1,13 +1,13 @@
 """File archiver: fetch Concourse syllabus + instructor-CV HTML to disk.
 
 Stage-1 acquisition for the RAG pipeline (see docs/DATA_PIPELINE.md). Saves
-RAW HTML bytes to apps/data/raw/ plus a JSONL manifest, so every later stage
+RAW HTML bytes to $DATA_DIR plus a JSONL manifest, so every later stage
 (parse, extract, load) can run and re-run without touching the network (the
 issue #34 "save original HTML" rule). Idempotent/resumable: a target already
 on disk is skipped, so the job can be stopped and restarted freely; pass
 --refresh-before to re-fetch files older than a given moment.
 
-Layout under --out (default: apps/data/raw/):
+Layout under --out (default: $DATA_DIR):
     schedule/dallas_classes_<YYYY>_<Term>.csv   inputs (eConnect schedule scrapes)
     syllabi/<TERMCODE>/<course_id>.html         one per section (2026SP / 2026SU / ...)
     cv/<professor-slug>.html                    one per DISTINCT professor
@@ -20,21 +20,21 @@ a lighter course_id/course_num_sect CSV is also auto-detected by header.
 CLI (run from apps/data):
     # CVs for every distinct professor across all terms (small, run first)
     python -m pipeline.archive_syllabi_cv --kind cv \
-        --worklist "raw/schedule/dallas_classes_2026_Spring.csv" \
-        --worklist "raw/schedule/dallas_classes_2026_Summer.csv"
+        --worklist "$DATA_DIR/schedule/dallas_classes_2026_Spring.csv" \
+        --worklist "$DATA_DIR/schedule/dallas_classes_2026_Summer.csv"
 
     # one term's syllabi, one representative per (professor, course, modality)
     python -m pipeline.archive_syllabi_cv --kind syllabus \
-        --worklist "raw/schedule/dallas_classes_2026_Spring.csv"
+        --worklist "$DATA_DIR/schedule/dallas_classes_2026_Spring.csv"
 
     # every section of specific sessions (not just representatives)
     python -m pipeline.archive_syllabi_cv --kind syllabus --all-sections \
-        --worklist "raw/schedule/dallas_classes_2026_Summer.csv" \
+        --worklist "$DATA_DIR/schedule/dallas_classes_2026_Summer.csv" \
         --sessions "Summer Session II"
 
     # refresh pass: re-fetch anything last fetched before July 12 (UTC)
     python -m pipeline.archive_syllabi_cv --kind syllabus \
-        --worklist "raw/schedule/dallas_classes_2026_Summer.csv" \
+        --worklist "$DATA_DIR/schedule/dallas_classes_2026_Summer.csv" \
         --refresh-before 2026-07-12T00:00:00
 """
 
@@ -44,6 +44,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import sys
 import time
@@ -471,7 +472,9 @@ def main(argv: list[str] | None = None) -> None:
     ap.add_argument(
         "--out",
         type=Path,
-        default=Path(__file__).resolve().parent.parent / "raw",
+        default=os.environ.get("DATA_DIR"),
+        required=not os.environ.get("DATA_DIR"),
+        help="raw corpus root (default: $DATA_DIR)",
     )
     ap.add_argument(
         "--sessions",

@@ -9,7 +9,7 @@
 > and 9 mention 768 dimensions, HNSW, a free tier or an open provider decision, read them as the
 > original design record. Current setup: [data runbook](../apps/data/REPRODUCE.md) ·
 > [generated schema](../apps/data/reference/db/schema.sql) · [runtime mirror](../apps/frontend/lib/schema.ts) (Drizzle).
-> The implementation handoff is archived at [ISSUE_51_HANDOFF.md](archive/ISSUE_51_HANDOFF.md).
+> The implementation handoff is archived at [ISSUE_51_HANDOFF.md](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_51_HANDOFF.md).
 
 ---
 
@@ -385,7 +385,7 @@ Growth is additive by design: a new content domain = new rows + a registry entry
 
 ## 8. ORM and connection management
 
-**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models with Alembic migrations — see [`docs/archive/ISSUE_51_HANDOFF.md`](archive/ISSUE_51_HANDOFF.md) for the implementation guide.
+**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models with Alembic migrations — see [`docs/archive/ISSUE_51_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_51_HANDOFF.md) for the implementation guide.
 
 **TypeScript mirrors it with Drizzle** (later issue), hand-written from the Python models. Drizzle is the chosen TS ORM because it has first-class pgvector support — native `halfvec` column type and typed `cosineDistance()` query helpers (pin `drizzle-orm ≥ 0.44.3`) — plus `generatedAlwaysAs()` so generated columns are excluded from insert types, and a lightweight `neon-http` driver suited to serverless. (Prisma was evaluated and rejected: it has no native pgvector type — vector columns must be declared `Unsupported("vector")` and every similarity query drops to raw SQL.) Because Alembic owns all DDL, the mirror is a read/write client only: **do not install `drizzle-kit`**, and never run its migration or introspection commands against the database.
 
