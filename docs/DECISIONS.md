@@ -13,9 +13,16 @@ Minjoo Kim decided to make the tree readable for new teammates:
   at commit `65f85ae`. Also removed: the placeholder `drizzle.config` and unused
   `tsconfig.drizzle-tests.json`, the retired gate exemplars, the unused mock seed and the
   superseded extraction prompts v1 and v2.
-- The raw-corpus setting is renamed from `RAW_ROOT` to `DATA_DIR`, and the scrapers no longer fall
-  back to a folder inside the repository. Rename `RAW_ROOT=` to `DATA_DIR=` in your local
-  `apps/data/.env`.
+- `docs/TOWNHALL_READINESS.md` is retired: its decisions are the 2026-09-24 and 2026-09-25 entries
+  below, the open after-demo items are listed under "Townhall readiness and printable notes", and
+  the packaging lesson lives in `next.config.ts` and `scripts/check-embedding-trace.mts`. Its
+  release evidence stays in Git history at `65f85ae`.
+- The raw-corpus setting is renamed from `RAW_ROOT` to `DATA_DIR`. Every pipeline command now
+  defaults `--raw-root` (and the scrapers' `--out`) to it, and nothing falls back to a folder
+  inside the repository. Rename `RAW_ROOT=` to `DATA_DIR=` in your local `apps/data/.env`.
+- Superseded Alembic wording is removed from the database design doc and schema comments; the
+  schema is created by `dallasai.database --init`, and existing databases change only through a
+  separately reviewed migration.
 - Rules for coding agents live in `AGENTS.md`; `CLAUDE.md` only imports it.
 
 ## 2026-09-25 — Require exact syllabus hyperlinks across the Fall inventory

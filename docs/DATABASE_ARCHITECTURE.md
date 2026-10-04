@@ -385,16 +385,16 @@ Growth is additive by design: a new content domain = new rows + a registry entry
 
 ## 8. ORM and connection management
 
-**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models with Alembic migrations — see [`docs/archive/ISSUE_51_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_51_HANDOFF.md) for the implementation guide.
+**Python is the schema's source of truth.** Issue #51 implements this design as SQLAlchemy 2.0 declarative models; `python -m dallasai.database --init` creates missing tables without migrations, and changing an existing database needs a separately reviewed migration ([data runbook](../apps/data/REPRODUCE.md)). The original implementation guide is [`ISSUE_51_HANDOFF.md`](https://github.com/Dallas-College-AI-Club/success-coach-chatbot/blob/65f85ae/docs/archive/ISSUE_51_HANDOFF.md).
 
-**TypeScript mirrors it with Drizzle** (later issue), hand-written from the Python models. Drizzle is the chosen TS ORM because it has first-class pgvector support — native `halfvec` column type and typed `cosineDistance()` query helpers (pin `drizzle-orm ≥ 0.44.3`) — plus `generatedAlwaysAs()` so generated columns are excluded from insert types, and a lightweight `neon-http` driver suited to serverless. (Prisma was evaluated and rejected: it has no native pgvector type — vector columns must be declared `Unsupported("vector")` and every similarity query drops to raw SQL.) Because Alembic owns all DDL, the mirror is a read/write client only: **do not install `drizzle-kit`**, and never run its migration or introspection commands against the database.
+**TypeScript mirrors it with Drizzle** (later issue), hand-written from the Python models. Drizzle is the chosen TS ORM because it has first-class pgvector support — native `halfvec` column type and typed `cosineDistance()` query helpers (pin `drizzle-orm ≥ 0.44.3`) — plus `generatedAlwaysAs()` so generated columns are excluded from insert types, and a lightweight `neon-http` driver suited to serverless. (Prisma was evaluated and rejected: it has no native pgvector type — vector columns must be declared `Unsupported("vector")` and every similarity query drops to raw SQL.) Because the Python models own all DDL, the mirror is a read/write client only: **do not install `drizzle-kit`**, and never run its migration or introspection commands against the database.
 
 **Connections** — Neon provides two connection strings; each side of the stack uses the right one:
 
 | Env var | Neon string | Used by | Why |
 |---|---|---|---|
 | `DATABASE_URL` | pooled (`…-pooler…`) | Next.js API routes (`@neondatabase/serverless` + `drizzle-orm/neon-http`) | PgBouncer-pooled HTTP one-shot queries fit serverless request patterns; no connection management code needed |
-| `DATABASE_URL_UNPOOLED` | direct | Alembic migrations, Python bulk ingest (SQLAlchemy + psycopg) | DDL, long transactions, and session-level semantics that transaction-mode pooling does not support |
+| `DATABASE_URL_UNPOOLED` | direct | Schema setup (`dallasai.database --init`), Python bulk ingest (SQLAlchemy + psycopg) | DDL, long transactions, and session-level semantics that transaction-mode pooling does not support |
 
 The Next.js app is full-stack: its API routes own the database connection (there is no separate backend server). All credentials live in `.env` files (see [`.env.example`](../.env.example)) and platform secret stores (Vercel / GitHub Actions / Colab) — never in source control.
 

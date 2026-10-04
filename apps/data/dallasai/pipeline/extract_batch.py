@@ -39,6 +39,7 @@ from typing import Iterator, Optional
 
 from dotenv import load_dotenv
 
+from . import add_data_dir_arg
 from .extract import (
     DOC_SCHEMAS,
     SCHEMAS_DIR,
@@ -154,12 +155,7 @@ def main(argv: Optional[list[str]] = None) -> None:
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    ap.add_argument(
-        "--raw-root",
-        type=Path,
-        required=True,
-        help="corpus root holding manifests/, syllabi/, cv/, catalog/",
-    )
+    add_data_dir_arg(ap)
     ap.add_argument("--manifest-glob", default="archive_*.jsonl")
     ap.add_argument(
         "--doc-type",

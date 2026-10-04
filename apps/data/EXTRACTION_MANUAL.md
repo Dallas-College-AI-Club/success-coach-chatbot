@@ -23,16 +23,16 @@ Do §1 once, then these six steps in order (each is detailed in its section):
 ```powershell
 # 0. put the new term's schedule CSV in $env:DATA_DIR\schedule\   (§3)
 # 1. scrape new pages
-python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv" --out "$env:DATA_DIR"
+python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv"
 # 1b. build the work list step 2 consumes (nothing earlier creates it)      (§4)
 New-Item -ItemType Directory -Force out | Out-Null
 #     see the one-liner in §4 for the full command
 # 2. extract (PILOT ~20 docs first — iron rule; then the full work list)     (§4)
-python -m dallasai.pipeline.extract_batch --raw-root "$env:DATA_DIR" --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
+python -m dallasai.pipeline.extract_batch --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
 # 3. verify, then adjudicate every flag + review 100% of quarantine          (§5)
-python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw-root "$env:DATA_DIR"
+python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026
 # 4. compose (fills computed numbers, teaching records, chunk_text)          (§6)
-python -m dallasai.pipeline.compose_cv --facts out/facts-cv/cv --out out/facts-cv-composed --raw-root "$env:DATA_DIR" --as-of 2026
+python -m dallasai.pipeline.compose_cv --facts out/facts-cv/cv --out out/facts-cv-composed --as-of 2026
 # 5. assemble rows + embed                                                    (§7)
 python -m dallasai.pipeline.assemble_cv_delivery --composed out/facts-cv-composed --out out/delivery-cv --fail-on-acceptance
 python -m dallasai.pipeline.carry_embeddings out/delivery-cv/rows-cv.json <previous>.embedded.json out/delivery-cv/rows-cv.carried.json
@@ -128,7 +128,7 @@ Get-Content .\.env | Where-Object { $_ -match "^\s*[^#].*=" } | ForEach-Object {
 }
 ```
 
-After that, `$env:DATA_DIR` (used in commands below) expands correctly.
+After that, every pipeline command reads the raw corpus from `DATA_DIR` (pass `--raw-root` only to override it), and `$env:DATA_DIR` in the work-list paths below expands correctly.
 Always QUOTE paths — they contain spaces (and the SharePoint path an emoji).
 
 **Sanity check the install:**
@@ -185,8 +185,8 @@ repeatable — the term is chosen by WHICH CSV you pass, there is no `--term`
 flag; `--sessions`/`--exclude-sessions` filter within it):
 
 ```powershell
-python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv" --out "$env:DATA_DIR"
-python -m dallasai.pipeline.archive_syllabi_cv --kind syllabus --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv" --out "$env:DATA_DIR"
+python -m dallasai.pipeline.archive_syllabi_cv --kind cv --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv"
+python -m dallasai.pipeline.archive_syllabi_cv --kind syllabus --worklist "$env:DATA_DIR\schedule\dallas_classes_2026_Spring.csv"
 ```
 
 **Catalog** (needs the Playwright browser — the catalog site blocks plain
@@ -195,7 +195,7 @@ catalog year is visible in the catalog site's URLs (2026-2027 = 5). Two-pass:
 programs first, then the courses they reference:
 
 ```powershell
-python -m dallasai.pipeline.catalog_fetch --catoid 5 --catalog-year 2026-2027 --out "$env:DATA_DIR"
+python -m dallasai.pipeline.catalog_fetch --catoid 5 --catalog-year 2026-2027
 ```
 
 > ⚠️ The by-program index misses the academic-transfer degrees — the section
@@ -259,7 +259,7 @@ numbers students see are computed later in Python (§6).
 or directly:
 
 ```powershell
-python -m dallasai.pipeline.extract_batch --raw-root "$env:DATA_DIR" --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
+python -m dallasai.pipeline.extract_batch --doc-type cv --paths-file out\worklist.txt --out out\facts-cv --quarantine-dir out\facts-cv-quarantine
 ```
 
 - `extract_batch` nests envelopes under a `<doc_type>/` subfolder of
@@ -339,7 +339,7 @@ promoted to prompt exemplars and therefore can never be tested again).
 Unlike the verifiers, the gate CALLS THE LIVE MODEL — a few cents per run:
 
 ```powershell
-python -m dallasai.pipeline.golden_gate --raw-root "$env:DATA_DIR"
+python -m dallasai.pipeline.golden_gate
 ```
 
 Run after EVERY prompt/model/schema change that touches catalog. The
@@ -368,7 +368,7 @@ Known college-side typos are accept-listed in
 **CV verifier** — over every envelope:
 
 ```powershell
-python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026 --raw-root "$env:DATA_DIR"
+python -m dallasai.pipeline.verify_cv --facts out/facts-cv/cv --as-of 2026
 ```
 
 `--as-of` = the scrape year (resolves "Present" in date math). It is a **fallback**,
@@ -413,7 +413,7 @@ cv you should also confirm `verify_cv.extraction_stage_errors(payload,
 source_text) == []` before replaying), then
 
 ```powershell
-python -m dallasai.pipeline.extract_batch --raw-root "$env:DATA_DIR" --doc-type cv --replay-map out\replay-map.jsonl --out out\facts-cv --quarantine-dir out\facts-cv-quarantine --refresh
+python -m dallasai.pipeline.extract_batch --doc-type cv --replay-map out\replay-map.jsonl --out out\facts-cv --quarantine-dir out\facts-cv-quarantine --refresh
 ```
 
 > ⚠️ **`--refresh` is required.** The replay target already exists, and without it
@@ -434,7 +434,7 @@ leaves `computed: null` / `teaching_record: null`; this stage fills them with
 pure Python and builds `chunk_text` mechanically.
 
 ```powershell
-python -m dallasai.pipeline.compose_cv --facts out/facts-cv/cv --out out/facts-cv-composed --raw-root "$env:DATA_DIR" --as-of 2026
+python -m dallasai.pipeline.compose_cv --facts out/facts-cv/cv --out out/facts-cv-composed --as-of 2026
 ```
 
 What it does, per profile — and why:
@@ -537,7 +537,7 @@ superseded = every page scraped.** If the ledger doesn't close, something
 was silently dropped — find it before shipping.
 (`FACULTY_EXPERTISE_INDEX` regenerates with
 `python -m dallasai.pipeline.expertise_index --rows out/delivery-cv/rows-cv.json
---raw-root "$env:DATA_DIR" --out out/delivery-cv/FACULTY_EXPERTISE_INDEX` —
+--out out/delivery-cv/FACULTY_EXPERTISE_INDEX` —
 `--out` is a BASENAME; the tool writes both `<out>.json` and `<out>.md`,
 overwriting in place. Always build it from the delivered rows file so the
 index can never disagree with the delivery.)

@@ -20,7 +20,7 @@ $env:PYTHONIOENCODING = "utf-8"
 $log = [IO.Path]::ChangeExtension($PathsFile, ".log")
 $max = if ($Retry) { 40 } else { 1 }
 for ($i = 0; $i -lt $max; $i++) {
-    python -m dallasai.pipeline.extract_batch --raw-root $env:DATA_DIR --doc-type cv `
+    python -m dallasai.pipeline.extract_batch --doc-type cv `
         --paths-file $PathsFile --out out\facts-cv --quarantine-dir out\facts-cv-quarantine 2>&1 |
         Out-File -Append -Encoding utf8 $log
     if ($LASTEXITCODE -eq 0) { break }

@@ -148,10 +148,10 @@ export const knowledgeEntry = pgTable(
 
 /**
  * Durable onboarding answers — mirrors the DEPLOYED profile allowlist
- * (the Alembic contract's ck_cs_profile_allowlist, per review on PR #122).
+ * (the deployed CHECK constraint ck_cs_profile_allowlist, per review on PR #122).
  * The documented target (schema.sql + registry `profile_keys`) is 10 keys;
  * widen this type and the CHECK below in a follow-up once the corresponding
- * Alembic migration is merged and deployed.
+ * reviewed database migration (apps/data/REPRODUCE.md) is applied.
  */
 export type ChatSessionProfile = Partial<{
   campus: string;
@@ -185,7 +185,7 @@ export const chatSession = pgTable(
   (t) => [
     // Mirrors the DEPLOYED 3-key allowlist (per review on PR #122). schema.sql
     // + registry profile_keys document a 10-key target — widen in a follow-up
-    // after the corresponding Alembic migration is merged and deployed.
+    // after a reviewed database migration widens the deployed CHECK.
     check(
       "ck_cs_profile_allowlist",
       sql`profile IS NULL OR profile - 'campus' - 'major' - 'student_type' = '{}'::jsonb`,

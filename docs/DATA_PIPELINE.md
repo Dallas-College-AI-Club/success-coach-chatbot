@@ -321,8 +321,8 @@ envelope is skipped); assemble, embed and load are full re-runs, and the load sk
 whose `content_hash` is unchanged:
 
 ```bash
-python -m dallasai.pipeline.extract_batch --raw-root "$DATA_DIR" --doc-type course --out out/facts
-python -m dallasai.pipeline.assemble_delivery --raw-root "$DATA_DIR" --facts out/facts --terms 2026SP --out out/delivery --fail-on-acceptance
+python -m dallasai.pipeline.extract_batch --doc-type course --out out/facts
+python -m dallasai.pipeline.assemble_delivery --facts out/facts --terms 2026SP --out out/delivery --fail-on-acceptance
 python -m dallasai.pipeline.carry_embeddings out/delivery/rows.json <previous>.embedded.json out/delivery/rows.carried.json
 python -m dallasai.pipeline.embed_rows --rows out/delivery/rows.carried.json --out out/delivery/rows.embedded.json
 python -m dallasai.load_catalog_to_neon out/delivery/rows.embedded.json --load --batch-size 100

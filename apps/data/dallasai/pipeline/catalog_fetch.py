@@ -37,12 +37,13 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
+
+from . import add_data_dir_arg
 
 BASE = "https://catalog.dallascollege.edu"
 PROGRAM_INDEX_NAVOID = 1227  # "Degrees and Certificates (by Program)"
@@ -175,9 +176,7 @@ def main(argv: Optional[list[str]] = None) -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--catoid", required=True, help="Acalog catalog id (2026-2027 = 5)")
     ap.add_argument("--catalog-year", required=True, help="e.g. 2026-2027 (the scoping key)")
-    ap.add_argument("--out", type=Path, default=os.environ.get("DATA_DIR"),
-                    required=not os.environ.get("DATA_DIR"),
-                    help="raw corpus root (default: $DATA_DIR)")
+    add_data_dir_arg(ap, "--out")
     ap.add_argument("--navoid", type=int, default=PROGRAM_INDEX_NAVOID,
                     help="program-index navoid (default 1227)")
     ap.add_argument("--poids-file", type=Path, default=None,

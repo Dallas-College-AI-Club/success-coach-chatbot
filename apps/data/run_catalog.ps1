@@ -11,22 +11,21 @@ Get-Content "$here\.env" | Where-Object { $_ -match "^\s*[^#].*=" } | ForEach-Ob
 }
 if (-not $env:ANTHROPIC_API_KEY) { Write-Error "ANTHROPIC_API_KEY is empty in apps\data\.env"; exit 1 }
 $env:PYTHONIOENCODING = "utf-8"
-$raw = $env:DATA_DIR
 $out = $env:FACTS_OUT
 
 if ($Stage -eq "gate") {
-    python -m dallasai.pipeline.golden_gate --raw-root $raw
+    python -m dallasai.pipeline.golden_gate
     if ($LASTEXITCODE -ne 0) { exit 1 }
 }
 if ($Stage -eq "pilot") {
-    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --limit 20 --out "$here\out\pilot"
-    python -m dallasai.pipeline.verify_catalog --facts "$here\out\pilot" --raw-root $raw
+    python -m dallasai.pipeline.extract_batch --manifest-glob "archive_catalog_*.jsonl" --doc-type course --limit 20 --out "$here\out\pilot"
+    python -m dallasai.pipeline.verify_catalog --facts "$here\out\pilot"
 }
 if ($Stage -eq "bulk") {
-    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type course --out $out
-    python -m dallasai.pipeline.extract_batch --raw-root $raw --manifest-glob "archive_catalog_*.jsonl" --doc-type program_map --out $out
-    python -m dallasai.pipeline.verify_catalog --facts $out --raw-root $raw
+    python -m dallasai.pipeline.extract_batch --manifest-glob "archive_catalog_*.jsonl" --doc-type course --out $out
+    python -m dallasai.pipeline.extract_batch --manifest-glob "archive_catalog_*.jsonl" --doc-type program_map --out $out
+    python -m dallasai.pipeline.verify_catalog --facts $out
 }
 if ($Stage -eq "verify") {
-    python -m dallasai.pipeline.verify_catalog --facts $out --raw-root $raw
+    python -m dallasai.pipeline.verify_catalog --facts $out
 }

@@ -22,10 +22,10 @@ Keep the archived `catalog`, `schedule`, `cv`, `cv_profiles`, `syllabi` and `man
 Use `python -m dallasai.pipeline.extract_batch --help` for the manifest filters and replay mode. The [extraction manual](EXTRACTION_MANUAL.md) explains the per-document schemas and prompt versions. Paid extraction requires an explicitly selected `EXTRACTOR`; replay accepts already reviewed payloads. Tests clear provider configuration and do not call paid extraction services.
 
 ```sh
-uv run python -m dallasai.pipeline.golden_gate --raw-root "$DATA_DIR" --gate-dir <verified-fixtures>
-uv run python -m dallasai.pipeline.extract_batch --raw-root "$DATA_DIR" --doc-type course --out <facts>
-uv run python -m dallasai.pipeline.verify_catalog --raw-root "$DATA_DIR" --facts <facts>
-uv run python -m dallasai.pipeline.verify_cv --raw-root "$DATA_DIR" --facts <facts/cv> --as-of 2026
+uv run python -m dallasai.pipeline.golden_gate --gate-dir <verified-fixtures>
+uv run python -m dallasai.pipeline.extract_batch --doc-type course --out <facts>
+uv run python -m dallasai.pipeline.verify_catalog --facts <facts>
+uv run python -m dallasai.pipeline.verify_cv --facts <facts/cv> --as-of 2026
 ```
 
 Golden fixtures must be supplied and reviewed; an empty fixture directory cannot unlock a bulk run. The repository's unit tests cover failure cases but do not replace the extractor's source-specific golden fixtures. Catalog verification checks titles as well as codes and credits. Adjudications waive only explicitly named diagnostics, never every error in a document. Missing CV sources and empty verification runs fail.
@@ -49,7 +49,7 @@ uv run python -m dallasai.pipeline.build_section_meetings --schedule <raw/schedu
 Export a review snapshot with `uv run python -m dallasai.database --export-snapshot <new-snapshot.json>` (read-only; refuses overwrites). The corpus review tool takes this snapshot containing `docs` (all course/program/CV records with facts, metadata, text, source URL, chunk index, hash and source timestamp) and `schedules` (course/term section counts). It never connects to a database:
 
 ```sh
-uv run python -m dallasai.pipeline.audit_corpus --raw-root <raw> --snapshot <snapshot.json> --out <new-review-directory>
+uv run python -m dallasai.pipeline.audit_corpus --snapshot <snapshot.json> --out <new-review-directory>
 ```
 
 Its report distinguishes real missing courses, elective-option pages, quarantine and schedule codes without a catalog record. `XXXX` pages belong to `catalog` with `record_kind=course_options`; they are not enrollable courses. Generated supplements still require source review, embedding, validation and approval before loading. A catalog record does not establish that a section is offered this term.

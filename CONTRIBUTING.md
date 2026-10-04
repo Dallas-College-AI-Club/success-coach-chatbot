@@ -8,10 +8,11 @@ Welcome to the team! To maintain high code quality, prevent breaking changes fro
 Always branch off of `main` (or the designated integration branch) and use the following prefix system to clarify the intent of your work:
 
 * **Feature:** `feature/[ID]-[short-description]` (e.g., `feature/001-event-api`)
-* **Bugfix:** `bugfix/[ID]-[short-description]` (e.g., `bugfix/login-error`)
+* **Bugfix:** `bugfix/[ID]-[short-description]` (e.g., `bugfix/195-responsive-showcase`)
 * **Spike/Research:** `spike/[ID]-[short-description]` (e.g., `spike/004-infra`)
+* **AI coding agent:** keep the branch Claude Code or Codex creates (`claude/…`, `codex/…`); link the issue in the PR instead.
 
-**Note:** All `[ID]` are GitHub issue ids.
+**Note:** `[ID]` is the GitHub issue number; leave it out when there is no issue.
 
 ---
 

@@ -44,7 +44,6 @@ import argparse
 import csv
 import hashlib
 import json
-import os
 import re
 import sys
 import time
@@ -53,6 +52,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
+
+from . import add_data_dir_arg
 
 CONCOURSE = "https://dallascollege.campusconcourse.com"
 BROWSER_UA = (
@@ -469,13 +470,7 @@ def main(argv: list[str] | None = None) -> None:
         help="schedule CSV or summer work-list (repeatable)",
     )
     ap.add_argument("--kind", choices=["syllabus", "cv"], required=True)
-    ap.add_argument(
-        "--out",
-        type=Path,
-        default=os.environ.get("DATA_DIR"),
-        required=not os.environ.get("DATA_DIR"),
-        help="raw corpus root (default: $DATA_DIR)",
-    )
+    add_data_dir_arg(ap, "--out")
     ap.add_argument(
         "--sessions",
         default=None,
